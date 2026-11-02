@@ -4,7 +4,7 @@ a board groups google task lists from one connected account. every column is a l
 
 ## ownership and dependencies
 
-boards owns board identity, list membership, column order, appearance, view preferences, search composition, and filters. the task owner owns the lists and tasks being presented. calendar rules belong to planning; board templates follow templates.
+boards owns board identity, list membership, column order, appearance, view preferences, search composition, and filters. the task owner owns the lists and tasks being presented. calendar rules belong to [planning](../planning/spec.md); board templates follow templates.
 
 board queries combine task contracts with board metadata. tasks do not depend on board layout. moving a list calls a board operation; moving a task calls a task operation.
 

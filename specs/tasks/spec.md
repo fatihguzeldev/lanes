@@ -8,7 +8,7 @@ the task owner provides one task model to the board, calendar, search, history, 
 | --- | --- |
 | title, notes, list, parent, sibling order, completion, scheduled day, provider update time | google tasks |
 | labels, priority, starred state, dependencies | lanes |
-| scheduled time, time zone, repeat rule and occurrence identity | lanes, under planning |
+| scheduled time, time zone, repeat rule and occurrence identity | lanes, under [planning](../planning/spec.md) |
 | cached provider values and sync revision | task owner projection, under [sync](../sync/spec.md) |
 
 every reference includes its connected account. keep a stable lanes identity and an explicit provider address. cross-list moves must preserve metadata and history even if the provider returns a different id. google response objects do not become public browser contracts.
@@ -34,7 +34,7 @@ when completing a parent with open subtasks, state how many will also complete a
 
 reopening a parent does not silently reopen completed children. reopening a child under a completed parent also reopens the parent so the open child remains reachable. show both changes and record both confirmed outcomes.
 
-completing a blocked task requires explicit confirmation; see dependencies. recurring task completion and reopening follow planning. a template or import containing completed tasks is not a live completion action and does not trigger recurrence.
+completing a blocked task requires explicit confirmation; see dependencies. recurring task completion and reopening follow [planning](../planning/spec.md#completion-and-the-next-occurrence). a template or import containing completed tasks is not a live completion action and does not trigger recurrence.
 
 ## subtasks
 
