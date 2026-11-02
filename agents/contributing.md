@@ -10,9 +10,20 @@ discuss changes to product scope, ownership, or the free-hosting model before bu
 
 keep a change focused enough to review. include the relevant contract, tests, and guide updates. explain a new dependency or a changed boundary where the reviewer can see it.
 
+## commits
+
+use conventional commits: `type: description` or `type(scope): description`. write messages in english and lowercase, preserving case-sensitive identifiers. keep each commit focused on one logical change.
+
+choose a type that describes the change, such as `feat`, `fix`, `docs`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, or `revert`. add a scope when it helps identify the owner. mark breaking changes with `!` before the colon and explain them in a `BREAKING CHANGE:` footer.
+
+```text
+docs: require conventional commit messages
+fix(sync): preserve uncertain creation results
+```
+
 ## pull requests
 
-use a short descriptive title. follow repository history as conventions develop. do not introduce agent branding or require conventional-commit prefixes by default.
+use a short descriptive title. follow repository history as conventions develop. do not introduce agent branding.
 
 describe the problem and resulting behavior, then give the verification and any material limit. for a bug, a before/after example is often enough. screenshots help when the change depends on layout or interaction.
 

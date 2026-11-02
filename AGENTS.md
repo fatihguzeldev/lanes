@@ -15,6 +15,7 @@ use the [spec index](specs/index.md) for behavior contracts and acceptance crite
 - check the repository, branch, working tree, and existing changes before editing. preserve work already present.
 - use the branch requested for the task. inspect repository conventions before creating a branch.
 - keep changes uncommitted unless a commit is requested. push, merge, deploy, and publish only when the task authorizes them.
+- use conventional commits for commit messages. follow the [commit guidance](agents/contributing.md#commits).
 - do not use agent-branded branch names or pull request titles. follow repository history; use a short descriptive name when no convention exists.
 - distinguish decisions, proposals, and verified behavior. keep unanswered product questions open.
 - keep changes within the requested scope.
