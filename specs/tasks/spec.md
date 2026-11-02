@@ -56,7 +56,7 @@ moving a parent carries its subtasks. treat a provider move's descendant behavio
 
 preserve lanes identity, labels, priority, star, time, repeat rule, dependencies, and recorded history on movement. update list mappings and provider ids from confirmed responses. a move does not reset a task's scheduled day or completion.
 
-account-to-account movement is outside this command. offer the explicit source-preserving transfer flow instead. cross-board movement within an account chooses a destination list; moving the list itself belongs to boards.
+account-to-account movement is outside this command. offer the explicit source-preserving [transfer](../portability/spec.md#account-transfer) flow instead. cross-board movement within an account chooses a destination list; moving the list itself belongs to boards.
 
 ## labels, priorities, and stars
 

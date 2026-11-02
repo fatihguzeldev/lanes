@@ -30,7 +30,7 @@ the chosen setup is an external audience in testing mode. every account granting
 | --- | --- |
 | owner identity and account identification | `openid`, `email`, `profile` |
 | reading and editing tasks | `https://www.googleapis.com/auth/tasks` |
-| sheets import/export | incremental permission defined by portability |
+| sheets import/export | incremental permission defined by [portability](../portability/spec.md#google-sheets) |
 
 request offline access for background task work. validate the scopes actually granted. a missing refresh token is not a valid background connection; keep an existing usable refresh token when google legitimately omits a replacement. do not discard working task access because optional sheets consent was declined.
 

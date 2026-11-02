@@ -41,7 +41,7 @@ copy task titles, notes, hierarchy, order, dates, and lanes metadata. preserve c
 
 remap dependencies between copied tasks. omit dependencies pointing outside the copy and report the count before confirmation. do not make the duplicate block or modify original tasks. the board owner applies copied list appearance through its own operation; task duplication does not write board metadata. do not copy history or an original series' occurrence identities.
 
-use the portability operation contract for batching, partial results, and resume. duplication consumes one list slot and must pass the same quota admission as a new list.
+use the [portability operation contract](../portability/spec.md#execution-and-recovery) for batching, partial results, and resume. duplication consumes one list slot and must pass the same quota admission as a new list.
 
 ## delete
 

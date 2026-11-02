@@ -53,6 +53,8 @@ basic sign-in and tasks access are different permissions. use `openid`, `email`,
 
 one client serves all connected accounts on that instance. each account grants access separately. request sheets permission when that feature is used and match the scope to its file-access behavior. broad drive access is not a default requirement. see [tasks authorization](https://developers.google.com/workspace/tasks/auth) and [sheets scopes](https://developers.google.com/workspace/sheets/api/scopes).
 
+the [portability spec](../specs/portability/spec.md#google-sheets) defines url-based sheets import with incremental spreadsheet read access and new-file export with `drive.file`. this path needs no picker browser token or separate frontend credentials. explain the actual permission breadth; a pasted sheet url is not a provider-enforced per-file read grant.
+
 testing-mode task authorizations and refresh tokens expire after seven days. the owner reconnects each affected account through lanes. new accounts must first be added to test users. this limitation is accepted; see [google's audience rules](https://support.google.com/cloud/answer/15549945).
 
 workspace administrators can restrict third-party access. adding an account to test users does not override its organization's policy.

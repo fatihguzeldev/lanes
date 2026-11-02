@@ -6,7 +6,7 @@ history explains recorded task changes and lets the owner inspect completed work
 
 history owns event storage, retention, pagination, and event queries. task commands submit confirmed outcomes. sync submits observed external transitions. boards provides presentation context and never fabricates events from a browser action.
 
-history cannot mutate tasks, perform recurrence, or restore deleted resources. account scope is mandatory on every event and query. follow [sync](../sync/spec.md) for confirmed/uncertain outcomes and portability for exports.
+history cannot mutate tasks, perform recurrence, or restore deleted resources. account scope is mandatory on every event and query. follow [sync](../sync/spec.md) for confirmed/uncertain outcomes and [portability](../portability/spec.md) for exports.
 
 ## recorded changes
 

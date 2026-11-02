@@ -6,7 +6,7 @@ a template is a saved snapshot of a list or board. using it creates new work wit
 
 list snapshots belong to the task owner; board snapshots belong to boards. this spec defines their combined behavior without requiring a separate template service. accounts scopes them, planning supplies date arithmetic, and [sync](../sync/spec.md) supplies durable execution.
 
-application calls the existing list, task, and board commands. it must satisfy [list quota](../lists/spec.md#list-quota), task validation, dependency rules, and portability recovery.
+application calls the existing list, task, and board commands. it must satisfy [list quota](../lists/spec.md#list-quota), task validation, dependency rules, and [portability recovery](../portability/spec.md#execution-and-recovery).
 
 ## saving a snapshot
 
