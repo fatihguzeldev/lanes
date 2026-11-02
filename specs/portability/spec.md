@@ -137,7 +137,7 @@ when restoring into an existing workspace, preserve its values by default and re
 
 history restoration preserves event identity/time and normal retention. unknown future archive versions fail clearly; migrations of older supported versions are explicit and validated before writes. imported task snapshots do not make old history appear to be actions on newly created copies.
 
-an archive is application portability, not an infrastructure restore. database backups, secret preservation, and deployment rollback belong to self-hosting.
+an archive is application portability, not an infrastructure restore. database backups, secret preservation, and deployment rollback belong to [self-hosting](../self-hosting/spec.md#updates-and-recovery).
 
 ## acceptance
 

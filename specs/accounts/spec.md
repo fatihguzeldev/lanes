@@ -6,7 +6,7 @@ one person owns an instance. that person can connect several google accounts wit
 
 accounts owns the owner identity, sessions, oauth flows, connected-account identities, token storage, refresh, and connection state. other owners request authorized provider access through accounts. they do not read tokens or implement refresh themselves.
 
-read [security](../../agents/security.md), self-hosting, and [sync](../sync/spec.md) with this spec. boards owns each account's main board; accounts must not create task or board records directly.
+read [security](../../agents/security.md), [self-hosting](../self-hosting/spec.md), and [sync](../sync/spec.md) with this spec. boards owns each account's main board; accounts must not create task or board records directly.
 
 ## instance access
 
