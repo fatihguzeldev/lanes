@@ -6,7 +6,7 @@ a list is one google tasks list. lanes displays it as a column and stores its bo
 
 the task owner owns list identity, provider fields, commands, duplication, and quota admission. boards owns placement, display order, and appearance. transfer and templates use the same creation commands and quota checks as the editor.
 
-read boards, [tasks](../tasks/spec.md), and [sync](../sync/spec.md). moving a list between boards is a local board operation, not a google copy or a task move.
+read [boards](../boards/spec.md), [tasks](../tasks/spec.md), and [sync](../sync/spec.md). moving a list between boards is a local board operation, not a google copy or a task move.
 
 ## create, read, and rename
 
