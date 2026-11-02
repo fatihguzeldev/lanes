@@ -12,7 +12,7 @@ keep the main workspace direct. common edits should take few steps, account owne
 
 | area | included |
 | --- | --- |
-| tasks and lists | create, edit, complete, reopen, and delete; notes, subtasks, ordering, movement, and list duplication |
+| tasks and lists | create, edit, complete, reopen, and delete; notes, subtasks, ordering, movement, stars, and list duplication |
 | organization | multiple boards, drag and drop, board and list appearance, labels, priorities, and task dependencies |
 | planning | calendar views, dates, times, repeating tasks, and list and board templates |
 | history | task changes and completion history |
@@ -50,9 +50,13 @@ use one static web client, one worker, and one d1 database as the baseline. defa
 
 ## behavior contracts
 
-- define whether columns represent google task lists, application statuses, or a chosen view. that mapping determines what moving a card changes; the folder layout does not select one.
-- define recurrence and template timing through completion rules, time zones, missed runs, and expired connections.
-- define what history records, how long it is retained, and how application-owned data can be carried to another installation.
-- define accepted import formats, field mappings, and failure behavior for each format.
+the [specs](../specs/index.md) own detailed behavior and acceptance criteria.
 
-these choices require explicit product decisions. do not turn an example from a discussion into an assumed requirement.
+- a column is a google task list. a board groups lists from one connected account; google has no board entity.
+- each account has a permanent main board. deleting a custom board moves its lists there and preserves google content. deleting a google list is a separate explicit action.
+- lanes admits at most 2,000 lists per connected account across all boards, including externally created lists. imports, templates, and duplication share the same admission rule. no automatic rotation or private archival bypass.
+- lanes-owned times and repeat rules are separate from native google scheduling. recurrence, template timing, missed work, and expiry behavior follow the planning and template specs.
+- history retains supported confirmed changes and external observations for 90 days. it does not provide title/note versioning or a restore guarantee.
+- portability defines formats, mappings, preview, limits, partial recovery, source-preserving account transfer, and credential-free workspace archives.
+
+change the owning spec when a product decision changes. an architecture example or a tasksboard feature outside the agreed scope does not create a requirement.

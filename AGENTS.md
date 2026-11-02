@@ -8,6 +8,8 @@ use the [guide index](agents/index.md) to find the guidance for the work. read [
 
 these guides belong in the repository. keep them aligned with the source and the decisions they explain.
 
+use the [spec index](specs/index.md) for behavior contracts and acceptance criteria. read the owning spec and affected consumers before changing a rule. spec folders describe behavior boundaries; source layout remains a separate design choice.
+
 ## working agreement
 
 - check the repository, branch, working tree, and existing changes before editing. preserve work already present.

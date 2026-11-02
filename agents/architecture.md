@@ -75,7 +75,7 @@ enforce these directions with import checks that cover the actual source paths a
 
 ## data ownership
 
-google is authoritative for the task fields its api supports, including titles, notes, completion, scheduled day, and ordering. d1 owns board organization, labels, priorities, dependencies, scheduled time, application repeat rules, account connections, task mappings, sync state, and history.
+google is authoritative for the task fields its api supports, including titles, notes, completion, scheduled day, and ordering. d1 owns board organization, labels, priorities, stars, dependencies, scheduled time, application repeat rules, account connections, task mappings, sync state, and history. the [specs](../specs/index.md) define the behavior these owners must provide; the storage and source layout here remain proposals.
 
 the task owner combines those records into the view consumed by the browser. google response shapes stay at its adapter boundary. account identity must travel with task references, queries, mutations, sync state, and history; provider ids alone are not an account boundary.
 
