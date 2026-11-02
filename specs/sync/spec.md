@@ -30,7 +30,7 @@ google enumeration is not a snapshot across pages. before treating a missing res
 
 externally moved tasks cannot always be matched to old lanes identities when google changes addresses without a stable mapping. do not infer identity from equal titles or notes. preserve an in-app move's known mapping; otherwise report the observed disappearance/new resource honestly and retain historical references.
 
-the first successful import of an existing google account establishes a baseline. it does not generate a creation event for every old task or claim to reconstruct earlier history. see history.
+the first successful import of an existing google account establishes a baseline. it does not generate a creation event for every old task or claim to reconstruct earlier history. see [history](../history/spec.md).
 
 reference provider behavior in [task listing](https://developers.google.com/workspace/tasks/reference/rest/v1/tasks/list) and [list enumeration](https://developers.google.com/workspace/tasks/reference/rest/v1/tasklists/list). verify filters and pagination against live controlled data before using them as deletion evidence.
 
