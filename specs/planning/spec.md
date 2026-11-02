@@ -4,7 +4,7 @@ planning gives tasks a scheduled day, optional time, and optional lanes repeat r
 
 ## ownership and dependencies
 
-the task owner owns date/time validation, repeat rules, occurrence identity, and successor creation. boards owns calendar composition and view preferences. accounts supplies authorization and connection state. [sync](../sync/spec.md) owns durable execution; templates owns scheduled creation of whole checklists.
+the task owner owns date/time validation, repeat rules, occurrence identity, and successor creation. boards owns calendar composition and view preferences. accounts supplies authorization and connection state. [sync](../sync/spec.md) owns durable execution; [templates](../templates/spec.md) owns scheduled creation of whole checklists.
 
 ## dates, times, and zones
 
