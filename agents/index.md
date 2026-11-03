@@ -1,10 +1,6 @@
 # agents
 
-project guidance for people and agents working on lanes. the [working agreement](../AGENTS.md) is the repository entry point.
-
-read product and architecture before changing behavior or ownership, then use the guide relevant to the task.
-
-the [spec index](../specs/index.md) maps concrete behavior contracts and acceptance criteria. these guides explain how to work on lanes; specs define what its features must do. the architecture remains a revisable proposal, not a fixed implementation of those contracts.
+[working agreement](../AGENTS.md) · [specs](../specs/index.md)
 
 | guide                           | read it for                                                                                                 |
 | ------------------------------- | ----------------------------------------------------------------------------------------------------------- |

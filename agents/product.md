@@ -50,8 +50,6 @@ use one static web client, one worker, and one d1 database as the baseline. defa
 
 ## behavior contracts
 
-the [specs](../specs/index.md) own detailed behavior and acceptance criteria.
-
 - a column is a google task list. a board groups lists from one connected account; google has no board entity.
 - each account has a permanent main board. deleting a custom board moves its lists there and preserves google content. deleting a google list is a separate explicit action.
 - lanes admits at most 2,000 lists per connected account across all boards, including externally created lists. imports, templates, and duplication share the same admission rule. no automatic rotation or private archival bypass.
@@ -59,4 +57,4 @@ the [specs](../specs/index.md) own detailed behavior and acceptance criteria.
 - history retains supported confirmed changes and external observations for 90 days. it does not provide title/note versioning or a restore guarantee.
 - portability defines formats, mappings, preview, limits, partial recovery, source-preserving account transfer, and credential-free workspace archives.
 
-change the owning spec when a product decision changes. an architecture example or a tasksboard feature outside the agreed scope does not create a requirement.
+architecture examples and out-of-scope tasksboard features do not add product requirements.

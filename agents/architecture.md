@@ -1,14 +1,12 @@
 # architecture
 
-everything in this document is subject to change. it is a design proposal covering the stack, layout, ownership, dependencies, runtime boundaries, and data handling.
-
-revise it when a better design fits the product. explain the reason and tradeoffs, check the relevant product and security requirements, and keep affected code, contracts, and guides aligned.
+this architecture is a proposal. everything in it is subject to change.
 
 ## runtime
 
 host lanes as one cloudflare deployment: a static browser client, a worker for server behavior, and d1 for application data. use a scheduled worker entry for bounded recurrence or template work when its timing rules require it.
 
-the browser client is designed around react and typescript. dependency versions belong in the package manifest and lockfile. build and test commands belong with their executable configuration.
+the browser client uses react and typescript.
 
 ## ownership map
 
@@ -27,8 +25,6 @@ src/
 migrations/
 wrangler.jsonc
 ```
-
-each path groups code by its owner. create internal folders when their responsibilities need them.
 
 | owner               | responsibility                                                                                     |
 | ------------------- | -------------------------------------------------------------------------------------------------- |
@@ -54,7 +50,7 @@ task recurrence belongs with the task lifecycle. list templates belong with task
 
 ## dependency direction
 
-composition can join concrete parts. a route delegates behavior to its owner; it does not grow a second implementation of the rule.
+a route delegates behavior to its owner; it does not grow a second implementation of the rule.
 
 - boards can compose task queries, commands, and presentation. tasks do not depend on board layout.
 - transfer calls the owning task or board commands. it does not write another owner's tables.
@@ -73,9 +69,11 @@ server code does not import browser components or depend on the currently select
 
 enforce these directions with import checks that cover the actual source paths and aliases used by the project.
 
+parse server configuration at the worker entry point. keep database queries with their data owner.
+
 ## data ownership
 
-google is authoritative for the task fields its api supports, including titles, notes, completion, scheduled day, and ordering. d1 owns board organization, labels, priorities, stars, dependencies, scheduled time, application repeat rules, account connections, task mappings, sync state, and history. the [specs](../specs/index.md) define the behavior these owners must provide; the storage and source layout here remain proposals.
+google is authoritative for the task fields its api supports, including titles, notes, completion, scheduled day, and ordering. d1 owns board organization, labels, priorities, stars, dependencies, scheduled time, application repeat rules, account connections, task mappings, sync state, and history.
 
 the task owner combines those records into the view consumed by the browser. google response shapes stay at its adapter boundary. account identity must travel with task references, queries, mutations, sync state, and history; provider ids alone are not an account boundary.
 
@@ -90,9 +88,3 @@ record confirmed outcomes. a click or an optimistic ui change is not proof that 
 sync belongs inside the task owner. it reconciles external changes with the local view. an observed google edit must not be fed back into an outgoing write merely to record it.
 
 history distinguishes a change made through lanes from a change discovered during sync. discovery time is not the exact time or full sequence of external edits. google does not provide an audit trail to backfill. d1 backups are separate from product history.
-
-## entry points to keep discoverable
-
-keep the exact paths for browser startup, worker startup, oauth start and callback, owner access checks, commands, scheduled work, schema migrations, bindings, secrets, and build and deploy commands discoverable from their owning guide and configuration.
-
-keep environment parsing in one server entry. pass the dependencies an owner needs. keep database queries with their data owner.

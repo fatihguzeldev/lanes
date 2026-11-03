@@ -6,7 +6,7 @@ the installation path is: clone the repository, give an agent the deployment req
 
 deployment configuration owns runtime entry points, bindings, environment validation, migrations, and release compatibility. accounts owns owner access and oauth. task scheduling owns scheduled work. every feature must satisfy the free-plan contract here.
 
-[the self-hosting guide](../../agents/self-hosting.md) is the agent's operational entry point. this spec defines the behavior that workflow must deliver. [architecture](../../agents/architecture.md) proposes one implementation; every part of it remains subject to change.
+use the [self-hosting guide](../../agents/self-hosting.md) for setup commands. every part of the [architecture proposal](../../agents/architecture.md) remains subject to change.
 
 ## required inputs
 

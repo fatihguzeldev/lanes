@@ -1,7 +1,5 @@
 # security
 
-lanes handles google account access and personal task data. each installation belongs to one owner.
-
 ## owner and connected accounts
 
 application ownership and a connected google account are separate identities. add accounts from an authenticated owner session. an oauth test-user entry or a successful google sign-in alone must not grant ownership.

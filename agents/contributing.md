@@ -4,7 +4,7 @@ read [product](product.md), the [architecture proposal](architecture.md), and [e
 
 ## a useful change
 
-pick a concrete problem and find its owner. describe the trigger, the expected result, and the current behavior when there is one. include a small reproduction for a bug.
+describe the trigger, expected result, and current behavior. include a reproduction for a bug.
 
 discuss changes to product scope, ownership, or the free-hosting model before building around them. leave unresolved decisions explicit. a feature existing in tasksboard does not automatically put it in lanes' scope.
 
@@ -40,7 +40,3 @@ keep required fixes distinct from optional suggestions. update the relevant guid
 ## repository policy
 
 licensing terms belong in the repository's license files. a license change or contributor agreement requires an explicit owner decision.
-
-keep issue and pull request templates, release instructions, and reporting guidance aligned with the workflow they describe. link to the owning guide instead of maintaining a second copy.
-
-agents follow the task's branch and publishing instructions. creating documentation is not authorization to open a pull request or publish it.

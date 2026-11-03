@@ -1,6 +1,6 @@
 # sync
 
-sync reconciles google tasks with lanes' local projection and makes interrupted work understandable. it does not promise a transaction across google and the database.
+sync reconciles google tasks with lanes' local projection. google and lanes' database do not share a transaction.
 
 ## ownership and authority
 

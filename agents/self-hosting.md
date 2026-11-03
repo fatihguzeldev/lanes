@@ -1,6 +1,6 @@
 # self-hosting
 
-clone lanes, ask an agent to host it, complete the required sign-ins and consent, and receive the application url. the agent follows the repository's entry points and handles configuration and deployment.
+clone lanes and ask an agent to deploy it. complete the required account sign-ins and consent.
 
 ## what the owner needs
 
@@ -24,13 +24,13 @@ the agent can choose ordinary defaults for resource names and other routine deta
 
 wrangler and cloudflare mcp are alternative ways to give the agent cloudflare access. the owner does not need to configure both. see [wrangler login](https://developers.cloudflare.com/workers/wrangler/commands/general/#login).
 
-google publishes [mcp servers](https://github.com/google/mcp), but a google mcp connection is not a setup requirement. do not assume it can create the web oauth client or configure its audience and test users. use available tools where they support the operation and an authorized browser for console configuration. the owner does not need to operate the console manually when the agent can do it. account permissions are still required; sign-in, two-factor authentication, and consent stay with the owner.
+google mcp is optional. do not assume it can create the web oauth client or configure its audience and test users. use available tools where they support the operation and an authorized browser for the remaining console steps. the owner handles sign-in, two-factor authentication, and consent.
 
 if browser access is unavailable or a step requires the owner, hand off only that step with the exact page and values. resume the setup afterward.
 
 the google configuration consists of choosing a project, enabling the tasks api, configuring an external audience in testing mode, adding the connecting accounts to test users, and creating a web oauth client with the exact callback url supplied by the agent. configure sheets access when that feature is used. see [google's setup guide](https://developers.google.com/workspace/guides/get-started).
 
-the default address is on `workers.dev`; buying a domain is optional. the owner does not need to obtain application secrets from another service. resources, bindings, migrations, and deployment commands belong to the agent's work.
+the default address is on `workers.dev`; buying a domain is optional.
 
 ## agent workflow
 
@@ -49,13 +49,13 @@ verify the `workers.dev` callback and the personal testing-mode flow together. d
 
 ## google permissions
 
-basic sign-in and tasks access are different permissions. use `openid`, `email`, and `profile` for identity and `https://www.googleapis.com/auth/tasks` for task access. gmail inbox access is not needed.
+use `openid`, `email`, and `profile` for identity and `https://www.googleapis.com/auth/tasks` for task access. gmail inbox access is not needed.
 
 one client serves all connected accounts on that instance. each account grants access separately. request sheets permission when that feature is used and match the scope to its file-access behavior. broad drive access is not a default requirement. see [tasks authorization](https://developers.google.com/workspace/tasks/auth) and [sheets scopes](https://developers.google.com/workspace/sheets/api/scopes).
 
-the [portability spec](../specs/portability/spec.md#google-sheets) defines url-based sheets import with incremental spreadsheet read access and new-file export with `drive.file`. this path needs no picker browser token or separate frontend credentials. explain the actual permission breadth; a pasted sheet url is not a provider-enforced per-file read grant.
+url-based sheets import uses incremental spreadsheet read access; new-file export uses `drive.file`. no picker browser token or separate frontend credentials are needed. a pasted sheet url is not a provider-enforced per-file read grant. see [sheets portability](../specs/portability/spec.md#google-sheets).
 
-testing-mode task authorizations and refresh tokens expire after seven days. the owner reconnects each affected account through lanes. new accounts must first be added to test users. this limitation is accepted; see [google's audience rules](https://support.google.com/cloud/answer/15549945).
+testing-mode task authorizations and refresh tokens expire after seven days. the owner reconnects each affected account through lanes. new accounts must first be added to test users. see [google's audience rules](https://support.google.com/cloud/answer/15549945).
 
 workspace administrators can restrict third-party access. adding an account to test users does not override its organization's policy.
 
@@ -84,11 +84,11 @@ use `npm ci` to install the locked dependencies. `npm run check` runs formatting
 
 `npm run build:deploy` runs the vite build in deploy mode with `wrangler.deploy.jsonc`; it fails if that file is missing. `npm run deploy` runs that build, then invokes wrangler using the generated deployment configuration. the vite/cloudflare build writes the deployment output under `dist/`; do not deploy a hand-built copy of the client or a different worker entry. a deploy must not fall back to the tracked template.
 
-the agent carries out these steps directly. a separate setup program is not required.
+run these commands directly; a separate setup program is not required.
 
 ### bindings and values
 
-`wrangler.jsonc` belongs to the project. keep its reusable defaults and placeholder values in git; do not replace them with an installation's account, database, owner or address.
+keep the reusable defaults and placeholder values in `wrangler.jsonc`; do not replace them with an installation's account, database, owner or address.
 
 on a fresh installation, the agent copies it once:
 
@@ -126,16 +126,12 @@ measure worker cpu, provider requests and d1 usage on the deployed free plan. lo
 
 ## updates and limits
 
-read the version's migration and deployment instructions before updating. preserve data and encryption keys. a worker rollback does not itself reverse a database migration.
-
 before an update, record the deployed worker version and obtain a d1 backup or time travel bookmark. store any exported database outside the checkout or under an ignored private path. keep the corresponding token-encryption key and key id separately; a database backup does not contain the worker’s secrets.
 
 install the locked dependencies and run `npm run check`. compare runtime, asset, cron and binding changes in the tracked template with the preserved private deploy config; carry over applicable changes without replacing personal values. inspect the pending migrations, apply them to the intended remote database, then deploy. test owner sign-in, account separation, task access and a retained operation after the update. preserve installation ownership, both keys, oauth client configuration and resource bindings.
 
 if a rollback is needed, first establish whether the previous worker can read the migrated schema. roll back code only when that remains compatible. restoring d1 is a separate explicit decision that can discard later writes. test the recovery path with controlled data before relying on it.
 
-application history and database backups serve different purposes. make the treatment of both clear before changing storage or retention.
-
-the default installation uses free-plan resources. quotas can pause an operation; free hosting does not promise unlimited capacity. custom domains are optional. verify current platform requirements before claiming the complete setup needs no billing account or payment method.
+verify current platform requirements before claiming the complete setup needs no billing account or payment method.
 
 check the current [worker limits](https://developers.cloudflare.com/workers/platform/limits/), [d1 limits](https://developers.cloudflare.com/d1/platform/limits/) and [d1 pricing](https://developers.cloudflare.com/d1/platform/pricing/) during installation. the free plan’s cpu and query limits apply to background work as well as browser requests. other applications in the same cloudflare account share account-wide allowances. d1 time travel currently retains seven days on the free plan; an archive’s task history has its separate 90-day product policy.

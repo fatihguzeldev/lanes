@@ -1,7 +1,5 @@
 # specs
 
-lanes is a personal workspace over google tasks. these specs define its behavior, including the parts stored only by lanes and the limits inherited from google and cloudflare.
-
 read [product](../agents/product.md) for scope and the [architecture proposal](../agents/architecture.md) for a possible implementation. everything in that proposal is subject to change. a spec folder describes a behavior boundary; it does not require a source folder, service, or package with the same name.
 
 ## map
@@ -23,11 +21,11 @@ read [product](../agents/product.md) for scope and the [architecture proposal](.
 
 these are intended product contracts, not claims that a provider flow or deployment has passed verification. acceptance criteria describe evidence an implementation must produce.
 
-each spec states its owner, behavior, dependencies, failures, and acceptance criteria. add an open decision only when a real product question remains. do not use that section to defer routine implementation choices.
+add an open decision only when a real product question remains. do not use that section to defer routine implementation choices.
 
 change the owning spec before changing an observable rule. update affected consumers and acceptance criteria in the same change. keep the reason for a consequential choice beside the rule. keep implementation tasks, session notes, and completion checklists elsewhere.
 
-tasksboard is a behavior reference for the agreed scope. links explain the reference; the rules written here define lanes. lanes deliberately preserves lists when deleting a board, stores its metadata outside task notes, and handles uncertain writes explicitly.
+tasksboard references do not extend lanes' agreed scope.
 
 ## vocabulary and identity
 

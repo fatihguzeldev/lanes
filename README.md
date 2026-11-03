@@ -2,7 +2,7 @@
 
 a self-hosted workspace for google tasks.
 
-your google lists become columns. boards give them a place. labels, planning, templates and history live in your own cloudflare account.
+your google lists become columns, grouped into boards. labels, planning, templates and history live in your own cloudflare account.
 
 one installation, one owner, several google accounts. each account keeps its own tasks and organization.
 
@@ -12,13 +12,13 @@ clone the repository and give your agent [AGENTS.md](AGENTS.md) and the [self-ho
 
 you handle account sign-in, two-factor authentication and google consent. the agent handles the build, database, configuration and deployment. it can also handle google console configuration when you give it authorized browser access.
 
-the agent keeps your installation values in ignored `wrangler.deploy.jsonc` and your live secrets in cloudflare. the tracked `wrangler.jsonc` stays reusable for everyone. the [self-hosting guide](agents/self-hosting.md#bindings-and-values) owns the setup and update steps.
+your deployment settings stay in ignored `wrangler.deploy.jsonc`. live secrets stay in cloudflare.
 
 the default setup uses a worker, static assets, d1 and a `workers.dev` address. it is designed for the free plan; quotas can pause work. no custom domain or paid service is required by the application.
 
 google oauth stays in testing mode. add every connected account to the projectâ€™s test users and reconnect when its seven-day authorization expires.
 
-## a place for your tasks
+## features
 
 - boards, lists, subtasks, notes, stars, labels, priorities and dependencies.
 - kanban, stacked lists, a calendar, search and account-wide today and starred views.
@@ -26,9 +26,7 @@ google oauth stays in testing mode. add every connected account to the projectâ€
 - confirmed change history and visible progress for interrupted operations.
 - file and google sheets import, csv and sheets export, account transfers and workspace archives.
 
-google owns its task content. lanes owns the extra organization. an interrupted request stays visible; an uncertain create is not silently sent again.
-
-the [specs](specs/index.md) define the behavior. the [guides](agents/index.md) explain its owners, boundaries and setup.
+an interrupted request stays visible; an uncertain create is not silently sent again.
 
 ## work on lanes
 
