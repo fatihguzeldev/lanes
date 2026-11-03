@@ -20,10 +20,10 @@ dependencies inside the captured set use template-local references. omit referen
 
 dates have two modes:
 
-| mode | stored value and application |
-| --- | --- |
+| mode           | stored value and application                                                                           |
+| -------------- | ------------------------------------------------------------------------------------------------------ |
 | relative dates | signed calendar-day offset from the save day in the account zone; add it to the chosen application day |
-| no dates | omit scheduled days, times, and active repeat rules from created tasks |
+| no dates       | omit scheduled days, times, and active repeat rules from created tasks                                 |
 
 negative offsets are valid and visible in preview. they may create tasks scheduled before the application day; do not silently clamp them. keeping times requires relative dates. repeat rules become independent series anchored to the resulting day, with occurrence counts reset. a snapshot may retain its repeat preset, but application without dates cannot attach an active rule without an anchor; show that omission in preview.
 
@@ -67,14 +67,14 @@ changing the weekday, day, zone, template revision, or destination changes futur
 
 ## pauses and failures
 
-| cause | behavior |
-| --- | --- |
-| expired or disconnected account | retain schedule; require reconnect and a catch-up choice |
-| destination board deleted | pause and require a new destination |
-| template deleted | pause; do not use a different template automatically |
-| insufficient list slots | create nothing during preflight; show needed capacity and require resume |
+| cause                                 | behavior                                                                  |
+| ------------------------------------- | ------------------------------------------------------------------------- |
+| expired or disconnected account       | retain schedule; require reconnect and a catch-up choice                  |
+| destination board deleted             | pause and require a new destination                                       |
+| template deleted                      | pause; do not use a different template automatically                      |
+| insufficient list slots               | create nothing during preflight; show needed capacity and require resume  |
 | provider failure after some creations | retain confirmed output and captured input; expose partial run and resume |
-| unknown provider create outcome | block the affected step for reconciliation; do not create another copy |
+| unknown provider create outcome       | block the affected step for reconciliation; do not create another copy    |
 
 manual and scheduled application share the same rules. a failed run does not delete a board or list it already created as an automatic rollback. an empty board created before provider failure stays visible with the operation result.
 

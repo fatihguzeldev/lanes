@@ -10,14 +10,14 @@ keep the main workspace direct. common edits should take few steps, account owne
 
 ## scope
 
-| area | included |
-| --- | --- |
+| area            | included                                                                                                     |
+| --------------- | ------------------------------------------------------------------------------------------------------------ |
 | tasks and lists | create, edit, complete, reopen, and delete; notes, subtasks, ordering, movement, stars, and list duplication |
-| organization | multiple boards, drag and drop, board and list appearance, labels, priorities, and task dependencies |
-| planning | calendar views, dates, times, repeating tasks, and list and board templates |
-| history | task changes and completion history |
-| portability | file import, csv and google sheets export, google sheets import, and transfer between connected accounts |
-| use | search, filters, and multiple google accounts |
+| organization    | multiple boards, drag and drop, board and list appearance, labels, priorities, and task dependencies         |
+| planning        | calendar views, dates, times, repeating tasks, and list and board templates                                  |
+| history         | task changes and completion history                                                                          |
+| portability     | file import, csv and google sheets export, google sheets import, and transfer between connected accounts     |
+| use             | search, filters, and multiple google accounts                                                                |
 
 file import covers spreadsheet, text, markdown, and google takeout data. each supported format needs explicit field mappings, size limits, and invalid-record behavior.
 

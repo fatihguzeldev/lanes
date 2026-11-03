@@ -10,15 +10,15 @@ history cannot mutate tasks, perform recurrence, or restore deleted resources. a
 
 ## recorded changes
 
-| event | recorded detail |
-| --- | --- |
-| task created | task, list, source operation, and creation context |
-| completed or reopened | state transition and provider completion time when available |
-| moved | old/new list or parent; distinguish cross-list movement from reparenting |
-| deleted | task/list context and confirmed deletion |
-| scheduled day set, changed, or removed | previous and resulting day |
-| scheduled time or repeat rule changed | lanes-owned change summary |
-| labels, priority, star, or dependencies changed | changed metadata and relevant references |
+| event                                           | recorded detail                                                          |
+| ----------------------------------------------- | ------------------------------------------------------------------------ |
+| task created                                    | task, list, source operation, and creation context                       |
+| completed or reopened                           | state transition and provider completion time when available             |
+| moved                                           | old/new list or parent; distinguish cross-list movement from reparenting |
+| deleted                                         | task/list context and confirmed deletion                                 |
+| scheduled day set, changed, or removed          | previous and resulting day                                               |
+| scheduled time or repeat rule changed           | lanes-owned change summary                                               |
+| labels, priority, star, or dependencies changed | changed metadata and relevant references                                 |
 
 do not record every manual sibling-position adjustment as an activity event. a list move between boards changes how its list history is reached, not the historical identity of every task.
 
@@ -32,11 +32,11 @@ the scoped event list and 90-day window use [tasksboard history](https://support
 
 each event has a stable id, connected account, task identity, list identity, event kind, origin, observed/recorded time, and the relevant before/after summary. store only the snapshots needed for that event. include the operation or provider-version observation used for deduplication.
 
-| origin | time claim |
-| --- | --- |
+| origin                     | time claim                                                                 |
+| -------------------------- | -------------------------------------------------------------------------- |
 | owner action through lanes | confirmed operation time; provider completion time may be shown separately |
-| scheduled lanes work | confirmed operation time and schedule/run reference |
-| observed in google | discovery time, with provider update/completion time if available |
+| scheduled lanes work       | confirmed operation time and schedule/run reference                        |
+| observed in google         | discovery time, with provider update/completion time if available          |
 
 label external records as observed. do not infer which google app, person, or intermediate sequence produced a state. google does not expose an audit trail through tasks. three unseen edits may appear as one observed difference.
 

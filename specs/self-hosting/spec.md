@@ -10,14 +10,14 @@ deployment configuration owns runtime entry points, bindings, environment valida
 
 ## required inputs
 
-| input | owner supplies | agent handles |
-| --- | --- | --- |
-| repository | the checkout and authorization to deploy it | read guides/configuration and select the actual executable entry points |
-| cloudflare | a free account, sign-in, and target account when ambiguous | reuse authorization through wrangler or cloudflare mcp; create/reuse resources |
-| google project | an account permitted to manage a project and any interactive sign-in/2fa | create/select project, enable apis, configure audience/client/test users through authorized tools or browser |
-| instance owner | the intended owner google identity | configure closed access before sign-in is exposed |
-| connected accounts | account selection and consent for each | verify distinct grants, initialization, and reconnect behavior |
-| credentials | manual secure input only when the agent cannot retrieve them | retrieve client configuration, generate app keys, and store server secrets |
+| input              | owner supplies                                                           | agent handles                                                                                                |
+| ------------------ | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
+| repository         | the checkout and authorization to deploy it                              | read guides/configuration and select the actual executable entry points                                      |
+| cloudflare         | a free account, sign-in, and target account when ambiguous               | reuse authorization through wrangler or cloudflare mcp; create/reuse resources                               |
+| google project     | an account permitted to manage a project and any interactive sign-in/2fa | create/select project, enable apis, configure audience/client/test users through authorized tools or browser |
+| instance owner     | the intended owner google identity                                       | configure closed access before sign-in is exposed                                                            |
+| connected accounts | account selection and consent for each                                   | verify distinct grants, initialization, and reconnect behavior                                               |
+| credentials        | manual secure input only when the agent cannot retrieve them             | retrieve client configuration, generate app keys, and store server secrets                                   |
 
 wrangler and cloudflare mcp are alternatives when either has the needed capabilities. google mcp is optional and must not be assumed to support oauth console administration. an authorized browser can perform console configuration; only unavailable or owner-only steps are handed back with exact values.
 
@@ -35,14 +35,14 @@ the application remains closed while owner configuration or oauth secrets are in
 
 ## configuration boundaries
 
-| concern | storage/visibility |
-| --- | --- |
-| public browser configuration | only nonsecret values needed by the static client |
-| application origin, owner bootstrap identity, resource bindings | validated server/deployment configuration |
-| oauth client secret, session key, token-encryption key | worker secrets; never static assets or tracked values |
-| google refresh/access tokens | encrypted account-owned records; key held outside d1 |
-| schema versions, task projections, local metadata, operations | the selected d1 database |
-| oauth callback and schedule entry points | explicit worker routing/configuration |
+| concern                                                         | storage/visibility                                    |
+| --------------------------------------------------------------- | ----------------------------------------------------- |
+| public browser configuration                                    | only nonsecret values needed by the static client     |
+| application origin, owner bootstrap identity, resource bindings | validated server/deployment configuration             |
+| oauth client secret, session key, token-encryption key          | worker secrets; never static assets or tracked values |
+| google refresh/access tokens                                    | encrypted account-owned records; key held outside d1  |
+| schema versions, task projections, local metadata, operations   | the selected d1 database                              |
+| oauth callback and schedule entry points                        | explicit worker routing/configuration                 |
 
 generate installation keys once, using cryptographic randomness. preserve them across redeploys. a missing or mismatched encryption key fails closed with an actionable installation error; it must not erase accounts or regenerate a key over existing encrypted data.
 
@@ -77,15 +77,15 @@ all included features must work without enabling a paid plan, within provider fr
 
 the documented cloudflare free ceilings include:
 
-| resource | documented bound |
-| --- | --- |
-| worker requests | 100,000 per day |
-| worker cpu | 10 ms per invocation, including free cron work |
-| outgoing worker subrequests | 50 per invocation |
-| d1 queries per worker invocation | 50 |
-| d1 rows read/written | 5 million reads and 100,000 writes per day |
-| d1 storage | 500 mb per free database, 5 gb total per account |
-| d1 recovery window | seven-day time travel on free |
+| resource                         | documented bound                                 |
+| -------------------------------- | ------------------------------------------------ |
+| worker requests                  | 100,000 per day                                  |
+| worker cpu                       | 10 ms per invocation, including free cron work   |
+| outgoing worker subrequests      | 50 per invocation                                |
+| d1 queries per worker invocation | 50                                               |
+| d1 rows read/written             | 5 million reads and 100,000 writes per day       |
+| d1 storage                       | 500 mb per free database, 5 gb total per account |
+| d1 recovery window               | seven-day time travel on free                    |
 
 these are external platform limits and can change. verify [worker pricing](https://developers.cloudflare.com/workers/platform/pricing/), [worker limits](https://developers.cloudflare.com/workers/platform/limits/), [d1 pricing](https://developers.cloudflare.com/d1/platform/pricing/), and [d1 limits](https://developers.cloudflare.com/d1/platform/limits/) before making a release capacity claim. account-wide usage from other applications can consume available capacity.
 

@@ -6,18 +6,18 @@ read [product](../agents/product.md) for scope and the [architecture proposal](.
 
 ## map
 
-| spec | owns the contract for |
-| --- | --- |
-| [accounts](accounts/spec.md) | instance ownership, sign-in, connecting accounts, selection, reconnecting, and disconnecting |
-| [lists](lists/spec.md) | google task lists, list actions, duplication, and the account-wide list quota |
-| [tasks](tasks/spec.md) | task fields, subtasks, completion, movement, labels, priorities, stars, and dependencies |
-| [boards](boards/spec.md) | grouping lists, board lifecycle, appearance, views, search, and filters |
-| [planning](planning/spec.md) | calendar behavior, dates, times, time zones, and lanes repeat rules |
-| [templates](templates/spec.md) | reusable list and board snapshots, application, and scheduled creation |
-| [sync](sync/spec.md) | provider reconciliation, confirmed writes, conflicts, retries, partial work, and freshness |
-| [history](history/spec.md) | recorded changes, external observations, retention, and completed-task browsing |
-| [portability](portability/spec.md) | file and sheets import/export, account transfer, and portable workspace metadata |
-| [self-hosting](self-hosting/spec.md) | installation inputs, agent responsibilities, free-plan operation, updates, and recovery |
+| spec                                 | owns the contract for                                                                        |
+| ------------------------------------ | -------------------------------------------------------------------------------------------- |
+| [accounts](accounts/spec.md)         | instance ownership, sign-in, connecting accounts, selection, reconnecting, and disconnecting |
+| [lists](lists/spec.md)               | google task lists, list actions, duplication, and the account-wide list quota                |
+| [tasks](tasks/spec.md)               | task fields, subtasks, completion, movement, labels, priorities, stars, and dependencies     |
+| [boards](boards/spec.md)             | grouping lists, board lifecycle, appearance, views, search, and filters                      |
+| [planning](planning/spec.md)         | calendar behavior, dates, times, time zones, and lanes repeat rules                          |
+| [templates](templates/spec.md)       | reusable list and board snapshots, application, and scheduled creation                       |
+| [sync](sync/spec.md)                 | provider reconciliation, confirmed writes, conflicts, retries, partial work, and freshness   |
+| [history](history/spec.md)           | recorded changes, external observations, retention, and completed-task browsing              |
+| [portability](portability/spec.md)   | file and sheets import/export, account transfer, and portable workspace metadata             |
+| [self-hosting](self-hosting/spec.md) | installation inputs, agent responsibilities, free-plan operation, updates, and recovery      |
 
 ## reading and changing a contract
 
@@ -31,17 +31,17 @@ tasksboard is a behavior reference for the agreed scope. links explain the refer
 
 ## vocabulary and identity
 
-| term | meaning |
-| --- | --- |
-| instance | one installation with one owner and its own cloudflare resources and oauth client |
-| owner | the google identity allowed to enter and administer that instance |
-| connected account | a separately authorized google identity whose tasks the owner can manage |
-| list | one google tasks list, displayed as one board column |
-| board | a lanes-owned group of lists from one connected account |
-| main board | the account's permanent home for lists without another board |
-| task | a google task plus its lanes-owned metadata |
-| confirmed | the responsible system accepted the change and lanes recorded its outcome |
-| observed | lanes discovered a provider state during sync; the full external edit sequence is unknown |
+| term              | meaning                                                                                   |
+| ----------------- | ----------------------------------------------------------------------------------------- |
+| instance          | one installation with one owner and its own cloudflare resources and oauth client         |
+| owner             | the google identity allowed to enter and administer that instance                         |
+| connected account | a separately authorized google identity whose tasks the owner can manage                  |
+| list              | one google tasks list, displayed as one board column                                      |
+| board             | a lanes-owned group of lists from one connected account                                   |
+| main board        | the account's permanent home for lists without another board                              |
+| task              | a google task plus its lanes-owned metadata                                               |
+| confirmed         | the responsible system accepted the change and lanes recorded its outcome                 |
+| observed          | lanes discovered a provider state during sync; the full external edit sequence is unknown |
 
 google ids are scoped to a connected account. task references also carry the list mapping needed to address google. a title, email address, or browser-selected account is never a resource identity. preserve a stable lanes task identity when google changes a task's address during movement.
 

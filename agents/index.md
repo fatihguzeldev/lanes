@@ -6,11 +6,11 @@ read product and architecture before changing behavior or ownership, then use th
 
 the [spec index](../specs/index.md) maps concrete behavior contracts and acceptance criteria. these guides explain how to work on lanes; specs define what its features must do. the architecture remains a revisable proposal, not a fixed implementation of those contracts.
 
-| guide | read it for |
-| --- | --- |
-| [product](product.md) | purpose, scope, account behavior, and product contracts |
+| guide                           | read it for                                                                                                 |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| [product](product.md)           | purpose, scope, account behavior, and product contracts                                                     |
 | [architecture](architecture.md) | a design proposal, entirely subject to change, covering ownership, dependencies, runtime, and data handling |
-| [engineering](engineering.md) | code organization, dependencies, verification, and writing |
-| [self-hosting](self-hosting.md) | account requirements, deployment, google permissions, configuration, and updates |
-| [contributing](contributing.md) | focused changes, pull requests, and review |
-| [security](security.md) | owner access, connected accounts, credentials, external data, and private reporting |
+| [engineering](engineering.md)   | code organization, dependencies, verification, and writing                                                  |
+| [self-hosting](self-hosting.md) | account requirements, deployment, google permissions, configuration, and updates                            |
+| [contributing](contributing.md) | focused changes, pull requests, and review                                                                  |
+| [security](security.md)         | owner access, connected accounts, credentials, external data, and private reporting                         |

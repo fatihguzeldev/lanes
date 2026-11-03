@@ -10,14 +10,14 @@ accounts supplies account identity and incremental permissions. [sync](../sync/s
 
 ## supported inputs and bounds
 
-| input | supported interpretation |
-| --- | --- |
-| `.csv`, `.tsv` | utf-8 delimited text, optional byte-order mark, quoted multiline cells, selectable header row |
-| `.xlsx`, `.xls`, `.ods`, `.numbers` | selected workbook tables/sheets normalized to rows; values only |
-| `.txt`, `.md` | headings for lists, lines/bullets for tasks, checkboxes for completion, indentation for hierarchy and notes |
-| google takeout `Tasks.json` | lists, tasks, hierarchy, notes, scheduled days, and completion represented in that export |
-| google sheets | selected tabs/ranges of a spreadsheet authorized through the chosen account |
-| lanes workspace archive | versioned task snapshots and/or lanes-owned metadata described below |
+| input                               | supported interpretation                                                                                    |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `.csv`, `.tsv`                      | utf-8 delimited text, optional byte-order mark, quoted multiline cells, selectable header row               |
+| `.xlsx`, `.xls`, `.ods`, `.numbers` | selected workbook tables/sheets normalized to rows; values only                                             |
+| `.txt`, `.md`                       | headings for lists, lines/bullets for tasks, checkboxes for completion, indentation for hierarchy and notes |
+| google takeout `Tasks.json`         | lists, tasks, hierarchy, notes, scheduled days, and completion represented in that export                   |
+| google sheets                       | selected tabs/ranges of a spreadsheet authorized through the chosen account                                 |
+| lanes workspace archive             | versioned task snapshots and/or lanes-owned metadata described below                                        |
 
 accept at most 20 mib per file. archive-based workbook parsers also cap total decompressed input at 100 mib and reject unsupported/encrypted containers. do not accept an arbitrary zip of files as a task import. bound table dimensions and stop after detecting more than the allowed task count; a workbook's declared empty range cannot allocate unbounded memory.
 
@@ -33,18 +33,18 @@ parsing and preview make no google writes. choose the source account where relev
 
 support new lists grouped by worksheet, a mapped list column, or one chosen new list. support appending to an existing list without consuming a list slot. never merge into an existing list just because its title matches an imported value.
 
-| field | mapping rule |
-| --- | --- |
-| task title | required; blank rows are skipped and counted |
-| notes | plain text with preserved line breaks |
-| list | grouping value for new lists; cannot change an explicitly selected existing destination |
-| source key / parent key | input-local identities for hierarchy; never trusted as destination provider ids |
-| subtask column | legacy parent-title/child-title layout, normalized into explicit parent keys |
-| scheduled day | iso date by default; explicitly selected date convention for other forms |
-| scheduled time / zone | optional local time plus valid iana zone; requires a scheduled day |
-| completed / completed at | explicit boolean values and optional completion timestamp |
-| labels / priority / star | validated lanes metadata, with preview of names and allowed values |
-| repeat rule / dependencies | supported structured lanes format with input-local references |
+| field                      | mapping rule                                                                            |
+| -------------------------- | --------------------------------------------------------------------------------------- |
+| task title                 | required; blank rows are skipped and counted                                            |
+| notes                      | plain text with preserved line breaks                                                   |
+| list                       | grouping value for new lists; cannot change an explicitly selected existing destination |
+| source key / parent key    | input-local identities for hierarchy; never trusted as destination provider ids         |
+| subtask column             | legacy parent-title/child-title layout, normalized into explicit parent keys            |
+| scheduled day              | iso date by default; explicitly selected date convention for other forms                |
+| scheduled time / zone      | optional local time plus valid iana zone; requires a scheduled day                      |
+| completed / completed at   | explicit boolean values and optional completion timestamp                               |
+| labels / priority / star   | validated lanes metadata, with preview of names and allowed values                      |
+| repeat rule / dependencies | supported structured lanes format with input-local references                           |
 
 recognize common headers case-insensitively, including tasksboard-style `Task`, `Subtask`, `Notes`, `Due date`, `Completed`, and `List`. display the resulting mapping and allow changes. do not claim every trello, todoist, or asana export schema is supported without a documented mapping.
 
@@ -126,10 +126,10 @@ archive generation is paginated and bounded. cap an individual archive at 20 mib
 
 support two explicit import modes:
 
-| mode | behavior |
-| --- | --- |
-| restore metadata | reconnect the same google subjects, match verified provider resources, and restore lanes-owned data without creating google tasks |
-| copy task snapshots | use ordinary import to create new resources in a selected account; remap included metadata and references; preserve the source |
+| mode                | behavior                                                                                                                          |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| restore metadata    | reconnect the same google subjects, match verified provider resources, and restore lanes-owned data without creating google tasks |
+| copy task snapshots | use ordinary import to create new resources in a selected account; remap included metadata and references; preserve the source    |
 
 metadata restore previews matches, unmatched records, and conflicts. only explicit account mappings are accepted. matching task titles is insufficient. do not create missing provider content or assign another account's metadata as a shortcut. let the owner skip unmatched records or select the separate snapshot-copy mode.
 

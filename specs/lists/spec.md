@@ -55,12 +55,12 @@ external confirmed deletion has the same local cleanup. a stale inventory, denie
 
 lanes admits at most **2,000 google lists per connected account**, across all boards and including lists created outside lanes. this mirrors the [documented google limit](https://developers.google.com/resources/api-libraries/documentation/tasks/v1/python/latest/tasks_v1.tasklists.html). it is not a per-board allowance or a guarantee that google will accept every write below 2,000.
 
-| operation | list slots needed |
-| --- | --- |
-| empty board creation, board rename, board deletion, moving an existing list between boards | 0 |
-| create or duplicate one list | 1 |
-| import, account transfer, or template use creating lists | number of new destination lists |
-| import into an existing list | 0 |
+| operation                                                                                  | list slots needed               |
+| ------------------------------------------------------------------------------------------ | ------------------------------- |
+| empty board creation, board rename, board deletion, moving an existing list between boards | 0                               |
+| create or duplicate one list                                                               | 1                               |
+| import, account transfer, or template use creating lists                                   | number of new destination lists |
+| import into an existing list                                                               | 0                               |
 
 count the last complete google inventory plus admitted creations not yet reflected in it. reserve capacity durably with the operation so two tabs or jobs cannot both claim the same last slot. a confirmed creation converts its reservation into a known list; it must not count twice. an uncertain creation keeps its reservation until reconciled.
 

@@ -42,17 +42,17 @@ admit work durably before sending a provider mutation. capture required quota re
 
 use durable compare-and-set state and bounded execution claims. an expired claim does not authorize blind replay of an already dispatched provider request. resolve its outcome first. serialize dependent steps and competing commands for a resource; unrelated accounts need not share one global lock.
 
-| state | meaning |
-| --- | --- |
-| accepted | validated and durably admitted; no completed result yet |
-| running | a bounded step is being executed |
-| succeeded | required outcomes and local records are confirmed |
-| partial | some batch/grouped steps succeeded and remaining work is known |
-| reconnect required | progress needs renewed account authorization |
-| blocked by limit | progress needs available capacity or explicit input changes |
-| uncertain | a provider request may have succeeded; automatic repetition is unsafe |
-| failed | a definite failure with no further automatic execution scheduled |
-| cancelled | unsent remaining work was cancelled; confirmed output remains |
+| state              | meaning                                                               |
+| ------------------ | --------------------------------------------------------------------- |
+| accepted           | validated and durably admitted; no completed result yet               |
+| running            | a bounded step is being executed                                      |
+| succeeded          | required outcomes and local records are confirmed                     |
+| partial            | some batch/grouped steps succeeded and remaining work is known        |
+| reconnect required | progress needs renewed account authorization                          |
+| blocked by limit   | progress needs available capacity or explicit input changes           |
+| uncertain          | a provider request may have succeeded; automatic repetition is unsafe |
+| failed             | a definite failure with no further automatic execution scheduled      |
+| cancelled          | unsent remaining work was cancelled; confirmed output remains         |
 
 after google confirms a write, persist its returned identity/version, task projection, metadata changes, operation progress, and history intent together where they share the local database. use an idempotent history write if recording crosses an owner boundary. if local persistence fails, repair from the recorded response or reconciliation; do not resend creation to repair history.
 

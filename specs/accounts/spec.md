@@ -26,11 +26,11 @@ use one google cloud project and one web oauth client per installation. each con
 
 the chosen setup is an external audience in testing mode. every account granting tasks or sheets access must be a test user. google allows up to 100 test users and expires these testing-mode grants and refresh tokens after seven days. reconnecting is expected behavior, not a reason to publish the oauth app. identity-only sign-in has different google expiry rules; do not describe all google sign-in as a seven-day grant. see [google's audience rules](https://support.google.com/cloud/answer/15549945).
 
-| capability | permission |
-| --- | --- |
-| owner identity and account identification | `openid`, `email`, `profile` |
-| reading and editing tasks | `https://www.googleapis.com/auth/tasks` |
-| sheets import/export | incremental permission defined by [portability](../portability/spec.md#google-sheets) |
+| capability                                | permission                                                                            |
+| ----------------------------------------- | ------------------------------------------------------------------------------------- |
+| owner identity and account identification | `openid`, `email`, `profile`                                                          |
+| reading and editing tasks                 | `https://www.googleapis.com/auth/tasks`                                               |
+| sheets import/export                      | incremental permission defined by [portability](../portability/spec.md#google-sheets) |
 
 request offline access for background task work. validate the scopes actually granted. a missing refresh token is not a valid background connection; keep an existing usable refresh token when google legitimately omits a replacement. do not discard working task access because optional sheets consent was declined.
 
@@ -60,14 +60,14 @@ when switching accounts, keep an in-progress editor attached to its original acc
 
 ## connection states
 
-| state | meaning and behavior |
-| --- | --- |
-| connecting | authorization or first initialization is incomplete; do not claim tasks are synced |
-| connected | tasks scope and usable credentials exist; normal operations are available |
-| reconnect required | grant expired, revoked, or refresh is invalid; show reconnect and pause provider work |
-| permission required | an optional capability lacks its scope; task work can remain available |
-| temporarily unavailable | google or the network failed; retain credentials and use bounded retry |
-| disconnected | the owner removed the grant from lanes; retained workspace data is read-only until relinked |
+| state                   | meaning and behavior                                                                        |
+| ----------------------- | ------------------------------------------------------------------------------------------- |
+| connecting              | authorization or first initialization is incomplete; do not claim tasks are synced          |
+| connected               | tasks scope and usable credentials exist; normal operations are available                   |
+| reconnect required      | grant expired, revoked, or refresh is invalid; show reconnect and pause provider work       |
+| permission required     | an optional capability lacks its scope; task work can remain available                      |
+| temporarily unavailable | google or the network failed; retain credentials and use bounded retry                      |
+| disconnected            | the owner removed the grant from lanes; retained workspace data is read-only until relinked |
 
 a provider outage or rate limit must not be mislabeled as expired consent. store the last successful sync separately from connection state. show retained task data as stale when it cannot be refreshed.
 

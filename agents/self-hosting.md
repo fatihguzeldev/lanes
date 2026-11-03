@@ -13,14 +13,14 @@ the agent can choose ordinary defaults for resource names and other routine deta
 
 ## who does what
 
-| part | owner | agent |
-| --- | --- | --- |
-| cloudflare access | sign in through wrangler or authorize a cloudflare mcp connection; choose the target account if needed | reuse existing access or guide the sign-in; either route is sufficient when it has the required permissions |
-| google configuration | complete sign-in, two-factor authentication, and required account consent; perform console steps only when the agent cannot | create or select the project, enable apis, and configure oauth through available tools or an authorized browser; give exact instructions for any step it cannot perform |
-| google client credentials | supply credentials through local input only if the agent cannot retrieve them | obtain the client id and secret or client configuration during setup and store the credentials in the worker's secrets |
-| application secrets | no external credentials to obtain | generate session and token-encryption keys and preserve them across updates |
-| hosting | no separate server or database account to manage | install required local tools, build, create or reuse cloudflare resources, apply migrations, configure bindings, deploy, and verify |
-| connected accounts | sign in to each google account and grant tasks access; reconnect when its testing-mode authorization expires | verify the connection and account separation, then return the application url |
+| part                      | owner                                                                                                                       | agent                                                                                                                                                                   |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| cloudflare access         | sign in through wrangler or authorize a cloudflare mcp connection; choose the target account if needed                      | reuse existing access or guide the sign-in; either route is sufficient when it has the required permissions                                                             |
+| google configuration      | complete sign-in, two-factor authentication, and required account consent; perform console steps only when the agent cannot | create or select the project, enable apis, and configure oauth through available tools or an authorized browser; give exact instructions for any step it cannot perform |
+| google client credentials | supply credentials through local input only if the agent cannot retrieve them                                               | obtain the client id and secret or client configuration during setup and store the credentials in the worker's secrets                                                  |
+| application secrets       | no external credentials to obtain                                                                                           | generate session and token-encryption keys and preserve them across updates                                                                                             |
+| hosting                   | no separate server or database account to manage                                                                            | install required local tools, build, create or reuse cloudflare resources, apply migrations, configure bindings, deploy, and verify                                     |
+| connected accounts        | sign in to each google account and grant tasks access; reconnect when its testing-mode authorization expires                | verify the connection and account separation, then return the application url                                                                                           |
 
 wrangler and cloudflare mcp are alternative ways to give the agent cloudflare access. the owner does not need to configure both. see [wrangler login](https://developers.cloudflare.com/workers/wrangler/commands/general/#login).
 

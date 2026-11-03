@@ -24,14 +24,14 @@ use the package scripts and tool configuration in the checkout. keep command doc
 
 choose checks for the behavior at risk:
 
-| change | useful verification |
-| --- | --- |
-| documentation | read for accuracy, check local links, scope, and repository state |
-| task or scheduling rules | focused behavior tests, including dates, account identity, and failure cases |
-| provider access or persistence | boundary tests and a narrow integration check with controlled data |
-| source organization | type checking, import boundary checks, and the build |
-| authentication, drag and drop, or calendar interactions | browser verification of the actual flow |
-| static text or straightforward css | source inspection and existing checks; leave final visual confirmation to the user unless requested |
+| change                                                  | useful verification                                                                                 |
+| ------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| documentation                                           | read for accuracy, check local links, scope, and repository state                                   |
+| task or scheduling rules                                | focused behavior tests, including dates, account identity, and failure cases                        |
+| provider access or persistence                          | boundary tests and a narrow integration check with controlled data                                  |
+| source organization                                     | type checking, import boundary checks, and the build                                                |
+| authentication, drag and drop, or calendar interactions | browser verification of the actual flow                                                             |
+| static text or straightforward css                      | source inspection and existing checks; leave final visual confirmation to the user unless requested |
 
 tests should exercise a contract or catch a plausible failure. avoid tests that restate private implementation details. mocks cannot establish that live google consent or a cloudflare deployment works.
 

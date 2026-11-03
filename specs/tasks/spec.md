@@ -4,12 +4,12 @@ the task owner provides one task model to the board, calendar, search, history, 
 
 ## data and ownership
 
-| field | authority |
-| --- | --- |
-| title, notes, list, parent, sibling order, completion, scheduled day, provider update time | google tasks |
-| labels, priority, starred state, dependencies | lanes |
-| scheduled time, time zone, repeat rule and occurrence identity | lanes, under [planning](../planning/spec.md) |
-| cached provider values and sync revision | task owner projection, under [sync](../sync/spec.md) |
+| field                                                                                      | authority                                            |
+| ------------------------------------------------------------------------------------------ | ---------------------------------------------------- |
+| title, notes, list, parent, sibling order, completion, scheduled day, provider update time | google tasks                                         |
+| labels, priority, starred state, dependencies                                              | lanes                                                |
+| scheduled time, time zone, repeat rule and occurrence identity                             | lanes, under [planning](../planning/spec.md)         |
+| cached provider values and sync revision                                                   | task owner projection, under [sync](../sync/spec.md) |
 
 every reference includes its connected account. keep a stable lanes identity and an explicit provider address. cross-list moves must preserve metadata and history even if the provider returns a different id. google response objects do not become public browser contracts.
 
