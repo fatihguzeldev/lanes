@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 import { testDatabase } from '../../../tests/sqlite-d1';
 import { AppError } from '../../contracts/errors';
-import { decryptToken } from './crypto';
+import { decryptToken, encryptToken, hashToken } from './crypto';
 import { GOOGLE_TASKS_SCOPE } from './google';
 import type {
   GoogleCodeGrant,
@@ -96,6 +96,248 @@ beforeEach(() => {
   service = new AccountService(database.db, config, { now: () => now, verify, exchange });
 });
 afterEach(() => database.close());
+
+describe('owner sign-in with the first task connection', () => {
+  function snapshot() {
+    return {
+      owner: database.sqlite.prepare('SELECT owner_subject FROM accounts_installation').get()
+        ?.owner_subject,
+      connections: database.sqlite.prepare('SELECT * FROM accounts_connections').all(),
+      sessions: database.sqlite.prepare('SELECT * FROM accounts_sessions').all(),
+    };
+  }
+
+  function beforeCommit(hook: () => Promise<void> | void) {
+    const original = database.db;
+    const wrapped = {
+      ...original,
+      async batch(statements: Parameters<typeof original.batch>[0]) {
+        await hook();
+        return original.batch(statements);
+      },
+    } as typeof original;
+    service = new AccountService(wrapped, config, { now: () => now, verify, exchange });
+  }
+
+  async function legacyState(started: Awaited<ReturnType<typeof start>>) {
+    const stateHash = await hashToken(new URL(started.authorizationUrl).searchParams.get('state')!);
+    const context = 'oauth:' + stateHash + ':verifier';
+    const row = database.sqlite
+      .prepare('SELECT verifier_ciphertext FROM accounts_oauth_states WHERE state_hash=?')
+      .get(stateHash)!;
+    const payload = JSON.parse(
+      await decryptToken(String(row.verifier_ciphertext), config.tokenKey, context),
+    );
+    delete payload.connectOwner;
+    await database.db
+      .prepare('UPDATE accounts_oauth_states SET verifier_ciphertext=? WHERE state_hash=?')
+      .bind(await encryptToken(JSON.stringify(payload), config.tokenKey, context), stateHash)
+      .run();
+    return started;
+  }
+
+  it('requests offline Tasks consent once and commits the owner, connection and session together', async () => {
+    const started = await start('signin');
+    const url = new URL(started.authorizationUrl);
+    expect(url.searchParams.get('scope')).toContain(GOOGLE_TASKS_SCOPE);
+    expect(url.searchParams.get('access_type')).toBe('offline');
+    expect(url.searchParams.get('prompt')).toBe('consent select_account');
+    const finished = await callback(started);
+    expect(finished.connectedAccountId).toBeTypeOf('string');
+    const stored = snapshot();
+    expect(stored.owner).toBe('owner-subject');
+    expect(stored.connections).toHaveLength(1);
+    expect(stored.sessions).toHaveLength(1);
+    expect(stored.connections[0]).toMatchObject({
+      id: finished.connectedAccountId,
+      google_subject: 'owner-subject',
+      state: 'connecting',
+      planning_zone: 'Europe/Istanbul',
+      grant_expires_at: now + 7 * day,
+    });
+    const savedGrant = JSON.parse(
+      await decryptToken(
+        String(stored.connections[0]?.grant_ciphertext),
+        config.tokenKey,
+        accountGrantContext(finished.connectedAccountId!),
+      ),
+    );
+    expect(savedGrant).toMatchObject({
+      refreshToken: 'refresh-token',
+      accessToken: 'access-token',
+    });
+    expect(savedGrant.idToken).toBeUndefined();
+    await expect(
+      service.requireSession(request('/', allPairs(finished.cookies))),
+    ).resolves.toMatchObject({
+      subject: 'owner-subject',
+    });
+  });
+
+  it('connects an already-bound owner when the legacy installation has no task accounts', async () => {
+    await service.getSession(request());
+    database.sqlite.prepare("UPDATE accounts_installation SET owner_subject='owner-subject'").run();
+    const started = await start('signin');
+    expect(new URL(started.authorizationUrl).searchParams.get('scope')).toContain(
+      GOOGLE_TASKS_SCOPE,
+    );
+    const finished = await callback(started);
+    expect(finished.connectedAccountId).toBeTypeOf('string');
+    expect(snapshot().connections).toHaveLength(1);
+  });
+
+  it('keeps returning sign-in identity-only even when task access expired', async () => {
+    const session = await signIn();
+    const previous = snapshot().connections;
+    expect(previous).toHaveLength(1);
+    now += 7 * day + 1;
+    grant = { ...grant, refreshToken: null, scopes: ['openid', 'email', 'profile'] };
+    const started = await start('signin', session);
+    const url = new URL(started.authorizationUrl);
+    expect(url.searchParams.get('scope')).toBe('openid email profile');
+    expect(url.searchParams.get('access_type')).toBe('online');
+    expect(url.searchParams.get('prompt')).toBe('select_account');
+    const finished = await callback(started, session);
+    expect(finished.connectedAccountId).toBeUndefined();
+    expect(snapshot().connections).toEqual(previous);
+    const reconnect = await start('reconnect', allPairs(finished.cookies), String(previous[0]?.id));
+    expect(new URL(reconnect.authorizationUrl).searchParams.get('scope')).toContain(
+      GOOGLE_TASKS_SCOPE,
+    );
+    expect(new URL(reconnect.authorizationUrl).searchParams.get('access_type')).toBe('offline');
+  });
+
+  it.each([
+    ['missing Tasks permission', 'permission_required'],
+    ['missing offline access', 'reconnect_required'],
+    ['expired offline access', 'reconnect_required'],
+  ])('does not claim or create a session with %s', async (kind, code) => {
+    if (kind === 'missing Tasks permission') grant.scopes = ['openid', 'email', 'profile'];
+    if (kind === 'missing offline access') grant.refreshToken = null;
+    if (kind === 'expired offline access') grant.refreshTokenExpiresAt = now - 1;
+    await expect(callback(await start('signin'))).rejects.toMatchObject({ code });
+    expect(snapshot()).toEqual({ owner: null, connections: [], sessions: [] });
+  });
+
+  it('preserves a legacy owner session on missing task consent and rotates it only with the saved first connection', async () => {
+    const offlineGrant = grant;
+    grant = { ...grant, refreshToken: null, scopes: ['openid', 'email', 'profile'] };
+    const legacy = await callback(await legacyState(await start('signin')));
+    const oldCookie = allPairs(legacy.cookies);
+    const before = snapshot();
+    expect(before).toMatchObject({ owner: 'owner-subject', connections: [] });
+    expect(before.sessions).toHaveLength(1);
+    await expect(callback(await start('signin', oldCookie), oldCookie)).rejects.toMatchObject({
+      code: 'permission_required',
+    });
+    expect(snapshot()).toEqual(before);
+    await expect(service.requireSession(request('/', oldCookie))).resolves.toMatchObject({
+      subject: 'owner-subject',
+    });
+    grant = offlineGrant;
+    const finished = await callback(await start('signin', oldCookie), oldCookie);
+    expect(finished.connectedAccountId).toBeTypeOf('string');
+    expect(snapshot().owner).toBe(before.owner);
+    expect(snapshot().connections).toHaveLength(1);
+    expect(snapshot().sessions).toHaveLength(1);
+    expect(await service.getSession(request('/', oldCookie))).toBeNull();
+    await expect(
+      service.requireSession(request('/', allPairs(finished.cookies))),
+    ).resolves.toMatchObject({ subject: 'owner-subject' });
+  });
+
+  it('leaves the first owner unclaimed when google consent is cancelled', async () => {
+    const started = await start('signin');
+    const state = new URL(started.authorizationUrl).searchParams.get('state');
+    await expect(
+      service.finishOAuth(
+        request(
+          '/auth/google/callback?state=' + state + '&error=access_denied',
+          pair(started.cookie),
+        ),
+      ),
+    ).rejects.toMatchObject({ code: 'forbidden' });
+    expect(exchange).not.toHaveBeenCalled();
+    expect(verify).not.toHaveBeenCalled();
+    expect(snapshot()).toEqual({ owner: null, connections: [], sessions: [] });
+  });
+
+  it('rolls back ownership and the grant if the final session transaction fails', async () => {
+    const started = await start('signin');
+    const original = database.db;
+    service = new AccountService(
+      {
+        ...original,
+        batch: (statements) =>
+          original.batch([...statements, original.prepare('SELECT * FROM missing_commit_table')]),
+      } as typeof original,
+      config,
+      { now: () => now, verify, exchange },
+    );
+    await expect(callback(started)).rejects.toBeDefined();
+    expect(snapshot()).toEqual({ owner: null, connections: [], sessions: [] });
+  });
+
+  it('fences an owner generation change immediately before the atomic commit', async () => {
+    const started = await start('signin');
+    beforeCommit(() => {
+      database.sqlite
+        .prepare("UPDATE accounts_installation SET owner_generation='replacement'")
+        .run();
+    });
+    await expect(callback(started)).rejects.toBeInstanceOf(AppError);
+    expect(snapshot()).toEqual({ owner: null, connections: [], sessions: [] });
+  });
+
+  it('rechecks a completed account removal fence in the final grant write', async () => {
+    const started = await start('signin');
+    beforeCommit(async () => {
+      const fence = await accountRelinkFence('owner-subject', now);
+      await database.db
+        .prepare('INSERT INTO accounts_removed_subjects(subject_hash,fresh_after) VALUES(?,?)')
+        .bind(fence.values[0], now)
+        .run();
+    });
+    await expect(callback(started)).rejects.toMatchObject({ code: 'conflict' });
+    expect(snapshot()).toEqual({ owner: null, connections: [], sessions: [] });
+  });
+
+  it('does not revive an account disconnected after first sign-in began', async () => {
+    const started = await start('signin');
+    beforeCommit(() => {
+      database.sqlite
+        .prepare(
+          `INSERT INTO accounts_connections(id,google_subject,email,display_name,state,created_at,updated_at)
+          VALUES('retained-owner','owner-subject','owner@example.com','owner','disconnected',?,?)`,
+        )
+        .run(now, now + 1);
+    });
+    await expect(callback(started)).rejects.toMatchObject({ code: 'conflict' });
+    const stored = snapshot();
+    expect(stored.owner).toBeNull();
+    expect(stored.sessions).toEqual([]);
+    expect(stored.connections).toHaveLength(1);
+    expect(stored.connections[0]).toMatchObject({ state: 'disconnected', grant_ciphertext: null });
+  });
+
+  it('creates one connection and session when the same callback arrives twice', async () => {
+    const started = await start('signin');
+    const result = await Promise.allSettled([callback(started), callback(started)]);
+    expect(result.filter((value) => value.status === 'fulfilled')).toHaveLength(1);
+    expect(exchange).toHaveBeenCalledTimes(1);
+    expect(snapshot().connections).toHaveLength(1);
+    expect(snapshot().sessions).toHaveLength(1);
+  });
+
+  it('keeps old encrypted identity-only states valid without implicitly connecting an account', async () => {
+    const started = await legacyState(await start('signin'));
+    grant = { ...grant, refreshToken: null, scopes: ['openid', 'email', 'profile'] };
+    const result = await callback(started);
+    expect(result.connectedAccountId).toBeUndefined();
+    expect(snapshot()).toMatchObject({ owner: 'owner-subject', connections: [] });
+    expect(snapshot().sessions).toHaveLength(1);
+  });
+});
 
 describe('local account removal and OAuth callback freshness', () => {
   async function removing(session: string) {
@@ -328,9 +570,11 @@ describe('owner access and sessions', () => {
     expect(result.cookies.every((cookie) => cookie.includes('Max-Age=0'))).toBe(true);
     expect(await service.getSession(request('/', session))).toBeNull();
     expect(await service.getSession(request('/', otherBrowser))).not.toBeNull();
-    expect(database.sqlite.prepare('SELECT id FROM accounts_connections').get()?.id).toBe(
-      linked.connectedAccountId,
-    );
+    expect(
+      database.sqlite
+        .prepare('SELECT id FROM accounts_connections WHERE id=?')
+        .get(linked.connectedAccountId!)?.id,
+    ).toBe(linked.connectedAccountId);
     await expect(service.listConnectionSummaries(request('/', session))).rejects.toMatchObject({
       code: 'unauthenticated',
     });
@@ -381,10 +625,10 @@ describe('one-use oauth authorization', () => {
     ).rejects.toMatchObject({ code: 'forbidden' });
   });
 
-  it('keeps signin identity-only and asks data flows for offline task access', async () => {
-    const signin = new URL((await start('signin')).authorizationUrl);
-    expect(signin.searchParams.get('scope')).toBe('openid email profile');
+  it('keeps returning signin identity-only and asks data flows for offline task access', async () => {
     const session = await signIn();
+    const signin = new URL((await start('signin', session)).authorizationUrl);
+    expect(signin.searchParams.get('scope')).toBe('openid email profile');
     const tasks = new URL((await start('link', session)).authorizationUrl);
     expect(tasks.searchParams.get('scope')).toContain(GOOGLE_TASKS_SCOPE);
     expect(tasks.searchParams.get('access_type')).toBe('offline');
@@ -417,9 +661,13 @@ describe('one-use oauth authorization', () => {
       return grant;
     });
     await expect(callback(started, session)).rejects.toMatchObject({ code: 'conflict' });
-    expect(database.sqlite.prepare('SELECT count(*) AS n FROM accounts_connections').get()?.n).toBe(
-      0,
-    );
+    expect(
+      database.sqlite
+        .prepare(
+          "SELECT count(*) AS n FROM accounts_connections WHERE google_subject='secondary-subject'",
+        )
+        .get()?.n,
+    ).toBe(0);
   });
 
   it('limits concurrent oauth starts and does not write again for denied attempts', async () => {
@@ -454,9 +702,13 @@ describe('one-use oauth authorization', () => {
       return grant;
     });
     await expect(callback(started, session)).rejects.toMatchObject({ code: 'unauthenticated' });
-    expect(database.sqlite.prepare('SELECT count(*) AS n FROM accounts_connections').get()?.n).toBe(
-      0,
-    );
+    expect(
+      database.sqlite
+        .prepare(
+          "SELECT count(*) AS n FROM accounts_connections WHERE google_subject='secondary-subject'",
+        )
+        .get()?.n,
+    ).toBe(0);
   });
 });
 
@@ -467,8 +719,9 @@ describe('linked accounts', () => {
     const second = await link(session);
     expect(second.connectedAccountId).toBe(first.connectedAccountId);
     const accounts = (await service.listConnectionSummaries(request('/', session))).items;
-    expect(accounts).toHaveLength(1);
-    expect(accounts[0]).toMatchObject({
+    expect(accounts).toHaveLength(2);
+    const linked = accounts.find((account) => account.id === first.connectedAccountId);
+    expect(linked).toMatchObject({
       id: first.connectedAccountId,
       state: 'connecting',
       planningZone: 'Europe/Istanbul',
@@ -476,7 +729,7 @@ describe('linked accounts', () => {
     });
     expect(JSON.stringify(accounts)).not.toContain('refresh-token');
     expect(JSON.stringify(accounts)).not.toContain('access-token');
-    expect(accounts[0]?.grantExpiresAt).toBe(new Date(initialNow + 7 * day).toISOString());
+    expect(linked?.grantExpiresAt).toBe(new Date(initialNow + 7 * day).toISOString());
   });
 
   it('does not replace a reconnect target when Google returns a different subject', async () => {
@@ -544,7 +797,7 @@ describe('linked accounts', () => {
     now += day + 1;
     const accounts = (await service.listConnectionSummaries(request('/', replacementSession)))
       .items;
-    expect(accounts[0]).toMatchObject({
+    expect(accounts.find((account) => account.id === linked.connectedAccountId)).toMatchObject({
       id: linked.connectedAccountId,
       state: 'reconnect_required',
     });
@@ -557,10 +810,15 @@ describe('linked accounts', () => {
 
   it('paginates account summaries by created time and identity and can select a later account directly', async () => {
     const session = await signIn();
+    const ownerId = String(
+      database.sqlite
+        .prepare("SELECT id FROM accounts_connections WHERE google_subject='owner-subject'")
+        .get()?.id,
+    );
     for (const [id, createdAt] of [
-      ['a', now],
-      ['b', now],
-      ['c', now + 1],
+      ['a', now + 1],
+      ['b', now + 1],
+      ['c', now + 2],
     ] as const) {
       await database.db
         .prepare(
@@ -572,13 +830,13 @@ describe('linked accounts', () => {
         .run();
     }
     const first = await service.listConnectionSummaries(request('/', session), { limit: 2 });
-    expect(first.items.map((account) => account.id)).toEqual(['a', 'b']);
+    expect(first.items.map((account) => account.id)).toEqual([ownerId, 'a']);
     expect(first.nextCursor).toBeTypeOf('string');
     const second = await service.listConnectionSummaries(request('/', session), {
       cursor: first.nextCursor!,
       limit: 2,
     });
-    expect(second.items.map((account) => account.id)).toEqual(['c']);
+    expect(second.items.map((account) => account.id)).toEqual(['b', 'c']);
     expect(second.nextCursor).toBeNull();
     expect(JSON.stringify(first)).not.toContain('sensitive-ciphertext');
     await expect(service.getConnectionSummary(request('/', session), 'c')).resolves.toMatchObject({

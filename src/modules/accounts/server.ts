@@ -37,7 +37,13 @@ import {
   exchangeGoogleCode,
   verifyGoogleIdToken,
 } from './google';
-import type { GoogleCodeGrant, GoogleFetch, GoogleGrant, GoogleOAuthConfig } from './google';
+import type {
+  GoogleCodeGrant,
+  GoogleFetch,
+  GoogleGrant,
+  GoogleIdentity,
+  GoogleOAuthConfig,
+} from './google';
 
 export interface AccountConfig {
   origin: string;
@@ -119,6 +125,10 @@ interface ConnectionRow {
   created_at: number;
   updated_at: number;
 }
+interface OAuthWriteAuthorization {
+  sql: string;
+  values: (string | number)[];
+}
 
 type SummaryRow = Pick<
   ConnectionRow,
@@ -185,6 +195,7 @@ const verifierSchema = z
   .object({
     verifier: z.string().regex(/^[A-Za-z0-9._~-]{43,128}$/),
     generation: z.string().min(1),
+    connectOwner: z.boolean().default(false),
   })
   .strict();
 const storedGrantSchema = z
@@ -499,6 +510,9 @@ export class AccountService {
           'reconnect this account before granting sheets access.',
           409,
         );
+      const connectOwner =
+        value.purpose === 'signin' &&
+        !(await this.db.prepare('SELECT 1 AS present FROM accounts_connections LIMIT 1').first());
       await this.limitOAuthStarts(request);
       const state = randomToken(),
         nonce = randomToken(),
@@ -506,7 +520,11 @@ export class AccountService {
       const browser = (await this.cookieToken(request, 'oauth')) ?? randomToken();
       const stateHash = await hashToken(state);
       const verifier = await encryptToken(
-        JSON.stringify({ verifier: pkce.verifier, generation: installation.owner_generation }),
+        JSON.stringify({
+          verifier: pkce.verifier,
+          generation: installation.owner_generation,
+          connectOwner,
+        }),
         this.config.tokenKey,
         'oauth:' + stateHash + ':verifier',
       );
@@ -531,7 +549,7 @@ export class AccountService {
           now,
         )
         .run();
-      const scopes = value.purpose === 'signin' ? [] : [GOOGLE_TASKS_SCOPE];
+      const scopes = value.purpose === 'signin' && !connectOwner ? [] : [GOOGLE_TASKS_SCOPE];
       if (value.purpose === 'sheets_import') scopes.push(sheetsImportScope);
       if (value.purpose === 'sheets_export') scopes.push(sheetsExportScope);
       const authorizationUrl = buildGoogleAuthorizationUrl(this.config.google, {
@@ -539,8 +557,9 @@ export class AccountService {
         nonce,
         codeChallenge: pkce.challenge,
         scopes,
-        offline: value.purpose !== 'signin',
-        prompt: value.purpose === 'signin' ? 'select_account' : 'consent select_account',
+        offline: value.purpose !== 'signin' || connectOwner,
+        prompt:
+          value.purpose === 'signin' && !connectOwner ? 'select_account' : 'consent select_account',
         ...(account ? { loginHint: account.email } : {}),
       });
       return {
@@ -556,10 +575,7 @@ export class AccountService {
     }
   }
 
-  private authorization(
-    session: OwnerSession,
-    state: OAuthStateRow,
-  ): { sql: string; values: (string | number)[] } {
+  private authorization(session: OwnerSession, state: OAuthStateRow): OAuthWriteAuthorization {
     return {
       sql: `EXISTS (SELECT 1 FROM accounts_sessions s JOIN accounts_installation i ON i.id=1
         AND i.owner_subject=s.owner_subject AND i.owner_generation=s.owner_generation
@@ -658,12 +674,18 @@ export class AccountService {
           403,
         );
       if (state.purpose === 'signin') {
-        if (!installation.owner_subject && normalizeEmail(identity.email) !== this.ownerEmail)
+        if (
+          installation.owner_subject
+            ? installation.owner_subject !== identity.subject
+            : normalizeEmail(identity.email) !== this.ownerEmail
+        )
           throw new AppError(
             'forbidden',
             'this google identity does not own this lanes instance.',
             403,
           );
+        if (verifier.data.connectOwner)
+          return await this.finishOwnerConnection(request, installation, state, identity, grant);
         if (!installation.owner_subject) {
           await this.db
             .prepare(
@@ -705,123 +727,14 @@ export class AccountService {
           'the session that started this authorization has ended.',
           401,
         );
-      ensureGoogleScopes(grant.scopes, [
-        GOOGLE_TASKS_SCOPE,
-        ...(state.purpose === 'sheets_import'
-          ? [sheetsImportScope]
-          : state.purpose === 'sheets_export'
-            ? [sheetsExportScope]
-            : []),
-      ]);
-      const existing =
-        target ??
-        (await this.db
-          .prepare('SELECT * FROM accounts_connections WHERE google_subject=?')
-          .bind(identity.subject)
-          .first<ConnectionRow>());
-      if (existing) await assertAccountNotRemoving(this.db, existing.id);
-      const relink = await assertAccountLinkFresh(this.db, identity.subject, state.created_at);
-      if (
-        existing?.state === 'disconnecting' ||
-        (existing?.disconnect_requested_at &&
-          state.created_at <= existing.disconnect_requested_at) ||
-        (existing?.state === 'disconnected' && state.created_at <= existing.updated_at)
-      )
-        throw new AppError(
-          'conflict',
-          'this account was disconnected after authorization began. start a new connection.',
-          409,
-        );
-      const now = this.clock();
-      const stored = await this.usablePreviousGrant(existing, now);
-      const refreshToken = grant.refreshToken ?? stored?.refreshToken;
-      if (!refreshToken)
-        throw new AppError(
-          'reconnect_required',
-          'google did not provide background access. reconnect and grant offline task access.',
-          409,
-        );
-      const grantExpiry = grant.refreshToken
-        ? Math.min(state.created_at + sessionLifetime, grant.refreshTokenExpiresAt ?? Infinity)
-        : (existing?.grant_expires_at ?? state.created_at + sessionLifetime);
-      if (grantExpiry <= now)
-        throw new AppError(
-          'reconnect_required',
-          'this google authorization has expired. reconnect the account.',
-          409,
-        );
-      const id = existing?.id ?? crypto.randomUUID();
-      const persistent: GoogleGrant = {
-        accessToken: grant.accessToken,
-        refreshToken,
-        expiresAt: grant.expiresAt,
-        scopes: grant.scopes,
-        tokenType: 'Bearer',
-        ...(grant.refreshTokenExpiresAt === undefined
-          ? {}
-          : { refreshTokenExpiresAt: grant.refreshTokenExpiresAt }),
-      };
-      const ciphertext = await encryptToken(
-        JSON.stringify(persistent),
-        this.config.tokenKey,
-        accountGrantContext(id),
+      const connection = await this.prepareConnectionWrite(
+        state,
+        identity,
+        grant,
+        target,
+        this.authorization(session, state),
       );
-      const auth = this.authorization(session, state);
-      const nextState =
-        state.purpose.startsWith('sheets_') && existing?.state === 'connected'
-          ? 'connected'
-          : 'connecting';
-      let saved: ConnectionRow | null;
-      if (existing) {
-        saved = await this.db
-          .prepare(
-            `UPDATE accounts_connections SET email=?,display_name=?,picture_url=?,state=?,grant_ciphertext=?,scopes_json=?,
-          access_expires_at=?,grant_expires_at=?,token_revision=token_revision+1,revision=revision+1,refresh_claim=NULL,refresh_claim_until=NULL,
-          disconnect_requested_at=NULL,updated_at=? WHERE id=? AND token_revision=? AND state=? AND removal_requested_at IS NULL AND ${auth.sql} AND ${relink.sql} RETURNING *`,
-          )
-          .bind(
-            identity.email,
-            identity.name ?? identity.email,
-            identity.picture ?? null,
-            nextState,
-            ciphertext,
-            JSON.stringify(grant.scopes),
-            grant.expiresAt,
-            grantExpiry,
-            now,
-            id,
-            existing.token_revision,
-            existing.state,
-            ...auth.values,
-            ...relink.values,
-          )
-          .first<ConnectionRow>();
-      } else {
-        saved = await this.db
-          .prepare(
-            `INSERT INTO accounts_connections
-          (id,google_subject,email,display_name,picture_url,state,grant_ciphertext,scopes_json,access_expires_at,grant_expires_at,planning_zone,created_at,updated_at)
-          SELECT ?,?,?,?,?,?,?,?,?,?,?,?,? WHERE ${auth.sql} AND ${relink.sql} ON CONFLICT(google_subject) DO NOTHING RETURNING *`,
-          )
-          .bind(
-            id,
-            identity.subject,
-            identity.email,
-            identity.name ?? identity.email,
-            identity.picture ?? null,
-            nextState,
-            ciphertext,
-            JSON.stringify(grant.scopes),
-            grant.expiresAt,
-            grantExpiry,
-            state.planning_zone,
-            now,
-            now,
-            ...auth.values,
-            ...relink.values,
-          )
-          .first<ConnectionRow>();
-      }
+      const saved = await connection.statement.first<ConnectionRow>();
       if (!saved) {
         if (!(await this.sessionFor(request, await this.installation())))
           throw new AppError(
@@ -839,6 +752,193 @@ export class AccountService {
     } catch (error) {
       return convertError(error);
     }
+  }
+
+  private async finishOwnerConnection(
+    request: Request,
+    installation: InstallationRow,
+    state: OAuthStateRow,
+    identity: GoogleIdentity,
+    grant: GoogleCodeGrant,
+  ): Promise<OAuthFinishResult> {
+    const auth: OAuthWriteAuthorization = {
+      sql: `EXISTS (SELECT 1 FROM accounts_installation WHERE id=1 AND owner_subject=?
+        AND owner_generation=? AND bootstrap_email=? AND token_key_id=?)
+        AND EXISTS (SELECT 1 FROM accounts_oauth_states WHERE state_hash=? AND consumed_at=?)`,
+      values: [
+        identity.subject,
+        installation.owner_generation,
+        this.ownerEmail,
+        this.config.tokenKey.id,
+        state.state_hash,
+        state.consumed_at,
+      ],
+    };
+    const connection = await this.prepareConnectionWrite(state, identity, grant, null, auth);
+    const session = await this.prepareSession(
+      request,
+      { ...installation, owner_subject: identity.subject },
+      state,
+    );
+    // each changes() guard must immediately follow its conditional write in this batch transaction.
+    const changedRow = () =>
+      this.db.prepare('INSERT INTO accounts_write_guards(valid) SELECT 0 WHERE changes()<>1');
+    try {
+      await this.db.batch([
+        this.db
+          .prepare(
+            `UPDATE accounts_installation SET owner_subject=? WHERE id=1 AND owner_subject IS NULL
+            AND owner_generation=? AND bootstrap_email=? AND token_key_id=?`,
+          )
+          .bind(
+            identity.subject,
+            installation.owner_generation,
+            this.ownerEmail,
+            this.config.tokenKey.id,
+          ),
+        connection.statement,
+        changedRow(),
+        session.statements[0]!,
+        changedRow(),
+        ...session.statements.slice(1),
+      ]);
+    } catch (error) {
+      if (error instanceof Error && /CHECK constraint failed:\s*valid\s*=\s*1/i.test(error.message))
+        throw new AppError(
+          'conflict',
+          'this sign-in or account changed while authorization was completing. start sign-in again.',
+          409,
+        );
+      throw error;
+    }
+    return {
+      redirectPath: state.return_path,
+      cookies: [session.cookie],
+      connectedAccountId: connection.id,
+    };
+  }
+
+  private async prepareConnectionWrite(
+    state: OAuthStateRow,
+    identity: GoogleIdentity,
+    grant: GoogleCodeGrant,
+    target: ConnectionRow | null,
+    auth: OAuthWriteAuthorization,
+  ): Promise<{ id: string; statement: D1PreparedStatement }> {
+    ensureGoogleScopes(grant.scopes, [
+      GOOGLE_TASKS_SCOPE,
+      ...(state.purpose === 'sheets_import'
+        ? [sheetsImportScope]
+        : state.purpose === 'sheets_export'
+          ? [sheetsExportScope]
+          : []),
+    ]);
+    const existing =
+      target ??
+      (await this.db
+        .prepare('SELECT * FROM accounts_connections WHERE google_subject=?')
+        .bind(identity.subject)
+        .first<ConnectionRow>());
+    if (existing) await assertAccountNotRemoving(this.db, existing.id);
+    const relink = await assertAccountLinkFresh(this.db, identity.subject, state.created_at);
+    if (
+      existing?.state === 'disconnecting' ||
+      (existing?.disconnect_requested_at && state.created_at <= existing.disconnect_requested_at) ||
+      (existing?.state === 'disconnected' && state.created_at <= existing.updated_at)
+    )
+      throw new AppError(
+        'conflict',
+        'this account was disconnected after authorization began. start a new connection.',
+        409,
+      );
+    const now = this.clock();
+    const stored = await this.usablePreviousGrant(existing, now);
+    const refreshToken = grant.refreshToken ?? stored?.refreshToken;
+    if (!refreshToken)
+      throw new AppError(
+        'reconnect_required',
+        'google did not provide background access. reconnect and grant offline task access.',
+        409,
+      );
+    const grantExpiry = grant.refreshToken
+      ? Math.min(state.created_at + sessionLifetime, grant.refreshTokenExpiresAt ?? Infinity)
+      : (existing?.grant_expires_at ?? state.created_at + sessionLifetime);
+    if (grantExpiry <= now)
+      throw new AppError(
+        'reconnect_required',
+        'this google authorization has expired. reconnect the account.',
+        409,
+      );
+    const id = existing?.id ?? crypto.randomUUID();
+    const persistent: GoogleGrant = {
+      accessToken: grant.accessToken,
+      refreshToken,
+      expiresAt: grant.expiresAt,
+      scopes: grant.scopes,
+      tokenType: 'Bearer',
+      ...(grant.refreshTokenExpiresAt === undefined
+        ? {}
+        : { refreshTokenExpiresAt: grant.refreshTokenExpiresAt }),
+    };
+    const ciphertext = await encryptToken(
+      JSON.stringify(persistent),
+      this.config.tokenKey,
+      accountGrantContext(id),
+    );
+    const nextState =
+      state.purpose.startsWith('sheets_') && existing?.state === 'connected'
+        ? 'connected'
+        : 'connecting';
+    let statement: D1PreparedStatement;
+    if (existing) {
+      statement = this.db
+        .prepare(
+          `UPDATE accounts_connections SET email=?,display_name=?,picture_url=?,state=?,grant_ciphertext=?,scopes_json=?,
+        access_expires_at=?,grant_expires_at=?,token_revision=token_revision+1,revision=revision+1,refresh_claim=NULL,refresh_claim_until=NULL,
+        disconnect_requested_at=NULL,updated_at=? WHERE id=? AND token_revision=? AND state=? AND removal_requested_at IS NULL AND ${auth.sql} AND ${relink.sql} RETURNING *`,
+        )
+        .bind(
+          identity.email,
+          identity.name ?? identity.email,
+          identity.picture ?? null,
+          nextState,
+          ciphertext,
+          JSON.stringify(grant.scopes),
+          grant.expiresAt,
+          grantExpiry,
+          now,
+          id,
+          existing.token_revision,
+          existing.state,
+          ...auth.values,
+          ...relink.values,
+        );
+    } else {
+      statement = this.db
+        .prepare(
+          `INSERT INTO accounts_connections
+        (id,google_subject,email,display_name,picture_url,state,grant_ciphertext,scopes_json,access_expires_at,grant_expires_at,planning_zone,created_at,updated_at)
+        SELECT ?,?,?,?,?,?,?,?,?,?,?,?,? WHERE ${auth.sql} AND ${relink.sql} ON CONFLICT(google_subject) DO NOTHING RETURNING *`,
+        )
+        .bind(
+          id,
+          identity.subject,
+          identity.email,
+          identity.name ?? identity.email,
+          identity.picture ?? null,
+          nextState,
+          ciphertext,
+          JSON.stringify(grant.scopes),
+          grant.expiresAt,
+          grantExpiry,
+          state.planning_zone,
+          now,
+          now,
+          ...auth.values,
+          ...relink.values,
+        );
+    }
+    return { id, statement };
   }
 
   private async usablePreviousGrant(
@@ -877,11 +977,11 @@ export class AccountService {
     }
   }
 
-  private async createSession(
+  private async prepareSession(
     request: Request,
     installation: InstallationRow,
     state: OAuthStateRow,
-  ): Promise<string> {
+  ): Promise<{ statements: D1PreparedStatement[]; cookie: string }> {
     if (!installation.owner_subject) throw installationError();
     const token = randomToken(),
       now = this.clock();
@@ -918,13 +1018,25 @@ export class AccountService {
           )
           .bind(await hashToken(oldToken), tokenHash),
       );
-    const results = await this.db.batch(statements);
+    return {
+      statements,
+      cookie: this.cookie(
+        this.sessionCookieName,
+        await this.signedCookie('session', token),
+        sessionLifetime / 1000,
+      ),
+    };
+  }
+
+  private async createSession(
+    request: Request,
+    installation: InstallationRow,
+    state: OAuthStateRow,
+  ): Promise<string> {
+    const prepared = await this.prepareSession(request, installation, state);
+    const results = await this.db.batch(prepared.statements);
     if (!results[0]?.meta.changes) throw invalidState();
-    return this.cookie(
-      this.sessionCookieName,
-      await this.signedCookie('session', token),
-      sessionLifetime / 1000,
-    );
+    return prepared.cookie;
   }
 
   async signOut(request: Request): Promise<{ cookies: string[] }> {

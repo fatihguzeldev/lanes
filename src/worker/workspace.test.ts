@@ -27,6 +27,8 @@ async function fixture() {
     TOKEN_ENCRYPTION_KEY: Buffer.alloc(32, 2).toString('base64url'),
   };
   const config = parseConfiguration(env);
+  await seedAccount(database.db, 'account-a');
+  await seedAccount(database.db, 'account-b');
   const auth = new AccountService(database.db, config, {
     exchange: async () => ({
       accessToken: 'test-access',
@@ -52,8 +54,6 @@ async function fixture() {
     }),
   );
   const cookie = finished.cookies.map((value) => value.split(';')[0]).join('; ');
-  await seedAccount(database.db, 'account-a');
-  await seedAccount(database.db, 'account-b');
   const boards = new BoardService(database.db, { assertLocalWritable: async () => {} });
   const main = await boards.ensureMainBoard('account-a');
   await boards.ensureMainBoard('account-b');
