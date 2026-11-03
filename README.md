@@ -47,3 +47,7 @@ npm run check
 this runs formatting, type checking, import boundary checks, tests and the production build. local tests use real sqlite transactions behind the d1 interface. live google behavior and cloudflare limits need their own controlled checks.
 
 read [contributing](agents/contributing.md) before changing a contract or opening a pull request.
+
+## license
+
+[mit](LICENSE). third-party files retain their own licenses.
