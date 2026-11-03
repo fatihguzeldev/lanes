@@ -42,7 +42,7 @@ the default address is on `workers.dev`; buying a domain is optional.
 6. perform the google configuration described above using available tools or an authorized browser. ask the owner to complete sign-in and any required consent. provide exact console instructions only for steps the agent cannot perform. use one oauth web client for the installation.
 7. confirm that every google account to connect is listed in test users. retrieve the client credentials during setup, or receive them through local input if necessary, and store them in the worker's secrets. terminal access alone does not automate all google console steps.
 8. configure the instance owner before allowing application access. complete the build and deploy using the repository's documented entry points. keep credentials out of the static client.
-9. have the owner sign in and grant tasks access for each connected account. verify that account's task lists, account selection, and expired-connection states. use a dedicated test list for any write checks.
+9. have the owner complete the first sign-in, including tasks consent in the same authorization, and verify that their lists open without a separate connect step. link any additional accounts from the owner session. verify account selection and expired-connection states. use a dedicated test list for any write checks.
 10. return the application url and a short account of what was deployed and verified. leave an interrupted setup with a clear next step and reuse the existing resources on the next attempt.
 
 verify the `workers.dev` callback and the personal testing-mode flow together. do not work around a setup issue by publishing the oauth app or enabling a paid plan.
@@ -50,6 +50,8 @@ verify the `workers.dev` callback and the personal testing-mode flow together. d
 ## google permissions
 
 use `openid`, `email`, and `profile` for identity and `https://www.googleapis.com/auth/tasks` for task access. gmail inbox access is not needed.
+
+the first owner sign-in requests offline tasks access too, including when an earlier identity-only setup left no connections. once any connection record exists, returning sign-in uses identity only; it does not reconnect expired or disconnected accounts. a temporary workspace initialization failure after consent should resume from the saved grant without another authorization. see [owner sign-in](../specs/accounts/spec.md#owner-sign-in).
 
 one client serves all connected accounts on that instance. each account grants access separately. request sheets permission when that feature is used and match the scope to its file-access behavior. broad drive access is not a default requirement. see [tasks authorization](https://developers.google.com/workspace/tasks/auth) and [sheets scopes](https://developers.google.com/workspace/sheets/api/scopes).
 
@@ -129,7 +131,7 @@ keep google credentials and application keys in cloudflare worker secrets. the w
 
 ### installation checks
 
-verify the deployed health response, the configured session response, and the owner-only sign-in boundary before connecting task accounts. complete real google consent on the `workers.dev` callback. list each test account explicitly in the oauth audience and confirm that switching accounts cannot expose another account’s task references.
+verify the deployed health response, the configured session response, and the owner-only sign-in boundary. complete real google consent on the `workers.dev` callback and verify that the first owner sign-in opens their lists without another connect action. list each test account explicitly in the oauth audience and confirm that switching accounts cannot expose another account’s task references.
 
 use a dedicated google test list for create/edit/complete/move/delete checks. verify the actual etag and cross-list movement behavior used by that version; local mocks cannot establish provider guarantees. check a timed repeat, a template run, a small import, optional sheets consent and a download with controlled data.
 

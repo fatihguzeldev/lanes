@@ -72,6 +72,8 @@ use one web oauth client with an external audience in testing mode. add every ta
 
 the owner completes google sign-in and consent; the agent can handle console forms and retrieve client configuration when authorized. if it cannot, specify the exact console page, project, callback, audience, test-user addresses, and credential destination. resume after the owner completes that step.
 
+the owner's first application sign-in also grants offline tasks access and opens that account's lists. no separate connect step is required for the same account. subsequent sign-in is identity-only once a connection record exists; secondary accounts and expired grants use the explicit link and reconnect flows in [accounts](../accounts/spec.md#owner-sign-in).
+
 testing-mode tasks grants expire after seven days and allow up to 100 test users; see [google's audience rules](https://support.google.com/cloud/answer/15549945). this is an accepted operating constraint. background work pauses on expiry and resumes through the account flow; the agent must not publish the app to avoid it.
 
 workspace policies and google callback/domain checks can still block a specific account or deployment. verify the actual personal `workers.dev` callback flow. if google refuses it, report the precise blocker; do not claim the path is verified or buy a domain silently.
@@ -120,7 +122,7 @@ use controlled lists/tasks for provider write checks and report which actions ra
 
 - the static client and authenticated worker run at the intended origin.
 - an unauthorized google identity cannot enter or claim ownership.
-- the intended owner can sign in and connect each requested account with separated data.
+- the intended owner's first sign-in connects their tasks in one authorization and opens their lists; additional accounts are linked explicitly with separated data.
 - creating/editing a test task round-trips through google and survives reload.
 - app metadata persists separately and survives reconnect/redeploy.
 - scheduled entry points, bounded work, and expired-grant pauses behave as configured.
@@ -134,7 +136,7 @@ return the url, selected cloudflare resources, relevant configuration locations,
 - `self-hosting-02`: either sufficient wrangler access or cloudflare mcp access works; both are not mandatory.
 - `self-hosting-03`: setup interrupted after resource creation resumes using the same database and keys.
 - `self-hosting-04`: missing owner configuration and invalid secrets fail closed without a first-visitor claim.
-- `self-hosting-05`: the actual testing-mode oauth callback succeeds at the deployed origin, or the precise provider blocker is reported without a false success claim.
+- `self-hosting-05`: the actual testing-mode owner onboarding succeeds at the deployed origin, including tasks access in the same authorization, or the precise provider blocker is reported without a false success claim.
 - `self-hosting-06`: all application entry points and commands resolve to real executable configuration.
 - `self-hosting-07`: bounded import, sync, scheduling, and history work are measured on free-plan runtime limits without enabling billing.
 - `self-hosting-08`: a redeploy preserves tokens/metadata; an update/rollback drill distinguishes worker rollback from database restoration.

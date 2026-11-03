@@ -10,7 +10,7 @@ read [security](../../agents/security.md), [self-hosting](../self-hosting/spec.m
 
 ## instance access
 
-- configure the intended owner's exact google identity before exposing sign-in. deployment can begin with an owner email allowlist, then bind the first matching verified identity to its immutable google subject.
+- configure the intended owner's exact google identity before exposing sign-in. deployment can begin with an owner email allowlist, then bind the first matching verified identity to its immutable google subject after the initial tasks authorization succeeds.
 - check issuer, audience, signature, expiry, nonce, and verified email when validating that initial identity. after binding, the subject is authoritative; a changed email does not silently transfer ownership.
 - changing the owner requires an explicit installation configuration change and session invalidation. there is no public first-visitor claim or sign-up flow.
 - a successful login by another google user fails closed, even if that user is a google oauth test user or a connected account.
@@ -37,6 +37,16 @@ request offline access for background task work. validate the scopes actually gr
 use explicit sign-in, link, reconnect, and optional-permission flows. bind a short-lived, one-use oauth state to its purpose, initiating session where applicable, intended connection, and approved return location. use nonce and authorization-code protections supported by the web flow. accept only the exact configured callback and local return locations.
 
 client secrets and tokens stay on the server. encrypt stored tokens with a key held outside the database. browser code receives a connection summary, never a provider access token. any browser integration that requires a token needs an explicit revision of this boundary.
+
+## owner sign-in
+
+when the installation has no connected-account records, owner sign-in requests identity, tasks permission, and offline access in one oauth authorization. this also applies when the owner is already bound, or has an active session, but an earlier identity-only sign-in left the installation without any connections. do not make the owner sign in and then authorize that same account again through a separate connect step.
+
+validate the owner identity, granted tasks scope, and usable refresh token before completing onboarding. on a fresh installation, save the owner binding, encrypted connection, and session together. denied consent, missing tasks permission, an unusable grant, or the wrong identity must not bind an owner, issue a session, or leave a partial connection. an existing owner binding and session remain unchanged when this flow fails.
+
+after the grant is saved, initialize or resume that account's workspace through the task and board owners and open its lists. show loading state while the first sync runs. if workspace initialization or sync temporarily fails, retain the saved connection and session and retry that work without asking for google consent again.
+
+when any connected-account record already exists, returning owner sign-in requests identity only. retained expired or disconnected records count: sign-in must not restore task access, reconnect an account, or add the selected identity as another connection. this remains true if the owner removed their own connection and kept a secondary account. additional accounts require an explicit link from the owner session; existing grants use the reconnect flow below.
 
 ## connect and reconnect
 
@@ -85,7 +95,7 @@ provide a separate confirmed action to remove the disconnected account's retaine
 
 cancelled consent leaves existing connections intact. a test-user restriction names the account and the google project setup step. an organization policy restriction explains that administrator policy may prevent connection.
 
-invalid state, replayed callbacks, mismatched reconnect identity, missing tasks scope, and unauthorized owner sign-in fail without granting a session or replacing credentials. redact provider diagnostics before showing or logging them.
+invalid state, replayed callbacks, mismatched reconnect identity, missing required scope, and unauthorized owner sign-in fail without granting a session or replacing credentials. show a clear retryable sign-in error for rejected onboarding; do not leave the owner in an empty signed-in workspace. redact provider diagnostics before showing or logging them.
 
 token refresh for one connection must be serialized or coordinated through durable state. competing worker instances cannot erase a newer refresh result with an older one. an encryption-key problem is an installation error, not a reason to delete tokens or ask every account to reconnect blindly.
 
@@ -100,3 +110,8 @@ token refresh for one connection must be serialized or coordinated through durab
 - `accounts-07`: callback replay, wrong state, wrong audience, and missing owner authorization are rejected.
 - `accounts-08`: sign-out blocks private requests; disconnect preserves google data and pauses schedules; explicit local removal affects only its account.
 - `accounts-09`: interrupted refresh and disconnect are exercised with concurrent requests, not only a single browser session.
+- `accounts-10`: the first owner authorization includes identity, tasks scope, and offline access; one successful callback creates the owner session and connection and opens the account's lists without a second consent flow.
+- `accounts-11`: a bound owner with no connection records uses the same combined onboarding, with or without an existing session.
+- `accounts-12`: denied consent, missing tasks scope, missing usable refresh credentials, and a different google identity leave no new owner binding, session, or connection; existing ownership and sessions remain unchanged.
+- `accounts-13`: when any connection record exists, returning sign-in is identity-only and cannot reconnect or add an account, including when all records are expired or disconnected or only secondary accounts remain.
+- `accounts-14`: a transient failure after saving the grant retains the session and connection; retrying workspace initialization or sync does not repeat consent or create another workspace.

@@ -36,6 +36,8 @@ google sheets remains in scope for portability. removing drive attachments does 
 
 each installation uses its own google cloud project and one oauth web client. each connected google account grants access separately; its tasks and credentials stay distinct.
 
+the owner's first sign-in also connects that account's tasks through the same google authorization, then opens its lists. returning sign-in is identity-only once any connection record exists. adding another account and reconnecting an expired grant are explicit actions.
+
 use an external audience in testing mode. every account that will connect must be added to that project's test users. google limits this to 100 test users and expires these authorizations and refresh tokens after seven days. reconnecting each account is part of the product. see [google's audience rules](https://support.google.com/cloud/answer/15549945).
 
 show a reconnect action for an expired connection. preserve board organization and recorded history while sync is paused. an allowed google test user is not automatically an owner of the lanes instance.

@@ -2,7 +2,9 @@
 
 ## owner and connected accounts
 
-application ownership and a connected google account are separate identities. add accounts from an authenticated owner session. an oauth test-user entry or a successful google sign-in alone must not grant ownership.
+application ownership and a connected google account are separate identities. initial owner sign-in authorizes identity and offline tasks access together. verify the configured owner, granted scope, and usable refresh credentials before saving the initial owner binding, connection, and session. failed onboarding must not partially claim ownership or leave a connection behind. an oauth test-user entry or a successful google identity check alone must not grant ownership.
+
+add secondary accounts only from an authenticated owner session. when connection records already exist, owner sign-in is identity-only and must not restore revoked access or replace credentials. reconnect remains a separate flow.
 
 validate oauth state, callback parameters, token responses, and the identity attached to an account link. use server-managed sessions and appropriate secure cookie settings. handle linking and sign-in as explicit flows.
 
