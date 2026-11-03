@@ -1,0 +1,41 @@
+{
+  "kind": "tasks#taskLists",
+  "items": [
+    {
+      "kind": "tasks#taskList",
+      "id": "takeout-list",
+      "title": "home",
+      "updated": "2026-11-02T12:00:00Z",
+      "items": [
+        {
+          "kind": "tasks#task",
+          "id": "takeout-root",
+          "title": "parent",
+          "notes": "line one\nline two",
+          "due": "2026-11-03T00:00:00.000Z",
+          "status": "needsAction",
+          "position": "00000000000000000001"
+        },
+        {
+          "kind": "tasks#task",
+          "id": "takeout-child",
+          "parent": "takeout-root",
+          "title": "child",
+          "status": "completed",
+          "completed": "2026-11-01T10:00:00Z",
+          "position": "00000000000000000001",
+          "links": [
+            {
+              "link": "https://example.com/never-fetched"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "tasks#taskList",
+      "id": "empty-list",
+      "title": "empty list"
+    }
+  ]
+}
