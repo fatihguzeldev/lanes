@@ -9,7 +9,7 @@ permissions:
 
 concurrency:
   group: check-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != format('refs/heads/{0}', github.event.repository.default_branch) }}
 
 jobs:
   check:
@@ -25,3 +25,41 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run check
+      - name: deploy
+        if: >-
+          github.event_name == 'push' &&
+          github.ref == format('refs/heads/{0}', github.event.repository.default_branch) &&
+          vars.LANES_AUTO_DEPLOY == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          LANES_DEPLOY_CONFIG: ${{ secrets.LANES_DEPLOY_CONFIG }}
+        run: |
+          node --input-type=module <<'JS'
+          import { writeFileSync } from 'node:fs';
+          if (!process.env.CLOUDFLARE_API_TOKEN || !process.env.LANES_DEPLOY_CONFIG)
+            throw new Error('auto-deploy needs its cloudflare token and private configuration.');
+          let config;
+          try {
+            config = JSON.parse(process.env.LANES_DEPLOY_CONFIG);
+          } catch {
+            throw new Error('LANES_DEPLOY_CONFIG must contain valid JSON.');
+          }
+          const database = Array.isArray(config?.d1_databases)
+            ? config.d1_databases.find((value) => value?.binding === 'DB')
+            : undefined;
+          const values = [config?.account_id, config?.name, database?.database_id,
+            config?.vars?.APP_ORIGIN, config?.vars?.OWNER_EMAIL];
+          if (values.some((value) => typeof value !== 'string' || !value.trim()) ||
+            database.database_id === '00000000-0000-0000-0000-000000000000')
+            throw new Error('private deployment configuration needs its installation values.');
+          for (const value of new Set([...values, database.database_name, ...Object.values(config.vars)])) {
+            if (typeof value !== 'string' || !value) continue;
+            const escaped = value.replaceAll('%', '%25').replaceAll('\r', '%0D').replaceAll('\n', '%0A');
+            process.stdout.write(`::add-mask::${escaped}\n`);
+          }
+          writeFileSync('wrangler.deploy.jsonc', JSON.stringify(config, null, 2) + '\n', {
+            mode: 0o600, flag: 'wx',
+          });
+          JS
+          npm run db:migrate:remote
+          npm run deploy

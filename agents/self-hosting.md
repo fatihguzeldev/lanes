@@ -116,6 +116,17 @@ oauth starts at `POST /auth/google/start`. callbacks return to the browser throu
 
 the configured cron ticks once per minute. each tick advances bounded admitted work or one cleanup family using persisted fairness state. a tick is not an exact-time delivery guarantee, and idle accounts do not receive a full google poll on every tick.
 
+### github auto-deploy
+
+the [check workflow](../.github/workflows/check.yml) deploys after its checks pass, only for a push to the repository's default branch with repository variable `LANES_AUTO_DEPLOY` set to `true`. pull requests and other branches cannot run the deploy step. default-branch runs finish before the next one starts; a later push does not cancel an active migration or deploy.
+
+configure two github actions repository secrets:
+
+- `CLOUDFLARE_API_TOKEN`: an account-owned token with editor access to the existing target worker and d1 write access for migrations. create the worker with the owner's access first; the deploy token does not need permission to create other workers. d1 write access covers the account's databases.
+- `LANES_DEPLOY_CONFIG`: the installation's private config serialized as strict JSON, without comments, trailing commas or application secret values. include its `account_id`, worker name, database, origin and owner.
+
+keep google credentials and application keys in cloudflare worker secrets. the workflow writes the private config with owner-only file permissions, masks installation values before command output, applies remote migrations, then builds and deploys. a redeploy preserves the worker's secret bindings. enable the repository variable only after the initial installation and both github secrets are ready.
+
 ### installation checks
 
 verify the deployed health response, the configured session response, and the owner-only sign-in boundary before connecting task accounts. complete real google consent on the `workers.dev` callback. list each test account explicitly in the oauth audience and confirm that switching accounts cannot expose another account’s task references.
