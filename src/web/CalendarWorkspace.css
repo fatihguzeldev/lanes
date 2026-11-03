@@ -1,0 +1,38 @@
+.calendar-workspace {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+.calendar-workspace > .calendar-view {
+  flex: 1;
+  min-height: 0;
+}
+.calendar-workspace__pages {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px var(--workspace-padding);
+  border-top: 1px solid var(--line);
+  color: var(--secondary);
+  font-size: 12px;
+}
+.calendar-workspace__pages button {
+  padding: 7px 11px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--paper);
+  font-size: 12px;
+}
+.calendar-workspace__pages button:hover {
+  background: var(--paper-hover);
+}
+.calendar-workspace__pages p {
+  flex: 1;
+  min-width: 180px;
+  line-height: 1.6;
+}
+.calendar-workspace__error {
+  color: var(--rust);
+}
