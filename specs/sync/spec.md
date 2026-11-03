@@ -24,6 +24,8 @@ follow every required page token. a list inventory is complete only after all it
 
 use provider update filters where supported, with an overlap window and resource-version deduplication. query deleted, hidden, completed, and assigned states deliberately; default api filters are not a complete task inventory or history. commit a checkpoint only after its page's records are durably processed. interrupted page work is safe to replay.
 
+the incremental update window overlaps the saved watermark by 120 seconds. an active account becomes eligible for a full task reconciliation after 30 minutes; this eligibility does not create a continuous idle-account poll.
+
 refresh full list inventory on account entry and list-changing operations when stale. perform a bounded full task reconciliation periodically while an account is in use, and after reconnect or a suspected mismatch; store its cursor across requests. an incremental watermark does not replace eventual full reconciliation.
 
 google enumeration is not a snapshot across pages. before treating a missing resource as deleted, confirm its absence or a provider deletion signal at the correct address. a partial scan, denied request, or moved task at an old address is not sufficient. keep unresolved mappings visible as stale rather than retiring their metadata.
@@ -56,7 +58,7 @@ use durable compare-and-set state and bounded execution claims. an expired claim
 
 after google confirms a write, persist its returned identity/version, task projection, metadata changes, operation progress, and history intent together where they share the local database. use an idempotent history write if recording crosses an owner boundary. if local persistence fails, repair from the recorded response or reconciliation; do not resend creation to repair history.
 
-operation identities have a documented replay lifetime. retain receipts or reject expired identities so an old retry never becomes a new create after cleanup. unfinished or uncertain operations cannot be pruned merely because a terminal receipt retention period elapsed.
+operation identities have a documented replay lifetime. an identity that has never been admitted expires after 24 hours. finished command request bodies, copied task snapshots, and provider response bodies become eligible for bounded cleanup after 24 hours. retain canonical request and chunk hashes, operation outcomes, input-local mappings, confirmed task identities, revisions, and etags for 90 days so an identical retry can return its existing outcome without retaining old notes. after the receipt window, reject the expired identity rather than treating it as a new creation. unfinished and uncertain operations keep the input and receipts needed for resolution. active recurrence owns its functional baseline separately from command receipt retention.
 
 ## conflicts
 
@@ -75,6 +77,8 @@ a timeout or worker interruption after dispatch does not mean failure. record un
 - for creation, an identical title or note is not proof of identity. use a confirmed returned id or another verified provider-supported correlation mechanism. lanes does not insert an operation marker into task notes or assume google accepts client-generated task ids.
 - when an ambiguous create cannot be matched safely, stop automatic creation and present the candidate results and explicit resolution. the owner may identify the created resource or deliberately authorize a fresh attempt after inspecting the risk of a duplicate.
 
+the owner can also keep a freshly read google state and stop the remaining intent. this is an explicit terminal partial result, not proof of the original request's outcome. preserve the original response receipt, keep separately retained resource identities and metadata separate, and record the stop decision. fence late workers and cancel only unsent steps. an owner-stopped step remains causally uncertain; it no longer keeps automatic work or disconnect draining alive. normal finished-operation retention applies to its request bodies and minimal receipts.
+
 the product guarantee is durable intent, deduplicated local execution, and visible uncertainty. it is not provider-side exactly-once creation. scheduled templates, repeating tasks, imports, and duplication use the same rule.
 
 ## retries, partial work, and cancellation
@@ -91,7 +95,7 @@ do not roll back a partial import or template by deleting created google content
 
 return a consistent error envelope with a stable lowercase code, readable message, request/operation reference, retryability, and field details where useful. no tokens, raw provider response bodies, or stack traces in browser errors.
 
-use distinct codes for `unauthenticated`, `forbidden`, `validation_failed`, `conflict`, `not_found`, `reconnect_required`, `permission_required`, `list_limit_reached`, `provider_rate_limited`, `storage_unavailable`, `provider_unavailable`, and `outcome_uncertain`. map them consistently to http responses and operation states; a failed request must not be returned as ordinary successful task data.
+use distinct codes for `unauthenticated`, `forbidden`, `validation_failed`, `conflict`, `not_found`, `reconnect_required`, `permission_required`, `list_limit_reached`, `provider_rate_limited`, `storage_unavailable`, `provider_unavailable`, `outcome_uncertain`, and `owner_stopped`. map them consistently to http responses and operation states; a failed request must not be returned as ordinary successful task data.
 
 collection queries are paginated, default 50 and maximum 100 records per page. return explicit next-page/coverage/freshness information. bulk commands accept at most 10 normalized records and 64 kib of input per request, and can reduce a chunk further for runtime limits. a single valid task must fit the accepted envelope.
 
