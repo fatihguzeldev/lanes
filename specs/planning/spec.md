@@ -38,6 +38,8 @@ calendar is task planning: no durations, meeting invitations, resource booking, 
 
 support daily, weekdays, weekly, monthly, and yearly presets, plus a positive interval and selected weekdays for weekly repetition. interval is 1–365 units. a rule ends never, on an inclusive calendar day, or after 1–10,000 created occurrences, including the initial task. reject an end day before the anchor and a weekly rule with no selected weekdays.
 
+for weekdays, the interval counts eligible monday–friday days. an interval of two from a friday anchor reaches tuesday; the weekend consumes no interval units.
+
 the scheduled day is the anchor. weekly rules keep their selected weekdays and interval weeks relative to that anchor week. monthly and yearly rules use calendar arithmetic, not a fixed number of seconds. clamp an unavailable month day to that month's last day and retain the original anchor: january 31 can produce february 28 and then march 31. a february 29 yearly anchor uses february 28 in a non-leap year.
 
 apply lanes repeat rules to top-level tasks. their subtasks form the occurrence's checklist and cannot independently repeat while nested. promoting a subtask makes it eligible. this keeps parent completion from producing competing child series.
