@@ -104,7 +104,7 @@ quota exhaustion pauses or rejects work and retains confirmed data. the platform
 
 ## updates and recovery
 
-automatic updates through cloudflare's git integration are optional. the manual wrangler deployment path remains supported without a git connection or build token. when enabled, native builds run for `main` only, with preview builds disabled. untrusted branch code must not receive the production build token or migrate the production database.
+automatic updates through cloudflare's git integration are optional. the manual wrangler deployment path remains supported without a git connection or build token. when enabled, native builds run for `main` only, with preview builds disabled. github actions checks pull requests without deployment credentials; untrusted branch code must not receive the production build token or migrate the production database.
 
 native builds install the locked dependencies with the runtime selected by `.node-version`. `npm run build:cloudflare` materializes the ignored private config from the strict json build secret `LANES_DEPLOY_CONFIG`, runs the repository checks, and creates the deploy build. only then does `npm run db:migrate:remote && npx wrangler deploy` migrate and deploy to that target. runtime credentials remain in worker secrets, and the tracked configuration remains reusable. build permissions and quotas must satisfy the same free-plan and credential boundaries as manual deployment.
 

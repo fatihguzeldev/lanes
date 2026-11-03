@@ -120,7 +120,7 @@ the configured cron ticks once per minute. each tick advances bounded admitted w
 
 ### automatic updates
 
-cloudflare's git integration can deploy updates from the repository. this is optional; an installation can use `npm run deploy` through its existing wrangler access.
+cloudflare's git integration can deploy updates from the repository. this is optional; an installation can use `npm run deploy` through its existing wrangler access. the [github actions workflow](../.github/workflows/check.yml) checks pull requests only and has no deployment credentials.
 
 after the initial deployment, open the existing worker's settings, then builds, and connect its github repository. reuse an authorized cloudflare workers & pages github app installation, granting access to this repository if needed. set the production branch to `main` and disable preview builds. pull request code and other branches must not receive the production token or run migrations against the production database. see [cloudflare git integration](https://developers.cloudflare.com/workers/ci-cd/builds/).
 
