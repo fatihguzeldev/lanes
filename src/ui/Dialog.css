@@ -1,0 +1,116 @@
+.dialog {
+  padding: 0;
+  width: 430px;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100svh - 48px);
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 0 25px 90px #1b291e30;
+  font-family: var(--font);
+}
+.dialog--wide {
+  width: 620px;
+}
+.dialog::backdrop {
+  background: #202d2438;
+  backdrop-filter: blur(3px);
+}
+.dialog__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 25px 28px 16px;
+}
+.dialog__heading h2 {
+  font-size: 20px;
+  font-weight: 550;
+  letter-spacing: -0.5px;
+}
+.dialog__close {
+  border: 0;
+  background: none;
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+  padding: 5px;
+  border-radius: 4px;
+}
+.dialog__close:hover {
+  background: var(--paper-hover);
+}
+.dialog__body {
+  padding: 5px 28px 28px;
+}
+.dialog__body p {
+  color: var(--secondary);
+  line-height: 1.75;
+  font-size: 13px;
+}
+.dialog__body label {
+  font-size: 12px;
+  display: grid;
+  gap: 8px;
+  margin-top: 18px;
+  color: var(--secondary);
+}
+.dialog__body input,
+.dialog__body select,
+.dialog__body textarea {
+  border: 1px solid var(--line);
+  background: var(--canvas);
+  border-radius: 6px;
+  padding: 10px;
+  width: 100%;
+  min-width: 0;
+}
+.dialog__body footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  margin-top: 26px;
+}
+.dialog__body footer button {
+  border: 0;
+  background: none;
+  font-size: 13px;
+  padding: 9px 13px;
+  border-radius: 6px;
+}
+.dialog__body footer .primary {
+  background: var(--green);
+  color: var(--paper);
+}
+.dialog__body .error {
+  margin-top: 15px;
+  color: var(--rust);
+}
+.dialog__actions {
+  display: grid;
+  gap: 3px;
+  padding: 3px 16px 19px;
+}
+.dialog__actions button {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  text-align: left;
+  border: 0;
+  background: none;
+  padding: 12px;
+  border-radius: 6px;
+  font-size: 13px;
+}
+.dialog__actions button:hover {
+  background: var(--paper-hover);
+}
+.dialog__actions button:disabled {
+  opacity: 0.5;
+}
+.dialog__actions .danger {
+  color: var(--rust);
+}
