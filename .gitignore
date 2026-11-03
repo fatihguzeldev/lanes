@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.wrangler/
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
+.env
+.env.*
+!.env.example
+coverage/
+*.tsbuildinfo
+.DS_Store
+.work/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal

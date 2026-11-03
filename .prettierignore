@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.wrangler/
+.work/
+coverage/
+package-lock.json
+**/fixtures/**
+.editorconfig
