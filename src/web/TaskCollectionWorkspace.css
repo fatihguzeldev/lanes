@@ -1,0 +1,105 @@
+.task-collection {
+  flex: 1;
+  overflow: auto;
+  min-height: 0;
+  padding: 23px var(--workspace-padding);
+}
+.task-collection__scope {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--secondary);
+  margin-bottom: 20px;
+}
+.task-collection__list {
+  max-width: 850px;
+  margin: 0 auto 24px;
+  padding: 0 17px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  box-shadow: var(--shadow);
+}
+.task-collection__list > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--fine);
+}
+.task-collection__list h2 {
+  font-size: 15px;
+  font-weight: 500;
+  margin: 0 0 6px;
+}
+.task-collection__list > header button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--secondary);
+  font-size: 11px;
+}
+.task-collection__list > header > span {
+  font-size: 11px;
+  color: var(--muted);
+}
+.task-collection__coverage {
+  color: var(--secondary);
+  font-size: 12px;
+  line-height: 1.7;
+  margin: 0 0 18px;
+}
+.task-collection__error {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 20px;
+  padding: 13px;
+  background: var(--rust-soft);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--rust);
+  font-size: 12px;
+}
+.task-collection__error button {
+  background: none;
+  border: 0;
+  text-decoration: underline;
+}
+.task-collection__empty {
+  min-height: 230px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  gap: 15px;
+  text-align: center;
+  color: var(--secondary);
+}
+.task-collection__empty h2 {
+  font-size: 21px;
+  font-weight: 500;
+  letter-spacing: -0.5px;
+}
+.task-collection__empty p {
+  font-size: 13px;
+  line-height: 1.8;
+  max-width: 390px;
+}
+.task-collection__more {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 10px auto;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  border-radius: 5px;
+  font-size: 12px;
+  color: var(--green);
+}
