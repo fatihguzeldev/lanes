@@ -1,0 +1,166 @@
+.completed-deletion > p + p {
+  margin-top: 10px;
+}
+.completed-deletion h3 {
+  margin: 0 0 12px;
+  color: var(--secondary);
+  font-size: 12px;
+  font-weight: 500;
+}
+.completed-deletion__summary {
+  margin-top: 20px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--canvas);
+}
+.completed-deletion__summary dl {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin: 0 0 14px;
+}
+.completed-deletion__summary dt {
+  color: var(--secondary);
+  font-size: 11px;
+}
+.completed-deletion__summary dd {
+  margin: 4px 0 0;
+  color: var(--ink);
+  font-size: 20px;
+  font-weight: 500;
+}
+.completed-deletion__confirmation {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 0;
+  border: 0;
+}
+.completed-deletion__confirmation legend {
+  margin-bottom: 8px;
+  color: var(--rust);
+  font-size: 12px;
+}
+.completed-deletion .completed-deletion__confirmation label,
+.completed-deletion .completed-deletion__fresh {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin: 0;
+  line-height: 1.75;
+}
+.completed-deletion .completed-deletion__confirmation input,
+.completed-deletion .completed-deletion__fresh input {
+  width: 14px;
+  height: 14px;
+  min-width: 14px;
+  margin-top: 4px;
+  accent-color: var(--rust);
+}
+.completed-deletion__records {
+  margin-top: 20px;
+  font-size: 12px;
+}
+.completed-deletion__records summary {
+  cursor: pointer;
+}
+.completed-deletion__records ol {
+  display: grid;
+  gap: 12px;
+  padding: 0;
+  margin: 15px 0;
+  list-style: none;
+}
+.completed-deletion__records li {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+}
+.completed-deletion__records li > div {
+  min-width: 0;
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+.completed-deletion__records .icon {
+  flex-shrink: 0;
+  margin-top: 3px;
+  color: var(--secondary);
+}
+.completed-deletion__records small {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.7;
+}
+.completed-deletion__records button,
+.completed-deletion__summary > button,
+.completed-deletion__recent button {
+  padding: 5px 0;
+  border: 0;
+  background: none;
+  color: var(--green);
+  font-size: 11px;
+  text-align: left;
+}
+.completed-deletion__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 20px 0;
+}
+.completed-deletion__actions > button,
+.completed-deletion > button {
+  min-height: 36px;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 12px;
+}
+.completed-deletion__actions > .completed-deletion__delete {
+  border-color: var(--rust);
+  background: var(--rust);
+  color: var(--paper);
+}
+.completed-deletion .completed-deletion__fresh {
+  margin-bottom: 12px;
+}
+.completed-deletion__recent {
+  padding-top: 20px;
+}
+.completed-deletion__recent ul {
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+.completed-deletion__recent li + li {
+  border-top: 1px solid var(--fine);
+}
+.completed-deletion__recent button {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  padding-block: 10px;
+}
+.completed-deletion__recent small {
+  color: var(--muted);
+}
+.completed-deletion .completed-deletion__note {
+  margin-top: 12px;
+  font-size: 10px;
+}
+.completed-deletion button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+@media (max-width: 420px) {
+  .completed-deletion__summary {
+    padding: 12px;
+  }
+  .completed-deletion__summary dl {
+    gap: 12px;
+  }
+}
