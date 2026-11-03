@@ -118,16 +118,30 @@ oauth starts at `POST /auth/google/start`. callbacks return to the browser throu
 
 the configured cron ticks once per minute. each tick advances bounded admitted work or one cleanup family using persisted fairness state. a tick is not an exact-time delivery guarantee, and idle accounts do not receive a full google poll on every tick.
 
-### github auto-deploy
+### automatic updates
 
-the [check workflow](../.github/workflows/check.yml) deploys after its checks pass, only for a push to the repository's default branch with repository variable `LANES_AUTO_DEPLOY` set to `true`. pull requests and other branches cannot run the deploy step. default-branch runs finish before the next one starts; a later push does not cancel an active migration or deploy.
+cloudflare's git integration can deploy updates from the repository. this is optional; an installation can use `npm run deploy` through its existing wrangler access.
 
-configure two github actions repository secrets:
+after the initial deployment, open the existing worker's settings, then builds, and connect its github repository. reuse an authorized cloudflare workers & pages github app installation, granting access to this repository if needed. set the production branch to `main` and disable preview builds. pull request code and other branches must not receive the production token or run migrations against the production database. see [cloudflare git integration](https://developers.cloudflare.com/workers/ci-cd/builds/).
 
-- `CLOUDFLARE_API_TOKEN`: an account-owned token with editor access to the existing target worker and d1 write access for migrations. create the worker with the owner's access first; the deploy token does not need permission to create other workers. d1 write access covers the account's databases.
-- `LANES_DEPLOY_CONFIG`: the installation's private config serialized as strict JSON, without comments, trailing commas or application secret values. include its `account_id`, worker name, database, origin and owner.
+| setting      | value                                              |
+| ------------ | -------------------------------------------------- |
+| root         | repository root                                    |
+| build        | `npm run build:cloudflare`                         |
+| deploy       | `npm run db:migrate:remote && npx wrangler deploy` |
+| build secret | `LANES_DEPLOY_CONFIG`                              |
 
-keep google credentials and application keys in cloudflare worker secrets. the workflow writes the private config with owner-only file permissions, masks installation values before command output, applies remote migrations, then builds and deploys. a redeploy preserves the worker's secret bindings. enable the repository variable only after the initial installation and both github secrets are ready.
+store the private installation config as strict json in `LANES_DEPLOY_CONFIG`, without comments, trailing commas or credential values. include its account, worker, database, origin and owner. `npm run build:cloudflare` writes the ignored `wrangler.deploy.jsonc` with owner-only file permissions, runs `npm run check`, then builds with the private target. migrations run only after those checks and the deploy build pass. the shared `wrangler.jsonc` remains unchanged.
+
+when the private config changes, update the build secret before the next automatic deployment. native builds cannot read the ignored file on the owner's computer.
+
+workers builds reads `.node-version` and installs the locked dependencies before the build command. keep google credentials and application keys in the worker's runtime secrets; build secrets are a separate setting. a redeploy preserves the worker's existing secret bindings. do not print the build config or put it in browser assets.
+
+workers builds currently requires a user-owned api token. scope it to the intended cloudflare account with workers scripts edit and d1 edit for migrations; these user-token permissions cover that account's workers and databases. the dashboard's automatic token can include unrelated services, so choose the permissions explicitly. an account-owned token for manual deployment cannot be substituted for a workers builds token. see [build configuration](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/#api-token).
+
+the builds free plan currently includes 3,000 build minutes per month, one concurrent build per account, and a 20-minute build timeout. quota exhaustion can stop automatic updates; manual deployment remains available. verify [build limits](https://developers.cloudflare.com/workers/ci-cd/builds/limits-and-pricing/) when changing this path.
+
+when replacing an existing deployment pipeline, verify a real push: record the commit, confirm its native build and deployment succeeded, and check that the intended worker serves it. only then remove the old pipeline's deployment credentials and configuration. a connected repository or a passing local build is not proof of automatic deployment.
 
 ### installation checks
 
