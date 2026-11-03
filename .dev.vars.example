@@ -1,0 +1,8 @@
+# copy to .dev.vars; this file contains no usable credentials.
+APP_ORIGIN="http://127.0.0.1:5173"
+OWNER_EMAIL="owner@example.com"
+GOOGLE_CLIENT_ID=""
+GOOGLE_CLIENT_SECRET=""
+SESSION_KEY=""
+TOKEN_ENCRYPTION_KEY=""
+TOKEN_KEY_ID="v1"
