@@ -65,6 +65,8 @@ when downtime or paused authorization spans several runs, create only the latest
 
 changing the weekday, day, zone, template revision, or destination changes future slots. already admitted work is unchanged. reject overlapping edits through a schedule revision and calculate the next slot from the confirmed new settings.
 
+if a captured run loses its destination, preserve confirmed output and pause unsent work. resolve or explicitly cancel that run before choosing a destination for future slots. a new manual copy is a separate action whose preview identifies existing output and the risk of creating another copy; never silently restart the whole checklist.
+
 ## pauses and failures
 
 | cause                                 | behavior                                                                  |
