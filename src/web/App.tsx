@@ -11,7 +11,7 @@ import './App.css';
 import { useTheme } from './theme';
 import { z } from 'zod';
 import { ConnectionSummarySchema } from '../modules/accounts/contracts';
-import { portabilityLanding } from './landing';
+import { oauthLandingError, portabilityLanding } from './landing';
 const Workspace = lazy(() =>
   import('./Workspace').then((module) => ({ default: module.Workspace })),
 );
@@ -19,6 +19,7 @@ const Workspace = lazy(() =>
 export function App() {
   const [session, setSession] = useState<SessionSnapshot | null>(null);
   const [error, setError] = useState('');
+  const [authorizationError, setAuthorizationError] = useState(oauthLandingError);
   const [pending, setPending] = useState(false);
   const [accountId, setAccountId] = useState<string | null>(() => {
     const landing = portabilityLanding();
@@ -161,6 +162,7 @@ export function App() {
     if (pending) return;
     setPending(true);
     setError('');
+    setAuthorizationError('');
     try {
       const result = await request('/auth/google/start', OAuthStartResponseSchema, {
         method: 'POST',
@@ -242,10 +244,17 @@ export function App() {
             load more google accounts
           </button>
         )}
-        {error && (
+        {(error || authorizationError) && (
           <div className="app-global-error" role="alert">
-            <span>{error}</span>
-            <button onClick={() => setError('')}>dismiss</button>
+            <span>{error || authorizationError}</span>
+            <button
+              onClick={() => {
+                setError('');
+                setAuthorizationError('');
+              }}
+            >
+              dismiss
+            </button>
           </div>
         )}
       </>
@@ -279,11 +288,11 @@ export function App() {
               steps.
             </p>
           </>
-        ) : !session.authenticated ? (
+        ) : !session.authenticated || !session.accounts?.items.length ? (
           <>
             <span className="entry-mark" aria-hidden="true" />
             <h1>your things, in one place.</h1>
-            <p>sign in with the owner account for this lanes instance.</p>
+            <p>open your google tasks with the owner account.</p>
             <button
               className="entry-primary"
               disabled={pending}
@@ -291,26 +300,9 @@ export function App() {
             >
               {pending ? 'opening google…' : 'continue with google'}
             </button>
-            {error && (
+            {(error || authorizationError) && (
               <p className="entry-error" role="alert">
-                {error}
-              </p>
-            )}
-          </>
-        ) : !session.accounts?.items.length ? (
-          <>
-            <h1>make yourself at home.</h1>
-            <p>connect a google account to bring its lists and tasks into lanes.</p>
-            <button
-              className="entry-primary"
-              disabled={pending}
-              onClick={() => void authorize('link')}
-            >
-              {pending ? 'opening google…' : 'connect google tasks'}
-            </button>
-            {error && (
-              <p className="entry-error" role="alert">
-                {error}
+                {error || authorizationError}
               </p>
             )}
           </>
