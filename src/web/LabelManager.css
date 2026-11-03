@@ -1,0 +1,97 @@
+.label-manager__new {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 11px;
+  background: var(--canvas);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  margin-top: 22px;
+  font-size: 12px;
+}
+.label-manager__labels {
+  list-style: none;
+  padding: 0;
+  margin: 22px 0 0;
+}
+.label-manager__labels li {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 13px 0;
+  border-top: 1px solid var(--fine);
+}
+.label-manager__labels strong {
+  font-size: 13px;
+  font-weight: 450;
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+.label-manager__labels button {
+  border: 0;
+  background: none;
+  color: var(--secondary);
+  padding: 5px;
+  border-radius: 4px;
+}
+.label-manager__labels small {
+  color: var(--secondary);
+  font-size: 11px;
+}
+.label-manager__swatch {
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+  flex: none;
+}
+.label-manager__form {
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  background: var(--canvas);
+  border-radius: 7px;
+  display: grid;
+  grid-template-columns: 1fr 66px;
+  gap: 12px;
+}
+.label-manager__form label {
+  margin: 0;
+}
+.label-manager__form input {
+  background: var(--paper);
+  height: 40px;
+}
+.label-manager__form input[type='color'] {
+  padding: 5px;
+}
+.label-manager__form footer,
+.label-manager__form .error {
+  grid-column: 1/-1;
+  margin: 0;
+}
+.label-manager__jobs {
+  margin-top: 24px;
+  border-top: 1px solid var(--line);
+  padding-top: 18px;
+}
+.label-manager__jobs h3 {
+  font-size: 12px;
+  font-weight: 500;
+  margin-bottom: 15px;
+}
+.label-manager__jobs > div {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--secondary);
+  margin: 12px 0;
+}
+.label-manager__jobs button {
+  border: 0;
+  background: none;
+  color: var(--green);
+  text-decoration: underline;
+  font-size: 12px;
+}
