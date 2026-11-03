@@ -1,0 +1,502 @@
+.transfer {
+  min-width: 0;
+  padding: 2px 28px 28px;
+  color: var(--ink);
+}
+.transfer__heading {
+  padding: 4px 0 20px;
+}
+.transfer__eyebrow {
+  font-size: 11px;
+  color: var(--muted);
+}
+.transfer__heading h2 {
+  font-size: 27px;
+  font-weight: 500;
+  letter-spacing: -0.8px;
+  margin: 7px 0;
+}
+.transfer__heading p {
+  font-size: 11px;
+  color: var(--secondary);
+  overflow-wrap: anywhere;
+}
+.transfer__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 22px;
+}
+.transfer__tabs button {
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  color: var(--secondary);
+  font: 12px var(--font);
+  padding: 9px 0 11px;
+}
+.transfer__tabs button[aria-pressed='true'] {
+  color: var(--green);
+  border-bottom-color: var(--green);
+}
+.transfer__form {
+  min-width: 0;
+  font-size: 12px;
+}
+.transfer__form h3,
+.transfer__run h3 {
+  font-size: 17px;
+  font-weight: 500;
+  letter-spacing: -0.3px;
+  margin: 14px 0;
+}
+.transfer__form h4 {
+  font-size: 13px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.transfer__form p,
+.transfer__run p {
+  font-size: 12px;
+  color: var(--secondary);
+  line-height: 1.8;
+  margin: 10px 0;
+  overflow-wrap: anywhere;
+}
+.transfer label {
+  font-size: 12px;
+  display: grid;
+  gap: 8px;
+  margin-top: 17px;
+  color: var(--secondary);
+}
+.transfer input,
+.transfer select,
+.transfer textarea {
+  border: 1px solid var(--line);
+  background: var(--canvas);
+  color: var(--ink);
+  border-radius: 5px;
+  padding: 9px;
+  width: 100%;
+  min-width: 0;
+  font: 12px var(--font);
+}
+.transfer input[type='file'] {
+  font-size: 11px;
+  padding: 11px 8px;
+}
+.transfer input[type='file']::file-selector-button {
+  font: 11px var(--font);
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--ink);
+  border-radius: 4px;
+  padding: 5px 8px;
+  margin-right: 8px;
+}
+.transfer textarea {
+  resize: vertical;
+}
+.transfer fieldset {
+  padding: 0;
+  border: 0;
+  min-width: 0;
+  margin: 18px 0;
+}
+.transfer legend {
+  font-size: 12px;
+  color: var(--secondary);
+  padding: 8px 0;
+}
+.transfer button {
+  font-family: var(--font);
+  font-size: 12px;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 8px 11px;
+}
+.transfer button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.transfer button:not(:disabled):hover {
+  background: var(--paper-hover);
+}
+.transfer .transfer__primary,
+.transfer__primary {
+  background: var(--green);
+  border: 1px solid var(--green);
+  color: var(--paper);
+}
+.transfer button.transfer__primary:not(:disabled):hover {
+  background: color-mix(in srgb, var(--green) 90%, var(--ink));
+}
+.transfer__secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 9px 12px;
+}
+.transfer .transfer__text {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  border: 0;
+  background: none;
+  color: var(--green);
+  padding: 6px 2px;
+  font-size: 11px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.transfer__actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 21px;
+}
+.transfer .transfer__check {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.transfer .transfer__check input {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  padding: 0;
+  margin-top: 3px;
+  accent-color: var(--green);
+}
+.transfer__checklist {
+  display: grid;
+  gap: 7px;
+  margin: 16px 0;
+  max-height: 230px;
+  overflow: auto;
+}
+.transfer__checklist .transfer__check {
+  margin: 0;
+  padding: 4px;
+}
+.transfer__two {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+}
+.transfer__segmented {
+  display: flex;
+  gap: 4px;
+  border: 1px solid var(--line);
+  background: var(--canvas);
+  padding: 4px;
+  border-radius: 6px;
+  margin: 20px 0;
+  width: max-content;
+  max-width: 100%;
+  flex-wrap: wrap;
+}
+.transfer__segmented button {
+  background: none;
+  border: 0;
+  font-size: 11px;
+  padding: 6px 12px;
+  color: var(--secondary);
+}
+.transfer__segmented button[aria-pressed='true'] {
+  background: var(--paper);
+  color: var(--green);
+  box-shadow: 0 1px 3px #2438260b;
+}
+.transfer__preview,
+.transfer__notice {
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--green-soft) 40%, var(--paper));
+  border-radius: 6px;
+  margin: 20px 0;
+  font-size: 12px;
+  line-height: 1.8;
+  color: var(--secondary);
+}
+.transfer__notice button {
+  margin: 7px;
+  font-size: 11px;
+}
+.transfer__preview h3 {
+  margin-top: 0;
+}
+.transfer__quiet {
+  font-size: 11px !important;
+  color: var(--muted) !important;
+}
+.transfer__warning {
+  color: var(--rust) !important;
+}
+.transfer__error {
+  font-size: 12px;
+  line-height: 1.8;
+  color: var(--rust) !important;
+  margin: 15px 0;
+  overflow-wrap: anywhere;
+}
+.transfer__error button {
+  margin-left: 8px;
+}
+.transfer__numbers {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 18px 0;
+}
+.transfer__numbers > span {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 10px;
+  color: var(--secondary);
+}
+.transfer__numbers strong {
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: -0.5px;
+  color: var(--green);
+}
+.transfer__details {
+  border-top: 1px solid var(--fine);
+  padding-top: 15px;
+  margin-top: 24px;
+  font-size: 12px;
+  min-width: 0;
+}
+.transfer__details summary {
+  cursor: pointer;
+  color: var(--secondary);
+  line-height: 1.7;
+  font-size: 12px;
+}
+.transfer__details[open] > summary {
+  margin-bottom: 15px;
+}
+.transfer__details ul,
+.transfer__details ol {
+  padding-left: 18px;
+  line-height: 1.9;
+  font-size: 12px;
+  color: var(--secondary);
+}
+.transfer__issues {
+  list-style: none;
+  padding: 0 !important;
+}
+.transfer__issues li {
+  padding: 12px 0;
+  border-top: 1px solid var(--fine);
+}
+.transfer__issues strong {
+  font-size: 11px;
+  font-weight: 500;
+}
+.transfer__issues li p {
+  margin: 5px 0;
+}
+.transfer__mapping {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 15px;
+}
+.transfer__sheet {
+  border-top: 1px solid var(--fine);
+  padding: 9px 0;
+}
+.transfer__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.transfer__chips button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+  padding: 5px 7px;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.transfer__section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.transfer__section-title > span,
+.transfer__section-title > small {
+  font-size: 10px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.transfer__records {
+  margin: 14px 0;
+  padding: 0 !important;
+  list-style: none;
+}
+.transfer__records > article,
+.transfer__records > li {
+  border-top: 1px solid var(--line);
+  padding: 16px 0;
+}
+.transfer__records strong {
+  font-size: 12px;
+  font-weight: 500;
+}
+.transfer pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 10px;
+  line-height: 1.7;
+  max-height: 250px;
+  overflow: auto;
+  border: 1px solid var(--fine);
+  padding: 10px;
+  background: var(--canvas);
+  border-radius: 4px;
+  margin-top: 8px;
+}
+.transfer code {
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+.transfer__compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 10px 0;
+}
+.transfer__compare small {
+  font-size: 10px;
+  color: var(--muted);
+}
+.transfer__archive-field {
+  padding: 8px 0;
+  border-top: 1px solid var(--fine);
+}
+.transfer__output {
+  list-style: none;
+  padding: 0 !important;
+}
+.transfer__output li {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-top: 1px solid var(--fine);
+}
+.transfer__output span {
+  font-size: 11px;
+}
+.transfer .transfer__danger {
+  color: var(--rust);
+  background: none;
+  margin-top: 14px;
+}
+.transfer progress {
+  accent-color: var(--green);
+  width: 100%;
+  height: 5px;
+  margin: 17px 0 2px;
+}
+.transfer__run {
+  font-size: 12px;
+  min-width: 0;
+}
+.transfer__activity article {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-top: 1px solid var(--line);
+  padding: 17px 0;
+}
+.transfer__activity article > div {
+  min-width: 0;
+}
+.transfer__activity strong {
+  font-size: 13px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.transfer__activity p {
+  font-size: 11px;
+  line-height: 1.8;
+}
+.transfer__activity button {
+  font-size: 11px;
+  flex: none;
+}
+@media (max-width: 560px) {
+  .transfer {
+    padding: 0 18px 22px;
+  }
+  .transfer__tabs {
+    gap: 14px;
+  }
+  .transfer__tabs button {
+    font-size: 11px;
+  }
+  .transfer__heading h2 {
+    font-size: 24px;
+  }
+  .transfer__two,
+  .transfer__mapping,
+  .transfer__compare {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+  .transfer__numbers {
+    gap: 8px;
+  }
+  .transfer__numbers strong {
+    font-size: 19px;
+  }
+  .transfer__numbers > span {
+    font-size: 9px;
+  }
+  .transfer__preview,
+  .transfer__notice {
+    padding: 12px;
+  }
+  .transfer__section-title {
+    align-items: flex-start;
+  }
+  .transfer__actions {
+    gap: 7px;
+  }
+  .transfer__actions button {
+    font-size: 11px;
+  }
+  .transfer__activity article {
+    gap: 9px;
+  }
+  .transfer .transfer__check {
+    font-size: 11px;
+  }
+}
+
+.transfer__output small {
+  display: block;
+  font-size: 10px;
+  line-height: 1.7;
+  color: var(--muted);
+  margin-top: 4px;
+}
