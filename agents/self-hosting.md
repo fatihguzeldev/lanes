@@ -118,30 +118,17 @@ oauth starts at `POST /auth/google/start`. callbacks return to the browser throu
 
 the configured cron ticks once per minute. each tick advances bounded admitted work or one cleanup family using persisted fairness state. a tick is not an exact-time delivery guarantee, and idle accounts do not receive a full google poll on every tick.
 
-### automatic updates
+### cloudflare builds
 
-cloudflare's git integration can deploy updates from the repository. this is optional; an installation can use `npm run deploy` through its existing wrangler access. the [github actions workflow](../.github/workflows/check.yml) checks pull requests only and has no deployment credentials.
-
-after the initial deployment, open the existing worker's settings, then builds, and connect its github repository. reuse an authorized cloudflare workers & pages github app installation, granting access to this repository if needed. set the production branch to `main` and disable preview builds. pull request code and other branches must not receive the production token or run migrations against the production database. see [cloudflare git integration](https://developers.cloudflare.com/workers/ci-cd/builds/).
+for optional git deployments, connect the repository in the existing worker's builds settings. select `main` and disable preview builds. use a user-owned token with workers scripts edit and d1 edit for the target account. see [build configuration](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/).
 
 | setting      | value                                              |
 | ------------ | -------------------------------------------------- |
-| root         | repository root                                    |
 | build        | `npm run build:cloudflare`                         |
 | deploy       | `npm run db:migrate:remote && npx wrangler deploy` |
 | build secret | `LANES_DEPLOY_CONFIG`                              |
 
-store the private installation config as strict json in `LANES_DEPLOY_CONFIG`, without comments, trailing commas or credential values. include its account, worker, database, origin and owner. `npm run build:cloudflare` writes the ignored `wrangler.deploy.jsonc` with owner-only file permissions, runs `npm run check`, then builds with the private target. migrations run only after those checks and the deploy build pass. the shared `wrangler.jsonc` remains unchanged.
-
-when the private config changes, update the build secret before the next automatic deployment. native builds cannot read the ignored file on the owner's computer.
-
-workers builds reads `.node-version` and installs the locked dependencies before the build command. keep google credentials and application keys in the worker's runtime secrets; build secrets are a separate setting. a redeploy preserves the worker's existing secret bindings. do not print the build config or put it in browser assets.
-
-workers builds currently requires a user-owned api token. scope it to the intended cloudflare account with workers scripts edit and d1 edit for migrations; these user-token permissions cover that account's workers and databases. the dashboard's automatic token can include unrelated services, so choose the permissions explicitly. an account-owned token for manual deployment cannot be substituted for a workers builds token. see [build configuration](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/#api-token).
-
-the builds free plan currently includes 3,000 build minutes per month, one concurrent build per account, and a 20-minute build timeout. quota exhaustion can stop automatic updates; manual deployment remains available. verify [build limits](https://developers.cloudflare.com/workers/ci-cd/builds/limits-and-pricing/) when changing this path.
-
-when replacing an existing deployment pipeline, verify a real push: record the commit, confirm its native build and deployment succeeded, and check that the intended worker serves it. only then remove the old pipeline's deployment credentials and configuration. a connected repository or a passing local build is not proof of automatic deployment.
+set `LANES_DEPLOY_CONFIG` to the installation's private `wrangler.deploy.jsonc` as strict json, without comments, trailing commas or credentials. the build writes that config before checking and building the application. update the build secret when the private config changes.
 
 ### installation checks
 

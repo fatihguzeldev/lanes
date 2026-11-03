@@ -104,12 +104,6 @@ quota exhaustion pauses or rejects work and retains confirmed data. the platform
 
 ## updates and recovery
 
-automatic updates through cloudflare's git integration are optional. the manual wrangler deployment path remains supported without a git connection or build token. when enabled, native builds run for `main` only, with preview builds disabled. github actions checks pull requests without deployment credentials; untrusted branch code must not receive the production build token or migrate the production database.
-
-native builds install the locked dependencies with the runtime selected by `.node-version`. `npm run build:cloudflare` materializes the ignored private config from the strict json build secret `LANES_DEPLOY_CONFIG`, runs the repository checks, and creates the deploy build. only then does `npm run db:migrate:remote && npx wrangler deploy` migrate and deploy to that target. runtime credentials remain in worker secrets, and the tracked configuration remains reusable. build permissions and quotas must satisfy the same free-plan and credential boundaries as manual deployment.
-
-when switching deployment pipelines, retain the old deployment credentials until an actual pushed commit has passed the replacement pipeline and reached the intended worker. verify the commit and active deployment before removing the old path. do not promise that a build cannot be interrupted during migrations; preserve the migration recovery and compatibility rules below.
-
 before updating, identify the actual worker, database, schema version, deployment version, and current secrets. read migration compatibility and capture a supported database backup/recovery point. keep backups private; a raw database may contain encrypted credentials as well as task data.
 
 apply ordered migrations to the intended database and deploy a compatible worker/client pair. account for old browser tabs and in-flight operations. breaking contract/schema changes need an explicit compatibility or maintenance path; silently resetting d1 is not an update strategy.
@@ -149,5 +143,3 @@ return the url, selected cloudflare resources, relevant configuration locations,
 - `self-hosting-09`: optional sheets setup, expired grants, platform quotas, and account policy restrictions have documented recovery paths.
 - `self-hosting-10`: handoff names the actual deployment and verification evidence without exposing credentials.
 - `self-hosting-11`: personal configuration is ignored and leaves tracked defaults unchanged; local development and ci build need no personal config, while deploy fails without its private target and remote commands cannot use a stale target from another build.
-- `self-hosting-12`: optional native builds check and build a pushed `main` commit before migration and deployment; previews and pull request checks cannot use production credentials or its database.
-- `self-hosting-13`: a pipeline cutover verifies the pushed commit and active worker deployment before removing the previous pipeline's deployment credentials; manual deployment remains available.
