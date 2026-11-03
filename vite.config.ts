@@ -2,8 +2,11 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { cloudflare } from '@cloudflare/vite-plugin';
 
-export default defineConfig({
-  plugins: [react(), cloudflare()],
+export default defineConfig(({ mode }) => ({
+  plugins: [
+    react(),
+    cloudflare({ configPath: mode === 'deploy' ? 'wrangler.deploy.jsonc' : 'wrangler.jsonc' }),
+  ],
   server: { host: '127.0.0.1', port: 5173, strictPort: true },
   build: { sourcemap: false },
-});
+}));

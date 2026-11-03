@@ -12,6 +12,8 @@ clone the repository and give your agent [AGENTS.md](AGENTS.md) and the [self-ho
 
 you handle account sign-in, two-factor authentication and google consent. the agent handles the build, database, configuration and deployment. it can also handle google console configuration when you give it authorized browser access.
 
+the agent keeps your installation values in ignored `wrangler.deploy.jsonc` and your live secrets in cloudflare. the tracked `wrangler.jsonc` stays reusable for everyone. the [self-hosting guide](agents/self-hosting.md#bindings-and-values) owns the setup and update steps.
+
 the default setup uses a worker, static assets, d1 and a `workers.dev` address. it is designed for the free plan; quotas can pause work. no custom domain or paid service is required by the application.
 
 google oauth stays in testing mode. add every connected account to the project’s test users and reconnect when its seven-day authorization expires.
@@ -38,7 +40,7 @@ npm run db:migrate
 npm run dev
 ```
 
-copy [.dev.vars.example](.dev.vars.example) to `.dev.vars` for local credentials. without valid owner configuration, the public client opens a setup screen and private endpoints stay closed.
+copy [.dev.vars.example](.dev.vars.example) to ignored `.dev.vars` for local settings and credentials. local development uses the tracked config and a separate local database; it does not need your private deploy config. without valid owner configuration, the public client opens a setup screen and private endpoints stay closed.
 
 ```sh
 npm run check

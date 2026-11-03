@@ -10,6 +10,7 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "vite build",
+    "build:deploy": "vite build --mode deploy",
     "preview": "vite preview --host 127.0.0.1",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
@@ -18,9 +19,9 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "check": "npm run format:check && npm run typecheck && npm run check:boundaries && npm test && npm run build",
-    "db:migrate": "wrangler d1 migrations apply DB --local",
-    "db:migrate:remote": "wrangler d1 migrations apply DB --remote",
-    "deploy": "npm run build && wrangler deploy"
+    "db:migrate": "wrangler d1 migrations apply DB --local --config wrangler.jsonc",
+    "db:migrate:remote": "wrangler d1 migrations apply DB --remote --config wrangler.deploy.jsonc",
+    "deploy": "npm run build:deploy && wrangler deploy"
   },
   "dependencies": {
     "@js-temporal/polyfill": "0.5.1",

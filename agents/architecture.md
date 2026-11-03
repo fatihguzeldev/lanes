@@ -30,19 +30,19 @@ wrangler.jsonc
 
 each path groups code by its owner. create internal folders when their responsibilities need them.
 
-| owner               | responsibility                                                                                |
-| ------------------- | --------------------------------------------------------------------------------------------- |
-| `web/`              | browser startup, routes, application shell, and screen composition                            |
-| `worker/`           | server startup, http and scheduled entry points, environment loading, and dependency wiring   |
-| `modules/accounts/` | owner session, connected google accounts, oauth, token refresh, and reconnection              |
-| `modules/tasks/`    | google task lists and tasks, application task metadata, mutations, scheduling rules, and sync |
-| `modules/boards/`   | board grouping, layout, filters, calendar presentation, and board templates                   |
-| `modules/history/`  | storing and reading confirmed changes and observed external changes                           |
-| `modules/transfer/` | parsing and validating imports, exports, sheets access, and account transfers                 |
-| `ui/`               | context-independent visual primitives                                                         |
-| `styles/`           | shared visual tokens and base rules                                                           |
-| `migrations/`       | ordered changes to the d1 schema                                                              |
-| `wrangler.jsonc`    | cloudflare deployment configuration and resource bindings                                     |
+| owner               | responsibility                                                                                     |
+| ------------------- | -------------------------------------------------------------------------------------------------- |
+| `web/`              | browser startup, routes, application shell, and screen composition                                 |
+| `worker/`           | server startup, http and scheduled entry points, environment loading, and dependency wiring        |
+| `modules/accounts/` | owner session, connected google accounts, oauth, token refresh, and reconnection                   |
+| `modules/tasks/`    | google task lists and tasks, application task metadata, mutations, scheduling rules, and sync      |
+| `modules/boards/`   | board grouping, layout, filters, calendar presentation, and board templates                        |
+| `modules/history/`  | storing and reading confirmed changes and observed external changes                                |
+| `modules/transfer/` | parsing and validating imports, exports, sheets access, and account transfers                      |
+| `ui/`               | context-independent visual primitives                                                              |
+| `styles/`           | shared visual tokens and base rules                                                                |
+| `migrations/`       | ordered changes to the d1 schema                                                                   |
+| `wrangler.jsonc`    | shared local and ci defaults; personal deployment values belong in ignored `wrangler.deploy.jsonc` |
 
 ## inside an owner
 

@@ -38,7 +38,8 @@ the application remains closed while owner configuration or oauth secrets are in
 | concern                                                         | storage/visibility                                    |
 | --------------------------------------------------------------- | ----------------------------------------------------- |
 | public browser configuration                                    | only nonsecret values needed by the static client     |
-| application origin, owner bootstrap identity, resource bindings | validated server/deployment configuration             |
+| shared local and ci defaults                                    | tracked `wrangler.jsonc`, without installation values |
+| application origin, owner bootstrap identity, resource bindings | ignored `wrangler.deploy.jsonc` for the installation  |
 | oauth client secret, session key, token-encryption key          | worker secrets; never static assets or tracked values |
 | google refresh/access tokens                                    | encrypted account-owned records; key held outside d1  |
 | schema versions, task projections, local metadata, operations   | the selected d1 database                              |
@@ -47,6 +48,10 @@ the application remains closed while owner configuration or oauth secrets are in
 generate installation keys once, using cryptographic randomness. preserve them across redeploys. a missing or mismatched encryption key fails closed with an actionable installation error; it must not erase accounts or regenerate a key over existing encrypted data.
 
 validate required configuration at server startup/entry. do not leak secret values in diagnostics. use a local ignored secret file for local development and isolated local data; a development command must not mutate the deployed database by default.
+
+keep the tracked config reusable across installations. the agent creates the private deploy config from it once, sets the intended cloudflare account, worker, database, origin and owner, and preserves it across updates. installation-specific values stay out of tracked files even when they are not credentials. production secrets remain in the selected worker's secret bindings; local settings and secrets remain in ignored `.dev.vars`.
+
+local development and the ordinary build use the tracked template. the deploy build must explicitly select the private config and fail when it is absent. remote migrations and secret commands must explicitly target that same private config; stale build output must not silently select another installation. document how the deploy command uses the configuration produced by its own build.
 
 ## discoverable entry points
 
@@ -101,6 +106,8 @@ before updating, identify the actual worker, database, schema version, deploymen
 
 apply ordered migrations to the intended database and deploy a compatible worker/client pair. account for old browser tabs and in-flight operations. breaking contract/schema changes need an explicit compatibility or maintenance path; silently resetting d1 is not an update strategy.
 
+reconcile changes to runtime, assets, cron and bindings from the shared template into the preserved private config before deploying. do not overwrite the private file or copy personal installation values back into the tracked template.
+
 a worker rollback does not undo a migration. document whether the previous version can read the new schema. prefer compatible migrations; if recovery needs database restoration, require an explicit destructive recovery action and explain which confirmed data after the recovery point would be lost.
 
 database recovery and a credential-free [workspace archive](../portability/spec.md#lanes-workspace-archive) serve different purposes. preserve the token-encryption key separately and securely for a raw database restore. do not add secrets to a product export to make restoration convenient.
@@ -133,3 +140,4 @@ return the url, selected cloudflare resources, relevant configuration locations,
 - `self-hosting-08`: a redeploy preserves tokens/metadata; an update/rollback drill distinguishes worker rollback from database restoration.
 - `self-hosting-09`: optional sheets setup, expired grants, platform quotas, and account policy restrictions have documented recovery paths.
 - `self-hosting-10`: handoff names the actual deployment and verification evidence without exposing credentials.
+- `self-hosting-11`: personal configuration is ignored and leaves tracked defaults unchanged; local development and ci build need no personal config, while deploy fails without its private target and remote commands cannot use a stale target from another build.

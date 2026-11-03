@@ -1,6 +1,7 @@
 node_modules/
 dist/
 .wrangler/
+wrangler.deploy.jsonc
 .work/
 coverage/
 package-lock.json

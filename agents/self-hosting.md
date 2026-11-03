@@ -37,7 +37,7 @@ the default address is on `workers.dev`; buying a domain is optional. the owner 
 1. read [product](product.md), the [architecture proposal](architecture.md), and [security](security.md). inspect the checkout, working tree, package manifest, and deployment configuration. use commands and paths present in that version of the repository. if an entry point required for deployment is missing, report it rather than inventing a deployment path.
 2. check existing cloudflare authentication and reuse it. use an authorized cloudflare mcp connection or wrangler's browser sign-in according to the available tools and permissions. do not require both. a copied api token is not a default prerequisite.
 3. confirm the target account and free plan. find the intended worker and d1 database before creating resources. reuse a matching installation. default to a `workers.dev` address.
-4. apply the repository's schema migrations to the intended database. configure the bindings and generate installation secrets once. preserve the database, keys, and existing secrets when continuing or updating an installation.
+4. create `wrangler.deploy.jsonc` from the shared `wrangler.jsonc` only if the private file does not exist. fill its target account, worker name, database id, application origin and owner email. leave the tracked template unchanged. apply migrations to that intended database and generate installation secrets once. preserve the private config, database, keys and existing secrets when continuing an installation.
 5. establish the exact application address and oauth callback url from the deployment. the installation must remain closed to unauthorized ownership claims while oauth is being configured.
 6. perform the google configuration described above using available tools or an authorized browser. ask the owner to complete sign-in and any required consent. provide exact console instructions only for steps the agent cannot perform. use one oauth web client for the installation.
 7. confirm that every google account to connect is listed in test users. retrieve the client credentials during setup, or receive them through local input if necessary, and store them in the worker's secrets. terminal access alone does not automate all google console steps.
@@ -67,7 +67,7 @@ workspace administrators can restrict third-party access. adding an account to t
 | local configuration example           | [`.dev.vars.example`](../.dev.vars.example); copy to ignored `.dev.vars`                                                                                                          |
 | browser startup                       | [`src/web/main.tsx`](../src/web/main.tsx), [`src/web/App.tsx`](../src/web/App.tsx)                                                                                                |
 | http and scheduled worker             | [`src/worker/index.ts`](../src/worker/index.ts)                                                                                                                                   |
-| resource bindings, assets and cron    | [`wrangler.jsonc`](../wrangler.jsonc)                                                                                                                                             |
+| shared local and ci configuration     | [`wrangler.jsonc`](../wrangler.jsonc); copy to ignored `wrangler.deploy.jsonc` for a personal deployment                                                                          |
 | server configuration validation       | [`src/worker/env.ts`](../src/worker/env.ts)                                                                                                                                       |
 | oauth and owner sessions              | [`src/modules/accounts/server.ts`](../src/modules/accounts/server.ts)                                                                                                             |
 | grant refresh and disconnect          | [`src/modules/accounts/provider-access.ts`](../src/modules/accounts/provider-access.ts)                                                                                           |
@@ -78,29 +78,37 @@ workspace administrators can restrict third-party access. adding an account to t
 | schema changes                        | [`migrations/`](../migrations/) in filename order                                                                                                                                 |
 | scheduler and cleanup                 | [`src/worker/scheduler.ts`](../src/worker/scheduler.ts), [`maintenance.ts`](../src/worker/maintenance.ts)                                                                         |
 
-use `npm ci` to install the locked dependencies. `npm run check` runs formatting, type checking, import boundaries, tests and the build. `npm run dev` uses `127.0.0.1:5173` and local cloudflare bindings. check the port before starting it; reuse the matching process.
+use `npm ci` to install the locked dependencies. `npm run check` runs formatting, type checking, import boundaries, tests and the build. `npm run dev` uses `127.0.0.1:5173` and local cloudflare bindings. check the port before starting it; reuse the matching process. local development and `npm run build` use the tracked template and do not require the private deploy config.
 
-`npm run db:migrate` applies migrations to local d1 only. `npm run db:migrate:remote` changes the configured remote database. verify the account, database id and migration plan before using the remote command.
+`npm run db:migrate` applies migrations to local d1 only. `npm run db:migrate:remote` selects `wrangler.deploy.jsonc` explicitly and changes that installation's remote database. verify the account, database id and migration plan before using the remote command.
 
-`npm run deploy` builds the browser and worker, then invokes wrangler. the vite/cloudflare build writes the deployment output under `dist/`; do not deploy a hand-built copy of the client or a different worker entry.
+`npm run build:deploy` runs the vite build in deploy mode with `wrangler.deploy.jsonc`; it fails if that file is missing. `npm run deploy` runs that build, then invokes wrangler using the generated deployment configuration. the vite/cloudflare build writes the deployment output under `dist/`; do not deploy a hand-built copy of the client or a different worker entry. a deploy must not fall back to the tracked template.
 
 the agent carries out these steps directly. a separate setup program is not required.
 
 ### bindings and values
 
-replace the placeholder database id in `wrangler.jsonc` with the intended d1 database id. the binding name stays `DB`; `ASSETS` serves the built client. use an ordinary worker and d1 database on the free plan.
+`wrangler.jsonc` belongs to the project. keep its reusable defaults and placeholder values in git; do not replace them with an installation's account, database, owner or address.
 
-| value                  | meaning and storage                                                 |
-| ---------------------- | ------------------------------------------------------------------- |
-| `APP_ORIGIN`           | exact public origin, including `https://`; configure in worker vars |
-| `OWNER_EMAIL`          | bootstrap owner email; configure before the first sign-in           |
-| `GOOGLE_CLIENT_ID`     | this installation’s web oauth client id; worker secret              |
-| `GOOGLE_CLIENT_SECRET` | the matching client secret; worker secret                           |
-| `SESSION_KEY`          | independent random 32-byte key encoded as base64url; worker secret  |
-| `TOKEN_ENCRYPTION_KEY` | a second random 32-byte base64url key; worker secret                |
-| `TOKEN_KEY_ID`         | stable identifier for the encryption key, default `v1`; worker var  |
+on a fresh installation, the agent copies it once:
 
-store remote secrets through `wrangler secret put` or the authorized cloudflare tools. do not put their values in `wrangler.jsonc`, browser environment values, source files, issue text or command output. generate both application keys independently. local `.dev.vars` is ignored and must contain separate development credentials and keys.
+```sh
+cp wrangler.jsonc wrangler.deploy.jsonc
+```
+
+the ignored `wrangler.deploy.jsonc` holds the selected `account_id`, worker `name`, real d1 `database_id`, `APP_ORIGIN` and `OWNER_EMAIL`. these are installation values even when they are not secrets. keep the binding name `DB`; `ASSETS` serves the built client. use an ordinary worker and d1 database on the free plan. preserve an existing private file rather than replacing it with a fresh copy.
+
+| value                  | meaning and storage                                                   |
+| ---------------------- | --------------------------------------------------------------------- |
+| `APP_ORIGIN`           | exact public origin, including `https://`; private deploy config vars |
+| `OWNER_EMAIL`          | bootstrap owner email; private deploy config vars                     |
+| `GOOGLE_CLIENT_ID`     | this installation’s web oauth client id; worker secret                |
+| `GOOGLE_CLIENT_SECRET` | the matching client secret; worker secret                             |
+| `SESSION_KEY`          | independent random 32-byte key encoded as base64url; worker secret    |
+| `TOKEN_ENCRYPTION_KEY` | a second random 32-byte base64url key; worker secret                  |
+| `TOKEN_KEY_ID`         | stable identifier for the encryption key, default `v1`; worker var    |
+
+store remote secrets through `wrangler secret put <NAME> --config wrangler.deploy.jsonc` or the authorized cloudflare tools targeting that installation. neither config file contains secret values. keep them out of browser environment values, source files, issue text and command output. generate both application keys independently. local `.dev.vars` is ignored and contains separate development settings, credentials and keys; cloudflare secrets are not downloaded into it.
 
 the production callback is exactly `${APP_ORIGIN}/auth/google/callback`. the local callback is `http://127.0.0.1:5173/auth/google/callback`. register each origin/callback actually used by that oauth client; a local callback does not authorize a `workers.dev` deployment.
 
@@ -122,7 +130,7 @@ read the version's migration and deployment instructions before updating. preser
 
 before an update, record the deployed worker version and obtain a d1 backup or time travel bookmark. store any exported database outside the checkout or under an ignored private path. keep the corresponding token-encryption key and key id separately; a database backup does not contain the worker’s secrets.
 
-install the locked dependencies and run `npm run check`. inspect the pending migrations, apply them to the intended remote database, then deploy. test owner sign-in, account separation, task access and a retained operation after the update. preserve installation ownership, both keys, oauth client configuration and resource bindings.
+install the locked dependencies and run `npm run check`. compare runtime, asset, cron and binding changes in the tracked template with the preserved private deploy config; carry over applicable changes without replacing personal values. inspect the pending migrations, apply them to the intended remote database, then deploy. test owner sign-in, account separation, task access and a retained operation after the update. preserve installation ownership, both keys, oauth client configuration and resource bindings.
 
 if a rollback is needed, first establish whether the previous worker can read the migrated schema. roll back code only when that remains compatible. restoring d1 is a separate explicit decision that can discard later writes. test the recovery path with controlled data before relying on it.
 
