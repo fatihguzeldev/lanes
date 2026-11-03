@@ -226,7 +226,7 @@ async function request(
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
       body: body.toString(),
-      redirect: 'error',
+      redirect: 'manual',
       signal: options.signal ? AbortSignal.any([options.signal, timeout]) : timeout,
     });
   } catch {

@@ -79,7 +79,7 @@ describe('sheets access boundary', () => {
     expect(url.searchParams.get('fields')).toContain('gridProperties');
     expect(url.searchParams.has('ranges')).toBe(false);
     expect(new Headers(init?.headers).get('authorization')).toBe('Bearer server-token');
-    expect(init?.redirect).toBe('error');
+    expect(init?.redirect).toBe('manual');
     expect(GOOGLE_SHEETS_IMPORT_SCOPE).toBe(
       'https://www.googleapis.com/auth/spreadsheets.readonly',
     );

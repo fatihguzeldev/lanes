@@ -417,7 +417,7 @@ export class GoogleTasksClient {
       response = await this.fetcher(url, {
         method,
         headers,
-        redirect: 'error',
+        redirect: 'manual',
         signal: AbortSignal.any(signals),
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),
       });

@@ -143,7 +143,7 @@ describe('google tasks reads', () => {
     const fetcher = vi.fn<GoogleTasksFetch>(
       async (_input: RequestInfo | URL, init?: RequestInit) => {
         expect(new Headers(init?.headers).get('Authorization')).toBe('Bearer server-access-secret');
-        expect(init?.redirect).toBe('error');
+        expect(init?.redirect).toBe('manual');
         return Response.json(task());
       },
     );

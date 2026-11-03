@@ -105,7 +105,7 @@ describe('token grants', () => {
       const body = new URLSearchParams(String(init?.body));
       expect(body.get('code_verifier')).toBe('verifier');
       expect(body.get('client_secret')).toBe(config.clientSecret);
-      expect(init?.redirect).toBe('error');
+      expect(init?.redirect).toBe('manual');
       return success();
     });
     const grant = await exchangeGoogleCode(

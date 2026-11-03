@@ -536,7 +536,7 @@ export class GoogleSheetsClient {
       result = await this.fetcher(url, {
         method,
         headers,
-        redirect: 'error',
+        redirect: 'manual',
         signal,
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),
       });
