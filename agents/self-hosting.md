@@ -61,21 +61,73 @@ workspace administrators can restrict third-party access. adding an account to t
 
 ## configuration entry points
 
-keep the exact files and commands for these concerns documented beside their owning configuration:
+| concern                               | entry point                                                                                                                                                                       |
+| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| node and dependencies                 | [`.node-version`](../.node-version), [`package.json`](../package.json), [`package-lock.json`](../package-lock.json)                                                               |
+| local configuration example           | [`.dev.vars.example`](../.dev.vars.example); copy to ignored `.dev.vars`                                                                                                          |
+| browser startup                       | [`src/web/main.tsx`](../src/web/main.tsx), [`src/web/App.tsx`](../src/web/App.tsx)                                                                                                |
+| http and scheduled worker             | [`src/worker/index.ts`](../src/worker/index.ts)                                                                                                                                   |
+| resource bindings, assets and cron    | [`wrangler.jsonc`](../wrangler.jsonc)                                                                                                                                             |
+| server configuration validation       | [`src/worker/env.ts`](../src/worker/env.ts)                                                                                                                                       |
+| oauth and owner sessions              | [`src/modules/accounts/server.ts`](../src/modules/accounts/server.ts)                                                                                                             |
+| grant refresh and disconnect          | [`src/modules/accounts/provider-access.ts`](../src/modules/accounts/provider-access.ts)                                                                                           |
+| application service composition       | [`src/worker/services.ts`](../src/worker/services.ts), [`template-services.ts`](../src/worker/template-services.ts), [`transfer-services.ts`](../src/worker/transfer-services.ts) |
+| local owner commands                  | [`src/worker/local-commands.ts`](../src/worker/local-commands.ts)                                                                                                                 |
+| task commands and provider settlement | [`src/modules/tasks/server/provider-commands.ts`](../src/modules/tasks/server/provider-commands.ts)                                                                               |
+| admitted operation receipts           | [`src/modules/tasks/server/operations.ts`](../src/modules/tasks/server/operations.ts)                                                                                             |
+| schema changes                        | [`migrations/`](../migrations/) in filename order                                                                                                                                 |
+| scheduler and cleanup                 | [`src/worker/scheduler.ts`](../src/worker/scheduler.ts), [`maintenance.ts`](../src/worker/maintenance.ts)                                                                         |
 
-- dependency installation, local development, build, and deploy.
-- worker entry points, static output, and the d1 binding in `wrangler.jsonc`.
-- migrations and the selected remote database.
-- application url, oauth callback, and owner access configuration.
-- google client credentials, session signing, and stored-token encryption.
-- any scheduled recurrence or template work.
+use `npm ci` to install the locked dependencies. `npm run check` runs formatting, type checking, import boundaries, tests and the build. `npm run dev` uses `127.0.0.1:5173` and local cloudflare bindings. check the port before starting it; reuse the matching process.
 
-keep safe example values separate from local secrets. the agent carries out the documented steps directly; a separate setup program is not required.
+`npm run db:migrate` applies migrations to local d1 only. `npm run db:migrate:remote` changes the configured remote database. verify the account, database id and migration plan before using the remote command.
+
+`npm run deploy` builds the browser and worker, then invokes wrangler. the vite/cloudflare build writes the deployment output under `dist/`; do not deploy a hand-built copy of the client or a different worker entry.
+
+the agent carries out these steps directly. a separate setup program is not required.
+
+### bindings and values
+
+replace the placeholder database id in `wrangler.jsonc` with the intended d1 database id. the binding name stays `DB`; `ASSETS` serves the built client. use an ordinary worker and d1 database on the free plan.
+
+| value                  | meaning and storage                                                 |
+| ---------------------- | ------------------------------------------------------------------- |
+| `APP_ORIGIN`           | exact public origin, including `https://`; configure in worker vars |
+| `OWNER_EMAIL`          | bootstrap owner email; configure before the first sign-in           |
+| `GOOGLE_CLIENT_ID`     | this installation’s web oauth client id; worker secret              |
+| `GOOGLE_CLIENT_SECRET` | the matching client secret; worker secret                           |
+| `SESSION_KEY`          | independent random 32-byte key encoded as base64url; worker secret  |
+| `TOKEN_ENCRYPTION_KEY` | a second random 32-byte base64url key; worker secret                |
+| `TOKEN_KEY_ID`         | stable identifier for the encryption key, default `v1`; worker var  |
+
+store remote secrets through `wrangler secret put` or the authorized cloudflare tools. do not put their values in `wrangler.jsonc`, browser environment values, source files, issue text or command output. generate both application keys independently. local `.dev.vars` is ignored and must contain separate development credentials and keys.
+
+the production callback is exactly `${APP_ORIGIN}/auth/google/callback`. the local callback is `http://127.0.0.1:5173/auth/google/callback`. register each origin/callback actually used by that oauth client; a local callback does not authorize a `workers.dev` deployment.
+
+oauth starts at `POST /auth/google/start`. callbacks return to the browser through `GET /auth/google/callback`. owner sign-out uses `POST /auth/signout`. the client reads `GET /api/session`; application mutations also require the exact origin and `x-lanes-api: 1` header.
+
+the configured cron ticks once per minute. each tick advances bounded admitted work or one cleanup family using persisted fairness state. a tick is not an exact-time delivery guarantee, and idle accounts do not receive a full google poll on every tick.
+
+### installation checks
+
+verify the deployed health response, the configured session response, and the owner-only sign-in boundary before connecting task accounts. complete real google consent on the `workers.dev` callback. list each test account explicitly in the oauth audience and confirm that switching accounts cannot expose another account’s task references.
+
+use a dedicated google test list for create/edit/complete/move/delete checks. verify the actual etag and cross-list movement behavior used by that version; local mocks cannot establish provider guarantees. check a timed repeat, a template run, a small import, optional sheets consent and a download with controlled data.
+
+measure worker cpu, provider requests and d1 usage on the deployed free plan. local sqlite transaction tests establish application behavior, not cloudflare cpu acceptance. reduce work slices if a valid request exceeds a free limit; do not enable billing as a workaround.
 
 ## updates and limits
 
 read the version's migration and deployment instructions before updating. preserve data and encryption keys. a worker rollback does not itself reverse a database migration.
 
+before an update, record the deployed worker version and obtain a d1 backup or time travel bookmark. store any exported database outside the checkout or under an ignored private path. keep the corresponding token-encryption key and key id separately; a database backup does not contain the worker’s secrets.
+
+install the locked dependencies and run `npm run check`. inspect the pending migrations, apply them to the intended remote database, then deploy. test owner sign-in, account separation, task access and a retained operation after the update. preserve installation ownership, both keys, oauth client configuration and resource bindings.
+
+if a rollback is needed, first establish whether the previous worker can read the migrated schema. roll back code only when that remains compatible. restoring d1 is a separate explicit decision that can discard later writes. test the recovery path with controlled data before relying on it.
+
 application history and database backups serve different purposes. make the treatment of both clear before changing storage or retention.
 
 the default installation uses free-plan resources. quotas can pause an operation; free hosting does not promise unlimited capacity. custom domains are optional. verify current platform requirements before claiming the complete setup needs no billing account or payment method.
+
+check the current [worker limits](https://developers.cloudflare.com/workers/platform/limits/), [d1 limits](https://developers.cloudflare.com/d1/platform/limits/) and [d1 pricing](https://developers.cloudflare.com/d1/platform/pricing/) during installation. the free plan’s cpu and query limits apply to background work as well as browser requests. other applications in the same cloudflare account share account-wide allowances. d1 time travel currently retains seven days on the free plan; an archive’s task history has its separate 90-day product policy.

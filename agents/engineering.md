@@ -22,6 +22,8 @@ avoid speculative provider frameworks, event buses, package splits, and abstract
 
 use the package scripts and tool configuration in the checkout. keep command documentation aligned with those entry points. report a missing check as a verification limit.
 
+`npm run check` runs formatting, type checking, ownership checks, tests, and the production build. `npm run format` applies the repository's prettier configuration. keep generated files and byte-sensitive fixtures out of formatting changes.
+
 choose checks for the behavior at risk:
 
 | change                                                  | useful verification                                                                                 |
