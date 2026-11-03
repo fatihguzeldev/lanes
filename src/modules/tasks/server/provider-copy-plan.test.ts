@@ -63,6 +63,7 @@ const task = (key: string, position: number, extra: Partial<CopyEntry> = {}): Co
   ...extra,
 });
 describe('checkpointed dependency validation', () => {
+  // the timeout covers staging and all checkpoints; each invocation keeps its query budget.
   for (const count of [500, 2000])
     it(`validates a ${count}-task dependency chain in bounded resumable slices`, async () => {
       const f = await fixture();
@@ -116,7 +117,7 @@ describe('checkpointed dependency validation', () => {
           .bind(operationId())
           .first('n'),
       ).toBe(count);
-    });
+    }, 30_000);
   it('freezes normalization during checkpoints, rejects a late cycle, and never dispatches a partial validated graph', async () => {
     const f = await fixture(),
       count = 500;

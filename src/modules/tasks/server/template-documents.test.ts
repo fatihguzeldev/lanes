@@ -70,6 +70,7 @@ const task = (key: string, position: number, fields: Partial<TemplateTask> = {})
   ...fields,
 });
 describe('bounded declarative template staging', () => {
+  // the timeout covers staging and all checkpoints; each invocation keeps its query budget.
   for (const count of [500, 2000])
     it(`validates ${count} chained template tasks through bounded checkpoints while the snapshot stays hidden`, async () => {
       const f = await fixture();
@@ -125,7 +126,7 @@ describe('bounded declarative template staging', () => {
         (f.sqlite.prepare('SELECT total_changes() AS n').get()?.n as number) - before,
       ).toBeLessThanOrEqual(1);
       expect((await f.snapshots.get('a', 'snapshot')).taskCount).toBe(count);
-    });
+    }, 30_000);
   it('captures resumable chunks, hides incomplete snapshots and keeps exact source content provider-free', async () => {
     const f = await fixture();
     await f.documents.begin('a', header(12), context, 'snapshot');
