@@ -90,6 +90,8 @@ use iso dates/timestamps, explicit booleans, and json arrays/objects inside stru
 
 neutralize spreadsheet formula prefixes in textual cells, including `=`, `+`, `-`, `@`, and leading control characters, using a documented text-escape prefix. make that transformation visible in the export explanation and import preview. do not describe csv as a lossless backup of arbitrary text; use the lanes archive for exact text preservation.
 
+csv uses a leading apostrophe for this escape. a textual value that already starts with an apostrophe receives another one. when the input uses the canonical lanes csv columns, import removes one documented escape and shows a `csv_text_escape` warning beside the restored value. other csv inputs retain their literal text; do not guess at an apostrophe's meaning. sheets export writes exact cell text with `RAW`; workspace archives preserve exact text separately from csv escaping.
+
 page large exports and build the download incrementally. do not load every task into one worker invocation. a provider change during export may produce a mixed-time snapshot; include generation/freshness information and do not claim a transactionally consistent google backup.
 
 ## google sheets
@@ -136,6 +138,8 @@ metadata restore previews matches, unmatched records, and conflicts. only explic
 when restoring into an existing workspace, preserve its values by default and require explicit selection of conflicting incoming values. use owning commands and revisions. map board membership so every list still belongs to one board; the destination main board keeps its permanent role. schedules import paused until their targets, authorization, and catch-up choice are confirmed.
 
 history restoration preserves event identity/time and normal retention. unknown future archive versions fail clearly; migrations of older supported versions are explicit and validated before writes. imported task snapshots do not make old history appear to be actions on newly created copies.
+
+the archive format is `lanes-workspace`, version `1`. version 1 has no older application archive to migrate. reject any other version before staging writes; adding another supported version requires an explicit migration and fixtures for that version. do not coerce unknown fields or a newer version into version 1.
 
 an archive is application portability, not an infrastructure restore. database backups, secret preservation, and deployment rollback belong to [self-hosting](../self-hosting/spec.md#updates-and-recovery).
 
