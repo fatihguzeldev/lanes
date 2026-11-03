@@ -1,0 +1,41 @@
+.sheets-export__run {
+  border-left: 2px solid var(--line);
+  padding-left: 16px;
+  margin: 20px 0;
+}
+.sheets-export__status {
+  font-variant-numeric: tabular-nums;
+  color: var(--ink) !important;
+}
+.sheets-export__file {
+  display: inline-block;
+  margin: 8px 0;
+  color: var(--green);
+  overflow-wrap: anywhere;
+}
+.sheets-export__recovery {
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+  margin-top: 20px;
+}
+.sheets-export__saved {
+  display: grid;
+  gap: 8px;
+}
+.sheets-export__saved button {
+  background: var(--canvas);
+  border: 1px solid var(--line);
+  text-align: left;
+  color: var(--secondary);
+  padding: 10px;
+  font: 12px var(--font);
+  border-radius: 4px;
+  overflow-wrap: anywhere;
+}
+.sheets-export__saved button:hover {
+  color: var(--ink);
+  border-color: var(--muted);
+}
+.sheets-export__recovery a {
+  color: var(--green);
+}
