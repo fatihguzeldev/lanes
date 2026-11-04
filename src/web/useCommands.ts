@@ -7,9 +7,11 @@ const progressing = new Set(['accepted', 'running', 'partial']);
 export function commandNeedsRefresh(
   previous: OperationSummary | null,
   current: OperationSummary,
+  monitoringStopped = false,
 ): boolean {
   const same = previous?.id === current.id ? previous : null;
   return (
+    (monitoringStopped && !current.finished && progressing.has(current.state)) ||
     current.confirmedSteps !== (same?.confirmedSteps ?? 0) ||
     (current.finished && !same?.finished) ||
     (!progressing.has(current.state) && same?.state !== current.state)
@@ -56,9 +58,9 @@ export function useCommands(accountId: string, clockOffset: number, onChanged: (
     };
   }, [accountId]);
   const base = `/api/accounts/${encodeURIComponent(accountId)}`;
-  function publish(operation: OperationSummary, signal: AbortSignal) {
+  function publish(operation: OperationSummary, signal: AbortSignal, monitoringStopped = false) {
     if (!alive.current || signal.aborted) return;
-    const refresh = commandNeedsRefresh(received.current, operation);
+    const refresh = commandNeedsRefresh(received.current, operation, monitoringStopped);
     received.current = operation;
     setLatest(operation);
     if (refresh) callback.current();
@@ -136,6 +138,7 @@ export function useCommands(accountId: string, clockOffset: number, onChanged: (
       });
       publish(admitted, controller.signal);
       const result = category === 'provider' ? await follow(admitted, controller.signal) : admitted;
+      publish(result, controller.signal, true);
       if (result.state !== 'succeeded' && alive.current) {
         const message =
           result.error?.message ??
@@ -201,7 +204,8 @@ export function useCommands(accountId: string, clockOffset: number, onChanged: (
         { method: 'POST', body: {}, signal: controller.signal },
       );
       publish(operation, controller.signal);
-      await follow(operation, controller.signal);
+      const result = await follow(operation, controller.signal);
+      publish(result, controller.signal, true);
     } catch (error) {
       if (!controller.signal.aborted && alive.current) {
         const details = commandRequestError(error, operationId);

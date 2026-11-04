@@ -52,6 +52,13 @@ describe('command workspace updates', () => {
     expect(commandNeedsRefresh(uncertain, { ...uncertain, updatedAt: 5 })).toBe(false);
   });
 
+  it('refreshes unfinished-save discovery when browser monitoring stops', () => {
+    const waiting = receipt({ state: 'running' });
+    expect(commandNeedsRefresh(waiting, waiting, true)).toBe(true);
+    const done = receipt({ state: 'succeeded', finished: true });
+    expect(commandNeedsRefresh(done, done, true)).toBe(false);
+  });
+
   it('does not compare one command’s confirmed output with another command', () => {
     const previous = receipt({ state: 'succeeded', confirmedSteps: 1, finished: true });
     const next = receipt({
