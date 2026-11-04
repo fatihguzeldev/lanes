@@ -2,9 +2,25 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   SyncAdvanceSchema,
   SyncStatusSchema,
+  type SyncAdvance,
   type SyncStatus,
 } from '../modules/tasks/sync-contract';
 import { request } from './http';
+
+export function syncProgressNeedsRefresh(
+  progress: Pick<SyncAdvance, 'phase' | 'errorCode'>,
+  lastInvalidatedAt: number | null,
+  firstTaskPage: boolean,
+  now: number,
+): boolean {
+  if (progress.errorCode || progress.phase === 'idle' || progress.phase === 'coalesced')
+    return false;
+  return (
+    lastInvalidatedAt === null ||
+    (firstTaskPage && progress.phase === 'tasks') ||
+    now - lastInvalidatedAt >= 10_000
+  );
+}
 
 export function useWorkspaceSync(accountId: string, onChanged: () => void) {
   const [status, setStatus] = useState<SyncStatus | null>(null),
@@ -15,7 +31,6 @@ export function useWorkspaceSync(accountId: string, onChanged: () => void) {
   const generation = useRef(0),
     flight = useRef<AbortController | null>(null),
     timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastInvalidation = useRef(0);
   const refresh = useCallback(
     async (reason: 'entry' | 'manual' | 'stale' = 'manual', visibleListIds: string[] = []) => {
       flight.current?.abort();
@@ -26,10 +41,12 @@ export function useWorkspaceSync(accountId: string, onChanged: () => void) {
       setBusy(true);
       setError('');
       const base = `/api/accounts/${encodeURIComponent(accountId)}/sync`;
+      let lastInvalidatedAt: number | null = null,
+        firstTaskPage = true;
       const advance = async (first: boolean): Promise<void> => {
         if (controller.signal.aborted || generation.current !== epoch) return;
         try {
-          await request(first ? base : `${base}/advance`, SyncAdvanceSchema, {
+          const progress = await request(first ? base : `${base}/advance`, SyncAdvanceSchema, {
             method: 'POST',
             body: first ? { reason, visibleListIds } : {},
             signal: controller.signal,
@@ -37,10 +54,6 @@ export function useWorkspaceSync(accountId: string, onChanged: () => void) {
           const next = await request(base, SyncStatusSchema, { signal: controller.signal });
           if (controller.signal.aborted || generation.current !== epoch) return;
           setStatus(next);
-          if (Date.now() - lastInvalidation.current >= 1500 || !next.pending) {
-            lastInvalidation.current = Date.now();
-            callback.current();
-          }
           if (
             next.pending &&
             next.nextAttemptAt !== null &&
@@ -49,15 +62,23 @@ export function useWorkspaceSync(accountId: string, onChanged: () => void) {
             const wait = Math.max(300, next.nextAttemptAt - Date.now());
             // Long backoff is visible; a future return/manual refresh can resume it.
             if (wait <= 30_000) {
+              const now = Date.now();
+              if (syncProgressNeedsRefresh(progress, lastInvalidatedAt, firstTaskPage, now)) {
+                lastInvalidatedAt = now;
+                callback.current();
+              }
+              if (progress.phase === 'tasks' && !progress.errorCode) firstTaskPage = false;
               timer.current = setTimeout(() => void advance(false), wait);
               return;
             }
           }
+          callback.current();
           setBusy(false);
           flight.current = null;
         } catch (error) {
           if (!controller.signal.aborted && generation.current === epoch) {
             setError(error instanceof Error ? error.message : 'this account could not refresh.');
+            callback.current();
             setBusy(false);
             flight.current = null;
           }

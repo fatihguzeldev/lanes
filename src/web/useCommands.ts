@@ -4,6 +4,36 @@ import { request, RequestError } from './http';
 import { serverConnection } from './connectivity';
 
 const progressing = new Set(['accepted', 'running', 'partial']);
+export function commandNeedsRefresh(
+  previous: OperationSummary | null,
+  current: OperationSummary,
+): boolean {
+  const same = previous?.id === current.id ? previous : null;
+  return (
+    current.confirmedSteps !== (same?.confirmedSteps ?? 0) ||
+    (current.finished && !same?.finished) ||
+    (!progressing.has(current.state) && same?.state !== current.state)
+  );
+}
+
+export function commandRequestError(error: unknown, operationId: string): RequestError {
+  if (
+    error instanceof RequestError &&
+    !['server_unavailable', 'response_invalid'].includes(error.code)
+  )
+    return error;
+  const recorded = error instanceof RequestError ? error : null;
+  return new RequestError(
+    recorded?.code ?? 'server_unavailable',
+    recorded?.code === 'response_invalid'
+      ? recorded.message
+      : 'connection lost while saving. check this change before trying again.',
+    recorded?.requestId,
+    recorded?.operationId ?? operationId,
+    recorded?.fields,
+  );
+}
+
 export const newOperationId = (clockOffset = 0) =>
   `${Math.floor(Date.now() + clockOffset)}:${crypto.randomUUID().replaceAll('-', '')}`;
 export function useCommands(accountId: string, clockOffset: number, onChanged: () => void) {
@@ -17,6 +47,7 @@ export function useCommands(accountId: string, clockOffset: number, onChanged: (
   callback.current = onChanged;
   const abort = useRef<AbortController | null>(null);
   const submitting = useRef(false);
+  const received = useRef<OperationSummary | null>(null);
   useEffect(() => {
     alive.current = true;
     return () => {
@@ -25,6 +56,13 @@ export function useCommands(accountId: string, clockOffset: number, onChanged: (
     };
   }, [accountId]);
   const base = `/api/accounts/${encodeURIComponent(accountId)}`;
+  function publish(operation: OperationSummary, signal: AbortSignal) {
+    if (!alive.current || signal.aborted) return;
+    const refresh = commandNeedsRefresh(received.current, operation);
+    received.current = operation;
+    setLatest(operation);
+    if (refresh) callback.current();
+  }
   async function follow(
     operation: OperationSummary,
     signal: AbortSignal,
@@ -55,10 +93,7 @@ export function useCommands(accountId: string, clockOffset: number, onChanged: (
         OperationSummarySchema,
         { method: 'POST', body: {}, signal },
       );
-      if (alive.current) {
-        setLatest(operation);
-        callback.current();
-      }
+      publish(operation, signal);
     }
     return operation;
   }
@@ -69,11 +104,12 @@ export function useCommands(accountId: string, clockOffset: number, onChanged: (
   ): Promise<OperationSummary | null> {
     if (submitting.current) return null;
     if (serverConnection() !== 'reachable') {
-      setError(
+      const message =
         serverConnection() === 'incompatible'
           ? 'reload lanes before making another change.'
-          : 'the server connection is paused. check the connection before submitting. your draft stays here.',
-      );
+          : 'the server connection is paused. check the connection before submitting. your draft stays here.';
+      setError(message);
+      setErrorDetails(new RequestError('connection_paused', message));
       return null;
     }
     submitting.current = true;
@@ -82,6 +118,7 @@ export function useCommands(accountId: string, clockOffset: number, onChanged: (
     setBusy(true);
     setError('');
     setErrorDetails(null);
+    setLatest(null);
     const taskId =
       command &&
       typeof command === 'object' &&
@@ -97,17 +134,22 @@ export function useCommands(accountId: string, clockOffset: number, onChanged: (
         body: { operationId, command },
         signal: controller.signal,
       });
-      if (alive.current) {
-        setLatest(admitted);
-        callback.current();
-      }
+      publish(admitted, controller.signal);
       const result = category === 'provider' ? await follow(admitted, controller.signal) : admitted;
       if (result.state !== 'succeeded' && alive.current) {
         const message =
           result.error?.message ??
-          (result.finished
-            ? 'this operation ended with partial output. inspect what was saved.'
-            : 'this operation is retained and still needs attention. inspect its progress before repeating it.');
+          (result.state === 'uncertain'
+            ? 'google may have saved this change. check the result before trying again.'
+            : result.finished
+              ? result.confirmedSteps > 0
+                ? 'some changes were saved. review the result.'
+                : result.state === 'cancelled'
+                  ? 'this change was stopped.'
+                  : 'this change could not be saved. review the result before trying again.'
+              : progressing.has(result.state)
+                ? 'this change is still saving. check its status before trying again.'
+                : 'saving is paused. check this change before trying again.');
         setError(message);
         setErrorDetails(
           new RequestError(result.error?.code ?? result.state, message, undefined, result.id),
@@ -116,12 +158,10 @@ export function useCommands(accountId: string, clockOffset: number, onChanged: (
       return result;
     } catch (error) {
       if (!controller.signal.aborted && alive.current) {
-        setError(
-          error instanceof RequestError
-            ? error.message
-            : `the server connection stopped. inspect operation ${operationId} before repeating this action.`,
-        );
-        if (error instanceof RequestError) setErrorDetails(error);
+        const details = commandRequestError(error, operationId);
+        setError(details.message);
+        setErrorDetails(details);
+        let recovered = false;
         if (!(error instanceof RequestError && error.code === 'unauthenticated')) {
           try {
             const recorded = await request(
@@ -129,12 +169,13 @@ export function useCommands(accountId: string, clockOffset: number, onChanged: (
               OperationSummarySchema,
               { signal: controller.signal },
             );
-            if (alive.current) setLatest(recorded);
+            publish(recorded, controller.signal);
+            recovered = true;
           } catch {
             /* A missing or unreachable receipt keeps the same identity for an unchanged-input retry. */
           }
         }
-        callback.current();
+        if (!recovered && alive.current && !controller.signal.aborted) callback.current();
       }
       return null;
     } finally {
@@ -152,21 +193,26 @@ export function useCommands(accountId: string, clockOffset: number, onChanged: (
     abort.current = controller;
     setBusy(true);
     setError('');
+    setErrorDetails(null);
     try {
       const operation = await request(
         `${base}/operations/${encodeURIComponent(operationId)}/advance`,
         OperationSummarySchema,
         { method: 'POST', body: {}, signal: controller.signal },
       );
+      publish(operation, controller.signal);
       await follow(operation, controller.signal);
     } catch (error) {
-      if (!controller.signal.aborted && alive.current)
-        setError(error instanceof Error ? error.message : 'this work could not continue.');
+      if (!controller.signal.aborted && alive.current) {
+        const details = commandRequestError(error, operationId);
+        setError(details.message);
+        setErrorDetails(details);
+        callback.current();
+      }
     } finally {
       submitting.current = false;
       if (alive.current) {
         setBusy(false);
-        callback.current();
       }
     }
   }
