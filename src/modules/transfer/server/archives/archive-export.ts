@@ -32,7 +32,7 @@ import { MAX_IMPORT_FILE_BYTES } from '../../contracts/parsing';
 export interface ArchiveExportOptions {
   identity: AccountsPortability['identity'];
   boards: Pick<BoardService, 'getBoard' | 'listBoards' | 'listBoardLists'>;
-  queries: Pick<TaskQueries, 'exportPage' | 'readLabels' | 'readLabelsByIds'>;
+  queries: Pick<TaskQueries, 'exportPage' | 'labels'>;
   references: Pick<TaskSnapshotReader, 'providerReferences'>;
   graphRevision(accountId: string): Promise<number>;
   listTemplates: Pick<ListTemplateService, 'list' | 'getVersion' | 'versionGuardWrite'>;
@@ -481,7 +481,9 @@ export class ArchiveExportService {
       referenceIds = [...new Set(tasks.flatMap((task) => task.blockedBy))];
     const labels = (
         await Promise.all(
-          groups(labelIds).map((ids) => this.options.queries.readLabelsByIds(run.account_id, ids)),
+          groups(labelIds).map((ids) =>
+            this.options.queries.labels.readLabelsByIds(run.account_id, ids),
+          ),
         )
       ).flat(),
       references = (
@@ -808,7 +810,7 @@ export class ArchiveExportService {
           });
         }
       } else if (run.phase === 'labels') {
-        const page = await this.options.queries.readLabels(accountId, {
+        const page = await this.options.queries.labels.readLabels(accountId, {
           limit: 5,
           ...(run.cursor ? { cursor: run.cursor } : {}),
         });

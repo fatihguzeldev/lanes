@@ -198,20 +198,22 @@ describe('task-owned export selection', () => {
     await label('beta', 'Reading');
     await label('private', 'private', 'b');
     expect(
-      (await queries.readLabelsByIds('a', ['beta', 'private', 'missing'])).map(
+      (await queries.labels.readLabelsByIds('a', ['beta', 'private', 'missing'])).map(
         (label) => label.name,
       ),
     ).toEqual(['Reading']);
     expect(
-      (await queries.readLabelsByNames('a', ['  e\u0301criture ', 'reading']))
+      (await queries.labels.readLabelsByNames('a', ['  e\u0301criture ', 'reading']))
         .map((label) => label.id)
         .sort(),
     ).toEqual(['alpha', 'beta']);
-    await expect(queries.readLabelsByNames('a', ['Reading', 'READING'])).rejects.toMatchObject({
+    await expect(
+      queries.labels.readLabelsByNames('a', ['Reading', 'READING']),
+    ).rejects.toMatchObject({
       code: 'validation_failed',
     });
     await expect(
-      queries.readLabelsByIds(
+      queries.labels.readLabelsByIds(
         'a',
         Array.from({ length: 101 }, (_, index) => String(index)),
       ),

@@ -56,7 +56,7 @@ export async function workspaceQueryRoute(
     return jsonResponse(await queries.getTask(accountId, route[4]));
   if (route.length === 4 && route[3] === 'labels' && request.method === 'GET') {
     return jsonResponse(
-      await queries.readLabels(
+      await queries.labels.readLabels(
         accountId,
         parseValue(LabelQuerySchema, {
           ...pageOptions(url),
@@ -135,7 +135,7 @@ export async function workspaceQueryRoute(
       request,
       z.object({ ids: z.array(z.string().min(1).max(1024)).max(100) }).strict(),
     );
-    return jsonResponse({ items: await queries.readLabelsByIds(accountId, value.ids) });
+    return jsonResponse({ items: await queries.labels.readLabelsByIds(accountId, value.ids) });
   }
   if (
     route.length === 5 &&

@@ -31,7 +31,7 @@ export async function transferImportRoute(
     );
     const current = new Map<string, string>();
     for (let offset = 0; offset < input.definitions.length; offset += 100) {
-      const labels = await queries.readLabelsByNames(
+      const labels = await queries.labels.readLabelsByNames(
         accountId,
         input.definitions.slice(offset, offset + 100).map((label) => label.name),
       );

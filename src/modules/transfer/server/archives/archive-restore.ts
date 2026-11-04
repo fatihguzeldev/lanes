@@ -179,7 +179,7 @@ export class ArchiveRestoreService {
           'the google default list must remain on this account main board.';
     } else if (record.kind === 'label') {
       const found = (
-        await this.options.queries.readLabelsByNames(row.account_id, [record.name])
+        await this.options.queries.labels.readLabelsByNames(row.account_id, [record.name])
       )[0];
       base.destinationId = found?.id ?? (await this.stable(row, record.key, 'archive-label'));
       if (!found) {
@@ -207,7 +207,10 @@ export class ArchiveRestoreService {
         );
       base.destinationId = found.id;
       base.destinationRevision = found.revision;
-      const labels = await this.options.queries.readLabelsByIds(row.account_id, found.labelIds);
+      const labels = await this.options.queries.labels.readLabelsByIds(
+        row.account_id,
+        found.labelIds,
+      );
       change(
         'labels',
         labels.map((label) => label.name.normalize('NFC').toLowerCase()).sort(),
@@ -1183,7 +1186,7 @@ export class ArchiveRestoreService {
     fields: ArchiveField[],
   ): Promise<void> {
     const labels = fields.includes('labels') ? record.labels : [],
-      existing = await this.options.queries.readLabelsByNames(
+      existing = await this.options.queries.labels.readLabelsByNames(
         row.account_id,
         labels.map((label) => label.name),
       );

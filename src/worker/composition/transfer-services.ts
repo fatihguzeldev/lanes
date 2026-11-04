@@ -50,7 +50,8 @@ export function createTransferOwners(db: D1Database, dependencies: Dependencies)
     snapshots: snapshotReader,
     imports,
     destinationMainBoard: (account) => dependencies.boards.getMainBoard(account),
-    labelsByNames: (account, names) => dependencies.queries.readLabelsByNames(account, names),
+    labelsByNames: (account, names) =>
+      dependencies.queries.labels.readLabelsByNames(account, names),
   });
   const rowOptions = {
     queries: dependencies.queries,

@@ -1,26 +1,13 @@
-import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types';
-import { z } from 'zod';
+import type { D1Database } from '@cloudflare/workers-types';
 import { AppError } from '../../../../shared/contracts/errors';
-import type { Coverage, Page } from '../../../../shared/contracts/http';
-import {
-  LabelInputSchema,
-  LabelSchema,
-  TaskCapabilitiesSchema,
-  TaskSchema,
-  type Label,
-  type Task,
-  type TaskSort,
-} from '../../contracts/task';
+import type { Coverage } from '../../../../shared/contracts/http';
 import { ResourceIdSchema } from '../../../../shared/contracts/identity';
-import { normalizeTaskSearchText, sortTasks } from '../../model/task';
 import { CalendarDateSchema } from '../../contracts/planning';
 import {
-  LabelQuerySchema,
   TaskDependantSchema,
   TaskDependantsQuerySchema,
   TaskExportQuerySchema,
   TaskQuerySchema,
-  type LabelQueryInput,
   type SubtaskSummary,
   type TaskDependant,
   type TaskDependantsPage,
@@ -31,23 +18,18 @@ import {
   type TaskQuery,
   type TaskQueryInput,
 } from '../../contracts/query';
+import { TaskCapabilitiesSchema, TaskSchema, type Task, type TaskSort } from '../../contracts/task';
+import { normalizeTaskSearchText, sortTasks } from '../../model/task';
+import type { TaskQueriesOptions, TaskQueryContext } from './context';
+import { LabelQueries } from './labels';
+import { decodeCursor, encodeCursor, fingerprint, parse, readIdsSchema } from './pagination';
+import { readProjectionFirst, readProjectionRows } from './read';
 
-export interface TaskQueriesOptions {
-  boardListSelection?:
-    | ((
-        accountId: string,
-        boardId: string,
-      ) => Promise<{ sql: string; bindings: (string | number)[] }>)
-    | undefined;
-}
-export interface TaskQueryContext {
-  today: string;
-  now?: number | undefined;
-}
 interface SqlScope {
   sql: string;
   bindings: (string | number)[];
 }
+
 interface Candidate {
   id: string;
   revision: number;
@@ -58,6 +40,7 @@ interface Candidate {
   estimated: number;
   parent_estimated: number;
 }
+
 interface TaskRow {
   id: string;
   account_id: string;
@@ -87,104 +70,9 @@ interface TaskRow {
   label_ids_json: string;
   blocker_ids_json: string;
 }
-interface LabelRow {
-  id: string;
-  account_id: string;
-  name: string;
-  name_key: string;
-  color: string;
-  revision: number;
-}
-const pageByteBudget = 192 * 1024;
-const readIdsSchema = z.array(ResourceIdSchema.max(1_024)).max(100);
-const cursorSchema = z
-  .object({
-    kind: z.enum(['tasks-v1', 'labels-v1', 'export-v1', 'dependants-v1']),
-    accountId: ResourceIdSchema.max(1_024),
-    fingerprint: z.string().length(64),
-    id: ResourceIdSchema.max(1_024),
-    revision: z.number().int().nonnegative(),
-    rootId: ResourceIdSchema.max(1_024).optional(),
-    rootRevision: z.number().int().nonnegative().optional(),
-  })
-  .strict();
-type Cursor = z.infer<typeof cursorSchema>;
 
-function parse<S extends z.ZodType>(schema: S, input: unknown): z.output<S> {
-  const result = schema.safeParse(input);
-  if (!result.success)
-    throw new AppError(
-      'validation_failed',
-      'check the task query fields',
-      422,
-      false,
-      Object.fromEntries(
-        result.error.issues
-          .slice(0, 20)
-          .map((issue) => [issue.path.join('.') || 'input', issue.message]),
-      ),
-    );
-  return result.data;
-}
-function encodeCursor(cursor: Cursor): string {
-  return btoa(String.fromCharCode(...new TextEncoder().encode(JSON.stringify(cursor))))
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/g, '');
-}
-function decodeCursor(
-  value: string | undefined,
-  kind: Cursor['kind'],
-  accountId: string,
-  fingerprint: string,
-): Cursor | null {
-  if (value === undefined) return null;
-  try {
-    if (!/^[\w-]+$/.test(value)) throw new Error();
-    const base64 = value
-      .replace(/-/g, '+')
-      .replace(/_/g, '/')
-      .padEnd(Math.ceil(value.length / 4) * 4, '=');
-    const text = new TextDecoder('utf-8', { fatal: true }).decode(
-      Uint8Array.from(atob(base64), (character) => character.charCodeAt(0)),
-    );
-    const cursor = cursorSchema.parse(JSON.parse(text));
-    if (
-      cursor.kind !== kind ||
-      cursor.accountId !== accountId ||
-      cursor.fingerprint !== fingerprint ||
-      ((kind === 'tasks-v1' || kind === 'export-v1') &&
-        (cursor.rootRevision === undefined || cursor.rootId === undefined))
-    )
-      throw new Error();
-    return cursor;
-  } catch {
-    throw new AppError(
-      'validation_failed',
-      'the page cursor does not belong to this selection',
-      422,
-    );
-  }
-}
-function canonical(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(canonical);
-  if (value && typeof value === 'object')
-    return Object.fromEntries(
-      Object.entries(value)
-        .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-        .map(([key, item]) => [key, canonical(item)]),
-    );
-  return value;
-}
-async function fingerprint(value: unknown): Promise<string> {
-  const hash = new Uint8Array(
-    await crypto.subtle.digest(
-      'SHA-256',
-      new TextEncoder().encode(JSON.stringify(canonical(value))),
-    ),
-  );
-  return Array.from(hash, (byte) => byte.toString(16).padStart(2, '0')).join('');
-}
+const pageByteBudget = 192 * 1024;
+
 function mapTask(row: TaskRow): Task {
   try {
     const restricted = row.unsupported_hierarchy === 1;
@@ -235,22 +123,13 @@ function mapTask(row: TaskRow): Task {
     throw new AppError('storage_unavailable', 'stored task data could not be read safely', 503);
   }
 }
-function mapLabel(row: LabelRow): Label {
-  try {
-    return LabelSchema.parse({
-      id: row.id,
-      accountId: row.account_id,
-      name: row.name,
-      color: row.color,
-      revision: row.revision,
-    });
-  } catch {
-    throw new AppError('storage_unavailable', 'stored label data could not be read safely', 503);
-  }
-}
+
 const blockerJoin = 'b.account_id=d.account_id AND b.id=d.blocker_id';
+
 const openBlocker = `EXISTS (SELECT 1 FROM tasks_dependencies d JOIN tasks_tasks b ON ${blockerJoin} WHERE d.account_id=t.account_id AND d.task_id=t.id AND b.deleted_at IS NULL AND b.provider_missing_at IS NULL AND b.completed=0)`;
+
 const missingBlocker = `EXISTS (SELECT 1 FROM tasks_dependencies d LEFT JOIN tasks_tasks b ON ${blockerJoin} WHERE d.account_id=t.account_id AND d.task_id=t.id AND (b.id IS NULL OR (b.deleted_at IS NULL AND b.provider_missing_at IS NOT NULL)))`;
+
 function filterSql(
   query: TaskQuery,
   today: string,
@@ -306,6 +185,7 @@ function filterSql(
   }
   return { sql: where.join(' AND '), bindings };
 }
+
 function orderKeys(sort: TaskSort): string[] {
   const root = (field: string) =>
     `(CASE WHEN p.id IS NOT NULL THEN p.${field} ELSE t.${field} END)`;
@@ -339,6 +219,7 @@ function orderKeys(sort: TaskSort): string[] {
     't.id',
   ];
 }
+
 function estimate(alias: 't' | 'p'): string {
   const textFields = [
     'id',
@@ -364,6 +245,7 @@ function estimate(alias: 't' | 'p'): string {
     .join('+');
   return `(2048+6*(${bytes}+COALESCE((SELECT SUM(length(CAST(label_id AS BLOB))+4) FROM tasks_task_labels meta WHERE meta.account_id=${alias}.account_id AND meta.task_id=${alias}.id),0)+COALESCE((SELECT SUM(length(CAST(blocker_id AS BLOB))+4) FROM tasks_dependencies meta WHERE meta.account_id=${alias}.account_id AND meta.task_id=${alias}.id),0)))`;
 }
+
 const taskFields = `t.id,t.account_id,t.list_id,t.parent_id,t.provider_id,t.provider_etag,t.provider_position,t.provider_updated_at,
  t.title,t.notes,t.completed,t.completed_at,t.scheduled_day,t.scheduled_time,t.time_zone,t.repeat_rule_json,t.series_id,t.occurrence_id,
  t.priority,t.starred,t.capabilities_json,t.unsupported_hierarchy,t.provider_missing_at,t.revision,l.provider_id AS provider_list_id,
@@ -372,29 +254,17 @@ const taskFields = `t.id,t.account_id,t.list_id,t.parent_id,t.provider_id,t.prov
    WHERE d.account_id=t.account_id AND d.task_id=t.id AND (b.id IS NULL OR b.deleted_at IS NULL)),'[]') AS blocker_ids_json`;
 
 export class TaskQueries {
+  readonly labels: LabelQueries;
   constructor(
     private readonly db: D1Database,
     private readonly options: TaskQueriesOptions = {},
-  ) {}
-  private async rows<T>(statement: D1PreparedStatement): Promise<T[]> {
-    try {
-      const result = await statement.all<T>();
-      if (!result.success) throw new Error();
-      return result.results;
-    } catch {
-      throw new AppError('storage_unavailable', 'the task projection could not be read', 503, true);
-    }
+  ) {
+    this.labels = new LabelQueries(db);
   }
-  private async first<T>(statement: D1PreparedStatement): Promise<T | null> {
-    try {
-      return await statement.first<T>();
-    } catch {
-      throw new AppError('storage_unavailable', 'the task projection could not be read', 503, true);
-    }
-  }
+
   private async assertSelectedLists(accountId: string, ids: readonly string[]): Promise<void> {
     if (!ids.length) return;
-    const row = await this.first<{ n: number }>(
+    const row = await readProjectionFirst<{ n: number }>(
       this.db
         .prepare(
           `SELECT COUNT(*) AS n FROM tasks_lists WHERE account_id=? AND deleted_at IS NULL AND id IN (SELECT value FROM json_each(?))`,
@@ -404,6 +274,7 @@ export class TaskQueries {
     if (row?.n !== new Set(ids).size)
       throw new AppError('not_found', 'a selected list is not available in this account', 404);
   }
+
   private async scope(accountId: string, query: TaskQuery): Promise<SqlScope> {
     const where = ['l.account_id=?', 'l.deleted_at IS NULL'];
     const bindings: (string | number)[] = [accountId];
@@ -429,9 +300,10 @@ export class TaskQueries {
     }
     return { sql: `SELECT l.* FROM tasks_lists l WHERE ${where.join(' AND ')}`, bindings };
   }
+
   private async taskRows(accountId: string, ids: readonly string[]): Promise<TaskRow[]> {
     if (!ids.length) return [];
-    return this.rows<TaskRow>(
+    return readProjectionRows<TaskRow>(
       this.db
         .prepare(
           `SELECT ${taskFields} FROM tasks_tasks t JOIN tasks_lists l ON l.account_id=t.account_id AND l.id=t.list_id
@@ -440,13 +312,14 @@ export class TaskQueries {
         .bind(accountId, JSON.stringify(ids)),
     );
   }
+
   private async coverage(
     accountId: string,
     scope: SqlScope,
     includeCompleted: boolean,
     now: number,
   ): Promise<Coverage> {
-    const row = await this.first<{
+    const row = await readProjectionFirst<{
       inventory: number | null;
       inventory_cursor: string | null;
       n: number;
@@ -479,12 +352,18 @@ export class TaskQueries {
       stale: !complete || syncedAt === null || now - syncedAt >= 60_000,
     };
   }
+
   private async summaries(
     accountId: string,
     parents: readonly Task[],
   ): Promise<Record<string, SubtaskSummary>> {
     if (!parents.length) return {};
-    const rows = await this.rows<{ id: string; open: number; total: number; complete: number }>(
+    const rows = await readProjectionRows<{
+      id: string;
+      open: number;
+      total: number;
+      complete: number;
+    }>(
       this.db
         .prepare(
           `SELECT p.id,COUNT(child.id) AS total,
@@ -531,7 +410,7 @@ export class TaskQueries {
     const cursor = decodeCursor(query.cursor, 'tasks-v1', accountId, queryHash);
     const scope = await this.scope(accountId, query);
     if (typeof query.parentId === 'string') {
-      const parent = await this.first<{ id: string }>(
+      const parent = await readProjectionFirst<{ id: string }>(
         this.db
           .prepare(
             `WITH scoped_lists AS (${scope.sql}) SELECT t.id FROM tasks_tasks t JOIN scoped_lists l ON l.account_id=t.account_id AND l.id=t.list_id WHERE t.id=? AND t.deleted_at IS NULL`,
@@ -553,7 +432,7 @@ export class TaskQueries {
     const bindings = [...scope.bindings, ...filter.bindings];
     let anchor: Record<string, string | number> | null = null;
     if (cursor) {
-      anchor = await this.first<Record<string, string | number>>(
+      anchor = await readProjectionFirst<Record<string, string | number>>(
         this.db
           .prepare(
             `${cte} SELECT ${names.join(',')} FROM candidates WHERE id=? AND revision=? AND root_id=? AND root_revision=?`,
@@ -563,7 +442,7 @@ export class TaskQueries {
       if (!anchor)
         throw new AppError('conflict', 'the task page changed; refresh this selection', 409);
     }
-    const candidates = await this.rows<Candidate>(
+    const candidates = await readProjectionRows<Candidate>(
       this.db
         .prepare(
           `${cte} SELECT id,revision,parent_id,context_id,root_id,root_revision,estimated,parent_estimated FROM candidates
@@ -660,6 +539,7 @@ export class TaskQueries {
     if (!rows[0]) throw new AppError('not_found', 'the task is not available in this account', 404);
     return mapTask(rows[0]);
   }
+
   /** Saved reverse edges are local account data; provider-missing tasks remain visible as unknown. */
   async readDependants(
     accountId: string,
@@ -671,7 +551,10 @@ export class TaskQueries {
     const query = parse(TaskDependantsQuerySchema, input);
     const hash = await fingerprint({ accountId, taskId });
     const cursor = decodeCursor(query.cursor, 'dependants-v1', accountId, hash);
-    const source = await this.first<{ graph_revision: number; last_synced_at: number | null }>(
+    const source = await readProjectionFirst<{
+      graph_revision: number;
+      last_synced_at: number | null;
+    }>(
       this.db
         .prepare(
           `SELECT s.graph_revision,l.last_synced_at
@@ -684,7 +567,7 @@ export class TaskQueries {
     if (!source) throw new AppError('not_found', 'the task is not available in this account', 404);
     if (cursor && cursor.revision !== source.graph_revision)
       throw new AppError('conflict', 'the dependency graph changed; refresh this selection', 409);
-    const rows = await this.rows<{
+    const rows = await readProjectionRows<{
       id: string;
       account_id: string;
       list_id: string;
@@ -736,7 +619,7 @@ export class TaskQueries {
       items.push(item);
       bytes += size;
     }
-    const current = await this.first<{ graph_revision: number }>(
+    const current = await readProjectionFirst<{ graph_revision: number }>(
       this.db
         .prepare('SELECT graph_revision FROM tasks_account_state WHERE account_id=?')
         .bind(accountId),
@@ -773,11 +656,12 @@ export class TaskQueries {
       },
     };
   }
+
   async getTasksByIds(accountId: string, ids: readonly string[]): Promise<Task[]> {
     parse(ResourceIdSchema.max(1_024), accountId);
     const selected = [...new Set(parse(readIdsSchema, ids))];
     if (!selected.length) return [];
-    const estimateRows = await this.rows<{ estimated: number }>(
+    const estimateRows = await readProjectionRows<{ estimated: number }>(
       this.db
         .prepare(
           `SELECT ${estimate('t')} AS estimated FROM tasks_tasks t JOIN tasks_lists l ON l.account_id=t.account_id AND l.id=t.list_id WHERE t.account_id=? AND t.deleted_at IS NULL AND l.deleted_at IS NULL AND t.id IN (SELECT value FROM json_each(?))`,
@@ -809,7 +693,7 @@ export class TaskQueries {
     const scope = await this.scope(accountId, query),
       filter = filterSql(query, today);
     if (typeof query.parentId === 'string') {
-      const parent = await this.first(
+      const parent = await readProjectionFirst(
         this.db
           .prepare(
             `WITH scoped_lists AS (${scope.sql}) SELECT t.id FROM tasks_tasks t JOIN scoped_lists l ON l.account_id=t.account_id AND l.id=t.list_id WHERE t.id=? AND t.deleted_at IS NULL`,
@@ -853,7 +737,7 @@ export class TaskQueries {
       WHERE t.deleted_at IS NULL AND t.id IN(SELECT id FROM export_selection))`;
     let anchor: Record<string, string | number> | null = null;
     if (cursor) {
-      anchor = await this.first<Record<string, string | number>>(
+      anchor = await readProjectionFirst<Record<string, string | number>>(
         this.db
           .prepare(
             `${cte} SELECT ${names.join(',')} FROM candidates WHERE id=? AND revision=? AND root_id=? AND root_revision=?`,
@@ -863,7 +747,7 @@ export class TaskQueries {
       if (!anchor)
         throw new AppError('conflict', 'the export anchor changed; start this export again', 409);
     }
-    const candidates = await this.rows<Candidate & { matched: number }>(
+    const candidates = await readProjectionRows<Candidate & { matched: number }>(
       this.db
         .prepare(
           `${cte} SELECT id,revision,parent_id,context_id,root_id,root_revision,matched,estimated FROM candidates
@@ -961,7 +845,7 @@ export class TaskQueries {
       );
     if (!selected.length) return [];
     const source = await this.exportSelection(accountId, query, today);
-    const rows = await this.rows<{ id: string }>(
+    const rows = await readProjectionRows<{ id: string }>(
       this.db
         .prepare(
           `${source.cte} SELECT id FROM export_selection WHERE id IN(SELECT value FROM json_each(?))`,
@@ -970,86 +854,5 @@ export class TaskQueries {
     );
     const matched = new Set(rows.map((row) => row.id));
     return selected.filter((id) => matched.has(id));
-  }
-
-  async readLabelsByIds(accountId: string, ids: readonly string[]): Promise<Label[]> {
-    parse(ResourceIdSchema.max(1_024), accountId);
-    const selected = [...new Set(parse(readIdsSchema, ids))];
-    if (!selected.length) return [];
-    const rows = await this.rows<LabelRow>(
-      this.db
-        .prepare(
-          'SELECT * FROM tasks_labels WHERE account_id=? AND id IN(SELECT value FROM json_each(?))',
-        )
-        .bind(accountId, JSON.stringify(selected)),
-    );
-    const byId = new Map(rows.map((row) => [row.id, mapLabel(row)]));
-    const labels = selected.flatMap((id) => (byId.has(id) ? [byId.get(id)!] : []));
-    if (new TextEncoder().encode(JSON.stringify(labels)).byteLength > 64 * 1024)
-      throw new AppError('validation_failed', 'read fewer label identities at a time', 422);
-    return labels;
-  }
-
-  async readLabelsByNames(accountId: string, names: readonly string[]): Promise<Label[]> {
-    parse(ResourceIdSchema.max(1_024), accountId);
-    const selected = parse(z.array(LabelInputSchema.shape.name).max(100), names).map((name) =>
-      normalizeTaskSearchText(name.trim()),
-    );
-    if (new Set(selected).size !== selected.length)
-      throw new AppError('validation_failed', 'use each normalized label name once', 422);
-    if (!selected.length) return [];
-    const rows = await this.rows<LabelRow>(
-      this.db
-        .prepare(
-          'SELECT * FROM tasks_labels WHERE account_id=? AND name_key IN(SELECT value FROM json_each(?)) ORDER BY name_key,id',
-        )
-        .bind(accountId, JSON.stringify(selected)),
-    );
-    const labels = rows.map(mapLabel);
-    if (new TextEncoder().encode(JSON.stringify(labels)).byteLength > 64 * 1024)
-      throw new AppError('validation_failed', 'read fewer label names at a time', 422);
-    return labels;
-  }
-  async readLabels(accountId: string, input: LabelQueryInput = {}): Promise<Page<Label>> {
-    parse(ResourceIdSchema.max(1_024), accountId);
-    const query = parse(LabelQuerySchema, input);
-    const search = normalizeTaskSearchText(query.query).trim();
-    const queryHash = await fingerprint({ accountId, query: search });
-    const cursor = decodeCursor(query.cursor, 'labels-v1', accountId, queryHash);
-    let anchor: LabelRow | null = null;
-    if (cursor) {
-      anchor = await this.first<LabelRow>(
-        this.db
-          .prepare(
-            'SELECT * FROM tasks_labels WHERE account_id=? AND id=? AND revision=? AND instr(name_key,?)>0',
-          )
-          .bind(accountId, cursor.id, cursor.revision, search),
-      );
-      if (!anchor)
-        throw new AppError('conflict', 'the label page changed; refresh this selection', 409);
-    }
-    const rows = await this.rows<LabelRow>(
-      this.db
-        .prepare(
-          `SELECT * FROM tasks_labels WHERE account_id=? AND instr(name_key,?)>0 ${anchor ? 'AND (name_key,id)>(?,?)' : ''} ORDER BY name_key,id LIMIT ?`,
-        )
-        .bind(accountId, search, ...(anchor ? [anchor.name_key, anchor.id] : []), query.limit + 1),
-    );
-    const selected = rows.slice(0, query.limit);
-    const last = selected[selected.length - 1];
-    return {
-      items: selected.map(mapLabel),
-      nextCursor:
-        last && rows.length > query.limit
-          ? encodeCursor({
-              kind: 'labels-v1',
-              accountId,
-              fingerprint: queryHash,
-              id: last.id,
-              revision: last.revision,
-            })
-          : null,
-      coverage: { complete: true, lastSyncedAt: null, stale: false },
-    };
   }
 }

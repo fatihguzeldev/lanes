@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { seedAccount, testDatabase } from '../../../../../../tests/support/sqlite-d1';
 import { invocationDatabase } from '../../../../../../tests/support/d1-invocation';
+import { seedAccount, testDatabase } from '../../../../../../tests/support/sqlite-d1';
 import { AppError } from '../../../../../shared/contracts/errors';
-import { normalizeTaskSearchText } from '../../../model/task';
 import { TaskDependantsPageSchema, TaskPageSchema } from '../../../contracts/query';
+import { normalizeTaskSearchText } from '../../../model/task';
 import { TaskQueries } from '../tasks';
 
 const databases: ReturnType<typeof testDatabase>[] = [];
@@ -257,7 +257,7 @@ describe('task projection reads', () => {
     expect(
       (await queries.getTasksByIds('a', ['private', 'one', 'missing'])).map((item) => item.id),
     ).toEqual(['one']);
-    expect((await queries.readLabels('a')).items).toEqual([]);
+    expect((await queries.labels.readLabels('a')).items).toEqual([]);
     await db.prepare('UPDATE tasks_tasks SET deleted_at=? WHERE id=?').bind(now, 'one').run();
     await expect(queries.getTask('a', 'one')).rejects.toMatchObject({ code: 'not_found' });
   });
@@ -616,14 +616,18 @@ describe('query sorts and labels', () => {
   it('paginates account-owned labels and rejects a cursor from another query', async () => {
     const { queries, label } = await fixture();
     for (const name of ['Zebra', 'École', 'Apple']) await label(name, name);
-    const first = await queries.readLabels('a', { limit: 2 });
+    const first = await queries.labels.readLabels('a', { limit: 2 });
     expect(first.items.map((item) => item.name)).toEqual(['Apple', 'Zebra']);
-    const second = await queries.readLabels('a', { limit: 2, cursor: first.nextCursor! });
+    const second = await queries.labels.readLabels('a', { limit: 2, cursor: first.nextCursor! });
     expect(second.items.map((item) => item.name)).toEqual(['École']);
     expect(
-      (await queries.readLabels('a', { query: 'e\u0301cole' })).items.map((item) => item.name),
+      (await queries.labels.readLabels('a', { query: 'e\u0301cole' })).items.map(
+        (item) => item.name,
+      ),
     ).toEqual(['École']);
-    await expect(queries.readLabels('b', { cursor: first.nextCursor! })).rejects.toMatchObject({
+    await expect(
+      queries.labels.readLabels('b', { cursor: first.nextCursor! }),
+    ).rejects.toMatchObject({
       code: 'validation_failed',
     });
   });

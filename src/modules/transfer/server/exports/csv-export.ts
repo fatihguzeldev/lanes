@@ -13,7 +13,7 @@ import { formatCsvHeader, formatCsvTask, type CsvTaskRecord } from '../../format
 import { importFields, type ImportCell } from '../../contracts/parsing';
 
 export interface TaskCsvExportOptions {
-  queries: Pick<TaskQueries, 'exportPage' | 'exportMembership' | 'readLabelsByIds'>;
+  queries: Pick<TaskQueries, 'exportPage' | 'exportMembership' | 'labels'>;
   readLists: (accountId: string, ids: readonly string[]) => Promise<TaskList[]>;
   now?: () => number;
 }
@@ -183,7 +183,7 @@ export class TaskCsvExportService {
       const labelIds = [...new Set(page.items.flatMap((task) => task.labelIds))],
         labels = new Map<string, Label>();
       for (const part of chunks(labelIds))
-        for (const label of await this.options.queries.readLabelsByIds(accountId, part))
+        for (const label of await this.options.queries.labels.readLabelsByIds(accountId, part))
           labels.set(label.id, label);
       const listIds = [...new Set(page.items.map((task) => task.listId))],
         lists = new Map(
