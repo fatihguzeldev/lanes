@@ -1,6 +1,6 @@
-import { parseWorkspaceArchive } from '../modules/transfer/archive';
-import { normalizeImportTables } from '../modules/transfer/normalize';
-import type { ImportOptions, ImportTable } from '../modules/transfer/parse-contract';
+import { parseWorkspaceArchive } from '../../archive';
+import { normalizeImportTables } from '../../normalize';
+import type { ImportOptions, ImportTable } from '../../parse-contract';
 type Input =
   | { kind: 'archive'; bytes: ArrayBuffer }
   | { kind: 'tables'; tables: ImportTable[]; options: ImportOptions };

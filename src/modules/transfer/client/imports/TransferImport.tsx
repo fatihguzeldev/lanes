@@ -1,49 +1,32 @@
 import { useRef, useState } from 'react';
 import { z } from 'zod';
-import { parseFileInWorker } from '../modules/transfer/parser-client';
+import { parseFileInWorker } from '../parsing/parser-client';
 import {
   importFields,
-  MAX_IMPORT_EXPANDED_BYTES,
   type ImportField,
   type ImportMapping,
   type ImportOptions,
   type ImportPreview,
   type ImportTable,
-} from '../modules/transfer/parse-contract';
-import {
-  SpreadsheetMetadataSchema,
-  type SpreadsheetMetadata,
-} from '../modules/transfer/sheets-contract';
-import { request } from '../client/http';
-import { newOperationId } from '../client/operation-identity';
-import {
-  boundedBatches,
-  clearSheetsDraft,
-  parseExcludedRows,
-  parseTransferInWorker,
-  readSheetsDraft,
-  sheetRangePages,
-  writeSheetsDraft,
-} from './transfer-client';
-import { ImportSummarySchema, ImportTableSchema, type ImportSummary } from './transfer-schemas';
-import {
-  AccountChoice,
-  DestinationChoice,
-  destinationValue,
-  escaped,
-  providerReady,
-  sheetsConsent,
-  transferBase,
-  TransferConnection,
-  TransferError,
-  useBoardLists,
-  useTransferAction,
-  useTransferDirty,
-  writable,
-  type TransferProps,
-} from './TransferCommon';
+} from '../../parse-contract';
+import { SpreadsheetMetadataSchema, type SpreadsheetMetadata } from '../../sheets-contract';
+import { request } from '../../../../client/http';
+import { newOperationId } from '../../../../client/operation-identity';
+import { parseExcludedRows } from '../import-input';
+import { clearSheetsDraft, readSheetsDraft, writeSheetsDraft } from '../sheets/source-draft';
+import { parseTransferInWorker } from '../parsing/preview-parser';
+import { readSelectedSheetTables } from '../sheets/read-source';
+import type { ImportSummary } from '../response-contracts';
+import { captureImport, createImportCapture, type ImportCapture } from './capture-import';
+import { AccountChoice, DestinationChoice } from '../TransferSelection';
+import { destinationValue, useBoardLists } from '../useBoardLists';
+import { providerReady, transferBase, writable, type TransferProps } from '../transfer-context';
+import { sheetsConsent } from '../sheets/consent';
+import { TransferConnection, TransferError } from '../TransferFeedback';
+import { useTransferAction } from '../useTransferAction';
+import { useTransferDirty } from '../useTransferDirty';
 import { TransferImportRun } from './TransferImportRun';
-import { Select } from '../ui/Select';
+import { Select } from '../../../../ui/Select';
 type Source = 'file' | 'sheets';
 interface MappingDraft {
   sheet: string;
@@ -51,18 +34,6 @@ interface MappingDraft {
   headerRow: number;
   excluded: string;
 }
-type StagedRecord = { kind: 'lists' | 'tasks' | 'issues'; position: number; value: unknown };
-const importChunk = (rows: StagedRecord[]) => ({
-  lists: rows
-    .filter((row) => row.kind === 'lists')
-    .map(({ position, value }) => ({ position, value })),
-  tasks: rows
-    .filter((row) => row.kind === 'tasks')
-    .map(({ position, value }) => ({ position, value })),
-  issues: rows
-    .filter((row) => row.kind === 'issues')
-    .map(({ position, value }) => ({ position, value })),
-});
 export function TransferImport(props: TransferProps) {
   const { account, accounts, clockOffset, onChanged, onDirtyChange } = props;
   const restored = useRef(
@@ -98,12 +69,7 @@ export function TransferImport(props: TransferProps) {
     [preview, setPreview] = useState<{ value: ImportPreview; revision: number } | null>(null),
     [run, setRun] = useState<ImportSummary | null>(null),
     [uploadProgress, setUploadProgress] = useState('');
-  const attempt = useRef<{
-      id: string;
-      manifest: unknown;
-      chunks: ReturnType<typeof importChunk>[];
-      nextChunk: number;
-    } | null>(null),
+  const attempt = useRef<ImportCapture | null>(null),
     destination = useBoardLists(account.id, props.version),
     action = useTransferAction(account.id),
     tableCache = useRef<ImportTable[] | null>(null);
@@ -175,51 +141,17 @@ export function TransferImport(props: TransferProps) {
       : {}),
   });
   async function readSheetTables(signal: AbortSignal) {
-    if (
-      !sourceAccount ||
-      !sourceAccount.permissions.sheetsImport ||
-      sourceAccount.state !== 'connected'
-    )
-      throw new Error('authorize sheets read access for the selected source account first.');
-    if (!selectedSheets.length) throw new Error('select at least one tab and explicit range.');
-    const requestCount = selectedSheets.reduce(
-      (sum, sheet) => sum + sheetRangePages(sheetRanges[sheet] ?? '').length,
-      0,
+    const tables = await readSelectedSheetTables(
+      {
+        account: sourceAccount,
+        accountId: sourceAccountId,
+        spreadsheetId: metadata?.id ?? spreadsheet,
+        selectedSheets,
+        ranges: sheetRanges,
+      },
+      signal,
+      setUploadProgress,
     );
-    if (requestCount > 1000)
-      throw new Error(
-        'these ranges require more than 1,000 bounded reads. choose smaller explicit ranges before previewing.',
-      );
-    const tables: ImportTable[] = [];
-    let selectedBytes = 0;
-    for (const sheet of selectedSheets) {
-      const range = sheetRanges[sheet] ?? '',
-        pages = sheetRangePages(range);
-      let combined: ImportTable | null = null;
-      for (const page of pages) {
-        setUploadProgress(`reading ${sheet} · ${page}`);
-        const value = (await request(
-          `${transferBase(sourceAccountId)}/sheets/range`,
-          ImportTableSchema,
-          {
-            method: 'POST',
-            body: { spreadsheetId: metadata?.id ?? spreadsheet, sheet, range: page },
-            signal,
-          },
-        )) as ImportTable;
-        selectedBytes += new TextEncoder().encode(JSON.stringify(value)).byteLength;
-        if (selectedBytes > MAX_IMPORT_EXPANDED_BYTES)
-          throw new Error(
-            'the selected spreadsheet values exceed 100 mib. choose smaller explicit ranges; no partial import was captured.',
-          );
-        if (!combined) combined = value;
-        else {
-          combined.rows.push(...value.rows);
-          combined.cellIssues = [...(combined.cellIssues ?? []), ...(value.cellIssues ?? [])];
-        }
-      }
-      if (combined) tables.push(combined);
-    }
     tableCache.current = tables;
     return tables;
   }
@@ -254,7 +186,7 @@ export function TransferImport(props: TransferProps) {
         throw new Error(
           'correct mappings or explicitly exclude the error rows, then preview again.',
         );
-      const sourceValue =
+      const sourceValue: ImportSummary['source'] =
         source === 'file'
           ? { kind: 'file', name: file!.name, format: current.format }
           : {
@@ -263,76 +195,15 @@ export function TransferImport(props: TransferProps) {
               spreadsheetId: metadata!.id,
               ranges: selectedSheets.map((sheet) => ({ sheet, range: sheetRanges[sheet] ?? '' })),
             };
-      const id = newOperationId(clockOffset),
-        records: StagedRecord[] = [
-          ...current.lists.map((value, position) => ({ kind: 'lists' as const, position, value })),
-          ...current.tasks.map((value, position) => ({ kind: 'tasks' as const, position, value })),
-          ...current.issues.map((value, position) => ({
-            kind: 'issues' as const,
-            position,
-            value,
-          })),
-        ];
-      const manifest = {
-        id,
-        source: sourceValue,
-        destination: destinationValue(destination, destinationKind, listId),
-        totalLists: current.lists.length,
-        totalTasks: current.tasks.length,
-        issueCount: current.issues.length,
-        mapping: current.mapping,
-        skippedBlankRows: current.skippedBlankRows,
-        skippedCompletedTasks: current.skippedCompletedTasks,
-        parentContextCount: current.parentContextCount,
-      };
-      if (new TextEncoder().encode(JSON.stringify(manifest)).byteLength > 65536)
-        throw new Error(
-          'the selected source and mapping header exceeds 64 kib. choose fewer tables or a smaller mapping before capture.',
-        );
-      attempt.current = {
-        id,
-        manifest,
-        chunks: [...boundedBatches(records, importChunk)].map(importChunk),
-        nextChunk: 0,
-      };
-    }
-    const capture = attempt.current,
-      base = `${transferBase(account.id)}/imports`,
-      deadline = Date.now() + 30000;
-    let summary = await request(base, ImportSummarySchema, {
-      method: 'POST',
-      body: capture.manifest,
-      signal,
-    });
-    while (capture.nextChunk < capture.chunks.length && Date.now() < deadline && !signal.aborted) {
-      summary = await request(`${base}/${escaped(capture.id)}/chunks`, ImportSummarySchema, {
-        method: 'POST',
-        body: capture.chunks[capture.nextChunk],
-        signal,
-      });
-      capture.nextChunk++;
-      setUploadProgress(
-        `${capture.nextChunk} of ${capture.chunks.length} bounded chunks saved · no google writes yet`,
+      attempt.current = createImportCapture(
+        newOperationId(clockOffset),
+        current,
+        sourceValue,
+        destinationValue(destination, destinationKind, listId),
       );
     }
-    if (capture.nextChunk === capture.chunks.length) {
-      do {
-        summary = await request(`${base}/${escaped(capture.id)}/preview`, ImportSummarySchema, {
-          method: 'POST',
-          body: {},
-          signal,
-        });
-        setUploadProgress(
-          summary.validation
-            ? `${summary.validation.checkedRecords} of ${summary.validation.totalRecords} records validated · ${summary.validation.remainingGraphNodes} graph nodes remaining`
-            : 'validating complete captured references…',
-        );
-      } while (
-        summary.state === 'staging' &&
-        !summary.paused &&
-        Date.now() < deadline &&
-        !signal.aborted
-      );
+    const summary = await captureImport(account.id, attempt.current, signal, setUploadProgress);
+    if (summary) {
       setRun(summary);
       setUploadProgress('');
       clearSheetsDraft(account.id);

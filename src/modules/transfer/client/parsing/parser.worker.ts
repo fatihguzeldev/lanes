@@ -1,12 +1,12 @@
 import { z } from 'zod';
-import { parseImportFile } from './parser';
+import { parseImportFile } from '../../parser';
 import {
   ImportFormatSchema,
   MAX_IMPORT_FILE_BYTES,
   TransferParseError,
   importFields,
-} from './parse-contract';
-import type { ImportOptions, ImportPreview } from './parse-contract';
+} from '../../parse-contract';
+import type { ImportOptions, ImportPreview } from '../../parse-contract';
 
 const mapping = z.partialRecord(z.enum(importFields), z.number().int().min(0).max(255));
 export const ImportWorkerOptionsSchema = z

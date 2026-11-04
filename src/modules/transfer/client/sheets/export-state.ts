@@ -3,8 +3,8 @@ import {
   CsvExportRequestSchema,
   type CsvExportRequest,
   type SheetsExportSummary,
-} from '../modules/transfer/export-contract';
-import { OperationIdSchema } from '../modules/tasks/operation-contract';
+} from '../../export-contract';
+import { OperationIdSchema } from '../../../tasks/operation-contract';
 const DraftSchema = z
   .object({
     version: z.literal(1),

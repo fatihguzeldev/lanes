@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { parseFileInWorker } from './parser-client';
-import { parseImportFile } from './parser';
-import type { ImportWorkerRequest, ImportWorkerResult } from './parser.worker';
+import { parseImportFile } from '../../parser';
+import type { ImportWorkerRequest, ImportWorkerResult } from './parser.worker.ts';
 
 const instances: FakeWorker[] = [];
 let created: () => void = () => {};

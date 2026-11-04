@@ -4,32 +4,28 @@ import {
   OperationProgressSchema,
   OperationSummarySchema,
   type OperationSummary,
-} from '../modules/tasks/operation-contract';
-import {
-  ConfirmImportSchema,
-  DEFAULT_IMPORTED_LABEL_COLOR,
-} from '../modules/transfer/server-contract';
+} from '../../../tasks/operation-contract';
+import { ConfirmImportSchema, DEFAULT_IMPORTED_LABEL_COLOR } from '../../server-contract';
 import {
   accountBase,
   escaped,
   message,
   providerReady,
   transferBase,
-  TransferConnection,
-  TransferError,
-  useTransferAction,
   writable,
   type TransferProps,
-} from './TransferCommon';
-import { request } from '../client/http';
+} from '../transfer-context';
+import { TransferConnection, TransferError } from '../TransferFeedback';
+import { useTransferAction } from '../useTransferAction';
+import { request } from '../../../../client/http';
 import {
   ImportOutputPageSchema,
   ImportRecordPageSchema,
   ImportSummarySchema,
   ListCapacitySchema,
   type ImportSummary,
-} from './transfer-schemas';
-import { Select } from '../ui/Select';
+} from '../response-contracts';
+import { Select } from '../../../../ui/Select';
 
 export function TransferImportRun({
   run: initial,

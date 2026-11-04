@@ -1,22 +1,15 @@
 import { useRef, useState } from 'react';
-import type { BoardList } from '../modules/boards/contracts';
-import { request } from '../client/http';
-import { newOperationId } from '../client/operation-identity';
-import {
-  AccountChoice,
-  escaped,
-  ListSelection,
-  providerReady,
-  transferBase,
-  TransferConnection,
-  TransferError,
-  useBoardLists,
-  useTransferAction,
-  useTransferDirty,
-  type TransferProps,
-} from './TransferCommon';
-import { ImportSummarySchema, type ImportSummary } from './transfer-schemas';
-import { TransferImportRun } from './TransferImportRun';
+import type { BoardList } from '../../boards/contracts';
+import { request } from '../../../client/http';
+import { newOperationId } from '../../../client/operation-identity';
+import { AccountChoice, ListSelection } from './TransferSelection';
+import { escaped, providerReady, transferBase, type TransferProps } from './transfer-context';
+import { TransferConnection, TransferError } from './TransferFeedback';
+import { useBoardLists } from './useBoardLists';
+import { useTransferAction } from './useTransferAction';
+import { useTransferDirty } from './useTransferDirty';
+import { ImportSummarySchema, type ImportSummary } from './response-contracts';
+import { TransferImportRun } from './imports/TransferImportRun';
 export function TransferAccounts(props: TransferProps) {
   const [sourceId, setSourceId] = useState(
       props.accounts.find((account) => account.id !== props.account.id)?.id ?? '',

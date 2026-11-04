@@ -1,112 +1,26 @@
 import { useState } from 'react';
-import {
-  ArchiveExportSummarySchema,
-  type ArchiveExportSummary,
-} from '../modules/transfer/archive-export-contract';
-import { TransferArchiveExport } from './TransferArchiveExport';
-import {
-  SheetsExportSummarySchema,
-  type SheetsExportSummary,
-} from '../modules/transfer/export-contract';
+import { ArchiveExportSummarySchema, type ArchiveExportSummary } from '../archive-export-contract';
+import { TransferArchiveExport } from './archives/TransferArchiveExport';
+import { SheetsExportSummarySchema, type SheetsExportSummary } from '../export-contract';
 import {
   ArchiveSummarySchema,
   ImportSummarySchema,
   transferPage,
   type ImportSummary,
-} from './transfer-schemas';
-import { request } from '../client/http';
-import { usePagedResource } from '../client/usePagedResource';
-import { Dialog } from '../ui/Dialog';
-import { Icon } from '../ui/Icon';
-import { TransferImport } from './TransferImport';
-import { TransferImportRun } from './TransferImportRun';
-import { TransferExport } from './TransferExport';
-import { TransferAccounts } from './TransferAccounts';
-import { ArchiveImport, ArchiveRestorePanel, TransferArchive } from './TransferArchive';
-import { TransferSheetsExport } from './TransferSheetsExport';
-import {
-  pageQuery,
-  transferBase,
-  TransferConnection,
-  TransferPages,
-  type TransferProps,
-} from './TransferCommon';
+} from './response-contracts';
+import { request } from '../../../client/http';
+import { usePagedResource } from '../../../client/usePagedResource';
+import { Dialog } from '../../../ui/Dialog';
+import { Icon } from '../../../ui/Icon';
+import { TransferImportRun } from './imports/TransferImportRun';
+import { ArchiveImport } from './archives/ArchiveImport';
+import { ArchiveRestorePanel } from './archives/ArchiveRestorePanel';
+import { TransferSheetsExport } from './sheets/TransferSheetsExport';
+import { pageQuery, transferBase, type TransferProps } from './transfer-context';
+import { TransferPages } from './TransferFeedback';
 import type { z } from 'zod';
-import { Select } from '../ui/Select';
-import './TransferWorkspace.css';
-export type TransferWorkspaceProps = TransferProps;
-type Tab = 'import' | 'export' | 'accounts' | 'archive' | 'activity';
-export function TransferWorkspace(props: TransferWorkspaceProps) {
-  return <TransferBody key={props.account.id} {...props} />;
-}
-function TransferBody(props: TransferProps) {
-  const [tab, setTab] = useState<Tab>(props.initialTab ?? 'import'),
-    [dirty, setDirty] = useState(false),
-    [nextTab, setNextTab] = useState<Tab | null>(null);
-  const dirtyChanged = (value: boolean) => {
-    setDirty(value);
-    props.onDirtyChange?.(value);
-  };
-  const children = { ...props, onDirtyChange: dirtyChanged };
-  return (
-    <section className="transfer" aria-label="import, export and transfer">
-      <header className="transfer__heading">
-        <span className="transfer__eyebrow">your work can move with you</span>
-        <h2>bring it along</h2>
-        <p>{props.account.email}</p>
-      </header>
-      <nav className="transfer__tabs" aria-label="portability views">
-        {(['import', 'export', 'accounts', 'archive', 'activity'] as const).map((value) => (
-          <button
-            type="button"
-            key={value}
-            aria-pressed={value === tab}
-            onClick={() => {
-              if (value === tab) return;
-              if (dirty) setNextTab(value);
-              else setTab(value);
-            }}
-          >
-            {value === 'accounts' ? 'account copy' : value}
-          </button>
-        ))}
-      </nav>
-      <TransferConnection />
-      {tab === 'import' && <TransferImport {...children} />}{' '}
-      {tab === 'export' && <TransferExport {...children} />}{' '}
-      {tab === 'accounts' && <TransferAccounts {...children} />}{' '}
-      {tab === 'archive' && <TransferArchive {...children} />}{' '}
-      {tab === 'activity' && <TransferActivity {...children} />}
-      {nextTab && (
-        <Dialog title="leave this editor?" onClose={() => setNextTab(null)}>
-          <div className="dialog__body">
-            <p>
-              unsent local drafts will be discarded. captured operations stay saved; leaving does
-              not cancel admitted work. inspect retained output before starting another copy.
-            </p>
-            <footer>
-              <button type="button" onClick={() => setNextTab(null)}>
-                keep editing
-              </button>
-              <button
-                type="button"
-                className="primary"
-                onClick={() => {
-                  setTab(nextTab);
-                  setNextTab(null);
-                  dirtyChanged(false);
-                }}
-              >
-                leave editor
-              </button>
-            </footer>
-          </div>
-        </Dialog>
-      )}
-    </section>
-  );
-}
-function TransferActivity(props: TransferProps) {
+import { Select } from '../../../ui/Select';
+export function TransferActivity(props: TransferProps) {
   const [dirty, setDirty] = useState(false),
     [confirmBack, setConfirmBack] = useState(false);
   const childProps = {

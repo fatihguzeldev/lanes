@@ -5,8 +5,8 @@ import {
   canConfirmSheetsRun,
   spreadsheetHref,
   describeSheetsScope,
-} from './transfer-sheets-model';
-import type { SheetsExportSummary } from '../modules/transfer/export-contract';
+} from './export-state';
+import type { SheetsExportSummary } from '../../export-contract';
 const now = Date.parse('2026-11-03T12:00:00Z');
 const input = {
   exportId: 'abcdefghijklmnop',

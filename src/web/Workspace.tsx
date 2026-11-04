@@ -123,7 +123,9 @@ const TemplateWorkspace = lazy(() =>
   import('./TemplateWorkspace').then((module) => ({ default: module.TemplateWorkspace })),
 );
 const TransferWorkspace = lazy(() =>
-  import('./TransferWorkspace').then((module) => ({ default: module.TransferWorkspace })),
+  import('../modules/transfer/client/TransferWorkspace').then((module) => ({
+    default: module.TransferWorkspace,
+  })),
 );
 
 function PromptDialog({

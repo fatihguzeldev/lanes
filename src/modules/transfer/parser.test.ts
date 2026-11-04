@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { handleImportWorkerRequest } from './parser.worker';
+import { handleImportWorkerRequest } from './client/parsing/parser.worker';
 import {
   parseDelimitedText,
   parseImportFile,

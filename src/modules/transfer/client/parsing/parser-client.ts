@@ -1,6 +1,6 @@
-import { MAX_IMPORT_FILE_BYTES, TransferParseError } from './parse-contract';
-import type { ImportOptions, ImportPreview } from './parse-contract';
-import type { ImportWorkerRequest, ImportWorkerResult } from './parser.worker';
+import { MAX_IMPORT_FILE_BYTES, TransferParseError } from '../../parse-contract';
+import type { ImportOptions, ImportPreview } from '../../parse-contract';
+import type { ImportWorkerRequest, ImportWorkerResult } from './parser.worker.ts';
 
 /** One disposable worker per preview; timeout/cancellation terminates parsing and releases its source buffers. */
 export async function parseFileInWorker(

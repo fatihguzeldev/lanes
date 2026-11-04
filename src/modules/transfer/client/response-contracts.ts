@@ -4,17 +4,10 @@ import {
   ArchiveHeaderSchema,
   ArchiveImportModeSchema,
   ArchiveRecordSchema,
-} from '../modules/transfer/archive-contract';
-import {
-  ImportDestinationSchema,
-  ImportIssueSchema,
-  ImportSourceSchema,
-} from '../modules/transfer/server-contract';
-import {
-  NormalizedImportListSchema,
-  NormalizedImportTaskSchema,
-} from '../modules/transfer/parse-contract';
-import { LabelInputSchema } from '../modules/tasks/contracts';
+} from '../archive-contract';
+import { ImportDestinationSchema, ImportIssueSchema, ImportSourceSchema } from '../server-contract';
+import { NormalizedImportListSchema, NormalizedImportTaskSchema } from '../parse-contract';
+import { LabelInputSchema } from '../../tasks/contracts';
 export const TransferCoverageSchema = z
   .object({ complete: z.boolean(), stale: z.boolean(), lastSyncedAt: z.string().nullable() })
   .strict();
