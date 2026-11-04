@@ -473,7 +473,7 @@ describe('account lifecycle', () => {
       ownerSubjectFor: async () => 'owner',
       now: () => clock,
     });
-    expect(await recurrence.status('a', 'repeat')).toMatchObject({ state: 'paused' });
+    expect(await recurrence.queries.status('a', 'repeat')).toMatchObject({ state: 'paused' });
     await db
       .prepare(
         "UPDATE accounts_connections SET state='connected',disconnect_requested_at=NULL WHERE id='a'",
@@ -483,7 +483,7 @@ describe('account lifecycle', () => {
       (await row("SELECT next_at FROM tasks_recurrence_watches WHERE task_id='repeat'"))?.next_at,
     ).toBe(Number.MAX_SAFE_INTEGER);
     await recurrence.resume('a', 'repeat');
-    expect(await recurrence.status('a', 'repeat')).toMatchObject({ state: 'active' });
+    expect(await recurrence.queries.status('a', 'repeat')).toMatchObject({ state: 'active' });
     expect(
       (await row("SELECT repeat_rule_json FROM tasks_tasks WHERE id='repeat'"))?.repeat_rule_json,
     ).toBe(rule);

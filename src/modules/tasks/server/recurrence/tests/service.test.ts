@@ -1,13 +1,13 @@
-import { createOperationStore } from '../../../../../../tests/support/operation-store';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { testDatabase, seedAccount } from '../../../../../../tests/support/sqlite-d1';
+import { createOperationStore } from '../../../../../../tests/support/operation-store';
+import { seedAccount, testDatabase } from '../../../../../../tests/support/sqlite-d1';
 import { HistoryService } from '../../../../history/server/events/event-store';
-import { RepeatRuleSchema } from '../../../contracts/planning';
-import { TaskMetadataService } from '../../metadata/tasks';
 import { OperationStore } from '../../../../operations/server/journal/store';
-import { GoogleTasksClient } from '../../provider/google-tasks';
+import { RepeatRuleSchema } from '../../../contracts/planning';
 import { TaskCommandService } from '../../commands/service';
+import { TaskMetadataService } from '../../metadata/tasks';
 import { TaskProjectionStore } from '../../projection/store';
+import { GoogleTasksClient } from '../../provider/google-tasks';
 import { TaskSyncService } from '../../sync/service';
 import { RecurrenceService } from '../service';
 const now = Date.parse('2026-11-02T12:00:00Z');
@@ -218,12 +218,12 @@ describe('completion-driven recurrence', () => {
       { observed: true },
     );
     await db().batch(prepared.writes);
-    expect(await service.status('a', 'source')).toMatchObject({
+    expect(await service.queries.status('a', 'source')).toMatchObject({
       state: 'paused',
       occurrenceId: null,
       pausedRule: { rule, reason: 'provider_day_removed', pausedAt: clock },
     });
-    expect(await service.status('other-account', 'source')).toBeNull();
+    expect(await service.queries.status('other-account', 'source')).toBeNull();
     expect(
       (await row('SELECT repeat_rule_json FROM tasks_tasks WHERE id=?', 'source'))
         ?.repeat_rule_json,
@@ -233,7 +233,7 @@ describe('completion-driven recurrence', () => {
       .prepare('UPDATE tasks_tasks SET repeat_rule_json=?,scheduled_day=? WHERE id=?')
       .bind(JSON.stringify(rule), '2026-11-03', 'source')
       .run();
-    expect((await service.status('a', 'source'))?.pausedRule).toBeNull();
+    expect((await service.queries.status('a', 'source'))?.pausedRule).toBeNull();
   });
   it('creates nothing merely because a rule date arrives', async () => {
     await source();
@@ -257,7 +257,7 @@ describe('completion-driven recurrence', () => {
     expect(writes.find((call) => call.method === 'POST')?.url.searchParams.get('previous')).toBe(
       'google-source',
     );
-    const status = await service.status('a', 'source');
+    const status = await service.queries.status('a', 'source');
     expect(status).toMatchObject({ state: 'active', createdCount: 2 });
     expect(
       await row(
@@ -284,7 +284,7 @@ describe('completion-driven recurrence', () => {
     await db().prepare("UPDATE tasks_tasks SET completed=1 WHERE id='child'").run();
     await drain();
     expect(writes.filter((call) => call.method === 'POST')).toHaveLength(2);
-    const status = await service.status('a', 'source');
+    const status = await service.queries.status('a', 'source');
     const child = await row(
       'SELECT id,title FROM tasks_tasks WHERE parent_id=? AND deleted_at IS NULL',
       status!.successorTaskId!,
@@ -322,7 +322,7 @@ describe('completion-driven recurrence', () => {
     await complete();
     await drain();
     expect(writes).toEqual([]);
-    expect(await service.status('a', 'source')).toMatchObject({
+    expect(await service.queries.status('a', 'source')).toMatchObject({
       state: 'finished',
       createdCount: 1,
     });
@@ -332,7 +332,7 @@ describe('completion-driven recurrence', () => {
     await complete();
     loseCreate = true;
     await drain();
-    expect(await service.status('a', 'source')).toMatchObject({
+    expect(await service.queries.status('a', 'source')).toMatchObject({
       state: 'uncertain',
       createdCount: 1,
     });
@@ -344,21 +344,23 @@ describe('completion-driven recurrence', () => {
     await source(true);
     await complete();
     await drain();
-    const status = await service.status('a', 'source');
+    const status = await service.queries.status('a', 'source');
     await db()
       .prepare('UPDATE tasks_tasks SET notes=?,revision=revision+1 WHERE parent_id=?')
       .bind('edited', status!.successorTaskId!)
       .run();
-    expect(await service.previewReopen('a', 'source')).toMatchObject({ choices: ['one_off'] });
+    expect(await service.reopening.previewReopen('a', 'source')).toMatchObject({
+      choices: ['one_off'],
+    });
     expect(writes.filter((call) => call.method === 'DELETE')).toHaveLength(0);
   });
   it('removes only a confirmed untouched successor after explicit confirmation and reopens the original', async () => {
     await source(true);
     await complete();
     await drain();
-    const preview = await service.previewReopen('a', 'source');
+    const preview = await service.reopening.previewReopen('a', 'source');
     expect(preview.choices).toContain('remove_untouched');
-    await service.requestReopen('a', 'owner', {
+    await service.reopening.requestReopen('a', 'owner', {
       taskId: 'source',
       revision: preview.revision,
       operationId: now + ':reopenabcdefghijkl',
@@ -369,7 +371,7 @@ describe('completion-driven recurrence', () => {
     await drain();
     expect(writes.filter((call) => call.method === 'DELETE')).toHaveLength(1);
     expect((await row("SELECT completed FROM tasks_tasks WHERE id='source'"))?.completed).toBe(0);
-    expect(await service.status('a', 'source')).toMatchObject({ state: 'active' });
+    expect(await service.queries.status('a', 'source')).toMatchObject({ state: 'active' });
   });
   it('preserves confirmed output while reconnect pauses the remaining copy', async () => {
     await source();
@@ -377,16 +379,16 @@ describe('completion-driven recurrence', () => {
     await service.advanceNext();
     await db().prepare("UPDATE accounts_connections SET state='reconnect_required'").run();
     await drain();
-    expect(await service.status('a', 'source')).toMatchObject({ state: 'paused' });
+    expect(await service.queries.status('a', 'source')).toMatchObject({ state: 'paused' });
     expect((await row("SELECT completed FROM tasks_tasks WHERE id='source'"))?.completed).toBe(1);
   });
   it('cancels an unsent successor before reopening the original', async () => {
     await source();
     await complete();
     await service.advanceNext();
-    const preview = await service.previewReopen('a', 'source');
+    const preview = await service.reopening.previewReopen('a', 'source');
     expect(preview.choices).toContain('cancel_pending');
-    await service.requestReopen('a', 'owner', {
+    await service.reopening.requestReopen('a', 'owner', {
       taskId: 'source',
       revision: preview.revision,
       token: preview.token,
@@ -397,19 +399,22 @@ describe('completion-driven recurrence', () => {
     await drain();
     expect(writes.filter((call) => call.method === 'POST')).toHaveLength(0);
     expect((await row("SELECT completed FROM tasks_tasks WHERE id='source'"))?.completed).toBe(0);
-    expect(await service.status('a', 'source')).toMatchObject({ state: 'active', createdCount: 1 });
+    expect(await service.queries.status('a', 'source')).toMatchObject({
+      state: 'active',
+      createdCount: 1,
+    });
   });
   it('keeps an edited successor and detaches the original on explicit one-off reopen', async () => {
     await source(true);
     await complete();
     await drain();
-    const before = await service.status('a', 'source');
+    const before = await service.queries.status('a', 'source');
     await db()
       .prepare('UPDATE tasks_tasks SET notes=?,revision=revision+1 WHERE parent_id=?')
       .bind('owner edit', before!.successorTaskId!)
       .run();
-    const preview = await service.previewReopen('a', 'source');
-    await service.requestReopen('a', 'owner', {
+    const preview = await service.reopening.previewReopen('a', 'source');
+    await service.reopening.requestReopen('a', 'owner', {
       taskId: 'source',
       revision: preview.revision,
       token: preview.token,
@@ -433,7 +438,7 @@ describe('completion-driven recurrence', () => {
     await source(true);
     await complete();
     await drain();
-    const status = await service.status('a', 'source');
+    const status = await service.queries.status('a', 'source');
     const child = await row(
       'SELECT provider_id FROM tasks_tasks WHERE parent_id=?',
       status!.successorTaskId!,
@@ -444,9 +449,9 @@ describe('completion-driven recurrence', () => {
       notes: 'changed in google',
       etag: 'external-edit',
     });
-    const preview = await service.previewReopen('a', 'source');
+    const preview = await service.reopening.previewReopen('a', 'source');
     expect(preview.choices).toContain('remove_untouched');
-    await service.requestReopen('a', 'owner', {
+    await service.reopening.requestReopen('a', 'owner', {
       taskId: 'source',
       revision: preview.revision,
       token: preview.token,
@@ -456,7 +461,7 @@ describe('completion-driven recurrence', () => {
     });
     await drain();
     expect(writes.filter((call) => call.method === 'DELETE')).toHaveLength(0);
-    expect((await service.previewReopen('a', 'source')).choices).toEqual(['one_off']);
+    expect((await service.reopening.previewReopen('a', 'source')).choices).toEqual(['one_off']);
   });
   it('stops unsent work if its active occurrence is deleted or its rule is cleared', async () => {
     await source();
@@ -467,7 +472,7 @@ describe('completion-driven recurrence', () => {
       .run();
     await drain();
     expect(writes).toEqual([]);
-    expect(await service.status('a', 'source')).toMatchObject({
+    expect(await service.queries.status('a', 'source')).toMatchObject({
       state: 'stopped',
       createdCount: 1,
     });
@@ -480,12 +485,12 @@ describe('completion-driven recurrence', () => {
       .run();
     await complete();
     await drain();
-    const successor = (await service.status('a', 'source'))!.successorTaskId!;
-    expect((await service.status('a', successor))?.createdCount).toBe(2);
+    const successor = (await service.queries.status('a', 'source'))!.successorTaskId!;
+    expect((await service.queries.status('a', successor))?.createdCount).toBe(2);
     await complete(successor, 'second-completion');
     await drain();
     expect(writes.filter((call) => call.method === 'POST')).toHaveLength(2);
-    expect(await service.status('a', successor)).toMatchObject({
+    expect(await service.queries.status('a', successor)).toMatchObject({
       state: 'finished',
       createdCount: 2,
     });
@@ -535,7 +540,9 @@ describe('completion-driven recurrence', () => {
     expect((await row('SELECT COUNT(*) AS n FROM tasks_recurrence_transition_children'))?.n).toBe(
       0,
     );
-    expect((await service.previewReopen('a', 'source')).choices).toContain('remove_untouched');
+    expect((await service.reopening.previewReopen('a', 'source')).choices).toContain(
+      'remove_untouched',
+    );
   });
   it('keeps undo evidence after ordinary operation receipts expire', async () => {
     await source(true);
@@ -543,7 +550,9 @@ describe('completion-driven recurrence', () => {
     await drain();
     clock += 91 * 86_400_000;
     await operations.cleanup(100, clock);
-    expect((await service.previewReopen('a', 'source')).choices).toContain('remove_untouched');
+    expect((await service.reopening.previewReopen('a', 'source')).choices).toContain(
+      'remove_untouched',
+    );
   });
   it('admits another account’s completion between steps of an existing copy', async () => {
     await source();
@@ -614,9 +623,9 @@ describe('completion-driven recurrence', () => {
     await source(true);
     await complete();
     await drain();
-    const status = await service.status('a', 'source');
-    const preview = await service.previewReopen('a', 'source');
-    await service.requestReopen('a', 'owner', {
+    const status = await service.queries.status('a', 'source');
+    const preview = await service.reopening.previewReopen('a', 'source');
+    await service.reopening.requestReopen('a', 'owner', {
       taskId: 'source',
       revision: preview.revision,
       token: preview.token,
@@ -640,7 +649,7 @@ describe('completion-driven recurrence', () => {
       .run();
     await service.advanceNext();
     expect(writes.filter((call) => call.method === 'DELETE')).toHaveLength(0);
-    expect((await service.previewReopen('a', 'source')).choices).toEqual(['one_off']);
+    expect((await service.reopening.previewReopen('a', 'source')).choices).toEqual(['one_off']);
   });
   it('keeps an ambiguous successor visible after reopening the original as a one-off', async () => {
     await source();
@@ -648,8 +657,8 @@ describe('completion-driven recurrence', () => {
     loseCreate = true;
     await drain();
     loseCreate = false;
-    const preview = await service.previewReopen('a', 'source');
-    await service.requestReopen('a', 'owner', {
+    const preview = await service.reopening.previewReopen('a', 'source');
+    await service.reopening.requestReopen('a', 'owner', {
       taskId: 'source',
       revision: preview.revision,
       token: preview.token,
@@ -661,7 +670,7 @@ describe('completion-driven recurrence', () => {
     expect(
       await row("SELECT completed,repeat_rule_json FROM tasks_tasks WHERE id='source'"),
     ).toMatchObject({ completed: 0, repeat_rule_json: null });
-    expect(await service.status('a', 'source')).toMatchObject({
+    expect(await service.queries.status('a', 'source')).toMatchObject({
       state: 'uncertain',
       createdCount: 1,
       errorCode: 'outcome_uncertain',
@@ -673,7 +682,7 @@ describe('completion-driven recurrence', () => {
     await source();
     await complete();
     await drain();
-    const preview = await service.previewReopen('a', 'source');
+    const preview = await service.reopening.previewReopen('a', 'source');
     const input = {
       taskId: 'source',
       revision: preview.revision,
@@ -682,19 +691,19 @@ describe('completion-driven recurrence', () => {
       choice: 'one_off' as const,
       confirm: true as const,
     };
-    await service.requestReopen('a', 'owner', input);
+    await service.reopening.requestReopen('a', 'owner', input);
     await expect(
-      service.requestReopen('a', 'owner', { ...input, revision: input.revision + 1 }),
+      service.reopening.requestReopen('a', 'owner', { ...input, revision: input.revision + 1 }),
     ).rejects.toMatchObject({ code: 'conflict' });
   });
   it('does not reuse an ordinary command identity for a different reopen action', async () => {
     await source();
     await complete();
     await drain();
-    const preview = await service.previewReopen('a', 'source');
-    const copy = await service.status('a', 'source');
+    const preview = await service.reopening.previewReopen('a', 'source');
+    const copy = await service.queries.status('a', 'source');
     await expect(
-      service.requestReopen('a', 'owner', {
+      service.reopening.requestReopen('a', 'owner', {
         taskId: 'source',
         revision: preview.revision,
         token: preview.token,
@@ -710,9 +719,9 @@ describe('completion-driven recurrence', () => {
     loseCreate = true;
     await drain();
     loseCreate = false;
-    const copyId = (await service.status('a', 'source'))!.operationId!;
-    const preview = await service.previewReopen('a', 'source');
-    await service.requestReopen('a', 'owner', {
+    const copyId = (await service.queries.status('a', 'source'))!.operationId!;
+    const preview = await service.reopening.previewReopen('a', 'source');
+    await service.reopening.requestReopen('a', 'owner', {
       taskId: 'source',
       revision: preview.revision,
       token: preview.token,
@@ -732,7 +741,7 @@ describe('completion-driven recurrence', () => {
     clock += 31_000;
     await commands.advance('a', copyId);
     await service.resume('a', 'source');
-    expect(await service.status('a', 'source')).toMatchObject({
+    expect(await service.queries.status('a', 'source')).toMatchObject({
       state: 'active',
       createdCount: 2,
       checklistComplete: false,

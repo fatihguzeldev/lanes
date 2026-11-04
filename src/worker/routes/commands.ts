@@ -50,7 +50,7 @@ export async function commandRoute(
       const task = await queries.getTask(accountId, input.command.taskId);
       const recurrence =
         task.repeatRule || task.seriesId
-          ? await services.recurrence.status(accountId, task.id)
+          ? await services.recurrence.queries.status(accountId, task.id)
           : null;
       if (recurrence?.occurrenceId)
         throw new AppError(
