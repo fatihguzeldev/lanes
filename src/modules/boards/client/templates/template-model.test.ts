@@ -3,7 +3,7 @@ import {
   applicationCapacityMessage,
   templateTaskDate,
   unchangedInputIdentity,
-} from './TemplateWorkspace';
+} from './template-model';
 
 describe('template application drafts', () => {
   it('requires a fresh complete inventory and counts reserved slots', () => {

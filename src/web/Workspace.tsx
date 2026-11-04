@@ -120,7 +120,9 @@ type Editor = {
   boardId?: string;
 };
 const TemplateWorkspace = lazy(() =>
-  import('./TemplateWorkspace').then((module) => ({ default: module.TemplateWorkspace })),
+  import('../modules/boards/client/templates/TemplateWorkspace').then((module) => ({
+    default: module.TemplateWorkspace,
+  })),
 );
 const TransferWorkspace = lazy(() =>
   import('../modules/transfer/client/TransferWorkspace').then((module) => ({
