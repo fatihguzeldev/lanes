@@ -7,12 +7,14 @@ export function Dialog({
   children,
   onClose,
   wide = false,
+  side = false,
   pending = false,
 }: {
   title: string;
   children: ReactNode;
   onClose: () => void;
   wide?: boolean;
+  side?: boolean;
   pending?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
@@ -36,7 +38,7 @@ export function Dialog({
   return (
     <dialog
       ref={ref}
-      className={`dialog${wide ? ' dialog--wide' : ''}`}
+      className={`dialog${wide ? ' dialog--wide' : ''}${side ? ' dialog--side' : ''}`}
       aria-label={title}
       aria-busy={pending || undefined}
       onCancel={(event) => {

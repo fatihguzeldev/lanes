@@ -11,6 +11,7 @@ import { request } from './http';
 import { HistoryPageSchema } from './schemas';
 import { usePagedResource } from './usePagedResource';
 import { usePlanningToday } from './usePlanningToday';
+import { Select } from '../ui/Select';
 import './HistoryPanel.css';
 
 export interface HistoryPanelProps {
@@ -64,7 +65,7 @@ export function describeHistoryEvent(event: HistoryEvent): {
     case 'list_deleted':
       return {
         action: 'deleted list',
-        detail: `${event.summary.knownTaskCount}${event.summary.coverageComplete ? '' : '+'} known tasks`,
+        detail: `${event.summary.knownTaskCount} observed tasks`,
         icon: 'trash',
       };
     case 'scheduled_day_changed':
@@ -184,10 +185,18 @@ export function HistoryPanel({
     timeZone: account.planningZone,
   });
   return (
-    <Dialog title={task ? 'task history' : 'activity'} onClose={onClose} wide>
+    <Dialog
+      title={task ? 'task history' : board && scope === 'board' ? 'board history' : 'history'}
+      onClose={onClose}
+      side
+    >
       <div className="history-panel">
         <p className="history-panel__intro">
-          {task ? task.title.trim() || 'untitled task' : account.email}
+          {task
+            ? task.title.trim() || 'untitled task'
+            : scope === 'board' && board
+              ? board.title
+              : account.email}
           <span>last 90 days · {account.planningZone}</span>
         </p>
         {!task && (
@@ -195,36 +204,33 @@ export function HistoryPanel({
             {board && (
               <label>
                 <span>activity from</span>
-                <select
+                <Select
                   value={scope}
-                  onChange={(event) => setScope(event.target.value as 'board' | 'account')}
-                >
-                  <option value="board">this board</option>
-                  <option value="account">all boards in this account</option>
-                </select>
+                  onChange={(selectedValue) => setScope(selectedValue as 'board' | 'account')}
+                  aria-label="activity from"
+                  options={[
+                    { value: 'board', label: 'this board' },
+                    { value: 'account', label: 'all boards in this account' },
+                  ]}
+                />
               </label>
             )}
             <label>
               <span>list</span>
-              <select
+              <Select
                 value={listId}
-                onChange={(event) =>
-                  setSelection({ key: selectionKey, listId: event.target.value })
+                onChange={(selectedValue) =>
+                  setSelection({ key: selectionKey, listId: selectedValue })
                 }
-              >
-                <option value="">all lists in this view</option>
-                {[...choices].map(([id, name]) => (
-                  <option key={id} value={id}>
-                    {name}
-                  </option>
-                ))}
-              </select>
+                aria-label="list"
+                options={[
+                  { value: '', label: 'all lists in this view' },
+                  ...[...choices].map(([id, name]) => ({ value: id, label: name })),
+                ]}
+              />
             </label>
           </div>
         )}
-        <p className="history-panel__caption">
-          confirmed changes and google observations. title and note revisions are not stored.
-        </p>
         {!valid && (
           <p className="history-panel__error" role="alert">
             this selection belongs to a different account.
@@ -341,10 +347,13 @@ export function HistoryPanel({
             <Icon name="down" size={13} />
           </button>
         )}
-        <p className="history-panel__footnote">
-          recorded time is when lanes confirmed or observed a change. google does not provide a full
-          audit trail.
-        </p>
+        <details className="history-panel__footnote">
+          <summary>about this history</summary>
+          <p>
+            recorded time is when lanes confirmed or observed a change. title and note revisions are
+            not stored. google does not provide a full audit trail.
+          </p>
+        </details>
       </div>
     </Dialog>
   );

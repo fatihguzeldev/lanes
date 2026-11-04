@@ -25,19 +25,13 @@
   color: var(--secondary);
   font-size: 11px;
 }
-.history-panel__filters select {
+.history-panel__filters .select__trigger {
   width: 100%;
   padding: 9px;
   border: 1px solid var(--line);
   background: var(--paper);
   border-radius: 5px;
   font-size: 12px;
-}
-.history-panel__caption {
-  color: var(--secondary);
-  font-size: 11px;
-  line-height: 1.7;
-  margin-top: 19px;
 }
 .history-panel__day {
   margin-top: 24px;
@@ -189,6 +183,12 @@
   color: var(--muted);
   font-size: 10px;
   line-height: 1.8;
+}
+.history-panel__footnote summary {
+  cursor: pointer;
+}
+.history-panel__footnote p {
+  margin-top: 8px;
 }
 @media (max-width: 480px) {
   .history-panel {

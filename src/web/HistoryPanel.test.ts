@@ -75,6 +75,6 @@ describe('history event presentation', () => {
           summary: { providerVersion: 'version', knownTaskCount: 7, coverageComplete: false },
         }),
       ).detail,
-    ).toBe('7+ known tasks');
+    ).toBe('7 observed tasks');
   });
 });
