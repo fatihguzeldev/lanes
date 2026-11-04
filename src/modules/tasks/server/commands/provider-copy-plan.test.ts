@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { seedAccount, testDatabase } from '../../../../tests/sqlite-d1';
-import { OperationStore } from './operations';
+import { seedAccount, testDatabase } from '../../../../../tests/sqlite-d1';
+import { OperationStore } from '../operations';
 import { CapturedCopyPlanner } from './provider-copy-plan';
 import type { BeginCapturedCopy, CopyEntry } from './provider-copy-contract';
-import { invocationDatabase } from '../../../../tests/d1-invocation';
+import { invocationDatabase } from '../../../../../tests/d1-invocation';
 import { CommandRetention } from './provider-command-retention';
-import { TasksLifecycle } from './lifecycle';
+import { TasksLifecycle } from '../lifecycle';
 const now = Date.parse('2026-11-02T12:00:00Z');
 const operationId = (suffix = 'a') => `${now}:${suffix.repeat(16)}`;
 const databases: ReturnType<typeof testDatabase>[] = [];

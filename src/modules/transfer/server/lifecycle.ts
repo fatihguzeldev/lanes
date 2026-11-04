@@ -3,7 +3,7 @@ import { AppError } from '../../../contracts/errors';
 import { assertDisconnecting, disconnectWorkGuard } from '../../accounts/access';
 import { accountRemovalGuard, type LifecycleOwner } from '../../accounts/lifecycle';
 import type { OperationStore } from '../../tasks/server/operations';
-import type { TaskSnapshotReader } from '../../tasks/server/snapshot-reader';
+import type { TaskSnapshotReader } from '../../tasks/server/queries/snapshot-reader';
 import type { TemplateDocumentStore } from '../../tasks/server/template-documents';
 import type { ArchiveHeader } from '../archive-contract';
 import { transferDigest } from './imports';

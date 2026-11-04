@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { seedAccount, testDatabase } from '../../../../tests/sqlite-d1';
-import { TaskQueries } from '../../tasks/server/queries';
-import { readActiveLists } from '../../tasks/server/list-queries';
+import { TaskQueries } from '../../tasks/server/queries/tasks';
+import { readActiveLists } from '../../tasks/server/queries/lists';
 import { OperationStore } from '../../tasks/server/operations';
 import { GoogleSheetsClient } from './sheets';
 import {

@@ -9,7 +9,7 @@ import {
   type CompletedDeletionState,
   type CompletedDeletionSummary,
 } from '../completed-deletion-contract';
-import type { TaskCommandService } from './provider-commands';
+import type { TaskCommandService } from './commands/provider-commands';
 import type { OperationRecord, OperationStore } from './operations';
 
 interface Options {

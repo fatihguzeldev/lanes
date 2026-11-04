@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { seedAccount, testDatabase } from '../../../../tests/sqlite-d1';
-import { invocationDatabase } from '../../../../tests/d1-invocation';
-import { AppError } from '../../../contracts/errors';
-import { normalizeTaskSearchText } from '../model';
-import { TaskDependantsPageSchema, TaskPageSchema } from '../query-contract';
-import { TaskQueries } from './queries';
+import { seedAccount, testDatabase } from '../../../../../tests/sqlite-d1';
+import { invocationDatabase } from '../../../../../tests/d1-invocation';
+import { AppError } from '../../../../contracts/errors';
+import { normalizeTaskSearchText } from '../../model';
+import { TaskDependantsPageSchema, TaskPageSchema } from '../../query-contract';
+import { TaskQueries } from './tasks';
 
 const databases: ReturnType<typeof testDatabase>[] = [];
 afterEach(() => {

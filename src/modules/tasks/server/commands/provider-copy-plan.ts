@@ -1,15 +1,15 @@
 import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types';
 import { z } from 'zod';
-import { AppError } from '../../../contracts/errors';
+import { AppError } from '../../../../contracts/errors';
 import {
   assertLocalWritable,
   assertProviderWritable,
   localWriteGuard,
   providerWriteGuard,
-} from '../../accounts/access';
-import { OperationIdSchema } from '../operation-contract';
-import { ResourceIdSchema } from '../contracts';
-import { CreationSourceSchema } from '../../history/contracts';
+} from '../../../accounts/access';
+import { OperationIdSchema } from '../../operation-contract';
+import { ResourceIdSchema } from '../../contracts';
+import { CreationSourceSchema } from '../../../history/contracts';
 import {
   CopyEntrySchema,
   CopyListDefinitionSchema,
@@ -19,9 +19,9 @@ import {
   type CopyListDefinition,
 } from './provider-copy-contract';
 import type { ListRef, TaskRef } from './provider-command-state';
-import { OperationStore, type OperationRecord } from './operations';
-import { TaskQueries } from './queries';
-import type { TaskMetadataService } from './metadata';
+import { OperationStore, type OperationRecord } from '../operations';
+import { TaskQueries } from '../queries/tasks';
+import type { TaskMetadataService } from '../metadata';
 import { CopyDependencyValidator, type CopyValidationProgress } from './provider-copy-validation';
 export interface CopySealResult extends OperationRecord {
   captureSealed: boolean;

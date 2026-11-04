@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { AppError } from '../../../contracts/errors';
 import { ResourceIdSchema, type Label, type TaskList } from '../../tasks/contracts';
 import type { TaskExportQueryInput } from '../../tasks/query-contract';
-import type { TaskQueries } from '../../tasks/server/queries';
+import type { TaskQueries } from '../../tasks/server/queries/tasks';
 import {
   CsvExportRequestSchema,
   type CsvExportPage,

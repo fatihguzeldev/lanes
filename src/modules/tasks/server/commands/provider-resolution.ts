@@ -1,22 +1,22 @@
 import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types';
-import { AppError } from '../../../contracts/errors';
-import { assertProviderWritable } from '../../accounts/access';
+import { AppError } from '../../../../contracts/errors';
+import { assertProviderWritable } from '../../../accounts/access';
 import type {
   ResolutionCandidate,
   ResolutionContext,
   ResolutionPreview,
-} from '../resolution-contract';
-import { ResolutionConfirmSchema, ResolutionPreviewRequestSchema } from '../resolution-contract';
+} from '../../resolution-contract';
+import { ResolutionConfirmSchema, ResolutionPreviewRequestSchema } from '../../resolution-contract';
 import type { CapturedStep } from './provider-command-state';
 import {
   GoogleTasksError,
   type GoogleTaskDTO,
   type GoogleTaskListDTO,
   type GoogleTasksClient,
-} from './provider';
-import type { OperationStep, OperationStore, ResolutionEvidence } from './operations';
-import type { TaskProjectionStore } from './sync';
-import { normalizeTaskSearchText } from '../model';
+} from '../provider';
+import type { OperationStep, OperationStore, ResolutionEvidence } from '../operations';
+import type { TaskProjectionStore } from '../projection';
+import { normalizeTaskSearchText } from '../../model';
 interface Dependencies {
   operations: OperationStore;
   projection: TaskProjectionStore;

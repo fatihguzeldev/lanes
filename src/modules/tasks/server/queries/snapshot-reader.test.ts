@@ -1,5 +1,5 @@
 import { afterEach, expect, it } from 'vitest';
-import { seedAccount, testDatabase } from '../../../../tests/sqlite-d1';
+import { seedAccount, testDatabase } from '../../../../../tests/sqlite-d1';
 import { TaskSnapshotReader } from './snapshot-reader';
 const now = Date.parse('2026-11-02T12:00:00Z');
 const databases: ReturnType<typeof testDatabase>[] = [];

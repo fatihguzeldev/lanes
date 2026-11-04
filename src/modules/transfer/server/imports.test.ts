@@ -131,10 +131,10 @@ it('binds manifest replay and confirmation to one immutable plan and destination
 it('executes admitted import parents, children and metadata via the ordinary journal; interrupted replay never recreates output', async () => {
   const { db, service: previewOnly } = await fixture();
   const { HistoryService } = await import('../../history/server');
-  const { TaskProjectionStore } = await import('../../tasks/server/sync');
+  const { TaskProjectionStore } = await import('../../tasks/server/projection');
   const { TaskMetadataService } = await import('../../tasks/server/metadata');
   const { OperationStore } = await import('../../tasks/server/operations');
-  const { TaskCommandService } = await import('../../tasks/server/provider-commands');
+  const { TaskCommandService } = await import('../../tasks/server/commands/provider-commands');
   const { GoogleTasksClient } = await import('../../tasks/server/provider');
   const operations = new OperationStore(db),
     history = new HistoryService(db, { now: () => now }),
@@ -254,8 +254,8 @@ it('admits an aged recorded source under one fresh provider operation identity a
   const { db } = await fixture();
   let tick = now;
   const { OperationStore } = await import('../../tasks/server/operations'),
-    { TaskCommandService } = await import('../../tasks/server/provider-commands'),
-    { TaskProjectionStore } = await import('../../tasks/server/sync'),
+    { TaskCommandService } = await import('../../tasks/server/commands/provider-commands'),
+    { TaskProjectionStore } = await import('../../tasks/server/projection'),
     { HistoryService } = await import('../../history/server');
   const operations = new OperationStore(db),
     history = new HistoryService(db),

@@ -12,9 +12,9 @@ import {
   type RecurrenceAdvance,
 } from '../recurrence-contract';
 export type { RecurrenceAdvance } from '../recurrence-contract';
-import { copyTaskId, type TaskCommandService, type CopyEntry } from './provider-commands';
+import { copyTaskId, type TaskCommandService, type CopyEntry } from './commands/provider-commands';
 import type { OperationStore, OperationRecord } from './operations';
-import type { TaskRecurrenceSnapshot } from './sync';
+import type { TaskRecurrenceSnapshot } from './projection';
 export interface RecurrenceOptions {
   commands: TaskCommandService;
   operations: OperationStore;

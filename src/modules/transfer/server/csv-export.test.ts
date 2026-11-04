@@ -2,8 +2,8 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { seedAccount, testDatabase } from '../../../../tests/sqlite-d1';
 import { AppError } from '../../../contracts/errors';
 import { normalizeTaskSearchText } from '../../tasks/model';
-import { TaskQueries } from '../../tasks/server/queries';
-import { readActiveLists } from '../../tasks/server/list-queries';
+import { TaskQueries } from '../../tasks/server/queries/tasks';
+import { readActiveLists } from '../../tasks/server/queries/lists';
 import { parseImportFile } from '../parser';
 import { TaskCsvExportService } from './csv-export';
 

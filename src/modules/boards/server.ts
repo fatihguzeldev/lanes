@@ -6,7 +6,7 @@ import {
   readActiveList,
   readActiveLists,
   readListInventoryCoverage,
-} from '../tasks/server/list-queries';
+} from '../tasks/server/queries/lists';
 import { ResourceIdSchema } from '../tasks/contracts';
 import {
   BoardAppearanceSchema,

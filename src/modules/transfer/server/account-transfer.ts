@@ -4,7 +4,7 @@ import { AppError } from '../../../contracts/errors';
 import { assertProviderWritable } from '../../accounts/access';
 import { ResourceIdSchema, type Label } from '../../tasks/contracts';
 import { OperationIdSchema } from '../../tasks/operation-contract';
-import type { TaskSnapshotReader } from '../../tasks/server/snapshot-reader';
+import type { TaskSnapshotReader } from '../../tasks/server/queries/snapshot-reader';
 import type { Board } from '../../boards/contracts';
 import type { ImportSummary } from '../server-contract';
 import { canonicalJson, transferDigest, type TransferImportService } from './imports';

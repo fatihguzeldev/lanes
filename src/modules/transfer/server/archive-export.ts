@@ -11,8 +11,8 @@ import type { TemplateScheduleSummary } from '../../boards/template-contract';
 import type { HistoryEvent } from '../../history/contracts';
 import type { HistoryService } from '../../history/server';
 import type { Task } from '../../tasks/contracts';
-import type { TaskQueries } from '../../tasks/server/queries';
-import type { TaskSnapshotReader } from '../../tasks/server/snapshot-reader';
+import type { TaskQueries } from '../../tasks/server/queries/tasks';
+import type { TaskSnapshotReader } from '../../tasks/server/queries/snapshot-reader';
 import type { ListSnapshotStore, ListTemplateService } from '../../tasks/server/list-templates';
 import {
   ArchiveExportSelectionSchema,

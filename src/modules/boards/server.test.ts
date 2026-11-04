@@ -4,7 +4,7 @@ import { testDatabase, seedAccount } from '../../../tests/sqlite-d1';
 import { AppError } from '../../contracts/errors';
 import { BoardAppearanceSchema, CreateBoardSchema } from './contracts';
 import { BoardService } from './server';
-import { readActiveList } from '../tasks/server/list-queries';
+import { readActiveList } from '../tasks/server/queries/lists';
 
 let database: ReturnType<typeof testDatabase>;
 let db: D1Database;

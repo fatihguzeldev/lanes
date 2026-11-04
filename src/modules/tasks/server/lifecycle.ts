@@ -3,7 +3,7 @@ import { AppError } from '../../../contracts/errors';
 import { accountRemovalGuard, type LifecycleOwner } from '../../accounts/lifecycle';
 import { assertDisconnecting, disconnectWorkGuard } from '../../accounts/access';
 import type { OperationStore } from './operations';
-import type { TaskCommandService } from './provider-commands';
+import type { TaskCommandService } from './commands/provider-commands';
 import type { CompletedTaskDeletionService } from './completed-deletion';
 export interface TasksLifecycleOptions {
   operations: Pick<OperationStore, 'drainDisconnect' | 'hasUnresolvedProviderWork'> & {

@@ -1,34 +1,34 @@
 import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types';
-import { AppError } from '../../../contracts/errors';
-import type { ErrorCode } from '../../../contracts/http';
+import { AppError } from '../../../../contracts/errors';
+import type { ErrorCode } from '../../../../contracts/http';
 import {
   assertLocalWritable,
   assertProviderWritable,
   localWriteGuard,
   providerWriteGuard,
-} from '../../accounts/access';
-import type { HistoryService } from '../../history/server';
-import type { CreationSource, HistoryEventInput } from '../../history/contracts';
-import { TaskScheduleSchema } from '../planning-contract';
-import type { TaskSchedule } from '../planning-contract';
-import type { Task, TaskList } from '../contracts';
-import { ProviderCommandSchema } from '../provider-command-contract';
-import type { PrepareProviderCommand, ProviderCommand } from '../provider-command-contract';
-import { normalizeTaskSearchText } from '../model';
-import { GoogleTasksError, GoogleTaskSchema } from './provider';
+} from '../../../accounts/access';
+import type { HistoryService } from '../../../history/server';
+import { TaskScheduleSchema } from '../../planning-contract';
+import type { TaskSchedule } from '../../planning-contract';
+import type { Task, TaskList } from '../../contracts';
+import { ProviderCommandSchema } from '../../provider-command-contract';
+import type { PrepareProviderCommand, ProviderCommand } from '../../provider-command-contract';
+import { normalizeTaskSearchText } from '../../model';
+import { GoogleTasksError, GoogleTaskSchema } from '../provider';
 import type {
   GoogleTaskDTO,
   GoogleTaskCreate,
   GoogleTaskPatch,
   GoogleTaskListDTO,
   GoogleTasksClient,
-} from './provider';
-import { OperationStore } from './operations';
-import type { ClaimedStep, OperationRecord } from './operations';
-import { TaskQueries } from './queries';
-import type { TaskMetadataService } from './metadata';
-import type { TaskMetadataPatch } from '../metadata-command-contract';
-import { TaskProjectionStore } from './sync';
+} from '../provider';
+import { OperationStore } from '../operations';
+import type { ClaimedStep, OperationRecord } from '../operations';
+import { TaskQueries } from '../queries/tasks';
+import type { TaskMetadataService } from '../metadata';
+import type { TaskMetadataPatch } from '../../metadata-command-contract';
+import type { TaskProjectionStore } from '../projection';
+
 import { CopyEntrySchema } from './provider-copy-contract';
 import { CommandRetention } from './provider-command-retention';
 import { TaskDuplicatePlanner } from './provider-duplicate-plan';
@@ -36,6 +36,8 @@ import { CapturedCopyPlanner, type CopySealResult } from './provider-copy-plan';
 import type { CopyEntry, BeginCapturedCopy, CopyListDefinition } from './provider-copy-contract';
 import type { CapturedStep, ListRef, TaskRef } from './provider-command-state';
 import { TaskOperationResolution } from './provider-resolution';
+import { verifyProviderPreconditions } from './provider-preconditions';
+import { TaskCommandEffects } from './provider-command-effects';
 
 export interface TaskCommandOptions {
   operations: OperationStore;
@@ -198,6 +200,7 @@ export class TaskCommandService {
   private readonly queries: TaskQueries;
   private readonly copies: CapturedCopyPlanner;
   private readonly duplicates: TaskDuplicatePlanner;
+  private readonly effects: TaskCommandEffects;
   readonly resolutions: TaskOperationResolution;
   constructor(
     private readonly db: D1Database,
@@ -206,6 +209,11 @@ export class TaskCommandService {
     this.now = options.now ?? Date.now;
     this.id = options.id ?? (() => crypto.randomUUID());
     this.queries = options.queries ?? new TaskQueries(db);
+    this.effects = new TaskCommandEffects(db, {
+      history: options.history,
+      ...(options.metadata ? { metadata: options.metadata } : {}),
+      now: this.now,
+    });
     this.copies = new CapturedCopyPlanner(db, {
       operations: options.operations,
       ...(options.metadata ? { metadata: options.metadata } : {}),
@@ -1391,95 +1399,6 @@ export class TaskCommandService {
     for (const value of [step.parent, step.previous])
       if (value) await this.task(accountId, value.id, value.revision);
   }
-  private async rebaseMove(
-    accountId: string,
-    step: CapturedStep,
-    current: GoogleTaskDTO,
-  ): Promise<CapturedStep | null> {
-    if (
-      step.action !== 'task.move' ||
-      !step.task ||
-      !current.etag ||
-      current.position === undefined ||
-      current.position === step.task.provider.position ||
-      current.deleted ||
-      current.assignmentInfo ||
-      step.task.capabilities.assignmentSource
-    )
-      return null;
-    const cached = await this.task(accountId, step.task.id, step.task.revision);
-    const address = await this.db
-      .prepare(
-        'SELECT provider_parent_id,provider_hidden FROM tasks_tasks WHERE account_id=? AND id=? AND revision=? AND deleted_at IS NULL',
-      )
-      .bind(accountId, cached.id, cached.revision)
-      .first<{ provider_parent_id: string | null; provider_hidden: number }>();
-    if (
-      !address ||
-      current.id !== cached.provider.id ||
-      current.title !== cached.title ||
-      (current.notes ?? '') !== cached.notes ||
-      current.status !== (cached.completed ? 'completed' : 'needsAction') ||
-      (current.completed ?? null) !== cached.completedAt ||
-      (current.due?.slice(0, 10) ?? null) !== cached.scheduledDay ||
-      (current.parent ?? null) !== address.provider_parent_id ||
-      Boolean(current.hidden) !== Boolean(address.provider_hidden)
-    )
-      return null;
-    return {
-      ...step,
-      task: {
-        ...step.task,
-        provider: {
-          ...step.task.provider,
-          etag: current.etag,
-          position: current.position,
-          updatedAt: current.updated ?? null,
-        },
-      },
-    };
-  }
-  private async preflight(
-    accountId: string,
-    client: GoogleTasksClient,
-    step: CapturedStep,
-  ): Promise<CapturedStep> {
-    if (step.task) {
-      const current = await client.getTask(step.list.providerId, step.task.provider.id);
-      if (
-        step.action === 'task.move' &&
-        current.hidden &&
-        current.status === 'completed' &&
-        (step.parent || step.previous)
-      )
-        throw new AppError(
-          'validation_failed',
-          'google only permits a hidden completed task at the first top-level position.',
-          422,
-        );
-      if (
-        current.id !== step.task.provider.id ||
-        (step.task.provider.etag !== null && current.etag !== step.task.provider.etag)
-      ) {
-        const rebased = await this.rebaseMove(accountId, step, current);
-        if (rebased) return rebased;
-        throw conflict(
-          'google changed this task after the editor captured it. refresh before reapplying.',
-        );
-      }
-    }
-    if (step.action === 'list.rename' || step.action === 'list.delete') {
-      const current = await client.getTaskList(step.list.providerId);
-      if (
-        current.id !== step.list.providerId ||
-        (step.list.providerEtag !== null && current.etag !== step.list.providerEtag)
-      )
-        throw conflict(
-          'google changed this list after the editor captured it. refresh before reapplying.',
-        );
-    }
-    return step;
-  }
   async advance(accountId: string, operationId: string): Promise<CommandAdvance> {
     const operation = await this.options.operations.get(operationId, accountId);
     if (!operation)
@@ -1609,8 +1528,14 @@ export class TaskCommandService {
                 ? [this.projectionFence(accountId, operationId, step.list)]
                 : []),
               ...(step.ordinaryReopenIdentity ? [this.ordinaryReopenGuard(accountId, step)] : []),
-              ...(await this.metadataWrites(accountId, operationId, claim.key, step, false)),
-              ...this.scheduleWrites(accountId, operationId, claim.key, step),
+              ...(await this.effects.metadataWrites(
+                accountId,
+                operationId,
+                claim.key,
+                step,
+                false,
+              )),
+              ...this.effects.scheduleWrites(accountId, operationId, claim.key, step),
             ],
           ),
           this.now(),
@@ -1628,7 +1553,7 @@ export class TaskCommandService {
           await this.assertCapturedCurrent(accountId, step, operationId);
         client = await this.options.clientFor(accountId);
         const beforePreflight = step;
-        step = await this.preflight(accountId, client, step);
+        step = await verifyProviderPreconditions(this.db, this.queries, accountId, client, step);
         if (step.action === 'list.create')
           await this.options.validateBoardTarget?.(
             accountId,
@@ -1852,200 +1777,6 @@ export class TaskCommandService {
       .first<{ id: string; account_id: string }>();
     return row ? this.advance(row.account_id, row.id) : null;
   }
-  private event(
-    accountId: string,
-    operationId: string,
-    key: string,
-    step: CapturedStep,
-    kind: HistoryEventInput['kind'],
-    summary: Record<string, unknown>,
-    providerAt: string | null = null,
-  ): D1PreparedStatement {
-    return this.options.history.eventWrite({
-      id: 'event:' + operationId + ':' + key + ':' + kind,
-      accountId,
-      taskId: step.task?.id ?? step.targetId ?? null,
-      listId: step.destination?.id ?? step.list.id,
-      kind,
-      origin: step.origin ?? 'owner',
-      dedupKey: operationId + ':' + key + ':' + kind,
-      recordedAt: new Date(this.now()).toISOString(),
-      providerAt,
-      taskTitle: step.task?.title ?? step.provider?.title ?? null,
-      listTitle: step.destination?.title ?? step.list.title,
-      summary: {
-        operationId,
-        stepKey: key,
-        ...(step.scheduleId ? { scheduleId: step.scheduleId } : {}),
-        ...(step.runId ? { runId: step.runId } : {}),
-        ...summary,
-      },
-    } as HistoryEventInput);
-  }
-  private scheduleWrites(
-    accountId: string,
-    operationId: string,
-    key: string,
-    step: CapturedStep,
-  ): D1PreparedStatement[] {
-    if (!step.schedule) return [];
-    const id = step.task?.id ?? step.targetId!,
-      value = step.schedule,
-      before = step.beforeSchedule ?? {
-        scheduledDay: null,
-        scheduledTime: null,
-        timeZone: null,
-        repeatRule: null,
-      },
-      writes: D1PreparedStatement[] = [];
-    if (step.clearSchedulePause)
-      writes.push(
-        this.db
-          .prepare('DELETE FROM tasks_schedule_pauses WHERE account_id=? AND task_id=?')
-          .bind(accountId, id),
-      );
-    writes.push(
-      this.db
-        .prepare(
-          `UPDATE tasks_lists SET projection_revision=projection_revision+1 WHERE account_id=? AND id=(SELECT list_id FROM tasks_tasks WHERE account_id=? AND id=? AND (scheduled_time IS NOT ? OR time_zone IS NOT ? OR repeat_rule_json IS NOT ?))`,
-        )
-        .bind(
-          accountId,
-          accountId,
-          id,
-          value.scheduledTime,
-          value.timeZone,
-          value.repeatRule ? JSON.stringify(value.repeatRule) : null,
-        ),
-    );
-    writes.push(
-      this.db
-        .prepare(
-          `UPDATE tasks_tasks SET scheduled_time=?,time_zone=?,repeat_rule_json=?,revision=revision+1 WHERE account_id=? AND id=? AND (scheduled_time IS NOT ? OR time_zone IS NOT ? OR repeat_rule_json IS NOT ?)`,
-        )
-        .bind(
-          value.scheduledTime,
-          value.timeZone,
-          value.repeatRule ? JSON.stringify(value.repeatRule) : null,
-          accountId,
-          id,
-          value.scheduledTime,
-          value.timeZone,
-          value.repeatRule ? JSON.stringify(value.repeatRule) : null,
-        ),
-    );
-    if (step.action !== 'task.create') {
-      if (before.scheduledDay !== value.scheduledDay)
-        writes.push(
-          this.event(accountId, operationId, key, step, 'scheduled_day_changed', {
-            before: before.scheduledDay,
-            after: value.scheduledDay,
-          }),
-        );
-      if (before.scheduledTime !== value.scheduledTime || before.timeZone !== value.timeZone)
-        writes.push(
-          this.event(accountId, operationId, key, step, 'scheduled_time_changed', {
-            before: { time: before.scheduledTime, zone: before.timeZone },
-            after: { time: value.scheduledTime, zone: value.timeZone },
-          }),
-        );
-      if (JSON.stringify(before.repeatRule) !== JSON.stringify(value.repeatRule))
-        writes.push(
-          this.event(accountId, operationId, key, step, 'repeat_rule_changed', {
-            before: before.repeatRule,
-            after: value.repeatRule,
-          }),
-        );
-    }
-    return writes;
-  }
-  private async metadataWrites(
-    accountId: string,
-    operationId: string,
-    key: string,
-    step: CapturedStep,
-    confirmed: boolean,
-  ): Promise<D1PreparedStatement[]> {
-    if (
-      ((!step.metadata || !Object.keys(step.metadata).length) && !step.labelDefinitions?.length) ||
-      !this.options.metadata
-    )
-      return [];
-    const context = {
-      operationId,
-      stepKey: key,
-      origin: step.origin ?? 'owner',
-      recordedAt: new Date(this.now()).toISOString(),
-    };
-    if (step.action === 'task.create') {
-      const value = step.metadata ?? {},
-        hasFields = Boolean(
-          step.labelDefinitions?.length ||
-          value.labelIds?.length ||
-          value.blockedBy?.length ||
-          (value.priority && value.priority !== 'none') ||
-          value.starred,
-        );
-      if (!hasFields) return [];
-      const graph =
-        step.graphRevision ??
-        (
-          await this.db
-            .prepare('SELECT graph_revision FROM tasks_account_state WHERE account_id=?')
-            .bind(accountId)
-            .first<{ graph_revision: number }>()
-        )?.graph_revision ??
-        0;
-      const resolved = step.labelDefinitions?.length
-        ? await this.options.metadata.prepareResolveLabelDefinitions(
-            accountId,
-            step.labelDefinitions,
-            context,
-          )
-        : { writes: [], labelIds: [] };
-      return [
-        ...resolved.writes,
-        ...(await this.options.metadata.prepareCreatedMetadata(
-          accountId,
-          [
-            {
-              taskId: step.targetId!,
-              expectedTaskRevision:
-                1 +
-                (step.schedule &&
-                (step.schedule.scheduledTime || step.schedule.timeZone || step.schedule.repeatRule)
-                  ? 1
-                  : 0),
-              labelIds: [...(value.labelIds ?? []), ...resolved.labelIds],
-              priority: value.priority ?? 'none',
-              starred: value.starred ?? false,
-              blockedBy: value.blockedBy ?? [],
-            },
-          ],
-          context,
-          graph,
-        )),
-      ];
-    }
-    const prepared = await (confirmed
-      ? this.options.metadata.prepareConfirmedTaskPatch(
-          accountId,
-          step.task!.id,
-          step.metadata!,
-          step.task!.revision,
-          context,
-          step.graphRevision,
-        )
-      : this.options.metadata.prepareTaskPatch(
-          accountId,
-          step.task!.id,
-          step.metadata!,
-          step.task!.revision,
-          context,
-          step.graphRevision,
-        ));
-    return prepared.writes;
-  }
   private copyReceiptWrite(operationId: string, key: string, taskId: string): D1PreparedStatement {
     return this.db
       .prepare(
@@ -2189,7 +1920,7 @@ export class TaskCommandService {
     provided?: GoogleTasksClient,
   ): Promise<boolean> {
     await this.db.batch([
-      this.event(
+      this.effects.event(
         accountId,
         claim.operationId,
         claim.key,
@@ -2292,7 +2023,7 @@ export class TaskCommandService {
               claim.operationId,
               member.task_id,
             ),
-          this.event(
+          this.effects.event(
             accountId,
             claim.operationId,
             claim.key + ':child:' + member.task_id,
@@ -2482,7 +2213,7 @@ export class TaskCommandService {
         ...(this.options.listRemovalWrites?.(accountId, step.list.id) ?? []),
       );
       writes.push(
-        this.event(accountId, claim.operationId, claim.key, step, 'list_deleted', {
+        this.effects.event(accountId, claim.operationId, claim.key, step, 'list_deleted', {
           knownTaskCount: step.taskCount ?? 0,
           coverageComplete: true,
         }),
@@ -2568,7 +2299,7 @@ export class TaskCommandService {
       if (step.action === 'task.delete') {
         writes.push(
           ...this.options.projection.retireTaskWrites(accountId, id, this.now()),
-          this.event(accountId, claim.operationId, claim.key, step, 'task_deleted', {
+          this.effects.event(accountId, claim.operationId, claim.key, step, 'task_deleted', {
             parentId: step.task!.parentId,
             knownSubtaskCount: step.subtaskCount ?? 0,
           }),
@@ -2576,7 +2307,13 @@ export class TaskCommandService {
       } else {
         if (step.action !== 'task.create')
           writes.push(
-            ...(await this.metadataWrites(accountId, claim.operationId, claim.key, step, true)),
+            ...(await this.effects.metadataWrites(
+              accountId,
+              claim.operationId,
+              claim.key,
+              step,
+              true,
+            )),
           );
         const prepared = await this.options.projection.prepareConfirmedWrites(
           accountId,
@@ -2595,15 +2332,21 @@ export class TaskCommandService {
           step.destination?.id !== step.list.id
             ? [this.moveMemberWrite(accountId, claim.operationId, step, value.id)]
             : []),
-          ...this.scheduleWrites(accountId, claim.operationId, claim.key, step),
+          ...this.effects.scheduleWrites(accountId, claim.operationId, claim.key, step),
         );
         if (step.action === 'task.create')
           writes.push(
-            ...(await this.metadataWrites(accountId, claim.operationId, claim.key, step, true)),
+            ...(await this.effects.metadataWrites(
+              accountId,
+              claim.operationId,
+              claim.key,
+              step,
+              true,
+            )),
           );
         if (step.action === 'task.create')
           writes.push(
-            this.event(
+            this.effects.event(
               accountId,
               claim.operationId,
               claim.key,
@@ -2618,7 +2361,7 @@ export class TaskCommandService {
           );
         if (step.event) {
           writes.push(
-            this.event(
+            this.effects.event(
               accountId,
               claim.operationId,
               claim.key,
@@ -2641,7 +2384,7 @@ export class TaskCommandService {
           (step.task!.listId !== list.id || step.task!.parentId !== (step.parent?.id ?? null))
         )
           writes.push(
-            this.event(
+            this.effects.event(
               accountId,
               claim.operationId,
               claim.key,

@@ -4,7 +4,7 @@ import { AppError } from '../../../contracts/errors';
 import type { Page } from '../../../contracts/http';
 import { assertLocalWritable, localWriteGuard } from '../../accounts/access';
 import { ResourceIdSchema } from '../../tasks/contracts';
-import { readActiveLists } from '../../tasks/server/list-queries';
+import { readActiveLists } from '../../tasks/server/queries/lists';
 import {
   ListSnapshotStore,
   type SnapshotSourceList,

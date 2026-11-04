@@ -6,10 +6,10 @@ import {
   ListTitleSchema,
   PrioritySchema,
   ResourceIdSchema,
-} from '../contracts';
-import { TaskScheduleSchema } from '../planning-contract';
-import type { CreationSource } from '../../history/contracts';
-import type { ProviderCommand } from '../provider-command-contract';
+} from '../../contracts';
+import { TaskScheduleSchema } from '../../planning-contract';
+import type { CreationSource } from '../../../history/contracts';
+import type { ProviderCommand } from '../../provider-command-contract';
 export const CopyEntrySchema = TaskScheduleSchema.safeExtend({
   listKey: ResourceIdSchema.max(256).optional(),
   sourceTaskId: ResourceIdSchema.max(1024).optional(),

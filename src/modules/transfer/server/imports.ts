@@ -2,13 +2,13 @@ import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types'
 import { z } from 'zod';
 import { AppError } from '../../../contracts/errors';
 import { assertLocalWritable, localWriteGuard } from '../../accounts/access';
-import type { TaskCommandService } from '../../tasks/server/provider-commands';
+import type { TaskCommandService } from '../../tasks/server/commands/provider-commands';
 import type { OperationStore } from '../../tasks/server/operations';
 import type {
   BeginCapturedCopy,
   CopyEntry,
   CopyListDefinition,
-} from '../../tasks/server/provider-copy-contract';
+} from '../../tasks/server/commands/provider-copy-contract';
 import { type NormalizedImportTask } from '../parse-contract';
 import { ImportValidator } from './import-validation';
 import {

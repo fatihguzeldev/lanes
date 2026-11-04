@@ -30,7 +30,7 @@ import {
   type TemplatePreview,
   type TemplateLabelColorConflict,
 } from '../template-contract';
-import type { CopyEntry } from './provider-copy-contract';
+import type { CopyEntry } from './commands/provider-copy-contract';
 import type { MetadataContext } from './metadata';
 import { TemplateDocumentStore } from './template-documents';
 import { listTemplateGallery } from '../template-gallery';

@@ -1,19 +1,19 @@
 import { afterEach, expect, it } from 'vitest';
-import { seedAccount, testDatabase } from '../../../../tests/sqlite-d1';
-import { HistoryService } from '../../history/server';
-import { OperationStore } from './operations';
+import { seedAccount, testDatabase } from '../../../../../tests/sqlite-d1';
+import { HistoryService } from '../../../history/server';
+import { OperationStore } from '../operations';
 import {
   GoogleTasksClient,
   type GoogleTaskDTO,
   type GoogleTaskListDTO,
   type GoogleTasksFetch,
-} from './provider';
+} from '../provider';
 import { TaskCommandService } from './provider-commands';
-import { TaskMetadataService } from './metadata';
-import { TaskProjectionStore } from './sync';
-import { TaskQueries } from './queries';
-import type { ProviderCommandInput } from '../provider-command-contract';
-import { RepeatRuleSchema } from '../planning-contract';
+import { TaskMetadataService } from '../metadata';
+import { TaskProjectionStore } from '../projection';
+import { TaskQueries } from '../queries/tasks';
+import type { ProviderCommandInput } from '../../provider-command-contract';
+import { RepeatRuleSchema } from '../../planning-contract';
 
 const initial = Date.parse('2026-11-02T12:00:00Z');
 const operationId = `${initial}:resolutiontest01`;

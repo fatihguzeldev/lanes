@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { seedAccount, testDatabase } from '../../../../tests/sqlite-d1';
-import { AppError } from '../../../contracts/errors';
-import { normalizeTaskSearchText } from '../model';
-import { TaskQueries } from './queries';
+import { seedAccount, testDatabase } from '../../../../../tests/sqlite-d1';
+import { AppError } from '../../../../contracts/errors';
+import { normalizeTaskSearchText } from '../../model';
+import { TaskQueries } from './tasks';
 
 const now = Date.parse('2026-11-02T12:00:00Z');
 const context = { today: '2026-11-02', now };

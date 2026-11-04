@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { seedAccount, testDatabase } from '../../../../tests/sqlite-d1';
+import { seedAccount, testDatabase } from '../../../../../tests/sqlite-d1';
 import { TaskCommandService } from './provider-commands';
-import { TaskProjectionStore } from './sync';
-import { OperationStore } from './operations';
-import { HistoryService } from '../../history/server';
+import { TaskProjectionStore } from '../projection';
+import { OperationStore } from '../operations';
+import { HistoryService } from '../../../history/server';
 const initial = Date.parse('2026-11-02T12:00:00Z'),
   day = 86_400_000;
 const closes: (() => void)[] = [];

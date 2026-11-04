@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { seedAccount, testDatabase } from '../../../../tests/sqlite-d1';
 import { OperationStore } from '../../tasks/server/operations';
-import { TaskSnapshotReader } from '../../tasks/server/snapshot-reader';
+import { TaskSnapshotReader } from '../../tasks/server/queries/snapshot-reader';
 import { ListSnapshotStore } from '../../tasks/server/list-templates';
 import { TemplateDocumentStore } from '../../tasks/server/template-documents';
 import { TransferImportService, transferDigest } from './imports';

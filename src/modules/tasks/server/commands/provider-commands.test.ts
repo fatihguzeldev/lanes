@@ -1,12 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { seedAccount, testDatabase } from '../../../../tests/sqlite-d1';
-import { HistoryService } from '../../history/server';
-import { GoogleTasksClient } from './provider';
-import type { GoogleTasksFetch } from './provider';
-import { OperationStore } from './operations';
-import { TaskProjectionStore, TaskSyncService } from './sync';
-import { TaskMetadataService } from './metadata';
-import { TaskQueries } from './queries';
+import { seedAccount, testDatabase } from '../../../../../tests/sqlite-d1';
+import { HistoryService } from '../../../history/server';
+import { GoogleTasksClient } from '../provider';
+import type { GoogleTasksFetch } from '../provider';
+import { OperationStore } from '../operations';
+import { TaskProjectionStore } from '../projection';
+import { TaskSyncService } from '../sync';
+import { TaskMetadataService } from '../metadata';
+import { TaskQueries } from '../queries/tasks';
 import { TaskCommandService } from './provider-commands';
 const now = Date.parse('2026-11-02T12:00:00Z');
 const op = (suffix = 'abcdefghijklmnop') => now + ':' + suffix;
@@ -1075,7 +1076,7 @@ it('deletes one provider subtree and retires blocking edges while preserving rec
 
 it('keeps a create uncertain when a received Google result could not be recorded as a receipt', async () => {
   const f = await fixture();
-  const { AppError } = await import('../../../contracts/errors');
+  const { AppError } = await import('../../../../contracts/errors');
   let fail = true;
   const operations = new Proxy(f.operations, {
     get(target, key, receiver) {

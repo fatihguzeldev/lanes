@@ -5,8 +5,9 @@ import { RepeatRuleSchema } from '../planning-contract';
 import { TaskMetadataService } from './metadata';
 import { OperationStore } from './operations';
 import { GoogleTasksClient } from './provider';
-import { TaskCommandService } from './provider-commands';
-import { TaskProjectionStore, TaskSyncService } from './sync';
+import { TaskCommandService } from './commands/provider-commands';
+import { TaskProjectionStore } from './projection';
+import { TaskSyncService } from './sync';
 import { RecurrenceService } from './recurrence';
 const now = Date.parse('2026-11-02T12:00:00Z');
 const rule = RepeatRuleSchema.parse({

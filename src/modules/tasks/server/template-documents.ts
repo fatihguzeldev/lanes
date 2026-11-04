@@ -19,7 +19,7 @@ import type { MetadataContext } from './metadata';
 import {
   CapturedDependencyValidator,
   type DependencyValidationProgress,
-} from './captured-dependency-validation';
+} from './commands/captured-dependency-validation';
 export interface TemplateDocumentSealResult {
   snapshotId: string;
   sealed: boolean;

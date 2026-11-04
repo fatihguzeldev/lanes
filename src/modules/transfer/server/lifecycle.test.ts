@@ -1,6 +1,6 @@
 import { afterEach, expect, it } from 'vitest';
 import { seedAccount, testDatabase } from '../../../../tests/sqlite-d1';
-import { TaskSnapshotReader } from '../../tasks/server/snapshot-reader';
+import { TaskSnapshotReader } from '../../tasks/server/queries/snapshot-reader';
 import { OperationStore } from '../../tasks/server/operations';
 import { TransferImportService } from './imports';
 import { TransferLifecycle } from './lifecycle';

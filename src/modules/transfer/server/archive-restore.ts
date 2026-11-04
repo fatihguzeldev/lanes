@@ -8,12 +8,12 @@ import type { BoardTemplateService } from '../../boards/server/templates';
 import type { TemplateScheduleService } from '../../boards/server/template-schedules';
 import type { HistoryService } from '../../history/server';
 import type { HistoryEventInput } from '../../history/contracts';
-import type { TaskQueries } from '../../tasks/server/queries';
-import type { TaskSnapshotReader } from '../../tasks/server/snapshot-reader';
+import type { TaskQueries } from '../../tasks/server/queries/tasks';
+import type { TaskSnapshotReader } from '../../tasks/server/queries/snapshot-reader';
 import type { TaskMetadataService } from '../../tasks/server/metadata';
 import type { TemplateDocumentStore } from '../../tasks/server/template-documents';
 import type { ListTemplateService } from '../../tasks/server/list-templates';
-import type { TaskCommandService } from '../../tasks/server/provider-commands';
+import type { TaskCommandService } from '../../tasks/server/commands/provider-commands';
 import type { OperationStore } from '../../tasks/server/operations';
 import type { ProviderCommand } from '../../tasks/provider-command-contract';
 import {

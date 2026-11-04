@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import type { D1PreparedStatement } from '@cloudflare/workers-types';
 import { seedAccount, testDatabase } from '../../../../tests/sqlite-d1';
 import { HistoryService } from '../../history/server';
-import { TaskQueries } from './queries';
+import { TaskQueries } from './queries/tasks';
 import { TaskMetadataService, type MetadataContext } from './metadata';
 import { MetadataCommandSchema, TaskMetadataPatchSchema } from '../metadata-command-contract';
 

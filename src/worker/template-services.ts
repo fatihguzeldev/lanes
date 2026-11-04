@@ -8,7 +8,7 @@ import {
 import { TemplateApplicationService } from '../modules/boards/server/template-runs';
 import { TemplateScheduleService } from '../modules/boards/server/template-schedules';
 import { ListSnapshotStore, ListTemplateService } from '../modules/tasks/server/list-templates';
-import type { TaskCommandService } from '../modules/tasks/server/provider-commands';
+import type { TaskCommandService } from '../modules/tasks/server/commands/provider-commands';
 import type { OperationStore } from '../modules/tasks/server/operations';
 export type CommitTemplateWrites = (writes: D1PreparedStatement[]) => Promise<unknown>;
 interface Dependencies {

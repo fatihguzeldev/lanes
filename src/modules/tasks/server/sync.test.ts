@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types';
 import { testDatabase, seedAccount } from '../../../../tests/sqlite-d1';
 import { HistoryService } from '../../history/server';
-import { TaskQueries } from './queries';
+import { TaskQueries } from './queries/tasks';
 import {
   GoogleTasksError,
   type GoogleTaskDTO,
@@ -10,7 +10,8 @@ import {
   type GoogleProviderPage,
   type GoogleTaskPageOptions,
 } from './provider';
-import { TaskProjectionStore, TaskSyncService, type SyncReader } from './sync';
+import { TaskProjectionStore } from './projection';
+import { TaskSyncService, type SyncReader } from './sync';
 
 const now = Date.parse('2026-11-02T12:00:00Z');
 const defaultList = { id: 'google-default', title: 'inbox', etag: 'list-v1' };

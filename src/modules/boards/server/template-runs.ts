@@ -6,8 +6,8 @@ import { assertLocalWritable, assertProviderWritable } from '../../accounts/acce
 import { ResourceIdSchema } from '../../tasks/contracts';
 import { OperationIdSchema } from '../../tasks/operation-contract';
 import type { OperationStore, OperationRecord } from '../../tasks/server/operations';
-import type { TaskCommandService } from '../../tasks/server/provider-commands';
-import type { BeginCapturedCopy } from '../../tasks/server/provider-copy-contract';
+import type { TaskCommandService } from '../../tasks/server/commands/provider-commands';
+import type { BeginCapturedCopy } from '../../tasks/server/commands/provider-copy-contract';
 import {
   ListSnapshotStore,
   ListTemplateService,

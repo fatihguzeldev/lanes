@@ -15,8 +15,8 @@ import { OperationStore } from '../tasks/server/operations';
 import { TasksLifecycle } from '../tasks/server/lifecycle';
 import { AppError } from '../../contracts/errors';
 import { HistoryService } from '../history/server';
-import { TaskProjectionStore } from '../tasks/server/sync';
-import { TaskCommandService } from '../tasks/server/provider-commands';
+import { TaskProjectionStore } from '../tasks/server/projection';
+import { TaskCommandService } from '../tasks/server/commands/provider-commands';
 import { RecurrenceService } from '../tasks/server/recurrence';
 const now = Date.parse('2026-11-02T12:00:00Z');
 const config: AccountConfig = {

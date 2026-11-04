@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { AppError } from '../contracts/errors';
 import { StartOAuthSchema } from '../modules/accounts/contracts';
-import { initializeTaskWorkspace } from '../modules/tasks/server/commands';
+import { initializeTaskWorkspace } from '../modules/tasks/server/workspace';
 import { TaskQuerySchema, LabelQuerySchema } from '../modules/tasks/query-contract';
 import { RefreshRequestSchema } from '../modules/tasks/sync-contract';
 import { HistoryQuerySchema } from '../modules/history/contracts';
@@ -10,7 +10,7 @@ import { createServices } from './services';
 import { LocalSubmissionSchema, submitLocalCommand } from './local-commands';
 import { ProviderCommandSchema } from '../modules/tasks/provider-command-contract';
 import { OperationIdSchema } from '../modules/tasks/operation-contract';
-import { readActiveList, readActiveLists } from '../modules/tasks/server/list-queries';
+import { readActiveList, readActiveLists } from '../modules/tasks/server/queries/lists';
 import { ReopenRequestSchema } from '../modules/tasks/recurrence-contract';
 import { parseConfiguration } from './env';
 import type { Env } from './env';

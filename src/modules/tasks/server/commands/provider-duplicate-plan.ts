@@ -1,12 +1,12 @@
 import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types';
-import { AppError } from '../../../contracts/errors';
-import { assertProviderWritable } from '../../accounts/access';
-import type { ProviderCommand, PrepareProviderCommand } from '../provider-command-contract';
+import { AppError } from '../../../../contracts/errors';
+import { assertProviderWritable } from '../../../accounts/access';
+import type { ProviderCommand, PrepareProviderCommand } from '../../provider-command-contract';
 import { CapturedCopyPlanner } from './provider-copy-plan';
 import type { CopyEntry } from './provider-copy-contract';
-import type { OperationRecord } from './operations';
+import type { OperationRecord } from '../operations';
 import type { ListRef } from './provider-command-state';
-import { TaskQueries } from './queries';
+import { TaskQueries } from '../queries/tasks';
 
 export interface DuplicatePlanOptions {
   copies: CapturedCopyPlanner;
