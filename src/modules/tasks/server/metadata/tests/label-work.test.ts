@@ -1,11 +1,10 @@
-import { createOperationStore } from '../../../../../../tests/support/operation-store';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { createOperationStore } from '../../../../../../tests/support/operation-store';
 import { seedAccount, testDatabase } from '../../../../../../tests/support/sqlite-d1';
 import { HistoryService } from '../../../../history/server/events/event-store';
 import { TasksLifecycle } from '../../lifecycle/account';
-import { OperationStore } from '../../../../operations/server/journal/store';
-import { TaskMetadataService } from '../tasks';
 import { LabelDeletionWork } from '../label-work';
+import { TaskMetadataService } from '../tasks';
 const now = Date.parse('2026-11-03T00:00:00Z'),
   open: ReturnType<typeof testDatabase>[] = [];
 afterEach(() => open.splice(0).forEach((database) => database.close()));
@@ -44,7 +43,7 @@ async function fixture() {
       origin: 'owner' as const,
       recordedAt: new Date(now).toISOString(),
     };
-  await metadata.startLabelDeletion('a', 'label', 0, context, 'job');
+  await metadata.labelDeletions.startLabelDeletion('a', 'label', 0, context, 'job');
   return { ...database, metadata, context, worker: new LabelDeletionWork(db, history, () => now) };
 }
 describe('admitted label deletion work', () => {
@@ -53,16 +52,16 @@ describe('admitted label deletion work', () => {
       provider = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('no provider access'));
     const results = await Promise.all([f.worker.advanceNext(), f.worker.advanceNext()]);
     expect(results.filter(Boolean)).toHaveLength(1);
-    expect(await f.metadata.getLabelDeletion('a', 'job')).toMatchObject({
+    expect(await f.metadata.labelDeletions.getLabelDeletion('a', 'job')).toMatchObject({
       state: 'pending',
       removedAssociations: 10,
     });
     expect(await f.worker.advanceNext()).toBe(true);
-    expect(await f.metadata.getLabelDeletion('a', 'job')).toMatchObject({
+    expect(await f.metadata.labelDeletions.getLabelDeletion('a', 'job')).toMatchObject({
       removedAssociations: 20,
     });
     expect(await f.worker.advanceNext()).toBe(true);
-    expect(await f.metadata.getLabelDeletion('a', 'job')).toMatchObject({
+    expect(await f.metadata.labelDeletions.getLabelDeletion('a', 'job')).toMatchObject({
       state: 'completed',
       removedAssociations: 23,
     });
@@ -92,14 +91,14 @@ describe('admitted label deletion work', () => {
     for (let turn = 0; turn < 5; turn++) if ((await lifecycle.pause('a')).done) break;
     await f.db.prepare("UPDATE accounts_connections SET state='connected' WHERE id='a'").run();
     expect(await f.worker.advanceNext()).toBe(false);
-    await f.metadata.continueLabelDeletion(
+    await f.metadata.labelDeletions.continueLabelDeletion(
       'a',
       'job',
       { ...f.context, stepKey: 'explicit-continue' },
       10,
     );
     expect(await f.worker.advanceNext()).toBe(true);
-    expect(await f.metadata.getLabelDeletion('a', 'job')).toMatchObject({
+    expect(await f.metadata.labelDeletions.getLabelDeletion('a', 'job')).toMatchObject({
       removedAssociations: 20,
     });
   });

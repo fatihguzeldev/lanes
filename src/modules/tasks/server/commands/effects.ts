@@ -165,7 +165,7 @@ export class TaskCommandEffects {
         )?.graph_revision ??
         0;
       const resolved = step.labelDefinitions?.length
-        ? await this.options.metadata.prepareResolveLabelDefinitions(
+        ? await this.options.metadata.labels.prepareResolveLabelDefinitions(
             accountId,
             step.labelDefinitions,
             context,

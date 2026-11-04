@@ -290,10 +290,15 @@ export async function submitLocalCommand(
         );
         break;
       case 'label.create':
-        await metadata.createLabel(accountId, command.input, context, `label:${operation.id}`);
+        await metadata.labels.createLabel(
+          accountId,
+          command.input,
+          context,
+          `label:${operation.id}`,
+        );
         break;
       case 'label.update':
-        await metadata.updateLabel(
+        await metadata.labels.updateLabel(
           accountId,
           command.labelId,
           command.input,
@@ -302,7 +307,7 @@ export async function submitLocalCommand(
         );
         break;
       case 'label.delete.start':
-        await metadata.startLabelDeletion(
+        await metadata.labelDeletions.startLabelDeletion(
           accountId,
           command.labelId,
           command.expectedRevision,
@@ -311,7 +316,12 @@ export async function submitLocalCommand(
         );
         break;
       case 'label.delete.continue':
-        await metadata.continueLabelDeletion(accountId, command.jobId, context, command.limit);
+        await metadata.labelDeletions.continueLabelDeletion(
+          accountId,
+          command.jobId,
+          context,
+          command.limit,
+        );
         break;
     }
     if ((await operations.getStep(operation.id, step.key))?.state === 'claimed')

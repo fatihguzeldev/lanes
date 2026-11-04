@@ -1,13 +1,14 @@
-import { afterEach, describe, expect, it } from 'vitest';
 import type { D1PreparedStatement } from '@cloudflare/workers-types';
+import { afterEach, describe, expect, it } from 'vitest';
 import { seedAccount, testDatabase } from '../../../../../../tests/support/sqlite-d1';
 import { HistoryService } from '../../../../history/server/events/event-store';
-import { TaskQueries } from '../../queries/tasks';
-import { TaskMetadataService, type MetadataContext } from '../tasks';
 import {
   MetadataCommandSchema,
   TaskMetadataPatchSchema,
 } from '../../../contracts/metadata-commands';
+import { TaskQueries } from '../../queries/tasks';
+import type { MetadataContext } from '../context';
+import { TaskMetadataService } from '../tasks';
 
 const now = Date.parse('2026-11-02T12:00:00Z');
 const databases: ReturnType<typeof testDatabase>[] = [];
@@ -187,7 +188,7 @@ describe('metadata contracts and local writes', () => {
 describe('labels', () => {
   it('normalizes name uniqueness by account/NFC/fold while preserving chosen spelling and colors', async () => {
     const { service } = await fixture();
-    const label = await service.createLabel(
+    const label = await service.labels.createLabel(
       'a',
       { name: '  E\u0301cole  ', color: '#AbC' },
       context(),
@@ -195,13 +196,13 @@ describe('labels', () => {
     );
     expect(label).toMatchObject({ id: 'first', name: 'École', color: '#abc', revision: 0 });
     await expect(
-      service.createLabel('a', { name: 'éCOLE', color: '#000' }, context('duplicate')),
+      service.labels.createLabel('a', { name: 'éCOLE', color: '#000' }, context('duplicate')),
     ).rejects.toMatchObject({ code: 'conflict' });
     expect(
-      await service.createLabel('b', { name: 'école', color: '#000' }, context('other')),
+      await service.labels.createLabel('b', { name: 'école', color: '#000' }, context('other')),
     ).toMatchObject({ accountId: 'b' });
     expect(
-      await service.updateLabel('a', 'first', { name: 'ÉCOLE' }, 0, context('rename')),
+      await service.labels.updateLabel('a', 'first', { name: 'ÉCOLE' }, 0, context('rename')),
     ).toMatchObject({ id: 'first', name: 'ÉCOLE', color: '#abc', revision: 1 });
   });
   it('atomically rejects cross-account, missing, duplicate and excessive task label references', async () => {
@@ -220,7 +221,7 @@ describe('labels', () => {
     }
     expect(await db.prepare('SELECT COUNT(*) AS n FROM tasks_task_labels').first('n')).toBe(0);
     await expect(
-      service.updateLabel('a', 'private', { color: '#fff' }, 0, context()),
+      service.labels.updateLabel('a', 'private', { color: '#fff' }, 0, context()),
     ).rejects.toMatchObject({ code: 'not_found' });
   });
   it('keeps label deletion durable and bounded, denies new assignments, and preserves task/provider content', async () => {
@@ -237,15 +238,25 @@ describe('labels', () => {
         context(`assign-${n}`),
       );
     }
-    const job = await service.startLabelDeletion('a', 'remove', 0, context('delete'), 'delete-job');
+    const job = await service.labelDeletions.startLabelDeletion(
+      'a',
+      'remove',
+      0,
+      context('delete'),
+      'delete-job',
+    );
     expect(job).toMatchObject({ id: 'delete-job', state: 'pending', removedAssociations: 0 });
     await expect(
       service.patchTask('a', 'task-00', { labelIds: ['remove'] }, 1, context('late')),
     ).rejects.toMatchObject({ code: 'conflict' });
     await expect(
-      service.updateLabel('a', 'remove', { name: 'changed' }, 0, context('rename')),
+      service.labels.updateLabel('a', 'remove', { name: 'changed' }, 0, context('rename')),
     ).rejects.toMatchObject({ code: 'conflict' });
-    const first = await service.continueLabelDeletion('a', 'delete-job', context('slice-1'));
+    const first = await service.labelDeletions.continueLabelDeletion(
+      'a',
+      'delete-job',
+      context('slice-1'),
+    );
     expect(first).toMatchObject({ state: 'pending', removedAssociations: 10, revision: 1 });
     expect(
       await db
@@ -256,7 +267,7 @@ describe('labels', () => {
       await db.prepare("SELECT COUNT(*) AS n FROM tasks_labels WHERE id='remove'").first('n'),
     ).toBe(1);
     expect(
-      await service.continueLabelDeletion('a', 'delete-job', context('slice-2')),
+      await service.labelDeletions.continueLabelDeletion('a', 'delete-job', context('slice-2')),
     ).toMatchObject({ state: 'completed', removedAssociations: 13, revision: 2 });
     expect(await queries.getTask('a', 'task-00')).toMatchObject({
       revision: 2,
@@ -267,8 +278,10 @@ describe('labels', () => {
     expect(
       await db.prepare("SELECT COUNT(*) AS n FROM tasks_labels WHERE id='remove'").first('n'),
     ).toBe(0);
-    expect(await service.getLabelDeletion('a', 'delete-job')).toMatchObject({ state: 'completed' });
-    await expect(service.getLabelDeletion('b', 'delete-job')).rejects.toMatchObject({
+    expect(await service.labelDeletions.getLabelDeletion('a', 'delete-job')).toMatchObject({
+      state: 'completed',
+    });
+    await expect(service.labelDeletions.getLabelDeletion('b', 'delete-job')).rejects.toMatchObject({
       code: 'not_found',
     });
   });
@@ -277,17 +290,19 @@ describe('labels', () => {
     await task('one');
     await label('remove');
     await service.patchTask('a', 'one', { labelIds: ['remove'] }, 0, context('assign'));
-    await service.startLabelDeletion('a', 'remove', 0, context('start'), 'job');
+    await service.labelDeletions.startLabelDeletion('a', 'remove', 0, context('start'), 'job');
     const failing = new TaskMetadataService(db, {
       history: new HistoryService(db, { now: () => now }),
       commitWrites: async (writes) => {
         await db.batch([...writes, db.prepare('INSERT INTO missing_table VALUES (1)')]);
       },
     });
-    await expect(failing.continueLabelDeletion('a', 'job', context('fail'))).rejects.toMatchObject({
+    await expect(
+      failing.labelDeletions.continueLabelDeletion('a', 'job', context('fail')),
+    ).rejects.toMatchObject({
       code: 'storage_unavailable',
     });
-    expect(await service.getLabelDeletion('a', 'job')).toMatchObject({
+    expect(await service.labelDeletions.getLabelDeletion('a', 'job')).toMatchObject({
       removedAssociations: 0,
       revision: 0,
       state: 'pending',
@@ -508,8 +523,13 @@ describe('metadata bounds and transactional races', () => {
   it('admits only one concurrent normalized label name without orphan writes', async () => {
     const { service, db } = await fixture();
     const attempts = await Promise.allSettled([
-      service.createLabel('a', { name: 'CAFÉ', color: '#000' }, context('a'), 'a-label'),
-      service.createLabel('a', { name: 'cafe\u0301', color: '#fff' }, context('b'), 'b-label'),
+      service.labels.createLabel('a', { name: 'CAFÉ', color: '#000' }, context('a'), 'a-label'),
+      service.labels.createLabel(
+        'a',
+        { name: 'cafe\u0301', color: '#fff' },
+        context('b'),
+        'b-label',
+      ),
     ]);
     expect(attempts.filter((attempt) => attempt.status === 'fulfilled')).toHaveLength(1);
     expect(
@@ -532,7 +552,7 @@ describe('metadata bounds and transactional races', () => {
     await task('one');
     await label('remove');
     await service.patchTask('a', 'one', { labelIds: ['remove'] }, 0, context('assign'));
-    await service.startLabelDeletion('a', 'remove', 0, context('start'), 'job');
+    await service.labelDeletions.startLabelDeletion('a', 'remove', 0, context('start'), 'job');
     const raced = new TaskMetadataService(db, {
       history: new HistoryService(db, { now: () => now }),
       commitWrites: async (writes) => {
@@ -542,10 +562,12 @@ describe('metadata bounds and transactional races', () => {
         await db.batch(writes);
       },
     });
-    await expect(raced.continueLabelDeletion('a', 'job', context('slice'))).rejects.toMatchObject({
+    await expect(
+      raced.labelDeletions.continueLabelDeletion('a', 'job', context('slice')),
+    ).rejects.toMatchObject({
       code: 'conflict',
     });
-    expect(await service.getLabelDeletion('a', 'job')).toMatchObject({
+    expect(await service.labelDeletions.getLabelDeletion('a', 'job')).toMatchObject({
       state: 'pending',
       revision: 0,
       removedAssociations: 0,
@@ -559,13 +581,17 @@ describe('metadata bounds and transactional races', () => {
       await database.batch(writes);
     });
     await label('empty');
-    await service.startLabelDeletion('a', 'empty', 0, context('start'), 'job');
-    expect(await service.continueLabelDeletion('a', 'job', context('first'))).toMatchObject({
+    await service.labelDeletions.startLabelDeletion('a', 'empty', 0, context('start'), 'job');
+    expect(
+      await service.labelDeletions.continueLabelDeletion('a', 'job', context('first')),
+    ).toMatchObject({
       state: 'completed',
       removedAssociations: 0,
       revision: 1,
     });
-    expect(await service.continueLabelDeletion('a', 'job', context('terminal'))).toMatchObject({
+    expect(
+      await service.labelDeletions.continueLabelDeletion('a', 'job', context('terminal')),
+    ).toMatchObject({
       state: 'completed',
       revision: 1,
     });
@@ -643,19 +669,28 @@ it('paginates pending label deletions after reload and keeps job cursors account
   await label('first');
   await label('second');
   await label('private', 'private', 'b');
-  await service.startLabelDeletion('a', 'first', 0, context('first'), 'job-a');
-  await service.startLabelDeletion('a', 'second', 0, context('second'), 'job-z');
-  await service.startLabelDeletion('b', 'private', 0, context('private'), 'private-job');
+  await service.labelDeletions.startLabelDeletion('a', 'first', 0, context('first'), 'job-a');
+  await service.labelDeletions.startLabelDeletion('a', 'second', 0, context('second'), 'job-z');
+  await service.labelDeletions.startLabelDeletion(
+    'b',
+    'private',
+    0,
+    context('private'),
+    'private-job',
+  );
   await db.prepare("UPDATE accounts_connections SET state='disconnected' WHERE id='a'").run();
-  const page = await service.listPendingLabelDeletions('a', { limit: 1 });
+  const page = await service.labelDeletions.listPendingLabelDeletions('a', { limit: 1 });
   expect(page.items.map((item) => item.id)).toEqual(['job-a']);
   expect(
     (
-      await service.listPendingLabelDeletions('a', { cursor: page.nextCursor!, limit: 1 })
+      await service.labelDeletions.listPendingLabelDeletions('a', {
+        cursor: page.nextCursor!,
+        limit: 1,
+      })
     ).items.map((item) => item.id),
   ).toEqual(['job-z']);
   await expect(
-    service.listPendingLabelDeletions('b', { cursor: page.nextCursor! }),
+    service.labelDeletions.listPendingLabelDeletions('b', { cursor: page.nextCursor! }),
   ).rejects.toMatchObject({ code: 'validation_failed' });
 });
 
@@ -697,8 +732,8 @@ it('advances list projection fences alongside metadata so an old in-flight provi
       .prepare("SELECT projection_revision FROM tasks_lists WHERE id='list-a'")
       .first('projection_revision'),
   ).toBe(1);
-  await service.startLabelDeletion('a', 'remove', 0, context('start'), 'job');
-  await service.continueLabelDeletion('a', 'job', context('slice'));
+  await service.labelDeletions.startLabelDeletion('a', 'remove', 0, context('start'), 'job');
+  await service.labelDeletions.continueLabelDeletion('a', 'job', context('slice'));
   expect(
     await db
       .prepare("SELECT projection_revision FROM tasks_lists WHERE id='list-a'")
@@ -798,7 +833,7 @@ it('rejects copied edges on stale baselines, existing edited edges and concurren
 it('resolves reusable label definitions by normalized account name and preserves destination colors', async () => {
   const { service, label, db } = await fixture();
   await label('existing', 'école');
-  const prepared = await service.prepareResolveLabelDefinitions(
+  const prepared = await service.labels.prepareResolveLabelDefinitions(
     'a',
     [
       { name: 'E\u0301COLE', color: '#fff' },
@@ -817,7 +852,7 @@ it('resolves reusable label definitions by normalized account name and preserves
       .bind(prepared.labelIds[1])
       .first(),
   ).toEqual({ name: 'new label', color: '#abc' });
-  const replay = await service.prepareResolveLabelDefinitions(
+  const replay = await service.labels.prepareResolveLabelDefinitions(
     'a',
     [{ name: 'new label', color: '#abc' }],
     context('other-copy'),
@@ -828,19 +863,19 @@ it('resolves reusable label definitions by normalized account name and preserves
 
 it('a racing label resolution rolls back its task receipt and can reconcile onto the winning definition', async () => {
   const { service, db } = await fixture();
-  const a = await service.prepareResolveLabelDefinitions(
+  const a = await service.labels.prepareResolveLabelDefinitions(
     'a',
     [{ name: 'same', color: '#000' }],
     context('a'),
   );
-  const b = await service.prepareResolveLabelDefinitions(
+  const b = await service.labels.prepareResolveLabelDefinitions(
     'a',
     [{ name: 'SAME', color: '#fff' }],
     context('b'),
   );
   await db.batch(a.writes);
   await expect(db.batch(b.writes)).rejects.toThrow();
-  const repair = await service.prepareResolveLabelDefinitions(
+  const repair = await service.labels.prepareResolveLabelDefinitions(
     'a',
     [{ name: 'SAME', color: '#fff' }],
     context('b'),

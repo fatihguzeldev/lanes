@@ -32,7 +32,7 @@ import {
   type TemplateLabelColorConflict,
 } from '../../contracts/template';
 import type { CopyEntry } from '../commands/copy-contract';
-import type { MetadataContext } from '../metadata/tasks';
+import type { MetadataContext } from '../metadata/context';
 import { TemplateDocumentStore } from './documents';
 import { listTemplateGallery } from '../../model/template-gallery';
 export interface TemplateContext extends MetadataContext {

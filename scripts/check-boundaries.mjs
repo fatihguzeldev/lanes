@@ -65,6 +65,7 @@ const publicServerFiles = {
     'server/commands/copy-contract.ts',
     'server/metadata.ts',
     'server/metadata/tasks.ts',
+    'server/metadata/context.ts',
     'server/template-documents.ts',
     'server/templates/documents.ts',
     'server/queries/snapshot-reader.ts',

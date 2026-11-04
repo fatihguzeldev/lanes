@@ -73,8 +73,14 @@ export async function workspaceQueryRoute(
   )
     return jsonResponse(
       url.searchParams.has('jobId')
-        ? await services.metadata.getLabelDeletion(accountId, url.searchParams.get('jobId') ?? '')
-        : await services.metadata.listPendingLabelDeletions(accountId, pageOptions(url)),
+        ? await services.metadata.labelDeletions.getLabelDeletion(
+            accountId,
+            url.searchParams.get('jobId') ?? '',
+          )
+        : await services.metadata.labelDeletions.listPendingLabelDeletions(
+            accountId,
+            pageOptions(url),
+          ),
     );
   if (route.length === 5 && route[3] === 'lists' && route[4] && request.method === 'GET') {
     const list = await readActiveList(db, accountId, route[4]);

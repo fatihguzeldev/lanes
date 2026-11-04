@@ -20,7 +20,7 @@ import {
 import { TemplateDocumentStore } from '../../../tasks/server/templates/documents';
 import { boardTemplateGallery } from '../../model/template-gallery';
 import { TemplateNameSchema, TemplateDescriptionSchema } from '../../../tasks/contracts/template';
-import type { MetadataContext } from '../../../tasks/server/metadata/tasks';
+import type { MetadataContext } from '../../../tasks/server/metadata/context';
 import {
   BoardTemplateAppearanceSchema,
   BoardTemplateSummarySchema,

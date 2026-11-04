@@ -22,7 +22,7 @@ import {
   TemplatePageOptionsSchema,
   type TemplatePageOptions,
 } from '../../../tasks/contracts/template';
-import type { MetadataContext } from '../../../tasks/server/metadata/tasks';
+import type { MetadataContext } from '../../../tasks/server/metadata/context';
 import {
   CreateTemplateScheduleSchema,
   TemplateReferenceSchema,

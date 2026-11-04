@@ -692,9 +692,9 @@ export class ArchiveRestoreService {
           input.revision!,
         );
       else if (input.kind === 'label.create')
-        await owners.metadata.createLabel(row.account_id, input.input, context, input.id);
+        await owners.metadata.labels.createLabel(row.account_id, input.input, context, input.id);
       else if (input.kind === 'label.update')
-        await owners.metadata.updateLabel(
+        await owners.metadata.labels.updateLabel(
           row.account_id,
           input.id!,
           input.input,

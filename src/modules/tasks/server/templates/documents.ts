@@ -16,7 +16,7 @@ import {
   type TemplateTask,
 } from '../../contracts/template';
 import type { ListSnapshotStore } from './lists';
-import type { MetadataContext } from '../metadata/tasks';
+import type { MetadataContext } from '../metadata/context';
 import {
   CapturedDependencyValidator,
   type DependencyValidationProgress,
