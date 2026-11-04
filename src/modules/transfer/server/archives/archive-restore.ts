@@ -12,7 +12,7 @@ import type { TaskQueries } from '../../../tasks/server/queries/tasks';
 import type { TaskSnapshotReader } from '../../../tasks/server/queries/snapshot-reader';
 import type { TaskMetadataService } from '../../../tasks/server/metadata/tasks';
 import type { TemplateDocumentStore } from '../../../tasks/server/templates/documents';
-import type { ListTemplateService } from '../../../tasks/server/templates/lists';
+import type { ListTemplateService } from '../../../tasks/server/templates/definitions';
 import type { TaskCommandService } from '../../../tasks/server/commands/service';
 import type { OperationStore } from '../../../operations/server/journal/store';
 import type { ProviderCommand } from '../../../tasks/contracts/provider-commands';

@@ -17,7 +17,8 @@ import type { HistoryService } from '../../../history/server/events/event-store'
 import type { Task } from '../../../tasks/contracts/task';
 import type { TaskQueries } from '../../../tasks/server/queries/tasks';
 import type { TaskSnapshotReader } from '../../../tasks/server/queries/snapshot-reader';
-import type { ListSnapshotStore, ListTemplateService } from '../../../tasks/server/templates/lists';
+import type { ListSnapshotStore } from '../../../tasks/server/templates/snapshots';
+import type { ListTemplateService } from '../../../tasks/server/templates/definitions';
 import {
   ArchiveExportSelectionSchema,
   ArchiveHeaderSchema,

@@ -15,7 +15,7 @@ import {
   type TemplateList,
   type TemplateTask,
 } from '../../contracts/template';
-import type { ListSnapshotStore } from './lists';
+import type { ListSnapshotStore } from './snapshots';
 import type { MetadataContext } from '../metadata/context';
 import {
   CapturedDependencyValidator,

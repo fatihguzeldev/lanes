@@ -7,7 +7,8 @@ import {
 } from '../../modules/boards/server/templates/definitions';
 import { TemplateApplicationService } from '../../modules/boards/server/templates/runs';
 import { TemplateScheduleService } from '../../modules/boards/server/templates/schedules';
-import { ListSnapshotStore, ListTemplateService } from '../../modules/tasks/server/templates/lists';
+import { ListSnapshotStore } from '../../modules/tasks/server/templates/snapshots';
+import { ListTemplateService } from '../../modules/tasks/server/templates/definitions';
 import type { TaskCommandService } from '../../modules/tasks/server/commands/service';
 import type { OperationStore } from '../../modules/operations/server/journal/store';
 export type CommitTemplateWrites = (writes: D1PreparedStatement[]) => Promise<unknown>;

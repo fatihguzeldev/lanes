@@ -1,14 +1,15 @@
 import { afterEach, describe, expect, it } from 'vitest';
+import { invocationDatabase } from '../../../../../../tests/support/d1-invocation';
 import { seedAccount, testDatabase } from '../../../../../../tests/support/sqlite-d1';
-import { ListSnapshotStore, ListTemplateService } from '../lists';
-import { TemplateDocumentStore } from '../documents';
+import { BoardTemplateService } from '../../../../boards/server/templates/definitions';
 import {
   TemplateDocumentHeaderSchema,
   TemplateTaskSchema,
   type TemplateTask,
 } from '../../../contracts/template';
-import { BoardTemplateService } from '../../../../boards/server/templates/definitions';
-import { invocationDatabase } from '../../../../../../tests/support/d1-invocation';
+import { TemplateDocumentStore } from '../documents';
+import { ListSnapshotStore } from '../snapshots';
+import { ListTemplateService } from '../definitions';
 const now = Date.parse('2026-11-02T12:00:00Z'),
   context = {
     operationId: 'capture',

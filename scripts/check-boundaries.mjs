@@ -61,7 +61,6 @@ const publicServerFiles = {
     'server/queries/tasks.ts',
     'server/queries/labels.ts',
     'server/queries/snapshot-reader.ts',
-    'server/templates/lists.ts',
     'server/templates/context.ts',
     'server/templates/definitions.ts',
     'server/templates/materialize.ts',

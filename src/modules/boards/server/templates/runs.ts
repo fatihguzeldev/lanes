@@ -13,11 +13,9 @@ import type { OperationStore } from '../../../operations/server/journal/store';
 import { type OperationRecord } from '../../../operations/server/journal/context';
 import type { TaskCommandService } from '../../../tasks/server/commands/service';
 import type { BeginCapturedCopy } from '../../../tasks/server/commands/copy-contract';
-import {
-  ListSnapshotStore,
-  ListTemplateService,
-  materializeTemplateTask,
-} from '../../../tasks/server/templates/lists';
+import { ListSnapshotStore } from '../../../tasks/server/templates/snapshots';
+import { ListTemplateService } from '../../../tasks/server/templates/definitions';
+import { materializeTemplateTask } from '../../../tasks/server/templates/materialize';
 import {
   TemplatePageOptionsSchema,
   type SnapshotSummary,

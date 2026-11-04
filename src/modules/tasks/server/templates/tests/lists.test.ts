@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { seedAccount, testDatabase } from '../../../../../../tests/support/sqlite-d1';
-import { ListSnapshotStore, ListTemplateService, materializeTemplateTask } from '../lists';
+import { ListSnapshotStore } from '../snapshots';
+import { ListTemplateService } from '../definitions';
+import { materializeTemplateTask } from '../materialize';
 const now = Date.parse('2026-11-02T12:00:00Z');
 const context = {
   operationId: 'op',

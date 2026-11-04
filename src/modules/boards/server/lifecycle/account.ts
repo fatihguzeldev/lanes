@@ -6,7 +6,7 @@ import {
 } from '../../../accounts/server/connections/access';
 import { accountRemovalGuard } from '../../../accounts/server/lifecycle/write-guards';
 import { type LifecycleOwner } from '../../../accounts/server/lifecycle/context';
-import type { ListSnapshotStore } from '../../../tasks/server/templates/lists';
+import type { ListSnapshotStore } from '../../../tasks/server/templates/snapshots';
 
 /** Board/template metadata settles before task-list removal; neither path deletes google content. */
 export class BoardLifecycle implements LifecycleOwner {

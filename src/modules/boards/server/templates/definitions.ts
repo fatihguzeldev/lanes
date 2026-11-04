@@ -6,11 +6,11 @@ import { assertLocalWritable, localWriteGuard } from '../../../accounts/server/c
 
 import { ResourceIdSchema } from '../../../../shared/contracts/identity';
 import { readActiveLists } from '../../../tasks/server/queries/lists';
+import { ListSnapshotStore } from '../../../tasks/server/templates/snapshots';
 import {
-  ListSnapshotStore,
   type SnapshotSourceList,
   type TemplateContext,
-} from '../../../tasks/server/templates/lists';
+} from '../../../tasks/server/templates/context';
 import {
   SnapshotOptionsSchema,
   TemplateMetadataPatchSchema,
