@@ -1,7 +1,8 @@
+import { newOperationId } from '../client/operation-identity';
 import { useEffect, useRef, useState } from 'react';
 import { OperationSummarySchema, type OperationSummary } from '../modules/tasks/operation-contract';
-import { request, RequestError } from './http';
-import { serverConnection } from './connectivity';
+import { request, RequestError } from '../client/http';
+import { serverConnection } from '../client/connectivity';
 
 const progressing = new Set(['accepted', 'running', 'partial']);
 export function commandNeedsRefresh(
@@ -36,8 +37,6 @@ export function commandRequestError(error: unknown, operationId: string): Reques
   );
 }
 
-export const newOperationId = (clockOffset = 0) =>
-  `${Math.floor(Date.now() + clockOffset)}:${crypto.randomUUID().replaceAll('-', '')}`;
 export function useCommands(accountId: string, clockOffset: number, onChanged: () => void) {
   const [busy, setBusy] = useState(false),
     [error, setError] = useState('');

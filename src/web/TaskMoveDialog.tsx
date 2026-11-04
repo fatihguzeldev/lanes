@@ -3,11 +3,12 @@ import type { ConnectionSummary } from '../modules/accounts/contracts';
 import { TaskConsequencesSchema } from '../modules/tasks/consequence-contract';
 import type { Task } from '../modules/tasks/contracts';
 import { Dialog } from '../ui/Dialog';
-import { request } from './http';
+import { request } from '../client/http';
 import { BoardPageSchema, BoardListPageSchema } from './schemas';
-import { usePagedResource } from './usePagedResource';
+import { usePagedResource } from '../client/usePagedResource';
 import { useTaskQuery } from './useTaskQuery';
-import { newOperationId, useCommands } from './useCommands';
+import { newOperationId } from '../client/operation-identity';
+import { useCommands } from './useCommands';
 import { Select } from '../ui/Select';
 
 interface Props {

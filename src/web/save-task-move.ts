@@ -4,8 +4,8 @@ import { TaskConsequencesSchema } from '../modules/tasks/consequence-contract';
 import { TaskPageSchema } from '../modules/tasks/query-contract';
 import { OperationSummarySchema, type OperationSummary } from '../modules/tasks/operation-contract';
 import { SyncAdvanceSchema, SyncStatusSchema } from '../modules/tasks/sync-contract';
-import { request, RequestError } from './http';
-import { serverConnection } from './connectivity';
+import { request, RequestError } from '../client/http';
+import { serverConnection } from '../client/connectivity';
 
 const pause = (milliseconds: number, signal?: AbortSignal) =>
   new Promise<void>((resolve, reject) => {

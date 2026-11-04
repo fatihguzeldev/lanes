@@ -7,9 +7,9 @@ import {
   type SheetsExportRequest,
   type SheetsExportSummary,
 } from '../modules/transfer/export-contract';
-import { request } from './http';
-import { newOperationId } from './useCommands';
-import { usePagedResource } from './usePagedResource';
+import { request } from '../client/http';
+import { newOperationId } from '../client/operation-identity';
+import { usePagedResource } from '../client/usePagedResource';
 import { transferPage } from './transfer-schemas';
 import {
   escaped,

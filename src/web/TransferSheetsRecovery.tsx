@@ -12,8 +12,8 @@ import {
   IssuedOperationStepSchema,
   type IssuedOperationStep,
 } from '../modules/tasks/operation-contract';
-import { request } from './http';
-import { newOperationId } from './useCommands';
+import { request } from '../client/http';
+import { newOperationId } from '../client/operation-identity';
 import {
   accountBase,
   escaped,

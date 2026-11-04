@@ -13,11 +13,12 @@ import {
   RecurrenceStatusSchema,
   type RecurrenceStatus,
 } from '../modules/tasks/recurrence-contract';
-import { checkServerConnection, request } from './http';
+import { checkServerConnection, request } from '../client/http';
 import { useTaskQuery } from './useTaskQuery';
-import { usePagedResource } from './usePagedResource';
-import { newOperationId, useCommands } from './useCommands';
-import { useServerConnection } from './useServerConnection';
+import { usePagedResource } from '../client/usePagedResource';
+import { newOperationId } from '../client/operation-identity';
+import { useCommands } from './useCommands';
+import { useServerConnection } from '../client/useServerConnection';
 import { useRecurrenceWork } from './useRecurrenceWork';
 
 export interface EditorSelection {

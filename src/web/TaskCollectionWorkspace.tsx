@@ -12,10 +12,10 @@ import {
 import { TaskCard } from '../modules/tasks/components/TaskCard';
 import { countOpenTasks, getBlockingStates } from '../modules/tasks/model';
 import { Icon } from '../ui/Icon';
-import { request } from './http';
+import { request } from '../client/http';
 import { useTaskQuery } from './useTaskQuery';
 import './TaskCollectionWorkspace.css';
-import type { InitialViewReadiness } from './workspace-startup';
+import type { InitialViewReadiness } from '../client/readiness';
 
 const contextsSchema = z
   .object({

@@ -7,10 +7,10 @@ import {
 } from '../modules/boards/components/calendar-model';
 import { Dialog } from '../ui/Dialog';
 import { Icon } from '../ui/Icon';
-import { request } from './http';
+import { request } from '../client/http';
 import { BoardListPageSchema, BoardPageSchema } from './schemas';
-import { usePagedResource } from './usePagedResource';
-import { useServerConnection } from './useServerConnection';
+import { usePagedResource } from '../client/usePagedResource';
+import { useServerConnection } from '../client/useServerConnection';
 import { Select } from '../ui/Select';
 import './CalendarDestinationDialog.css';
 

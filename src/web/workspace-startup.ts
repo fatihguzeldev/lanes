@@ -1,9 +1,4 @@
-export interface InitialViewReadiness {
-  version: number;
-  settled: boolean;
-  baselineComplete: boolean;
-  failed: boolean;
-}
+import type { InitialViewReadiness } from '../client/readiness';
 
 export function initialWorkspaceReady(input: {
   topologyReady: boolean;

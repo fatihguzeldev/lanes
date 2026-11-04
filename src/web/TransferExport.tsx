@@ -3,7 +3,7 @@ import { LabelSchema, type TaskFilter } from '../modules/tasks/contracts';
 import type { BoardList } from '../modules/boards/contracts';
 import { CsvExportRequestSchema, type CsvExportRequest } from '../modules/transfer/export-contract';
 import { accountToday } from '../modules/tasks/planning';
-import { request } from './http';
+import { request } from '../client/http';
 import { downloadFile } from './transfer-client';
 import { CsvPageSchema, transferPage } from './transfer-schemas';
 import {
@@ -20,7 +20,7 @@ import {
   useTransferDirty,
   type TransferProps,
 } from './TransferCommon';
-import { usePagedResource } from './usePagedResource';
+import { usePagedResource } from '../client/usePagedResource';
 import { TransferSheetsExport } from './TransferSheetsExport';
 import { Dialog } from '../ui/Dialog';
 import { describeSheetsScope, readSheetsExportDraft } from './transfer-sheets-model';

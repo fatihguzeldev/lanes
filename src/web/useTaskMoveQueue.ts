@@ -7,7 +7,7 @@ import {
   type QueuedTaskMove,
 } from './task-move-queue';
 import { saveTaskMove } from './save-task-move';
-import { newOperationId } from './useCommands';
+import { newOperationId } from '../client/operation-identity';
 
 export function useTaskMoveQueue(
   accountId: string,

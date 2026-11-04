@@ -5,8 +5,9 @@ import type { BoardViewPreferences } from '../modules/boards/view-preferences';
 import { Icon } from '../ui/Icon';
 import { AnchoredPopover } from '../ui/Popover';
 import { Select } from '../ui/Select';
-import { newOperationId, useCommands } from './useCommands';
-import { useServerConnection } from './useServerConnection';
+import { newOperationId } from '../client/operation-identity';
+import { useCommands } from './useCommands';
+import { useServerConnection } from '../client/useServerConnection';
 import './BoardOptions.css';
 
 interface Props {

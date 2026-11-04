@@ -3,11 +3,11 @@ import { z } from 'zod';
 import type { ConnectionSummary } from '../modules/accounts/contracts';
 import type { Board, BoardList } from '../modules/boards/contracts';
 import { Icon } from '../ui/Icon';
-import { request, checkServerConnection } from './http';
+import { request, checkServerConnection } from '../client/http';
 import { BoardListPageSchema, BoardPageSchema } from './schemas';
-import { usePagedResource } from './usePagedResource';
-import { useServerConnection } from './useServerConnection';
-import { serverConnection } from './connectivity';
+import { usePagedResource } from '../client/usePagedResource';
+import { useServerConnection } from '../client/useServerConnection';
+import { serverConnection } from '../client/connectivity';
 import { googleAuthorizationHref } from './transfer-client';
 import { Select } from '../ui/Select';
 export interface TransferProps {

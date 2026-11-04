@@ -21,7 +21,7 @@ import {
   writable,
   type TransferProps,
 } from './TransferCommon';
-import { request } from './http';
+import { request } from '../client/http';
 import {
   ImportOutputPageSchema,
   ImportRecordPageSchema,

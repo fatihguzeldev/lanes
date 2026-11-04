@@ -17,7 +17,7 @@ import { addCalendarDays } from '../modules/tasks/planning';
 import { useTaskQuery } from './useTaskQuery';
 import { CalendarDestinationDialog } from './CalendarDestinationDialog';
 import './CalendarWorkspace.css';
-import type { InitialViewReadiness } from './workspace-startup';
+import type { InitialViewReadiness } from '../client/readiness';
 
 interface CalendarQueryOptions {
   accountId: string;

@@ -14,8 +14,8 @@ import {
   transferPage,
   type ImportSummary,
 } from './transfer-schemas';
-import { request } from './http';
-import { usePagedResource } from './usePagedResource';
+import { request } from '../client/http';
+import { usePagedResource } from '../client/usePagedResource';
 import { Dialog } from '../ui/Dialog';
 import { Icon } from '../ui/Icon';
 import { TransferImport } from './TransferImport';

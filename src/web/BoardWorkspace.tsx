@@ -8,11 +8,11 @@ import {
 } from '../modules/boards/components/BoardSurface';
 import type { TaskFilter, TaskSort } from '../modules/tasks/contracts';
 import { useTaskQuery } from './useTaskQuery';
-import { unknownCoverage } from './usePagedResource';
+import { unknownCoverage } from '../client/usePagedResource';
 import { InlineTaskCreate } from './InlineTaskCreate';
 import type { TaskMoveQueue } from './useTaskMoveQueue';
 import { projectTaskMoves } from './task-move-queue';
-import type { InitialViewReadiness } from './workspace-startup';
+import type { InitialViewReadiness } from '../client/readiness';
 
 type Actions = {
   open: () => Promise<void>;

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Dialog } from '../ui/Dialog';
-import { newOperationId } from './useCommands';
+import { newOperationId } from './operation-identity';
 
 export interface ConfirmationChoice {
   title: string;

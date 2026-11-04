@@ -4,7 +4,7 @@ import { Popover } from '../ui/Popover';
 import { Select } from '../ui/Select';
 import { TimeZoneSelect } from '../ui/TimeZoneSelect';
 import { useCommands } from './useCommands';
-import { useServerConnection } from './useServerConnection';
+import { useServerConnection } from '../client/useServerConnection';
 
 interface Props {
   account: ConnectionSummary;

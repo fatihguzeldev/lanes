@@ -40,11 +40,12 @@ import {
 import { OperationSummarySchema, type OperationSummary } from '../modules/tasks/operation-contract';
 import { Dialog } from '../ui/Dialog';
 import { Icon } from '../ui/Icon';
-import { checkServerConnection, request, RequestError } from './http';
+import { checkServerConnection, request, RequestError } from '../client/http';
 import { BoardListPageSchema, BoardPageSchema } from './schemas';
-import { usePagedResource } from './usePagedResource';
-import { newOperationId, useCommands } from './useCommands';
-import { useServerConnection } from './useServerConnection';
+import { usePagedResource } from '../client/usePagedResource';
+import { newOperationId } from '../client/operation-identity';
+import { useCommands } from './useCommands';
+import { useServerConnection } from '../client/useServerConnection';
 import { Select } from '../ui/Select';
 import { TimeZoneSelect } from '../ui/TimeZoneSelect';
 import './TemplateWorkspace.css';

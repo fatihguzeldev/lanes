@@ -4,11 +4,11 @@ import {
   OperationSummarySchema,
   OperationStepPageSchema,
 } from '../modules/tasks/operation-contract';
-import { request } from './http';
+import { request } from '../client/http';
 import { newestChangeReceipt } from './change-status';
-import { useServerConnection } from './useServerConnection';
+import { useServerConnection } from '../client/useServerConnection';
 import { useCommands } from './useCommands';
-import { usePagedResource } from './usePagedResource';
+import { usePagedResource } from '../client/usePagedResource';
 
 interface Props {
   account: ConnectionSummary;

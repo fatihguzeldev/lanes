@@ -2,8 +2,8 @@ import { useState } from 'react';
 import type { ReopenPreview } from '../modules/tasks/recurrence-contract';
 import { RecurrenceStatusSchema } from '../modules/tasks/recurrence-contract';
 import { Dialog } from '../ui/Dialog';
-import { request } from './http';
-import { newOperationId } from './useCommands';
+import { request } from '../client/http';
+import { newOperationId } from '../client/operation-identity';
 import { Select } from '../ui/Select';
 
 export function ReopenDialog({

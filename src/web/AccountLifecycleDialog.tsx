@@ -9,8 +9,8 @@ import {
   type RemovalStatus,
 } from '../modules/accounts/lifecycle-contract';
 import { Dialog } from '../ui/Dialog';
-import { checkServerConnection, request } from './http';
-import { useServerConnection } from './useServerConnection';
+import { checkServerConnection, request } from '../client/http';
+import { useServerConnection } from '../client/useServerConnection';
 interface Props {
   account: ConnectionSummary;
   onClose: () => void;

@@ -10,8 +10,8 @@ import {
 } from '../modules/tasks/resolution-contract';
 import { OperationSummarySchema } from '../modules/tasks/operation-contract';
 import { Dialog } from '../ui/Dialog';
-import { checkServerConnection, request } from './http';
-import { useServerConnection } from './useServerConnection';
+import { checkServerConnection, request } from '../client/http';
+import { useServerConnection } from '../client/useServerConnection';
 import { Select } from '../ui/Select';
 interface Props {
   account: ConnectionSummary;

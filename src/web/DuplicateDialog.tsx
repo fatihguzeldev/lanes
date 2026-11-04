@@ -5,11 +5,12 @@ import { DuplicatePreviewSchema } from '../modules/tasks/consequence-contract';
 import type { Task } from '../modules/tasks/contracts';
 import type { ProviderCommandInput } from '../modules/tasks/provider-command-contract';
 import { Dialog } from '../ui/Dialog';
-import { request } from './http';
+import { request } from '../client/http';
 import { BoardPageSchema, BoardListPageSchema } from './schemas';
-import { usePagedResource } from './usePagedResource';
-import { newOperationId, useCommands } from './useCommands';
-import { useServerConnection } from './useServerConnection';
+import { usePagedResource } from '../client/usePagedResource';
+import { newOperationId } from '../client/operation-identity';
+import { useCommands } from './useCommands';
+import { useServerConnection } from '../client/useServerConnection';
 import { Select } from '../ui/Select';
 interface Props {
   account: ConnectionSummary;

@@ -7,7 +7,8 @@ import {
   inlineCreateWasRejected,
   type InlineTaskAttempt,
 } from './inline-task-create';
-import { newOperationId, useCommands } from './useCommands';
+import { newOperationId } from '../client/operation-identity';
+import { useCommands } from './useCommands';
 import './InlineTaskCreate.css';
 
 interface Props {

@@ -14,10 +14,10 @@ import {
 } from '../modules/tasks/completed-deletion-contract';
 import { Dialog } from '../ui/Dialog';
 import { Icon } from '../ui/Icon';
-import { request, RequestError } from './http';
-import { newOperationId } from './useCommands';
-import { usePagedResource } from './usePagedResource';
-import { useServerConnection } from './useServerConnection';
+import { request, RequestError } from '../client/http';
+import { newOperationId } from '../client/operation-identity';
+import { usePagedResource } from '../client/usePagedResource';
+import { useServerConnection } from '../client/useServerConnection';
 import { CompletedDeletionConfirmation } from './CompletedDeletionConfirmation';
 import {
   completedDeletionAcknowledged,

@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import type { BoardList } from '../modules/boards/contracts';
-import { request } from './http';
-import { newOperationId } from './useCommands';
+import { request } from '../client/http';
+import { newOperationId } from '../client/operation-identity';
 import {
   AccountChoice,
   escaped,

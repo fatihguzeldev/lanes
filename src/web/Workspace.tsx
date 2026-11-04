@@ -13,7 +13,8 @@ import { Skeleton } from '../ui/Skeleton';
 import { Brand } from '../ui/Brand';
 import { BoardSkeleton } from '../modules/boards/components/BoardSkeleton';
 import { WorkspaceSkeleton } from './WorkspaceSkeleton';
-import { initialWorkspaceReady, type InitialViewReadiness } from './workspace-startup';
+import { type InitialViewReadiness } from '../client/readiness';
+import { initialWorkspaceReady } from './workspace-startup';
 import { Icon } from '../ui/Icon';
 import { Dialog } from '../ui/Dialog';
 import type { ConnectionSummary } from '../modules/accounts/contracts';
@@ -33,18 +34,19 @@ import {
 } from '../modules/tasks/contracts';
 import { LabelPageSchema } from '../modules/tasks/query-contract';
 import { accountToday } from '../modules/tasks/planning';
-import { checkServerConnection, request, RequestError } from './http';
-import { useServerConnection } from './useServerConnection';
+import { checkServerConnection, request, RequestError } from '../client/http';
+import { useServerConnection } from '../client/useServerConnection';
 import { BoardPageSchema, BoardListPageSchema } from './schemas';
-import { usePagedResource } from './usePagedResource';
-import { newOperationId, useCommands } from './useCommands';
+import { usePagedResource } from '../client/usePagedResource';
+import { newOperationId } from '../client/operation-identity';
+import { useCommands } from './useCommands';
 import { useWorkspaceSync } from './useWorkspaceSync';
 import { BoardWorkspace } from './BoardWorkspace';
 import { CalendarWorkspace } from './CalendarWorkspace';
 import { CompletedWorkspace } from './CompletedWorkspace';
 import { HistoryPanel } from './HistoryPanel';
 import { TaskEditorWorkspace } from './TaskEditorWorkspace';
-import { Confirmation, type ConfirmationChoice } from './Confirmation';
+import { Confirmation, type ConfirmationChoice } from '../client/Confirmation';
 import {
   TaskConsequencesSchema,
   ListConsequencesSchema,

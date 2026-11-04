@@ -9,7 +9,7 @@ import { useTaskQuery } from './useTaskQuery';
 import { usePlanningToday } from './usePlanningToday';
 import { Select } from '../ui/Select';
 import './CompletedWorkspace.css';
-import type { InitialViewReadiness } from './workspace-startup';
+import type { InitialViewReadiness } from '../client/readiness';
 
 export interface CompletedWorkspaceProps {
   account: ConnectionSummary;

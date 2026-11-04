@@ -5,8 +5,8 @@ import {
   type ArchiveDocument,
   type ArchiveField,
 } from '../modules/transfer/archive-contract';
-import { request } from './http';
-import { newOperationId } from './useCommands';
+import { request } from '../client/http';
+import { newOperationId } from '../client/operation-identity';
 import { boundedBatches, parseTransferInWorker } from './transfer-client';
 import {
   ArchivePreviewSchema,

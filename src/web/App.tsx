@@ -7,7 +7,7 @@ import {
   OAuthStartResponseSchema,
 } from '../modules/accounts/session-contract';
 import type { SessionSnapshot } from '../modules/accounts/session-contract';
-import { request, RequestError } from './http';
+import { request, RequestError } from '../client/http';
 import './App.css';
 import { useTheme } from './theme';
 import { z } from 'zod';

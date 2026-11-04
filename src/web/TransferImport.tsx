@@ -14,8 +14,8 @@ import {
   SpreadsheetMetadataSchema,
   type SpreadsheetMetadata,
 } from '../modules/transfer/sheets-contract';
-import { request } from './http';
-import { newOperationId } from './useCommands';
+import { request } from '../client/http';
+import { newOperationId } from '../client/operation-identity';
 import {
   boundedBatches,
   clearSheetsDraft,
