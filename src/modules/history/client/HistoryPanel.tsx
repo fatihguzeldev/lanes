@@ -1,126 +1,25 @@
 import { useMemo, useState } from 'react';
-import type { ConnectionSummary } from '../modules/accounts/contracts';
-import type { Board } from '../modules/boards/contracts';
-import type { HistoryEvent } from '../modules/history/contracts';
-import { groupHistoryEventsByDay } from '../modules/history/completed';
-import type { Task, TaskList } from '../modules/tasks/contracts';
-import { addCalendarDays } from '../modules/tasks/planning';
-import { Dialog } from '../ui/Dialog';
-import { Icon, type IconName } from '../ui/Icon';
-import { request } from '../client/http';
-import { HistoryPageSchema } from '../modules/history/query-contract';
-import { usePagedResource } from '../client/usePagedResource';
-import { usePlanningToday } from '../modules/tasks/client/usePlanningToday';
-import { Select } from '../ui/Select';
+import { groupHistoryEventsByDay } from '../completed';
+import type { Task, TaskList } from '../../tasks/contracts';
+import { Dialog } from '../../../ui/Dialog';
+import { Icon } from '../../../ui/Icon';
+import { request } from '../../../client/http';
+import { HistoryPageSchema } from '../query-contract';
+import { usePagedResource } from '../../../client/usePagedResource';
+import { usePlanningToday } from '../../tasks/client/usePlanningToday';
+import { Select } from '../../../ui/Select';
+import { describeHistoryEvent, dayLabel } from './history-presentation';
 import './HistoryPanel.css';
 
 export interface HistoryPanelProps {
-  account: ConnectionSummary;
-  board: Board | null;
+  account: { id: string; email: string; planningZone: string };
+  board: { id: string; accountId: string; title: string } | null;
   task?: Task | null;
   lists?: readonly TaskList[];
   version: number;
   clockOffset: number;
   onClose: () => void;
   onOpenTask?: (reference: { accountId: string; taskId: string }) => void;
-}
-export function describeHistoryEvent(event: HistoryEvent): {
-  action: string;
-  detail: string;
-  icon: IconName;
-} {
-  switch (event.kind) {
-    case 'task_created':
-      return {
-        action: 'created',
-        detail:
-          event.summary.source && event.summary.source !== 'direct'
-            ? `from ${event.summary.source}`
-            : '',
-        icon: 'plus',
-      };
-    case 'task_completed':
-      return { action: 'completed', detail: '', icon: 'check' };
-    case 'task_reopened':
-      return { action: 'reopened', detail: '', icon: 'history' };
-    case 'task_moved':
-      return {
-        action: 'moved',
-        detail:
-          event.summary.from.listId !== event.summary.to.listId
-            ? 'to another list'
-            : event.summary.to.parentId
-              ? 'under a parent task'
-              : 'to the top level',
-        icon: 'arrow',
-      };
-    case 'task_deleted':
-      return {
-        action: 'deleted',
-        detail: event.summary.knownSubtaskCount
-          ? `with ${event.summary.knownSubtaskCount} known subtasks`
-          : '',
-        icon: 'trash',
-      };
-    case 'list_deleted':
-      return {
-        action: 'deleted list',
-        detail: `${event.summary.knownTaskCount} observed tasks`,
-        icon: 'trash',
-      };
-    case 'scheduled_day_changed':
-      return {
-        action: event.summary.after ? 'changed date' : 'removed date',
-        detail: `${event.summary.before ?? 'unscheduled'} → ${event.summary.after ?? 'unscheduled'}`,
-        icon: 'calendar',
-      };
-    case 'scheduled_time_changed':
-      return {
-        action: 'changed time',
-        detail: `${event.summary.before.time ?? 'any time'} → ${event.summary.after.time ?? 'any time'}${event.summary.after.zone ? ` · ${event.summary.after.zone}` : ''}`,
-        icon: 'clock',
-      };
-    case 'repeat_rule_changed':
-      return {
-        action: event.summary.after ? 'changed repetition' : 'stopped repetition',
-        detail: event.summary.after
-          ? `every ${event.summary.after.interval} · ${event.summary.after.frequency}`
-          : '',
-        icon: 'sync',
-      };
-    case 'labels_changed':
-      return {
-        action: 'changed labels',
-        detail: `${event.summary.before.length} → ${event.summary.after.length} labels`,
-        icon: 'list',
-      };
-    case 'priority_changed':
-      return {
-        action: 'changed priority',
-        detail: `${event.summary.before} → ${event.summary.after}`,
-        icon: 'up',
-      };
-    case 'star_changed':
-      return { action: event.summary.after ? 'starred' : 'removed star', detail: '', icon: 'star' };
-    case 'dependencies_changed':
-      return {
-        action: 'changed dependencies',
-        detail: `${event.summary.before.length} → ${event.summary.after.length} blockers`,
-        icon: 'link',
-      };
-  }
-}
-function dayLabel(day: string, today: string): string {
-  if (day === today) return 'today';
-  if (day === addCalendarDays(today, -1)) return 'yesterday';
-  return new Intl.DateTimeFormat('en', {
-    day: 'numeric',
-    month: 'long',
-    year: day.slice(0, 4) === today.slice(0, 4) ? undefined : 'numeric',
-    timeZone: 'UTC',
-  })
-    .format(new Date(day + 'T12:00:00Z'))
-    .toLowerCase();
 }
 export function HistoryPanel({
   account,

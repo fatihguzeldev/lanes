@@ -1,6 +1,7 @@
-import type { ConnectionSummary } from '../modules/accounts/contracts';
-import { Popover } from '../ui/Popover';
-import { Icon } from '../ui/Icon';
+import type { ConnectionSummary } from '../contracts';
+import { Popover } from '../../../ui/Popover';
+import { Icon } from '../../../ui/Icon';
+import './AccountMenu.css';
 
 interface Props {
   account: ConnectionSummary;
@@ -22,8 +23,8 @@ export function AccountMenu({
   return (
     <Popover
       label={`google account: ${account.email}`}
-      trigger={<span className="workspace__avatar">{account.displayName.slice(0, 1)}</span>}
-      triggerClassName="workspace__icon-button workspace__account-trigger"
+      trigger={<span className="account-menu__avatar">{account.displayName.slice(0, 1)}</span>}
+      triggerClassName="account-menu__trigger"
       className="account-menu"
       align="end"
     >

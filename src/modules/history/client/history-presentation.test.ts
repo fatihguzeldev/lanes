@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { HistoryEventSchema } from '../modules/history/contracts';
-import { describeHistoryEvent } from './HistoryPanel';
+import { HistoryEventSchema } from '../contracts';
+import { describeHistoryEvent } from './history-presentation';
 
 const base = {
   id: 'event',

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { ConnectionSummary } from '../modules/accounts/contracts';
+import type { ConnectionSummary } from '../contracts';
 import {
   AccountLifecycleStatusSchema,
   DisconnectStatusSchema,
@@ -7,10 +7,12 @@ import {
   type AccountLifecycleStatus,
   type DisconnectStatus,
   type RemovalStatus,
-} from '../modules/accounts/lifecycle-contract';
-import { Dialog } from '../ui/Dialog';
-import { checkServerConnection, request } from '../client/http';
-import { useServerConnection } from '../client/useServerConnection';
+} from '../lifecycle-contract';
+import { Dialog } from '../../../ui/Dialog';
+import { checkServerConnection, request } from '../../../client/http';
+import { useServerConnection } from '../../../client/useServerConnection';
+import './AccountLifecycleDialog.css';
+
 interface Props {
   account: ConnectionSummary;
   onClose: () => void;

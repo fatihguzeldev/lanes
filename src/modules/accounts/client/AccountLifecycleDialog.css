@@ -1,0 +1,13 @@
+.account-lifecycle__confirm {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--canvas);
+}
+.account-lifecycle__confirm h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
