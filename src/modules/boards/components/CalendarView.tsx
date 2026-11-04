@@ -14,6 +14,7 @@ import {
   type CalendarRange,
   type CalendarScope,
 } from './calendar-model';
+import { Select } from '../../../ui/Select';
 import './CalendarView.css';
 
 export type { CalendarMode, CalendarScope } from './calendar-model';
@@ -505,15 +506,16 @@ export function CalendarView(options: CalendarViewProps) {
               week
             </button>
           </div>
-          <select
+          <Select
             className="calendar-view__scope"
             aria-label="calendar scope"
             value={options.scope}
-            onChange={(event) => options.onScopeChange(event.target.value as CalendarScope)}
-          >
-            <option value="board">this board</option>
-            <option value="account">all boards in this account</option>
-          </select>
+            onChange={(selectedValue) => options.onScopeChange(selectedValue as CalendarScope)}
+            options={[
+              { value: 'board', label: 'this board' },
+              { value: 'account', label: 'all boards in this account' },
+            ]}
+          />
         </header>
         <p className="calendar-view__zone">
           <Icon name="clock" size={12} />
@@ -525,22 +527,9 @@ export function CalendarView(options: CalendarViewProps) {
             {options.readOnlyReason ?? 'dates are read-only while provider actions are paused.'}
           </p>
         )}
-        {!options.coverage.complete && (
-          <p className="calendar-view__notice">
-            <Icon name="clock" size={13} />
-            partially loaded · some tasks may not be shown
-            {options.coverage.stale ? ' · refresh needed' : ''}
-          </p>
-        )}
-        {options.coverage.complete && options.coverage.stale && (
-          <p className="calendar-view__notice">
-            <Icon name="clock" size={13} />
-            retained task data · refresh needed
-          </p>
-        )}
-        {status === 'loading' && (
+        {status === 'loading' && options.tasks.length === 0 && (
           <p className="calendar-view__notice" role="status">
-            {options.tasks.length ? 'refreshing calendar…' : 'loading calendar…'}
+            loading calendar…
           </p>
         )}
         {status === 'error' && (
@@ -612,10 +601,9 @@ export function CalendarView(options: CalendarViewProps) {
             >
               <Icon name={unscheduledExpanded ? 'down' : 'right'} size={13} />
               <h2>unscheduled</h2>
-              <span>
-                {groups.unscheduled.length}
-                {options.coverage.complete ? '' : '+'}
-              </span>
+              {options.coverage.complete && options.nextCursor == null && (
+                <span>{groups.unscheduled.length}</span>
+              )}
             </button>
             <button
               className="calendar-view__unscheduled-add"

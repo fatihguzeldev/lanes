@@ -7,6 +7,7 @@ import type { Task, TaskFilter, TaskList } from '../modules/tasks/contracts';
 import { Icon } from '../ui/Icon';
 import { useTaskQuery } from './useTaskQuery';
 import { usePlanningToday } from './usePlanningToday';
+import { Select } from '../ui/Select';
 import './CompletedWorkspace.css';
 
 export interface CompletedWorkspaceProps {
@@ -80,7 +81,7 @@ export function CompletedWorkspace({
     rows.filter((task) => matched.has(task.id)),
     options,
   );
-  const complete = tasks.loaded && tasks.page.coverage.complete;
+  const complete = tasks.loaded && tasks.page.coverage.complete && tasks.page.nextCursor === null;
   const choices = lists.filter((list) => list.accountId === account.id);
   const listName = (id: string) =>
     choices.find((list) => list.id === id)?.title.trim() || 'list not loaded';
@@ -101,93 +102,76 @@ export function CompletedWorkspace({
       <header className="completed-workspace__header">
         <div>
           <h2>completed</h2>
-          <p>current completed tasks, including subtasks · {account.planningZone}</p>
         </div>
         <div className="completed-workspace__filters">
           {board && (
-            <select
+            <Select
               aria-label="completed task scope"
               value={scope}
-              onChange={(event) => setScope(event.target.value as 'board' | 'account')}
-            >
-              <option value="board">this board</option>
-              <option value="account">all boards in this account</option>
-            </select>
+              onChange={(selectedValue) => setScope(selectedValue as 'board' | 'account')}
+              options={[
+                { value: 'board', label: 'this board' },
+                { value: 'account', label: 'all boards in this account' },
+              ]}
+            />
           )}
-          <select
+          <Select
             aria-label="filter completed tasks by list"
             value={listId}
-            onChange={(event) => setSelection({ key: selectionKey, listId: event.target.value })}
-          >
-            <option value="">all lists in this view</option>
-            {choices.map((list) => (
-              <option key={list.id} value={list.id}>
-                {list.title.trim() || 'untitled list'}
-              </option>
-            ))}
-          </select>
+            onChange={(selectedValue) => setSelection({ key: selectionKey, listId: selectedValue })}
+            options={[
+              { value: '', label: 'all lists in this view' },
+              ...choices.map((list) => ({
+                value: list.id,
+                label: list.title.trim() || 'untitled list',
+              })),
+            ]}
+          />
         </div>
       </header>
-      <section className="completed-workspace__summary" aria-label="seven day completion summary">
-        <div className="completed-workspace__summary-heading">
-          <h3>last 7 days</h3>
-          <p>
-            {complete
-              ? 'matching completed tasks in this view'
-              : 'matching tasks loaded so far · partial counts'}
-          </p>
-        </div>
-        <ol>
-          {summary.days.map((day) => (
-            <li key={day.day}>
-              <span>{dayName.format(new Date(day.day + 'T12:00:00Z')).toLowerCase()}</span>
-              <strong>{tasks.loaded ? `${day.count}${complete ? '' : '+'}` : '—'}</strong>
-              <time dateTime={day.day}>{day.day.slice(5).replace('-', '/')}</time>
-            </li>
-          ))}
-        </ol>
-        {byList.size > 0 && (
-          <details>
-            <summary>by list</summary>
-            <ul>
-              {[...byList].map(([id, count]) => (
-                <li key={id}>
-                  <span>{listName(id)}</span>
-                  <strong>
-                    {count}
-                    {complete ? '' : '+'}
-                  </strong>
-                </li>
-              ))}
-            </ul>
-          </details>
-        )}
-        {summary.unknownTimeCount > 0 && (
-          <p className="completed-workspace__summary-note">
-            {summary.unknownTimeCount} loaded tasks have no completion time and are outside the
-            daily summary.
-          </p>
-        )}
-      </section>
+      {complete && (
+        <section className="completed-workspace__summary" aria-label="seven day completion summary">
+          <div className="completed-workspace__summary-heading">
+            <h3>last 7 days</h3>
+          </div>
+          <ol>
+            {summary.days.map((day) => (
+              <li key={day.day}>
+                <span>{dayName.format(new Date(day.day + 'T12:00:00Z')).toLowerCase()}</span>
+                <strong>{day.count}</strong>
+                <time dateTime={day.day}>{day.day.slice(5).replace('-', '/')}</time>
+              </li>
+            ))}
+          </ol>
+          {byList.size > 0 && (
+            <details>
+              <summary>by list</summary>
+              <ul>
+                {[...byList].map(([id, count]) => (
+                  <li key={id}>
+                    <span>{listName(id)}</span>
+                    <strong>{count}</strong>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+          {summary.unknownTimeCount > 0 && (
+            <p className="completed-workspace__summary-note">
+              {summary.unknownTimeCount} tasks have no completion time and are outside the daily
+              summary.
+            </p>
+          )}
+        </section>
+      )}
       {!valid && (
         <p className="completed-workspace__notice completed-workspace__notice--error" role="alert">
           this board belongs to a different account.
         </p>
       )}
-      {valid && !tasks.page.providerCoverage.complete && (
-        <p className="completed-workspace__notice">
-          google’s completed and hidden task coverage is incomplete. older completed tasks may be
-          missing.
-        </p>
-      )}
-      {tasks.page.coverage.stale && (
-        <p className="completed-workspace__notice">
-          retained task data · a provider refresh is needed.
-        </p>
-      )}
-      {valid && tasks.status === 'loading' && (
+      {valid && !tasks.loaded && tasks.status === 'loading' && (
         <p className="completed-workspace__notice" role="status">
-          {tasks.loaded ? 'loading more completed tasks…' : 'loading completed tasks…'}
+          loading completed tasks…
         </p>
       )}
       {valid && tasks.status === 'error' && (
@@ -273,10 +257,6 @@ export function CompletedWorkspace({
           <Icon name="down" size={13} />
         </button>
       )}
-      <p className="completed-workspace__footnote">
-        reopening removes a task from this view. these counts describe current task state, including
-        subtasks, and can change after sync.
-      </p>
     </section>
   );
 }

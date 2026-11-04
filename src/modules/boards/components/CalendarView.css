@@ -80,6 +80,8 @@
 }
 .calendar-view__scope {
   max-width: 190px;
+}
+.calendar-view__scope .select__trigger {
   padding: 7px 9px;
   border: 1px solid var(--line, #d7d9cd);
   border-radius: 5px;

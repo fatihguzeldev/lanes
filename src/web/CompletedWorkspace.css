@@ -26,13 +26,15 @@
   gap: 9px;
   flex-wrap: wrap;
 }
-.completed-workspace__filters select {
+.completed-workspace__filters .select {
+  max-width: 220px;
+}
+.completed-workspace__filters .select__trigger {
   border: 1px solid var(--line);
   background: var(--paper);
   border-radius: 5px;
   padding: 8px;
   font-size: 11px;
-  max-width: 220px;
 }
 .completed-workspace__summary {
   max-width: 760px;
@@ -257,7 +259,7 @@
   .completed-workspace__filters {
     width: 100%;
   }
-  .completed-workspace__filters select {
+  .completed-workspace__filters .select {
     max-width: 100%;
     min-width: 0;
     flex: 1;

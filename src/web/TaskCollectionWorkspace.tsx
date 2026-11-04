@@ -107,19 +107,6 @@ export function TaskCollectionWorkspace({
   }
   return (
     <div className="task-collection">
-      <div className="task-collection__scope">
-        <Icon name="user" size={13} />
-        <span>all boards · {account.email}</span>
-      </div>
-      {!tasks.page.coverage.complete && (
-        <p className="task-collection__coverage">
-          partially loaded · results and counts may grow
-          {tasks.page.coverage.stale ? ' · refresh needed' : ''}
-        </p>
-      )}
-      {tasks.page.coverage.complete && tasks.page.coverage.stale && (
-        <p className="task-collection__coverage">retained tasks · refresh needed</p>
-      )}
       {(tasks.error || contextError) && (
         <div className="task-collection__error" role="alert">
           <p>{tasks.error || contextError}</p>
@@ -145,13 +132,15 @@ export function TaskCollectionWorkspace({
                   </button>
                 )}
               </div>
-              <span>
-                {countOpenTasks(
-                  items.filter((task) => matched.has(task.id)),
-                  account.id,
-                )}
-                {tasks.page.coverage.complete ? '' : '+'} matching open
-              </span>
+              {tasks.page.coverage.complete && tasks.page.nextCursor === null && (
+                <span>
+                  {countOpenTasks(
+                    items.filter((task) => matched.has(task.id)),
+                    account.id,
+                  )}{' '}
+                  matching open
+                </span>
+              )}
             </header>
             {roots.map((task) => (
               <TaskCard
@@ -178,7 +167,7 @@ export function TaskCollectionWorkspace({
           </section>
         );
       })}
-      {tasks.status === 'loading' && (
+      {!tasks.loaded && tasks.status === 'loading' && (
         <p className="task-collection__coverage" role="status">
           loading tasks…
         </p>
@@ -187,15 +176,9 @@ export function TaskCollectionWorkspace({
         <div className="task-collection__empty">
           <Icon name="leaf" size={24} />
           <h2>
-            {tasks.page.coverage.complete
-              ? 'nothing here right now.'
-              : 'no matching tasks loaded yet.'}
+            {tasks.page.coverage.complete ? 'nothing here right now.' : 'no tasks to show yet.'}
           </h2>
-          <p>
-            {tasks.page.coverage.complete
-              ? 'try another search or clear your filters.'
-              : 'refresh this account to continue bringing its tasks into view.'}
-          </p>
+          {tasks.page.coverage.complete && <p>try another search or clear your filters.</p>}
         </div>
       )}
       {tasks.page.nextCursor && (

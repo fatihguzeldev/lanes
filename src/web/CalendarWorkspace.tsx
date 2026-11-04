@@ -217,44 +217,46 @@ export function CalendarWorkspace({
           if (inputs.unscheduled) void undated.reload();
         }}
       />
-      <footer className="calendar-workspace__pages" aria-label="calendar data">
-        <p>
-          {!validAccount
-            ? 'this board belongs to a different account.'
-            : !inputs.dated
-              ? 'the date filter hides scheduled tasks in this period.'
-              : datedCoverage.complete
-                ? 'all matching tasks in this period are loaded.'
-                : 'this period is partially loaded.'}
-          {!inputs.unscheduled
-            ? ' the date filter hides unscheduled tasks.'
-            : !undatedCoverage.complete
-              ? ' unscheduled tasks are partially loaded.'
-              : ''}
-        </p>
-        {inputs.dated && dated.page.nextCursor && (
-          <button
-            type="button"
-            disabled={dated.status === 'loading'}
-            onClick={() => {
-              void dated.loadMore();
-            }}
-          >
-            more tasks in this period
-          </button>
-        )}
-        {inputs.unscheduled && undated.page.nextCursor && (
-          <button
-            type="button"
-            disabled={undated.status === 'loading'}
-            onClick={() => {
-              void undated.loadMore();
-            }}
-          >
-            more unscheduled tasks
-          </button>
-        )}
-      </footer>
+      {(!validAccount ||
+        !inputs.dated ||
+        !inputs.unscheduled ||
+        dated.page.nextCursor ||
+        undated.page.nextCursor) && (
+        <footer className="calendar-workspace__pages" aria-label="calendar pages">
+          {!validAccount ? (
+            <p role="alert">this board belongs to a different account.</p>
+          ) : (
+            (!inputs.dated || !inputs.unscheduled) && (
+              <p>
+                the date filter hides{' '}
+                {!inputs.dated ? 'scheduled tasks in this period' : 'unscheduled tasks'}.
+              </p>
+            )
+          )}
+          {inputs.dated && dated.page.nextCursor && (
+            <button
+              type="button"
+              disabled={dated.status === 'loading'}
+              onClick={() => {
+                void dated.loadMore();
+              }}
+            >
+              more tasks in this period
+            </button>
+          )}
+          {inputs.unscheduled && undated.page.nextCursor && (
+            <button
+              type="button"
+              disabled={undated.status === 'loading'}
+              onClick={() => {
+                void undated.loadMore();
+              }}
+            >
+              more unscheduled tasks
+            </button>
+          )}
+        </footer>
+      )}
       {createDay?.accountId === account.id && (
         <CalendarDestinationDialog
           accountId={account.id}
