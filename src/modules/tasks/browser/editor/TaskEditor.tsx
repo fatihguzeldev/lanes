@@ -1,3 +1,7 @@
+import type { TaskEditorProps } from './editor-contract';
+import { TaskScheduleFields } from './TaskScheduleFields';
+import { TaskDependencies } from './TaskDependencies';
+import { TaskChecklist } from './TaskChecklist';
 import {
   useEffect,
   useId,
@@ -7,10 +11,9 @@ import {
   type CSSProperties,
   type FormEvent,
 } from 'react';
-import type { Coverage } from '../../../../shared/contracts/http';
 import { Dialog } from '../../../../shared/ui/dialog/Dialog';
 import { Icon } from '../../../../shared/ui/icon/Icon';
-import type { CreateTask, Label, Task, TaskList, TaskPatch } from '../../contracts/task';
+import type { Task } from '../../contracts/task';
 import {
   createEditorDraft,
   editorDraftIsDirty,
@@ -19,87 +22,12 @@ import {
   restorePausedRepeatRule,
   type TaskEditorDraft,
 } from './task-editor-model';
-import type { RecurrenceStatus } from '../../contracts/recurrence';
 import { TaskRecurrence } from './TaskRecurrence';
-import { TaskDependants, type TaskDependantsProps } from './TaskDependants';
-import { TimeZoneSelect } from '../../../../shared/ui/time-zone/TimeZoneSelect';
+import { TaskDependants } from './TaskDependants';
 import { Select } from '../../../../shared/ui/select/Select';
 import './TaskEditor.css';
 
-export interface TaskEditorSave {
-  accountId: string;
-  taskId: string;
-  listId: string;
-  expectedRevision: number;
-  expectedGraphRevision?: number;
-  patch: TaskPatch;
-}
-export interface TaskEditorCreate {
-  accountId: string;
-  listRevision: number;
-  expectedGraphRevision?: number;
-  input: CreateTask;
-}
-export interface TaskEditorProps {
-  dependants?: Omit<TaskDependantsProps, 'accountId' | 'completed' | 'pending'>;
-  open: boolean;
-  accountId: string;
-  accountLabel?: string;
-  task: Task | null;
-  list: TaskList;
-  labels: readonly Label[];
-  relatedTasks: readonly Task[];
-  timeZone: string;
-  weekStart?: 1 | 7;
-  graphRevision?: number;
-  initialDay?: string | null;
-  parent?: Task | null;
-  providerWritesEnabled: boolean;
-  localWritesEnabled: boolean;
-  pending?: boolean;
-  serverReachable?: boolean;
-  onCheckConnection?(): void;
-  submitted?: boolean;
-  onRetryFailed?: () => void;
-  onInspectSave?(): void;
-  onInspectRecurrence?(id: string): void;
-  error?: { message: string; code?: string; fields?: Record<string, string> } | null;
-  subtasks?: {
-    items: readonly Task[];
-    nextCursor: string | null;
-    coverage: Coverage;
-    pending?: boolean;
-  };
-  pendingLabelIds?: ReadonlySet<string>;
-  relatedTasksLoading?: boolean;
-  dependencyError?: string | null;
-  dependenciesHaveMore?: boolean;
-  dependencySearchScope?: 'board' | 'account';
-  onClose(): void;
-  onSave(save: TaskEditorSave): void;
-  onCreate(save: TaskEditorCreate): void;
-  onDirtyChange?(dirty: boolean): void;
-  onToggleComplete?(task: Task, completed: boolean): void;
-  onOpenTask?(task: Task): void;
-  onLoadMoreSubtasks?(): void;
-  onCreateSubtask?(task: Task): void;
-  onSearchDependencies?(query: string): void;
-  onLoadMoreDependencies?(): void;
-  onRefresh?(): void;
-  onDelete?(task: Task): void;
-  onManageLabels?(): void;
-  recurrence?: {
-    status: RecurrenceStatus | null;
-    loading: boolean;
-    error: string | null;
-    pending: boolean;
-  };
-  onRetryRecurrence?(): void;
-  onResumeRecurrence?(): void;
-  onOpenRecurrenceTask?(taskId: string): void;
-}
 const title = (task: Task) => task.title.trim() || 'untitled task';
-const weekdays = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 const providerFields = [
   'title',
   'notes',
@@ -109,7 +37,7 @@ const providerFields = [
   'repeatRule',
 ];
 
-/** Presentation identity is keyed by the shell; closing/account changes use its discard guard. */
+/** The editor flow keys presentation identity; workspace navigation supplies the discard guard. */
 export function TaskEditor(props: TaskEditorProps) {
   return props.open ? <EditorForm {...props} /> : null;
 }
@@ -435,233 +363,44 @@ function EditorForm(props: TaskEditorProps) {
           </p>
         )}
 
-        <section className="task-editor__section" aria-labelledby={inputId('schedule-heading')}>
-          <h3 id={inputId('schedule-heading')}>
-            <Icon name="calendar" size={14} />
-            schedule
-          </h3>
-          <div className="task-editor__schedule">
-            <label htmlFor={inputId('day')}>
-              day
-              <input
-                type="date"
-                id={inputId('day')}
-                value={draft.scheduledDay}
-                disabled={!providerEnabled}
-                onChange={(event) => set('scheduledDay', event.target.value)}
-                aria-invalid={invalid('scheduledDay')}
+        <TaskScheduleFields
+          draft={draft}
+          task={task}
+          parent={snapshot.parent}
+          providerEnabled={providerEnabled}
+          clearingSchedule={clearingSchedule}
+          clearConfirmed={clearConfirmed}
+          onClearConfirmed={setClearConfirmed}
+          set={set}
+          invalid={invalid}
+          inputId={inputId}
+          recurrence={
+            task &&
+            props.recurrence && (
+              <TaskRecurrence
+                taskId={task.id}
+                completed={task.completed}
+                hasRule={!!task.repeatRule}
+                repeatEnabled={draft.repeatEnabled}
+                hasDay={!!draft.scheduledDay}
+                nested={!!task.parentId}
+                dirty={dirty}
+                available={providerEnabled && props.serverReachable !== false}
+                {...props.recurrence}
+                {...(props.onInspectRecurrence ? { onInspect: props.onInspectRecurrence } : {})}
+                {...(props.onRetryRecurrence ? { onRetry: props.onRetryRecurrence } : {})}
+                {...(props.onResumeRecurrence ? { onResume: props.onResumeRecurrence } : {})}
+                {...(props.onOpenRecurrenceTask
+                  ? { onOpenSuccessor: props.onOpenRecurrenceTask }
+                  : {})}
+                onRestore={(rule) => {
+                  setDraft((current) => restorePausedRepeatRule(current, rule));
+                  setLocalErrors({});
+                }}
               />
-            </label>
-            <label htmlFor={inputId('time')}>
-              time <span className="task-editor__optional">optional</span>
-              <input
-                type="time"
-                id={inputId('time')}
-                value={draft.scheduledTime}
-                disabled={!providerEnabled || !draft.scheduledDay}
-                onChange={(event) => set('scheduledTime', event.target.value)}
-                aria-invalid={invalid('scheduledTime')}
-              />
-            </label>
-            {draft.scheduledTime && (
-              <label className="task-editor__zone" htmlFor={inputId('zone')}>
-                time zone
-                <TimeZoneSelect
-                  id={inputId('zone')}
-                  value={draft.timeZone}
-                  disabled={!providerEnabled || !draft.scheduledDay}
-                  onChange={(value) => set('timeZone', value)}
-                  aria-label="scheduled time zone"
-                  aria-invalid={invalid('timeZone')}
-                />
-              </label>
-            )}
-          </div>
-          {clearingSchedule && (
-            <label className="task-editor__check-note">
-              <input
-                type="checkbox"
-                checked={clearConfirmed}
-                onChange={(event) => setClearConfirmed(event.target.checked)}
-                disabled={!providerEnabled}
-              />
-              <span>clear the time and stop repetition when removing this day.</span>
-            </label>
-          )}
-          {task && props.recurrence && (
-            <TaskRecurrence
-              taskId={task.id}
-              completed={task.completed}
-              hasRule={!!task.repeatRule}
-              repeatEnabled={draft.repeatEnabled}
-              hasDay={!!draft.scheduledDay}
-              nested={!!task.parentId}
-              dirty={dirty}
-              available={providerEnabled && props.serverReachable !== false}
-              {...props.recurrence}
-              {...(props.onInspectRecurrence ? { onInspect: props.onInspectRecurrence } : {})}
-              {...(props.onRetryRecurrence ? { onRetry: props.onRetryRecurrence } : {})}
-              {...(props.onResumeRecurrence ? { onResume: props.onResumeRecurrence } : {})}
-              {...(props.onOpenRecurrenceTask
-                ? { onOpenSuccessor: props.onOpenRecurrenceTask }
-                : {})}
-              onRestore={(rule) => {
-                setDraft((current) => restorePausedRepeatRule(current, rule));
-                setLocalErrors({});
-              }}
-            />
-          )}
-          <details className="task-editor__disclosure" open={draft.repeatEnabled || undefined}>
-            <summary>
-              <Icon name="sync" size={13} />
-              {draft.repeatEnabled ? 'repeat this task' : 'add repetition'}
-              <Icon name="down" size={12} />
-            </summary>
-            <div className="task-editor__repeat">
-              <label className="task-editor__inline-check">
-                <input
-                  type="checkbox"
-                  checked={draft.repeatEnabled}
-                  onChange={(event) => set('repeatEnabled', event.target.checked)}
-                  disabled={
-                    !providerEnabled || !draft.scheduledDay || !!task?.parentId || !!snapshot.parent
-                  }
-                />
-                repeat after completion
-              </label>
-              {(task?.parentId || snapshot.parent) && (
-                <p className="task-editor__hint">
-                  subtasks follow their parent's checklist and cannot repeat independently.
-                </p>
-              )}
-              {!draft.scheduledDay && (
-                <p className="task-editor__hint">choose a day to add a repeat rule.</p>
-              )}
-              {draft.repeatEnabled && (
-                <>
-                  <div className="task-editor__repeat-row">
-                    <label>
-                      every
-                      <input
-                        type="number"
-                        min="1"
-                        max="365"
-                        value={draft.repeatInterval}
-                        onChange={(event) => set('repeatInterval', event.target.value)}
-                        disabled={!providerEnabled || !draft.scheduledDay}
-                        aria-invalid={invalid('repeatRule.interval')}
-                      />
-                    </label>
-                    <label>
-                      frequency
-                      <Select
-                        value={draft.repeatFrequency}
-                        onChange={(selectedValue) =>
-                          set(
-                            'repeatFrequency',
-                            selectedValue as TaskEditorDraft['repeatFrequency'],
-                          )
-                        }
-                        disabled={!providerEnabled || !draft.scheduledDay}
-                        aria-label="frequency"
-                        options={[
-                          { value: 'daily', label: 'day' },
-                          { value: 'weekdays', label: 'weekday' },
-                          { value: 'weekly', label: 'week' },
-                          { value: 'monthly', label: 'month' },
-                          { value: 'yearly', label: 'year' },
-                        ]}
-                      />
-                    </label>
-                  </div>
-                  {draft.repeatFrequency === 'weekly' && (
-                    <fieldset
-                      className="task-editor__weekdays"
-                      disabled={!providerEnabled || !draft.scheduledDay}
-                    >
-                      <legend>on these days</legend>
-                      {weekdays.map((day, index) => (
-                        <label key={day}>
-                          <input
-                            type="checkbox"
-                            checked={draft.repeatWeekdays.includes(index + 1)}
-                            onChange={() =>
-                              set(
-                                'repeatWeekdays',
-                                draft.repeatWeekdays.includes(index + 1)
-                                  ? draft.repeatWeekdays.filter((value) => value !== index + 1)
-                                  : [...draft.repeatWeekdays, index + 1],
-                              )
-                            }
-                          />
-                          <span>{day}</span>
-                        </label>
-                      ))}
-                    </fieldset>
-                  )}
-                  <div className="task-editor__repeat-row">
-                    <label>
-                      ends
-                      <Select
-                        value={draft.repeatEnd}
-                        onChange={(selectedValue) =>
-                          set('repeatEnd', selectedValue as TaskEditorDraft['repeatEnd'])
-                        }
-                        disabled={!providerEnabled || !draft.scheduledDay}
-                        aria-label="ends"
-                        options={[
-                          { value: 'never', label: 'never' },
-                          { value: 'date', label: 'on a day' },
-                          { value: 'count', label: 'after a count' },
-                        ]}
-                      />
-                    </label>
-                    {draft.repeatEnd === 'date' && (
-                      <label>
-                        last day
-                        <input
-                          type="date"
-                          min={draft.scheduledDay}
-                          value={draft.repeatEndDay}
-                          onChange={(event) => set('repeatEndDay', event.target.value)}
-                          disabled={!providerEnabled || !draft.scheduledDay}
-                        />
-                      </label>
-                    )}
-                    {draft.repeatEnd === 'count' && (
-                      <label>
-                        occurrences
-                        <input
-                          type="number"
-                          min="1"
-                          max="10000"
-                          value={draft.repeatCount}
-                          onChange={(event) => set('repeatCount', event.target.value)}
-                          disabled={!providerEnabled || !draft.scheduledDay}
-                        />
-                        <span className="task-editor__hint">includes this task</span>
-                      </label>
-                    )}
-                  </div>
-                  <label className="task-editor__repeat-zone">
-                    rule's time zone
-                    <TimeZoneSelect
-                      value={draft.repeatZone}
-                      onChange={(value) => set('repeatZone', value)}
-                      aria-label="repeat time zone"
-                      disabled={!providerEnabled || !draft.scheduledDay}
-                    />
-                  </label>
-                  <p className="task-editor__hint">
-                    lanes creates the next occurrence after completion and skips missed dates. this
-                    rule stays in lanes; google's native repeat rules are separate and cannot be
-                    detected reliably. keep only one kind of repetition on a task.
-                  </p>
-                </>
-              )}
-            </div>
-          </details>
-        </section>
+            )
+          }
+        />
 
         <section className="task-editor__section" aria-labelledby={inputId('details-heading')}>
           <h3 id={inputId('details-heading')}>
@@ -745,128 +484,21 @@ function EditorForm(props: TaskEditorProps) {
               <Icon name="right" size={12} />
             </button>
           )}
-          <details
-            className="task-editor__disclosure task-editor__dependencies"
-            open={draft.blockedBy.length > 0 || undefined}
-          >
-            <summary>
-              <Icon name="link" size={13} />
-              blocked by{' '}
-              {draft.blockedBy.length ? (
-                <span>{draft.blockedBy.length}/50</span>
-              ) : (
-                <span>add a dependency</span>
-              )}
-              <Icon name="down" size={12} />
-            </summary>
-            {draft.blockedBy.length > 0 && (
-              <ul className="task-editor__blockers">
-                {draft.blockedBy.map((id) => {
-                  const blocker = related.find((item) => item.id === id);
-                  return (
-                    <li key={id}>
-                      <Icon
-                        name={
-                          blocker && !blocker.provider.missing
-                            ? blocker.completed
-                              ? 'check'
-                              : 'link'
-                            : 'warning'
-                        }
-                        size={13}
-                      />
-                      <span>
-                        {blocker ? title(blocker) : 'blocker not loaded'}
-                        <small>
-                          {blocker && !blocker.provider.missing
-                            ? blocker.completed
-                              ? 'completed · no longer blocks'
-                              : 'open'
-                            : 'status unknown · retained'}
-                        </small>
-                      </span>
-                      <button
-                        type="button"
-                        disabled={!localEnabled}
-                        onClick={() => toggle('blockedBy', id)}
-                        aria-label={`remove ${blocker ? title(blocker) : 'unloaded blocker'}`}
-                      >
-                        <Icon name="close" size={13} />
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-            <label className="task-editor__dependency-search">
-              search {props.dependencySearchScope === 'account' ? 'this account' : 'this board'}
-              <input
-                type="search"
-                value={dependencyQuery}
-                onChange={(event) => setDependencyQuery(event.target.value)}
-                disabled={!localEnabled}
-                placeholder="find a task…"
-              />
-            </label>
-            {props.relatedTasksLoading && (
-              <p className="task-editor__hint" role="status">
-                looking for tasks…
-              </p>
-            )}
-            {props.dependencyError && (
-              <p className="task-editor__field-error" role="alert">
-                {props.dependencyError}
-              </p>
-            )}
-            <div className="task-editor__dependency-results" aria-label="tasks to add as blockers">
-              {related
-                .filter(
-                  (item) =>
-                    !draft.blockedBy.includes(item.id) &&
-                    (!dependencyQuery ||
-                      props.onSearchDependencies ||
-                      title(item)
-                        .toLocaleLowerCase()
-                        .includes(dependencyQuery.toLocaleLowerCase())),
-                )
-                .map((item) => (
-                  <button
-                    type="button"
-                    key={item.id}
-                    disabled={!localEnabled || draft.blockedBy.length >= 50}
-                    onClick={() => toggle('blockedBy', item.id)}
-                  >
-                    <Icon name="plus" size={13} />
-                    <span>{title(item)}</span>
-                    <small>
-                      {item.provider.missing
-                        ? 'status unknown'
-                        : item.completed
-                          ? 'completed'
-                          : item.listId === snapshot.list.id
-                            ? 'same list'
-                            : 'another list'}
-                    </small>
-                  </button>
-                ))}
-            </div>
-            {props.dependenciesHaveMore && props.onLoadMoreDependencies && (
-              <button
-                className="task-editor__text-button"
-                type="button"
-                onClick={props.onLoadMoreDependencies}
-                disabled={props.relatedTasksLoading}
-              >
-                load more tasks
-                <Icon name="down" size={12} />
-              </button>
-            )}
-            {!related.length && !props.relatedTasksLoading && !props.dependencyError && (
-              <p className="task-editor__hint">
-                no loaded matches. existing blockers keep their identity until they can be checked.
-              </p>
-            )}
-          </details>
+          <TaskDependencies
+            blockedBy={draft.blockedBy}
+            related={related}
+            listId={snapshot.list.id}
+            localEnabled={localEnabled}
+            query={dependencyQuery}
+            onQuery={setDependencyQuery}
+            onToggle={(id) => toggle('blockedBy', id)}
+            scope={props.dependencySearchScope}
+            loading={props.relatedTasksLoading}
+            error={props.dependencyError}
+            hasMore={props.dependenciesHaveMore}
+            onLoadMore={props.onLoadMoreDependencies}
+            remoteSearch={!!props.onSearchDependencies}
+          />
           {task && props.dependants && (
             <TaskDependants
               {...props.dependants}
@@ -878,90 +510,19 @@ function EditorForm(props: TaskEditorProps) {
         </section>
 
         {task && !task.parentId && (
-          <section
-            className="task-editor__section task-editor__subtasks"
-            aria-labelledby={inputId('subtasks-heading')}
-          >
-            <h3 id={inputId('subtasks-heading')}>
-              <Icon name="subtasks" size={14} />
-              subtasks{' '}
-              <span>
-                {children.length}
-                {props.subtasks?.coverage.complete && !props.subtasks.nextCursor ? '' : ' loaded'}
-              </span>
-            </h3>
-            {children.length > 0 && (
-              <ul>
-                {children.map((child) => (
-                  <li key={child.id}>
-                    <button
-                      className="task-editor__complete"
-                      type="button"
-                      role="checkbox"
-                      aria-checked={child.completed}
-                      aria-label={`${child.completed ? 'reopen' : 'complete'} ${title(child)}`}
-                      disabled={
-                        !props.onToggleComplete ||
-                        !props.providerWritesEnabled ||
-                        pending ||
-                        !child.capabilities.canEdit ||
-                        child.unsupportedHierarchy
-                      }
-                      onClick={() => props.onToggleComplete?.(child, !child.completed)}
-                    >
-                      {child.completed && <Icon name="check" size={10} />}
-                    </button>
-                    <button
-                      type="button"
-                      className={child.completed ? 'is-completed' : ''}
-                      onClick={() => props.onOpenTask?.(child)}
-                      disabled={!props.onOpenTask || pending}
-                    >
-                      {title(child)}
-                    </button>
-                    {child.scheduledDay && <small>{child.scheduledDay}</small>}
-                  </li>
-                ))}
-              </ul>
-            )}
-            {props.subtasks?.pending && (
-              <p className="task-editor__hint" role="status">
-                loading subtasks…
-              </p>
-            )}
-            {!children.length && props.subtasks?.coverage.complete && (
-              <p className="task-editor__hint">no subtasks.</p>
-            )}
-            {!props.subtasks?.coverage.complete && !props.subtasks?.pending && (
-              <p className="task-editor__hint">
-                subtask coverage is incomplete; loaded work stays visible.
-              </p>
-            )}
-            <div className="task-editor__subtask-actions">
-              {props.subtasks?.nextCursor && props.onLoadMoreSubtasks && (
-                <button
-                  className="task-editor__text-button"
-                  type="button"
-                  onClick={props.onLoadMoreSubtasks}
-                  disabled={props.subtasks.pending}
-                >
-                  load more
-                  <Icon name="down" size={12} />
-                </button>
-              )}
-              {props.onCreateSubtask && (
-                <button
-                  className="task-editor__text-button"
-                  type="button"
-                  disabled={!providerEnabled || !task.capabilities.canHaveChildren}
-                  onClick={() => props.onCreateSubtask?.(task)}
-                >
-                  <Icon name="plus" size={13} />
-                  add subtask
-                </button>
-              )}
-            </div>
-          </section>
+          <TaskChecklist
+            task={task}
+            children={children}
+            providerEnabled={providerEnabled}
+            pending={pending}
+            inputId={inputId}
+            {...(props.onToggleComplete ? { onToggleComplete: props.onToggleComplete } : {})}
+            providerWritesEnabled={props.providerWritesEnabled}
+            {...(props.onOpenTask ? { onOpenTask: props.onOpenTask } : {})}
+            {...(props.subtasks ? { subtasks: props.subtasks } : {})}
+            {...(props.onLoadMoreSubtasks ? { onLoadMoreSubtasks: props.onLoadMoreSubtasks } : {})}
+            {...(props.onCreateSubtask ? { onCreateSubtask: props.onCreateSubtask } : {})}
+          />
         )}
         {(props.error || Object.keys(localErrors).length > 0) && (
           <div className="task-editor__error" role="alert">

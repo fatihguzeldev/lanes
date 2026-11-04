@@ -1,10 +1,11 @@
+import { CoverageSchema } from '../../../../shared/contracts/coverage';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { z } from 'zod';
 import type { ConnectionSummary } from '../../../accounts/contracts/connection';
-import { TaskEditor, type TaskEditorCreate, type TaskEditorSave } from './TaskEditor';
-import { TaskSchema, type Label, type Task, type TaskList } from '../../contracts/task';
+import { TaskEditor } from './TaskEditor';
+import type { EditorSelection, TaskEditorCreate, TaskEditorSave } from './editor-contract';
+import { TaskSchema, type Label, type Task } from '../../contracts/task';
 import { LabelDeletionJobSchema } from '../../contracts/metadata-commands';
-import { CoverageSchema } from '../../../../shared/contracts/coverage';
 import { TaskDependantsPageSchema } from '../../contracts/query';
 import { RecurrenceStatusSchema, type RecurrenceStatus } from '../../contracts/recurrence';
 import { checkServerConnection, request } from '../../../../shared/browser/http/http';
@@ -15,12 +16,6 @@ import { useCommands } from '../../../operations/browser/submission/useCommands'
 import { useServerConnection } from '../../../../shared/browser/connectivity/useServerConnection';
 import { useRecurrenceWork } from '../planning/useRecurrenceWork';
 
-export interface EditorSelection {
-  task: Task | null;
-  list: TaskList;
-  initialDay?: string | null;
-  parent?: Task | null;
-}
 interface Props {
   account: ConnectionSummary;
   selection: EditorSelection;
