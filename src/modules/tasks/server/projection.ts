@@ -1,7 +1,7 @@
 import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types';
 import { AppError } from '../../../shared/contracts/errors';
-import type { HistoryService } from '../../history/server';
-import type { HistoryEventInput } from '../../history/contracts';
+import type { HistoryService } from '../../history/server/events/event-store';
+import type { HistoryEventInput } from '../../history/contracts/events';
 import { ResourceIdSchema, type TaskCapabilities } from '../contracts';
 import { normalizeTaskSearchText } from '../model';
 import type { GoogleTaskDTO } from './provider';

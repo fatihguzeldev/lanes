@@ -6,8 +6,8 @@ import {
   assertProviderWritable,
   localWriteGuard,
   providerWriteGuard,
-} from '../../../accounts/access';
-import type { HistoryService } from '../../../history/server';
+} from '../../../accounts/server/connections/access';
+import type { HistoryService } from '../../../history/server/events/event-store';
 import { TaskScheduleSchema } from '../../planning-contract';
 import type { TaskSchedule } from '../../planning-contract';
 import type { Task, TaskList } from '../../contracts';

@@ -1,4 +1,4 @@
-import type { ConnectionSummary } from '../../modules/accounts/contracts';
+import type { ConnectionSummary } from '../../modules/accounts/contracts/connection';
 
 /** Created only after the owner session and account connection have been checked. */
 export interface AccountRouteContext {

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { z } from 'zod';
-import type { ConnectionSummary } from '../../../accounts/contracts';
+import type { ConnectionSummary } from '../../../accounts/contracts/connection';
 import {
   ApplyTemplateSchema,
   TemplateRunSummarySchema,

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import type { ConnectionSummary } from '../../accounts/contracts';
+import type { ConnectionSummary } from '../../accounts/contracts/connection';
 import type { BoardList } from '../contracts';
 import { DuplicatePreviewSchema } from '../../tasks/consequence-contract';
 import type { Task } from '../../tasks/contracts';

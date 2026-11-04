@@ -27,7 +27,7 @@ const files = config.fileNames.filter(
 const relative = (file) => path.relative(root, file).replaceAll(path.sep, '/');
 const owner = (file) => /^src\/modules\/([^/]+)\//.exec(relative(file))?.[1];
 const allowed = {
-  accounts: [],
+  accounts: ['operations'],
   operations: ['accounts'],
   tasks: ['accounts', 'history', 'operations'],
   boards: ['accounts', 'tasks', 'history', 'operations'],
@@ -37,7 +37,14 @@ const allowed = {
 // Explicit operations and query capabilities used by another owner. Their helpers stay private.
 const publicServerFiles = {
   operations: ['server/journal/store.ts', 'server/queries/receipts.ts'],
-  accounts: ['access.ts', 'lifecycle.ts', 'portability.ts'],
+  accounts: [
+    'access.ts',
+    'server/connections/access.ts',
+    'lifecycle.ts',
+    'server/lifecycle/removal.ts',
+    'portability.ts',
+    'server/connections/portability.ts',
+  ],
   tasks: [
     'server/queries/lists.ts',
     'server/list-templates.ts',
@@ -49,8 +56,13 @@ const publicServerFiles = {
     'server/queries/snapshot-reader.ts',
     'server/queries/tasks.ts',
   ],
-  boards: ['server.ts', 'server/templates.ts', 'server/template-schedules.ts'],
-  history: ['server.ts'],
+  boards: [
+    'server.ts',
+    'server/events/event-store.ts',
+    'server/templates.ts',
+    'server/template-schedules.ts',
+  ],
+  history: ['server.ts', 'server/events/event-store.ts'],
 };
 const isServerFile = (file) => {
   const name = relative(file);

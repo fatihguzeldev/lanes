@@ -1,5 +1,5 @@
 import { useRef, useState, type FormEvent } from 'react';
-import type { ConnectionSummary } from '../../../accounts/contracts';
+import type { ConnectionSummary } from '../../../accounts/contracts/connection';
 import {
   CreateTemplateScheduleSchema,
   TemplateScheduleSummarySchema,

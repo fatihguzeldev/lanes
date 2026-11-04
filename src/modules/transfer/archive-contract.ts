@@ -15,7 +15,7 @@ import {
   TemplateDescriptionSchema,
 } from '../tasks/template-contract';
 import { BoardTemplateAppearanceSchema } from '../boards/template-contract';
-import { HistoryEventSchema } from '../history/contracts';
+import { HistoryEventSchema } from '../history/contracts/events';
 export const ARCHIVE_FORMAT = 'lanes-workspace';
 export const ARCHIVE_VERSION = 1;
 export const ArchiveKeySchema = z.string().regex(/^[a-z][a-z0-9_-]{0,127}$/);

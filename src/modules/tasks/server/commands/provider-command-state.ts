@@ -1,7 +1,7 @@
 import type { LabelInput, Task, TaskList } from '../../contracts';
 import type { TaskSchedule } from '../../planning-contract';
 import type { GoogleTaskCreate, GoogleTaskPatch } from '../provider';
-import type { CreationSource } from '../../../history/contracts';
+import type { CreationSource } from '../../../history/contracts/events';
 import type { ProviderCommand } from '../../provider-command-contract';
 import type { TaskMetadataPatch } from '../../metadata-command-contract';
 export interface ListRef extends TaskList {

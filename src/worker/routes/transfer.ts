@@ -1,4 +1,4 @@
-import type { ConnectionSummary } from '../../modules/accounts/contracts';
+import type { ConnectionSummary } from '../../modules/accounts/contracts/connection';
 import type { Services } from '../services';
 import { jsonResponse } from '../http';
 import { transferImportRoute } from './transfer/imports';

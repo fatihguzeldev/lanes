@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { ConnectionSummary } from '../../accounts/contracts';
+import type { ConnectionSummary } from '../../accounts/contracts/connection';
 import { TaskListSchema, type TaskList } from '../contracts';
 import {
   OperationIdSchema,

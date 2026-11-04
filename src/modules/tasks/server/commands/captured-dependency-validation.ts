@@ -1,6 +1,6 @@
 import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types';
 import { AppError } from '../../../../shared/contracts/errors';
-import { localWriteGuard, providerWriteGuard } from '../../../accounts/access';
+import { localWriteGuard, providerWriteGuard } from '../../../accounts/server/connections/access';
 
 const tables = {
   copy: {

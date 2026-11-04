@@ -1,5 +1,0 @@
-import { z } from 'zod';
-import { AccountPreferencesSchema } from './contracts';
-export const AccountPreferenceCommandSchema = z
-  .object({ kind: z.literal('account.preferences'), input: AccountPreferencesSchema })
-  .strict();

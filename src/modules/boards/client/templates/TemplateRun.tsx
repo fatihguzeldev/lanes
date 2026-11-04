@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { ConnectionSummary } from '../../../accounts/contracts';
+import type { ConnectionSummary } from '../../../accounts/contracts/connection';
 import { TemplateRunSummarySchema, type TemplateRunSummary } from '../../template-contract';
 import { OperationSummarySchema, type OperationSummary } from '../../../tasks/operation-contract';
 import { Dialog } from '../../../../shared/ui/dialog/Dialog';

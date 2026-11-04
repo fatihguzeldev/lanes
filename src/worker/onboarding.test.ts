@@ -2,7 +2,7 @@ import { afterEach, beforeAll, expect, it, vi } from 'vitest';
 import { SignJWT, exportJWK, generateKeyPair } from 'jose';
 import { testDatabase } from '../../tests/sqlite-d1';
 import { invocationDatabase } from '../../tests/d1-invocation';
-import { GOOGLE_TASKS_SCOPE } from '../modules/accounts/google';
+import { GOOGLE_TASKS_SCOPE } from '../modules/accounts/server/oauth/google';
 import { handleRequest } from './index';
 import type { Env } from './env';
 

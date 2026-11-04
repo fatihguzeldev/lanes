@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { ConnectionSummary } from '../../accounts/contracts';
+import type { ConnectionSummary } from '../../accounts/contracts/connection';
 import type { Board } from '../contracts';
 import {
   CalendarView,

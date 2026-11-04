@@ -5,13 +5,13 @@ import {
   AccountPageSchema,
   SessionSnapshotSchema,
   OAuthStartResponseSchema,
-} from '../../modules/accounts/session-contract';
-import type { SessionSnapshot } from '../../modules/accounts/session-contract';
+} from '../../modules/accounts/contracts/session';
+import type { SessionSnapshot } from '../../modules/accounts/contracts/session';
 import { request, RequestError } from '../../shared/browser/http/http';
 import './App.css';
 import { useTheme } from '../theme/theme';
 import { z } from 'zod';
-import { ConnectionSummarySchema } from '../../modules/accounts/contracts';
+import { ConnectionSummarySchema } from '../../modules/accounts/contracts/connection';
 import { oauthLandingError, portabilityLanding } from './landing';
 const Workspace = lazy(() =>
   import('../workspace/Workspace').then((module) => ({ default: module.Workspace })),

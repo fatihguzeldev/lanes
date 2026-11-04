@@ -1,8 +1,8 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { testDatabase, seedAccount } from '../../../../tests/sqlite-d1';
-import { AccountsPortability } from '../../accounts/portability';
+import { AccountsPortability } from '../../accounts/server/connections/portability';
 import { BoardService } from '../../boards/server';
-import { HistoryService } from '../../history/server';
+import { HistoryService } from '../../history/server/events/event-store';
 import { TaskQueries } from '../../tasks/server/queries/tasks';
 import { TaskMetadataService } from '../../tasks/server/metadata';
 import { TaskSnapshotReader } from '../../tasks/server/queries/snapshot-reader';

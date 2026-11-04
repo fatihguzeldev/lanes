@@ -2,7 +2,7 @@ import { canonicalJson, transferDigest } from './content-hash';
 import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types';
 import { z } from 'zod';
 import { AppError } from '../../../shared/contracts/errors';
-import { assertLocalWritable, localWriteGuard } from '../../accounts/access';
+import { assertLocalWritable, localWriteGuard } from '../../accounts/server/connections/access';
 import type { TaskCommandService } from '../../tasks/server/commands/provider-commands';
 import type { OperationStore } from '../../tasks/server/operations';
 import type {

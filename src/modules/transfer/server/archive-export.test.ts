@@ -1,14 +1,14 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { seedAccount, testDatabase } from '../../../../tests/sqlite-d1';
-import { AccountsPortability } from '../../accounts/portability';
-import { assertLocalWritable } from '../../accounts/access';
+import { AccountsPortability } from '../../accounts/server/connections/portability';
+import { assertLocalWritable } from '../../accounts/server/connections/access';
 import { BoardService } from '../../boards/server';
 import { TaskQueries } from '../../tasks/server/queries/tasks';
 import { TaskSnapshotReader } from '../../tasks/server/queries/snapshot-reader';
 import { TaskMetadataService } from '../../tasks/server/metadata';
 import { ListSnapshotStore, ListTemplateService } from '../../tasks/server/list-templates';
 import { BoardTemplateService } from '../../boards/server/templates';
-import { HistoryService } from '../../history/server';
+import { HistoryService } from '../../history/server/events/event-store';
 import { parseWorkspaceArchive } from '../archive';
 import { ArchiveExportSummarySchema } from '../archive-export-contract';
 import { ArchiveExportService } from './archive-export';

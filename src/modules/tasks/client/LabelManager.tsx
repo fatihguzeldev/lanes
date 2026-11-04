@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { z } from 'zod';
 import { Dialog } from '../../../shared/ui/dialog/Dialog';
 import { Icon } from '../../../shared/ui/icon/Icon';
-import type { ConnectionSummary } from '../../accounts/contracts';
+import type { ConnectionSummary } from '../../accounts/contracts/connection';
 import { LabelSchema, type Label } from '../contracts';
 import { LabelPageSchema, TaskCoverageSchema } from '../query-contract';
 import { LabelDeletionJobSchema } from '../metadata-command-contract';

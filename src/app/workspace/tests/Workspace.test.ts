@@ -1,7 +1,7 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import type { ConnectionSummary } from '../../../modules/accounts/contracts';
+import type { ConnectionSummary } from '../../../modules/accounts/contracts/connection';
 import { Workspace } from '../Workspace';
 
 const account: ConnectionSummary = {

@@ -1,6 +1,6 @@
 import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types';
 import { AppError } from '../../../shared/contracts/errors';
-import type { HistoryService } from '../../history/server';
+import type { HistoryService } from '../../history/server/events/event-store';
 import type { TaskList } from '../contracts';
 import { normalizeTaskSearchText } from '../model';
 import {

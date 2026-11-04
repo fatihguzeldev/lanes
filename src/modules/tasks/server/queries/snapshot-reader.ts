@@ -1,11 +1,11 @@
 import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types';
 import { z } from 'zod';
 import { AppError } from '../../../../shared/contracts/errors';
-import { assertProviderWritable, providerWriteGuard } from '../../../accounts/access';
+import { assertProviderWritable, providerWriteGuard } from '../../../accounts/server/connections/access';
 import { ResourceIdSchema, type Label, type Task } from '../../contracts';
 import { TaskQueries } from './tasks';
 import { readActiveLists } from './lists';
-import { accountRemovalGuard } from '../../../accounts/lifecycle';
+import { accountRemovalGuard } from '../../../accounts/server/lifecycle/removal';
 
 const identity = ResourceIdSchema.max(1024);
 const selectionSchema = z

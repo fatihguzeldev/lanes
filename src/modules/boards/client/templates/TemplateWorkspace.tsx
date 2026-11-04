@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import type { ConnectionSummary } from '../../../accounts/contracts';
+import type { ConnectionSummary } from '../../../accounts/contracts/connection';
 import { type TemplateRunSummary, type TemplateScheduleSummary } from '../../template-contract';
 import { TemplateCommandSchema } from '../../template-command-contract';
 import { Icon } from '../../../../shared/ui/icon/Icon';

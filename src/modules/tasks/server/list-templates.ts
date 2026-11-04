@@ -2,7 +2,7 @@ import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types'
 import { z } from 'zod';
 import { AppError } from '../../../shared/contracts/errors';
 import type { Page } from '../../../shared/contracts/http';
-import { assertLocalWritable, localWriteGuard } from '../../accounts/access';
+import { assertLocalWritable, localWriteGuard } from '../../accounts/server/connections/access';
 import { ResourceIdSchema } from '../contracts';
 import { CalendarDateSchema, RepeatRuleSchema, TimeZoneSchema } from '../planning-contract';
 import { addCalendarDays } from '../planning';

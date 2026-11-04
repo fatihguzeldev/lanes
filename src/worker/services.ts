@@ -1,10 +1,10 @@
 import { AppError } from '../shared/contracts/errors';
-import { assertLocalWritable } from '../modules/accounts/access';
-import { AccountService } from '../modules/accounts/server';
-import { ProviderAccess } from '../modules/accounts/provider-access';
+import { assertLocalWritable } from '../modules/accounts/server/connections/access';
+import { AccountService } from '../modules/accounts/server/oauth/account-service';
+import { ProviderAccess } from '../modules/accounts/server/credentials/provider-access';
 import { BoardService } from '../modules/boards/server';
 import { BoardProjection } from '../modules/boards/projection';
-import { HistoryService } from '../modules/history/server';
+import { HistoryService } from '../modules/history/server/events/event-store';
 import { OperationStore } from '../modules/tasks/server/operations';
 import { GoogleTasksClient } from '../modules/tasks/server/provider';
 import { TaskQueries } from '../modules/tasks/server/queries/tasks';
@@ -22,7 +22,7 @@ import {
 } from './template-services';
 import { createTransferOwners } from './transfer-services';
 import { GOOGLE_SHEETS_EXPORT_SCOPE, GoogleSheetsClient } from '../modules/transfer/server/sheets';
-import { AccountLifecycle } from '../modules/accounts/lifecycle';
+import { AccountLifecycle } from '../modules/accounts/server/lifecycle/removal';
 import { TasksLifecycle } from '../modules/tasks/server/lifecycle';
 import { BoardLifecycle } from '../modules/boards/server/lifecycle';
 import { TransferLifecycle } from '../modules/transfer/server/lifecycle';

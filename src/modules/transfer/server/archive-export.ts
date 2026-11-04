@@ -2,14 +2,14 @@ import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types'
 import { z } from 'zod';
 import { AppError } from '../../../shared/contracts/errors';
 import type { Coverage, Page } from '../../../shared/contracts/http';
-import { assertDisconnecting, assertLocalWritable, localWriteGuard } from '../../accounts/access';
-import type { AccountsPortability } from '../../accounts/portability';
+import { assertDisconnecting, assertLocalWritable, localWriteGuard } from '../../accounts/server/connections/access';
+import type { AccountsPortability } from '../../accounts/server/connections/portability';
 import type { BoardService } from '../../boards/server';
 import type { BoardTemplateService } from '../../boards/server/templates';
 import type { TemplateScheduleService } from '../../boards/server/template-schedules';
 import type { TemplateScheduleSummary } from '../../boards/template-contract';
-import type { HistoryEvent } from '../../history/contracts';
-import type { HistoryService } from '../../history/server';
+import type { HistoryEvent } from '../../history/contracts/events';
+import type { HistoryService } from '../../history/server/events/event-store';
 import type { Task } from '../../tasks/contracts';
 import type { TaskQueries } from '../../tasks/server/queries/tasks';
 import type { TaskSnapshotReader } from '../../tasks/server/queries/snapshot-reader';

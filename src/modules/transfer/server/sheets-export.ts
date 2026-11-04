@@ -2,7 +2,7 @@ import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types'
 import { z } from 'zod';
 import { AppError } from '../../../shared/contracts/errors';
 import type { ErrorCode, Page } from '../../../shared/contracts/http';
-import { assertDisconnecting, assertLocalWritable, localWriteGuard } from '../../accounts/access';
+import { assertDisconnecting, assertLocalWritable, localWriteGuard } from '../../accounts/server/connections/access';
 import { ResourceIdSchema } from '../../tasks/contracts';
 import { OperationIdSchema } from '../../tasks/operation-contract';
 import type { ClaimedStep, OperationStore } from '../../tasks/server/operations';

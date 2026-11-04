@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { testDatabase, seedAccount } from '../../../../tests/sqlite-d1';
-import { HistoryService } from '../../history/server';
+import { HistoryService } from '../../history/server/events/event-store';
 import { RepeatRuleSchema } from '../planning-contract';
 import { TaskMetadataService } from './metadata';
 import { OperationStore } from './operations';

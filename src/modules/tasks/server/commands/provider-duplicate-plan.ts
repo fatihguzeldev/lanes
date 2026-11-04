@@ -1,6 +1,6 @@
 import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types';
 import { AppError } from '../../../../shared/contracts/errors';
-import { assertProviderWritable } from '../../../accounts/access';
+import { assertProviderWritable } from '../../../accounts/server/connections/access';
 import type { ProviderCommand, PrepareProviderCommand } from '../../provider-command-contract';
 import { CapturedCopyPlanner } from './provider-copy-plan';
 import type { CopyEntry } from './provider-copy-contract';

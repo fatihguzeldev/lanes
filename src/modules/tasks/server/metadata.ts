@@ -2,9 +2,9 @@ import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types'
 import { z } from 'zod';
 import { AppError } from '../../../shared/contracts/errors';
 import type { Page } from '../../../shared/contracts/http';
-import { assertLocalWritable, localWriteGuard } from '../../accounts/access';
-import type { HistoryService } from '../../history/server';
-import type { HistoryEventInput } from '../../history/contracts';
+import { assertLocalWritable, localWriteGuard } from '../../accounts/server/connections/access';
+import type { HistoryService } from '../../history/server/events/event-store';
+import type { HistoryEventInput } from '../../history/contracts/events';
 import {
   LabelInputSchema,
   LabelSchema,

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { seedAccount, testDatabase } from '../../../../tests/sqlite-d1';
-import { HistoryService } from '../../history/server';
+import { HistoryService } from '../../history/server/events/event-store';
 import { TasksLifecycle } from './lifecycle';
 import { OperationStore } from './operations';
 import { TaskMetadataService } from './metadata';

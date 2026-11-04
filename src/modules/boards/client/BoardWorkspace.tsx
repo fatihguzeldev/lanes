@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { ConnectionSummary } from '../../accounts/contracts';
+import type { ConnectionSummary } from '../../accounts/contracts/connection';
 import type { Board, BoardList } from '../contracts';
 import { BoardSurface, type BoardColumn, type BoardSurfaceProps } from '../components/BoardSurface';
 import type { TaskFilter, TaskSort } from '../../tasks/contracts';

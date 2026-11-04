@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { seedAccount, testDatabase } from '../../tests/sqlite-d1';
 import { invocationDatabase } from '../../tests/d1-invocation';
-import { AccountService, accountGrantContext } from '../modules/accounts/server';
-import { encryptToken } from '../modules/accounts/crypto';
+import { AccountService, accountGrantContext } from '../modules/accounts/server/oauth/account-service';
+import { encryptToken } from '../modules/accounts/server/credentials/crypto';
 import { BoardService } from '../modules/boards/server';
 import { accountToday } from '../modules/tasks/planning';
 import { parseConfiguration, type Env } from './env';

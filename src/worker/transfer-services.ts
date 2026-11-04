@@ -1,9 +1,9 @@
 import type { D1Database, D1PreparedStatement, D1Result } from '@cloudflare/workers-types';
 import { AppError } from '../shared/contracts/errors';
-import { assertLocalWritable } from '../modules/accounts/access';
-import { AccountsPortability } from '../modules/accounts/portability';
+import { assertLocalWritable } from '../modules/accounts/server/connections/access';
+import { AccountsPortability } from '../modules/accounts/server/connections/portability';
 import { BoardService } from '../modules/boards/server';
-import { HistoryService } from '../modules/history/server';
+import { HistoryService } from '../modules/history/server/events/event-store';
 import { TaskMetadataService } from '../modules/tasks/server/metadata';
 import type { OperationStore } from '../modules/tasks/server/operations';
 import type { TaskCommandService } from '../modules/tasks/server/commands/provider-commands';

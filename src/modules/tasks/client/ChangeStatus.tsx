@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import type { ConnectionSummary } from '../../accounts/contracts';
+import type { ConnectionSummary } from '../../accounts/contracts/connection';
 import { OperationSummarySchema, OperationStepPageSchema } from '../operation-contract';
 import { request } from '../../../shared/browser/http/http';
 import { newestChangeReceipt } from './change-status';

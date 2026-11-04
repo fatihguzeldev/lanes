@@ -1,6 +1,6 @@
 import type { D1Database } from '@cloudflare/workers-types';
 import { AppError } from '../../../shared/contracts/errors';
-import type { HistoryService } from '../../history/server';
+import type { HistoryService } from '../../history/server/events/event-store';
 import { TaskMetadataService } from './metadata';
 
 /** The admitted deletion job and its revision serialize each atomic local slice. No provider work is sent. */

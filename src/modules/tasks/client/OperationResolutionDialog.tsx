@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { ConnectionSummary } from '../../accounts/contracts';
+import type { ConnectionSummary } from '../../accounts/contracts/connection';
 import {
   ResolutionCandidatesSchema,
   ResolutionContextSchema,

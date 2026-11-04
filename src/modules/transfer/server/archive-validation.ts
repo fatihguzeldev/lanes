@@ -1,6 +1,6 @@
 import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types';
 import { AppError } from '../../../shared/contracts/errors';
-import { localWriteGuard } from '../../accounts/access';
+import { localWriteGuard } from '../../accounts/server/connections/access';
 import type { ArchiveHeader, ArchiveRecord } from '../archive-contract';
 import { canonicalJson, transferDigest } from './content-hash';
 import { CapturedGraphValidator } from './captured-graph';

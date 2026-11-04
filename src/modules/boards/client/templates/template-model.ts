@@ -1,4 +1,4 @@
-import type { ConnectionSummary } from '../../../accounts/contracts';
+import type { ConnectionSummary } from '../../../accounts/contracts/connection';
 import { type BoardTemplateSummary, type TemplateReference } from '../../template-contract';
 import { type TemplateCommand } from '../../template-command-contract';
 import { type ListTemplateSummary, type TemplateTask } from '../../../tasks/template-contract';

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { ConnectionSummary } from '../../modules/accounts/contracts';
+import type { ConnectionSummary } from '../../modules/accounts/contracts/connection';
 import {
   ApplyTemplateSchema,
   TemplateReferenceSchema,

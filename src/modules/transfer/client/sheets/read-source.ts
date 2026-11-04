@@ -1,4 +1,4 @@
-import type { ConnectionSummary } from '../../../accounts/contracts';
+import type { ConnectionSummary } from '../../../accounts/contracts/connection';
 import type { ImportTable } from '../../parse-contract';
 import { MAX_IMPORT_EXPANDED_BYTES } from '../../parse-contract';
 import { request } from '../../../../shared/browser/http/http';

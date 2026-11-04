@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { ConnectionSummary } from '../../accounts/contracts';
+import type { ConnectionSummary } from '../../accounts/contracts/connection';
 import { BoardPatchSchema, type Board } from '../contracts';
 import type { BoardViewPreferences } from './view-preferences';
 import { Icon } from '../../../shared/ui/icon/Icon';

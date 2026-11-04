@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { z } from 'zod';
-import type { ConnectionSummary } from '../../accounts/contracts';
+import type { ConnectionSummary } from '../../accounts/contracts/connection';
 import { TaskEditor, type TaskEditorCreate, type TaskEditorSave } from '../components/TaskEditor';
 import { TaskSchema, type Label, type Task, type TaskList } from '../contracts';
 import { LabelDeletionJobSchema } from '../metadata-command-contract';

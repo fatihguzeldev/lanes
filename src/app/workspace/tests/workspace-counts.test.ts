@@ -1,7 +1,7 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ConnectionSummary } from '../../../modules/accounts/contracts';
+import type { ConnectionSummary } from '../../../modules/accounts/contracts/connection';
 import type { Board } from '../../../modules/boards/contracts';
 import { CalendarView, type CalendarViewProps } from '../../../modules/boards/components/CalendarView';
 import { TaskCard } from '../../../modules/tasks/components/TaskCard';

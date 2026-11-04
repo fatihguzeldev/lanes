@@ -8,7 +8,7 @@ import {
   ResourceIdSchema,
 } from '../../contracts';
 import { TaskScheduleSchema } from '../../planning-contract';
-import type { CreationSource } from '../../../history/contracts';
+import type { CreationSource } from '../../../history/contracts/events';
 import type { ProviderCommand } from '../../provider-command-contract';
 export const CopyEntrySchema = TaskScheduleSchema.safeExtend({
   listKey: ResourceIdSchema.max(256).optional(),

@@ -14,7 +14,7 @@ import {
   disconnectWorkGuard,
   localWriteGuard,
   providerWriteGuard,
-} from '../../accounts/access';
+} from '../../accounts/server/connections/access';
 
 export type OperationState =
   | 'accepted'

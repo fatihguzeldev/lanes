@@ -1,4 +1,4 @@
-import type { ConnectionSummary } from '../../accounts/contracts';
+import type { ConnectionSummary } from '../../accounts/contracts/connection';
 export interface TransferProps {
   initialTab?: 'import' | 'export';
   account: ConnectionSummary;

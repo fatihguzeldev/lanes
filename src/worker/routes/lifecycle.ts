@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import type { AccountService } from '../../modules/accounts/server';
-import type { AccountLifecycle } from '../../modules/accounts/lifecycle';
-import { RemoveAccountSchema } from '../../modules/accounts/lifecycle-contract';
+import type { AccountService } from '../../modules/accounts/server/oauth/account-service';
+import type { AccountLifecycle } from '../../modules/accounts/server/lifecycle/removal';
+import { RemoveAccountSchema } from '../../modules/accounts/contracts/lifecycle';
 import { jsonResponse, readJson } from '../http';
 
 /** The owner session is already verified. Completion receipts survive the connection row. */

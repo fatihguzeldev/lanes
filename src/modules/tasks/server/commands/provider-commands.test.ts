@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { seedAccount, testDatabase } from '../../../../../tests/sqlite-d1';
-import { HistoryService } from '../../../history/server';
+import { HistoryService } from '../../../history/server/events/event-store';
 import { GoogleTasksClient } from '../provider';
 import type { GoogleTasksFetch } from '../provider';
 import { OperationStore } from '../operations';

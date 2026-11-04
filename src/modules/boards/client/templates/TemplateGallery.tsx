@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { ConnectionSummary } from '../../../accounts/contracts';
+import type { ConnectionSummary } from '../../../accounts/contracts/connection';
 import { TemplateCommandSchema } from '../../template-command-contract';
 import { Icon } from '../../../../shared/ui/icon/Icon';
 import { request } from '../../../../shared/browser/http/http';

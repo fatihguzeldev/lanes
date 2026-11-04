@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { seedAccount, testDatabase } from '../../../../tests/sqlite-d1';
-import { assertLocalWritable } from '../../accounts/access';
-import { HistoryService } from '../../history/server';
+import { assertLocalWritable } from '../../accounts/server/connections/access';
+import { HistoryService } from '../../history/server/events/event-store';
 import { ListSnapshotStore, ListTemplateService } from '../../tasks/server/list-templates';
 import { TaskMetadataService } from '../../tasks/server/metadata';
 import { TaskCommandService } from '../../tasks/server/commands/provider-commands';

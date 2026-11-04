@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { ConnectionSummary } from '../../accounts/contracts';
+import type { ConnectionSummary } from '../../accounts/contracts/connection';
 import { TaskConsequencesSchema } from '../../tasks/consequence-contract';
 import type { Task } from '../../tasks/contracts';
 import { Dialog } from '../../../shared/ui/dialog/Dialog';

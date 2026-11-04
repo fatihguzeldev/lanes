@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import type { ConnectionSummary } from '../../../accounts/contracts';
+import type { ConnectionSummary } from '../../../accounts/contracts/connection';
 import { BoardTemplateSummarySchema } from '../../template-contract';
 import { TemplateCommandSchema } from '../../template-command-contract';
 import { ListTemplateSummarySchema } from '../../../tasks/template-contract';

@@ -6,10 +6,10 @@ import {
   assertProviderWritable,
   localWriteGuard,
   providerWriteGuard,
-} from '../../../accounts/access';
+} from '../../../accounts/server/connections/access';
 import { OperationIdSchema } from '../../operation-contract';
 import { ResourceIdSchema } from '../../contracts';
-import { CreationSourceSchema } from '../../../history/contracts';
+import { CreationSourceSchema } from '../../../history/contracts/events';
 import {
   CopyEntrySchema,
   CopyListDefinitionSchema,

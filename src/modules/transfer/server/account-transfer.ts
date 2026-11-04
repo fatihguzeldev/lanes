@@ -1,7 +1,7 @@
 import type { D1Database } from '@cloudflare/workers-types';
 import { z } from 'zod';
 import { AppError } from '../../../shared/contracts/errors';
-import { assertProviderWritable } from '../../accounts/access';
+import { assertProviderWritable } from '../../accounts/server/connections/access';
 import { ResourceIdSchema, type Label } from '../../tasks/contracts';
 import { OperationIdSchema } from '../../tasks/operation-contract';
 import type { TaskSnapshotReader } from '../../tasks/server/queries/snapshot-reader';

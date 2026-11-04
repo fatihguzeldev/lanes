@@ -7,7 +7,7 @@ import {
   assertProviderWritable,
   localWriteGuard,
   providerWriteGuard,
-} from '../../accounts/access';
+} from '../../accounts/server/connections/access';
 import { ResourceIdSchema } from '../../tasks/contracts';
 import { TemplateScheduleSchema, type TemplateSchedule } from '../../tasks/planning-contract';
 import {

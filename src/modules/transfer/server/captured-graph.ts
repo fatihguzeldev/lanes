@@ -1,6 +1,6 @@
 import type { D1Database } from '@cloudflare/workers-types';
 import { AppError } from '../../../shared/contracts/errors';
-import { localWriteGuard } from '../../accounts/access';
+import { localWriteGuard } from '../../accounts/server/connections/access';
 const tables = {
   archive: {
     header: 'transfer_archives',

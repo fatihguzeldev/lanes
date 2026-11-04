@@ -1,6 +1,6 @@
 import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types';
-import type { HistoryService } from '../../../history/server';
-import type { HistoryEventInput } from '../../../history/contracts';
+import type { HistoryService } from '../../../history/server/events/event-store';
+import type { HistoryEventInput } from '../../../history/contracts/events';
 import type { TaskMetadataService } from '../metadata';
 import type { CapturedStep } from './provider-command-state';
 
