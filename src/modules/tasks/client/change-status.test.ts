@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { OperationSummary } from '../modules/tasks/operation-contract';
+import type { OperationSummary } from '../operation-contract';
 import { newestChangeReceipt } from './change-status';
 
 const receipt = (patch: Partial<OperationSummary> = {}): OperationSummary => ({

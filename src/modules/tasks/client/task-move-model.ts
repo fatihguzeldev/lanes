@@ -1,6 +1,19 @@
-import type { BoardColumn, TaskMoveIntent } from '../modules/boards/components/BoardSurface';
-import type { Task } from '../modules/tasks/contracts';
-import { sortTasks } from '../modules/tasks/model';
+import type { Coverage } from '../../../contracts/http';
+import type { TaskList, TaskMoveIntent } from '../contracts';
+
+export interface TaskMoveList {
+  list: TaskList;
+  tasks: readonly Task[];
+  coverage: Coverage;
+  nextCursor: string | null;
+  status: 'loading' | 'ready' | 'error';
+  orderedTaskIds?: readonly string[] | undefined;
+  orderReady?: boolean | undefined;
+  readVersion?: number | undefined;
+  providerComplete?: boolean | undefined;
+}
+import type { Task } from '../contracts';
+import { sortTasks } from '../model';
 
 export interface QueuedTaskMove {
   id: string;
@@ -23,7 +36,7 @@ export function latestTasks(tasks: readonly Task[]): Task[] {
   return [...latest.values()];
 }
 
-export function openTaskOrder(column: BoardColumn): string[] {
+export function openTaskOrder(column: TaskMoveList): string[] {
   const tasks = sortTasks(
     latestTasks(column.tasks).filter(
       (task) =>
@@ -41,12 +54,12 @@ export function openTaskOrder(column: BoardColumn): string[] {
 }
 
 /** Presentation order is independent of Google's position strings and confirmed projection. */
-export function projectTaskMoves(
-  columns: readonly BoardColumn[],
+export function projectTaskMoves<T extends TaskMoveList>(
+  columns: readonly T[],
   moves: readonly QueuedTaskMove[],
-): BoardColumn[] {
+): T[] {
   const snapshots = latestTasks(columns.flatMap((column) => column.tasks));
-  let projected = columns.map((column) => ({
+  let projected: T[] = columns.map((column) => ({
     ...column,
     tasks: snapshots.filter(
       (task) => task.accountId === column.list.accountId && task.listId === column.list.id,
@@ -102,7 +115,7 @@ export function projectTaskMoves(
 }
 
 export function movesAcknowledged(
-  columns: readonly BoardColumn[],
+  columns: readonly TaskMoveList[],
   moves: readonly QueuedTaskMove[],
 ): boolean {
   return moves.every((move) =>
@@ -115,66 +128,4 @@ export function movesAcknowledged(
       );
     }),
   );
-}
-
-export function createTaskMoveQueue(
-  save: (move: QueuedTaskMove) => Promise<boolean>,
-  changed: (moves: readonly QueuedTaskMove[]) => void,
-  failed: (error: unknown) => void,
-) {
-  let moves: QueuedTaskMove[] = [];
-  let draining = false;
-  let disposed = false;
-  const publish = () => {
-    if (!disposed) changed([...moves]);
-  };
-  async function drain() {
-    if (draining) return;
-    draining = true;
-    try {
-      for (; !disposed;) {
-        const next = moves.find((move) => !move.confirmed);
-        if (!next) break;
-        try {
-          if (!(await save(next))) {
-            moves = moves.filter((move) => move.confirmed);
-            publish();
-            break;
-          }
-          next.confirmed = true;
-          publish();
-        } catch (error) {
-          // Later unsent positions may depend on this one. Keep only confirmed work.
-          moves = moves.filter((move) => move.confirmed);
-          publish();
-          failed(error);
-          break;
-        }
-      }
-    } finally {
-      draining = false;
-      publish();
-    }
-  }
-  return {
-    enqueue(move: QueuedTaskMove) {
-      if (disposed) return;
-      moves.push(move);
-      publish();
-      void drain();
-    },
-    reconcile(columns: readonly BoardColumn[], scope: string) {
-      const retained = moves.filter(
-        (move) => !move.confirmed || (move.scope === scope && !movesAcknowledged(columns, [move])),
-      );
-      if (retained.length !== moves.length) {
-        moves = retained;
-        publish();
-      }
-    },
-    dispose() {
-      disposed = true;
-      moves = [];
-    },
-  };
 }

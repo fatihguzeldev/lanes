@@ -10,7 +10,7 @@ import { Icon, type IconName } from '../ui/Icon';
 import { request } from '../client/http';
 import { HistoryPageSchema } from '../modules/history/query-contract';
 import { usePagedResource } from '../client/usePagedResource';
-import { usePlanningToday } from './usePlanningToday';
+import { usePlanningToday } from '../modules/tasks/client/usePlanningToday';
 import { Select } from '../ui/Select';
 import './HistoryPanel.css';
 

@@ -5,8 +5,8 @@ import { groupCompletedTasks, sevenDayCompletionSummary } from '../modules/histo
 import type { CompletedGroupKey } from '../modules/history/contracts';
 import type { Task, TaskFilter, TaskList } from '../modules/tasks/contracts';
 import { Icon } from '../ui/Icon';
-import { useTaskQuery } from './useTaskQuery';
-import { usePlanningToday } from './usePlanningToday';
+import { useTaskQuery } from '../modules/tasks/client/useTaskQuery';
+import { usePlanningToday } from '../modules/tasks/client/usePlanningToday';
 import { Select } from '../ui/Select';
 import './CompletedWorkspace.css';
 import type { InitialViewReadiness } from '../client/readiness';

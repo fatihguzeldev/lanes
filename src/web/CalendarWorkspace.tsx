@@ -14,7 +14,7 @@ import { calendarRange, type CalendarRange } from '../modules/boards/components/
 import type { TaskFilter, TaskList, TaskSort } from '../modules/tasks/contracts';
 import type { TaskQueryInput } from '../modules/tasks/query-contract';
 import { addCalendarDays } from '../modules/tasks/planning';
-import { useTaskQuery } from './useTaskQuery';
+import { useTaskQuery } from '../modules/tasks/client/useTaskQuery';
 import { CalendarDestinationDialog } from './CalendarDestinationDialog';
 import './CalendarWorkspace.css';
 import type { InitialViewReadiness } from '../client/readiness';

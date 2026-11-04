@@ -249,3 +249,13 @@ export interface BlockingState {
   openBlockers: Task[];
   missingBlockerIds: string[];
 }
+
+export interface TaskMoveIntent {
+  accountId: string;
+  taskId: string;
+  revision: number;
+  sourceListId: string;
+  destinationListId: string;
+  parentId: null;
+  previousTaskId: string | null;
+}

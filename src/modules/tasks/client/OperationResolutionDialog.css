@@ -1,0 +1,27 @@
+.operation-resolution pre {
+  max-width: 100%;
+  max-height: 240px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--canvas);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.operation-resolution dl {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 8px 15px;
+  font-size: 12px;
+}
+.operation-resolution dt {
+  color: var(--secondary);
+}
+.operation-resolution dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}

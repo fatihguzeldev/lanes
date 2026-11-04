@@ -1,11 +1,11 @@
-import type { TaskMoveIntent } from '../modules/boards/components/BoardSurface';
-import { TaskSchema, TaskListSchema } from '../modules/tasks/contracts';
-import { TaskConsequencesSchema } from '../modules/tasks/consequence-contract';
-import { TaskPageSchema } from '../modules/tasks/query-contract';
-import { OperationSummarySchema, type OperationSummary } from '../modules/tasks/operation-contract';
-import { SyncAdvanceSchema, SyncStatusSchema } from '../modules/tasks/sync-contract';
-import { request, RequestError } from '../client/http';
-import { serverConnection } from '../client/connectivity';
+import type { TaskMoveIntent } from '../contracts';
+import { TaskSchema, TaskListSchema } from '../contracts';
+import { TaskConsequencesSchema } from '../consequence-contract';
+import { TaskPageSchema } from '../query-contract';
+import { OperationSummarySchema, type OperationSummary } from '../operation-contract';
+import { SyncAdvanceSchema, SyncStatusSchema } from '../sync-contract';
+import { request, RequestError } from '../../../client/http';
+import { serverConnection } from '../../../client/connectivity';
 
 const pause = (milliseconds: number, signal?: AbortSignal) =>
   new Promise<void>((resolve, reject) => {

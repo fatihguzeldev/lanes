@@ -1,24 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { z } from 'zod';
-import type { ConnectionSummary } from '../modules/accounts/contracts';
-import {
-  TaskEditor,
-  type TaskEditorCreate,
-  type TaskEditorSave,
-} from '../modules/tasks/components/TaskEditor';
-import { TaskSchema, type Label, type Task, type TaskList } from '../modules/tasks/contracts';
-import { LabelDeletionJobSchema } from '../modules/tasks/metadata-command-contract';
-import { TaskCoverageSchema, TaskDependantsPageSchema } from '../modules/tasks/query-contract';
-import {
-  RecurrenceStatusSchema,
-  type RecurrenceStatus,
-} from '../modules/tasks/recurrence-contract';
-import { checkServerConnection, request } from '../client/http';
+import type { ConnectionSummary } from '../../accounts/contracts';
+import { TaskEditor, type TaskEditorCreate, type TaskEditorSave } from '../components/TaskEditor';
+import { TaskSchema, type Label, type Task, type TaskList } from '../contracts';
+import { LabelDeletionJobSchema } from '../metadata-command-contract';
+import { TaskCoverageSchema, TaskDependantsPageSchema } from '../query-contract';
+import { RecurrenceStatusSchema, type RecurrenceStatus } from '../recurrence-contract';
+import { checkServerConnection, request } from '../../../client/http';
 import { useTaskQuery } from './useTaskQuery';
-import { usePagedResource } from '../client/usePagedResource';
-import { newOperationId } from '../client/operation-identity';
+import { usePagedResource } from '../../../client/usePagedResource';
+import { newOperationId } from '../../../client/operation-identity';
 import { useCommands } from './useCommands';
-import { useServerConnection } from '../client/useServerConnection';
+import { useServerConnection } from '../../../client/useServerConnection';
 import { useRecurrenceWork } from './useRecurrenceWork';
 
 export interface EditorSelection {

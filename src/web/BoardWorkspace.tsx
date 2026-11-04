@@ -7,11 +7,11 @@ import {
   type BoardSurfaceProps,
 } from '../modules/boards/components/BoardSurface';
 import type { TaskFilter, TaskSort } from '../modules/tasks/contracts';
-import { useTaskQuery } from './useTaskQuery';
+import { useTaskQuery } from '../modules/tasks/client/useTaskQuery';
 import { unknownCoverage } from '../client/usePagedResource';
-import { InlineTaskCreate } from './InlineTaskCreate';
-import type { TaskMoveQueue } from './useTaskMoveQueue';
-import { projectTaskMoves } from './task-move-queue';
+import { InlineTaskCreate } from '../modules/tasks/client/InlineTaskCreate';
+import type { TaskMoveQueue } from '../modules/tasks/client/useTaskMoveQueue';
+import { projectTaskMoves } from '../modules/tasks/client/task-move-model';
 import type { InitialViewReadiness } from '../client/readiness';
 
 type Actions = {

@@ -1,14 +1,13 @@
 import { useRef, useState } from 'react';
-import type { ConnectionSummary } from '../modules/accounts/contracts';
-import {
-  OperationSummarySchema,
-  OperationStepPageSchema,
-} from '../modules/tasks/operation-contract';
-import { request } from '../client/http';
+import type { ConnectionSummary } from '../../accounts/contracts';
+import { OperationSummarySchema, OperationStepPageSchema } from '../operation-contract';
+import { request } from '../../../client/http';
 import { newestChangeReceipt } from './change-status';
-import { useServerConnection } from '../client/useServerConnection';
+import { useServerConnection } from '../../../client/useServerConnection';
 import { useCommands } from './useCommands';
-import { usePagedResource } from '../client/usePagedResource';
+import { usePagedResource } from '../../../client/usePagedResource';
+
+import './ChangeStatus.css';
 
 interface Props {
   account: ConnectionSummary;

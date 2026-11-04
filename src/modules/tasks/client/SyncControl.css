@@ -1,0 +1,79 @@
+.sync-control,
+.popover__trigger.sync-control {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  padding: 5px;
+  border: 0;
+  border-radius: 5px;
+  color: var(--secondary);
+  background: transparent;
+}
+.sync-control > .icon {
+  flex: none;
+}
+.sync-control:hover,
+.sync-control[aria-expanded='true'] {
+  color: var(--ink);
+  background: var(--paper-hover);
+}
+@media (pointer: coarse) {
+  .sync-control,
+  .popover__trigger.sync-control {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+.sync-control--syncing .icon {
+  animation: sync-breathe 1.6s ease-in-out infinite;
+}
+.sync-control--error,
+.sync-control--paused {
+  color: var(--rust);
+}
+.sync-control__panel {
+  width: 255px;
+}
+.sync-control__body {
+  display: grid;
+  gap: 10px;
+  padding: 8px 4px 0;
+}
+.sync-control__saves {
+  border-top: 1px solid var(--fine);
+  padding-top: 6px;
+}
+.sync-control__saves .popover__item {
+  justify-content: space-between;
+}
+.sync-control__saves .popover__item > span {
+  display: grid;
+  gap: 3px;
+}
+.sync-control__saves small {
+  color: var(--secondary);
+  font-size: 11px;
+}
+.sync-control__error p {
+  color: var(--rust);
+  font-size: 12px;
+  padding-inline: 6px;
+}
+.sync-control__body > strong {
+  padding-inline: 6px;
+  font-weight: 500;
+}
+.sync-control__body > p {
+  padding-inline: 6px;
+  font-size: 12px;
+  color: var(--secondary);
+  line-height: 1.6;
+}
+@keyframes sync-breathe {
+  50% {
+    opacity: 0.4;
+  }
+}

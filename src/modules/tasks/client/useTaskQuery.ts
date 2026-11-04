@@ -1,11 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { request } from '../client/http';
-import { unknownCoverage } from '../client/usePagedResource';
-import {
-  TaskPageSchema,
-  type TaskPage,
-  type TaskQueryInput,
-} from '../modules/tasks/query-contract';
+import { request } from '../../../client/http';
+import { unknownCoverage } from '../../../client/usePagedResource';
+import { TaskPageSchema, type TaskPage, type TaskQueryInput } from '../query-contract';
 const empty = (): TaskPage => ({
   items: [],
   matchedTaskIds: [],

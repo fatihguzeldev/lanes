@@ -3,7 +3,7 @@ import { Icon } from '../ui/Icon';
 import { Popover } from '../ui/Popover';
 import { Select } from '../ui/Select';
 import { TimeZoneSelect } from '../ui/TimeZoneSelect';
-import { useCommands } from './useCommands';
+import { useCommands } from '../modules/tasks/client/useCommands';
 import { useServerConnection } from '../client/useServerConnection';
 
 interface Props {

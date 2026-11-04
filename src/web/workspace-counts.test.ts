@@ -8,10 +8,12 @@ import { TaskCard } from '../modules/tasks/components/TaskCard';
 import { TaskSchema, type TaskList } from '../modules/tasks/contracts';
 import type { TaskPage } from '../modules/tasks/query-contract';
 import { CompletedWorkspace } from './CompletedWorkspace';
-import { TaskCollectionWorkspace } from './TaskCollectionWorkspace';
+import { TaskCollectionWorkspace } from '../modules/tasks/client/TaskCollectionWorkspace';
 
-vi.mock('./useTaskQuery', () => ({ useTaskQuery: () => queryState }));
-vi.mock('./usePlanningToday', () => ({ usePlanningToday: () => '2026-11-04' }));
+vi.mock('../modules/tasks/client/useTaskQuery', () => ({ useTaskQuery: () => queryState }));
+vi.mock('../modules/tasks/client/usePlanningToday', () => ({
+  usePlanningToday: () => '2026-11-04',
+}));
 
 const task = TaskSchema.parse({
   id: 'task',

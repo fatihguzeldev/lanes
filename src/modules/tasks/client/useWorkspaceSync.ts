@@ -4,8 +4,8 @@ import {
   SyncStatusSchema,
   type SyncAdvance,
   type SyncStatus,
-} from '../modules/tasks/sync-contract';
-import { request } from '../client/http';
+} from '../sync-contract';
+import { request } from '../../../client/http';
 
 export function syncProgressNeedsRefresh(
   progress: Pick<SyncAdvance, 'phase' | 'errorCode'>,

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { z } from 'zod';
-import type { ConnectionSummary } from '../modules/accounts/contracts';
+import type { ConnectionSummary } from '../../accounts/contracts';
 import {
   TaskListSchema,
   type Label,
@@ -8,14 +8,14 @@ import {
   type TaskFilter,
   type TaskList,
   type TaskSort,
-} from '../modules/tasks/contracts';
-import { TaskCard } from '../modules/tasks/components/TaskCard';
-import { countOpenTasks, getBlockingStates } from '../modules/tasks/model';
-import { Icon } from '../ui/Icon';
-import { request } from '../client/http';
+} from '../contracts';
+import { TaskCard } from '../components/TaskCard';
+import { countOpenTasks, getBlockingStates } from '../model';
+import { Icon } from '../../../ui/Icon';
+import { request } from '../../../client/http';
 import { useTaskQuery } from './useTaskQuery';
 import './TaskCollectionWorkspace.css';
-import type { InitialViewReadiness } from '../client/readiness';
+import type { InitialViewReadiness } from '../../../client/readiness';
 
 const contextsSchema = z
   .object({

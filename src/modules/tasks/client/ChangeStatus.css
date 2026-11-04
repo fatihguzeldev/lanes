@@ -1,0 +1,25 @@
+.change-status__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+.change-status button {
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--canvas);
+  font-size: 12px;
+}
+.change-status__items {
+  display: grid;
+  gap: 8px;
+  margin-top: 18px;
+}
+.change-status__items button {
+  border: 0;
+  padding: 4px 0;
+  background: none;
+  color: var(--green);
+  text-align: left;
+}

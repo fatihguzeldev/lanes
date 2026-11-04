@@ -6,9 +6,9 @@ import { Dialog } from '../ui/Dialog';
 import { request } from '../client/http';
 import { BoardPageSchema, BoardListPageSchema } from '../modules/boards/query-contract';
 import { usePagedResource } from '../client/usePagedResource';
-import { useTaskQuery } from './useTaskQuery';
+import { useTaskQuery } from '../modules/tasks/client/useTaskQuery';
 import { newOperationId } from '../client/operation-identity';
-import { useCommands } from './useCommands';
+import { useCommands } from '../modules/tasks/client/useCommands';
 import { Select } from '../ui/Select';
 
 interface Props {

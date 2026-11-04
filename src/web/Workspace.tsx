@@ -39,41 +39,41 @@ import { useServerConnection } from '../client/useServerConnection';
 import { BoardPageSchema, BoardListPageSchema } from '../modules/boards/query-contract';
 import { usePagedResource } from '../client/usePagedResource';
 import { newOperationId } from '../client/operation-identity';
-import { useCommands } from './useCommands';
-import { useWorkspaceSync } from './useWorkspaceSync';
+import { useCommands } from '../modules/tasks/client/useCommands';
+import { useWorkspaceSync } from '../modules/tasks/client/useWorkspaceSync';
 import { BoardWorkspace } from './BoardWorkspace';
 import { CalendarWorkspace } from './CalendarWorkspace';
 import { CompletedWorkspace } from './CompletedWorkspace';
 import { HistoryPanel } from './HistoryPanel';
-import { TaskEditorWorkspace } from './TaskEditorWorkspace';
+import { TaskEditorWorkspace } from '../modules/tasks/client/TaskEditorWorkspace';
 import { Confirmation, type ConfirmationChoice } from '../client/Confirmation';
 import {
   TaskConsequencesSchema,
   ListConsequencesSchema,
 } from '../modules/tasks/consequence-contract';
-import { LabelManager } from './LabelManager';
-import { TaskCollectionWorkspace } from './TaskCollectionWorkspace';
-import { useRecurrenceWork } from './useRecurrenceWork';
-import { ReopenDialog } from './ReopenDialog';
+import { LabelManager } from '../modules/tasks/client/LabelManager';
+import { TaskCollectionWorkspace } from '../modules/tasks/client/TaskCollectionWorkspace';
+import { useRecurrenceWork } from '../modules/tasks/client/useRecurrenceWork';
+import { ReopenDialog } from '../modules/tasks/client/ReopenDialog';
 import { TaskMoveDialog } from './TaskMoveDialog';
 import { BoardOptions } from './BoardOptions';
 import { DuplicateDialog } from './DuplicateDialog';
-import { CompletedDeletionDialog } from './CompletedDeletionDialog';
+import { CompletedDeletionDialog } from '../modules/tasks/client/CompletedDeletionDialog';
 import { AccountMenu } from './AccountMenu';
 import { ThemeToggle } from './ThemeToggle';
 import { WorkspaceSettings } from './WorkspaceSettings';
 import { WorkspaceViewMenu } from './WorkspaceViewMenu';
-import { SyncControl } from './SyncControl';
+import { SyncControl } from '../modules/tasks/client/SyncControl';
 import { Select } from '../ui/Select';
 import { AnchoredPopover } from '../ui/Popover';
-import { ChangeStatus } from './ChangeStatus';
-import { TaskMoveError } from './save-task-move';
-import { useTaskMoveQueue } from './useTaskMoveQueue';
+import { ChangeStatus } from '../modules/tasks/client/ChangeStatus';
+import { TaskMoveError } from '../modules/tasks/client/save-task-move';
+import { useTaskMoveQueue } from '../modules/tasks/client/useTaskMoveQueue';
 import { OperationPageSchema } from '../modules/tasks/operation-contract';
-import { OperationResolutionDialog } from './OperationResolutionDialog';
+import { OperationResolutionDialog } from '../modules/tasks/client/OperationResolutionDialog';
 import { AccountLifecycleDialog } from './AccountLifecycleDialog';
 import { portabilityLanding } from './landing';
-import { usePlanningToday } from './usePlanningToday';
+import { usePlanningToday } from '../modules/tasks/client/usePlanningToday';
 import { useMobileNavigation } from './useMobileNavigation';
 import {
   RecurrenceAdvanceSchema,

@@ -1,13 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
-import { TaskSchema, type Task } from '../modules/tasks/contracts';
-import type { BoardColumn } from '../modules/boards/components/BoardSurface';
+import { TaskSchema, type Task } from '../contracts';
+import type { TaskMoveList } from './task-move-model';
 import {
-  createTaskMoveQueue,
   movesAcknowledged,
   openTaskOrder,
   projectTaskMoves,
   type QueuedTaskMove,
-} from './task-move-queue';
+} from './task-move-model';
+import { createTaskMoveQueue } from './task-move-queue';
 
 function task(id: string, listId = 'one', parentId: string | null = null): Task {
   return TaskSchema.parse({
@@ -45,7 +45,7 @@ function task(id: string, listId = 'one', parentId: string | null = null): Task 
     },
   });
 }
-function column(id: string, tasks: Task[]): BoardColumn {
+function column(id: string, tasks: Task[]): TaskMoveList {
   return {
     list: {
       id,

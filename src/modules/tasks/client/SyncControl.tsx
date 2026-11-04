@@ -1,9 +1,11 @@
-import type { OperationSummary } from '../modules/tasks/operation-contract';
+import type { OperationSummary } from '../operation-contract';
 import { changeLabel } from './change-status';
-import type { SyncStatus } from '../modules/tasks/sync-contract';
-import { Icon } from '../ui/Icon';
-import { Popover } from '../ui/Popover';
+import type { SyncStatus } from '../sync-contract';
+import { Icon } from '../../../ui/Icon';
+import { Popover } from '../../../ui/Popover';
 import { syncPresentation } from './sync-presentation';
+
+import './SyncControl.css';
 
 interface Props {
   unfinished: readonly OperationSummary[];
@@ -44,7 +46,7 @@ export function SyncControl(props: Props) {
           }
         />
       }
-      triggerClassName={`workspace__icon-button sync-control sync-control--${state.kind}`}
+      triggerClassName={`sync-control sync-control--${state.kind}`}
       className="sync-control__panel"
       align="end"
     >

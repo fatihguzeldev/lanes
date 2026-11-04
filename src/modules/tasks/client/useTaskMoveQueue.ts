@@ -1,13 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import type { BoardColumn, TaskMoveIntent } from '../modules/boards/components/BoardSurface';
-import {
-  createTaskMoveQueue,
-  latestTasks,
-  projectTaskMoves,
-  type QueuedTaskMove,
-} from './task-move-queue';
+import type { TaskMoveIntent } from '../contracts';
+import type { TaskMoveList } from './task-move-model';
+import { createTaskMoveQueue } from './task-move-queue';
+import { latestTasks, projectTaskMoves, type QueuedTaskMove } from './task-move-model';
 import { saveTaskMove } from './save-task-move';
-import { newOperationId } from '../client/operation-identity';
+import { newOperationId } from '../../../client/operation-identity';
 
 export function useTaskMoveQueue(
   accountId: string,
@@ -65,10 +62,10 @@ export function useTaskMoveQueue(
   return {
     moves,
     busy: moves.some((move) => !move.confirmed),
-    reconcile(columns: readonly BoardColumn[], scope: string) {
+    reconcile(columns: readonly TaskMoveList[], scope: string) {
       queue.current!.reconcile(columns, scope);
     },
-    enqueue(intent: TaskMoveIntent, columns: readonly BoardColumn[], scope: string) {
+    enqueue(intent: TaskMoveIntent, columns: readonly TaskMoveList[], scope: string) {
       if (intent.accountId !== accountId) return;
       const projected = projectTaskMoves(
         columns,

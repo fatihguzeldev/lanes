@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import type { ReopenPreview } from '../modules/tasks/recurrence-contract';
-import { RecurrenceStatusSchema } from '../modules/tasks/recurrence-contract';
-import { Dialog } from '../ui/Dialog';
-import { request } from '../client/http';
-import { newOperationId } from '../client/operation-identity';
-import { Select } from '../ui/Select';
+import type { ReopenPreview } from '../recurrence-contract';
+import { RecurrenceStatusSchema } from '../recurrence-contract';
+import { Dialog } from '../../../ui/Dialog';
+import { request } from '../../../client/http';
+import { newOperationId } from '../../../client/operation-identity';
+import { Select } from '../../../ui/Select';
 
 export function ReopenDialog({
   accountId,

@@ -1,6 +1,6 @@
-import type { TaskList } from '../modules/tasks/contracts';
-import type { OperationSummary } from '../modules/tasks/operation-contract';
-import { ProviderCommandSchema } from '../modules/tasks/provider-command-contract';
+import type { TaskList } from '../contracts';
+import type { OperationSummary } from '../operation-contract';
+import { ProviderCommandSchema } from '../provider-command-contract';
 
 export function captureInlineTask(
   list: Pick<TaskList, 'id' | 'accountId' | 'revision'>,

@@ -1,16 +1,16 @@
 import { useState } from 'react';
 import { z } from 'zod';
-import { Dialog } from '../ui/Dialog';
-import { Icon } from '../ui/Icon';
-import type { ConnectionSummary } from '../modules/accounts/contracts';
-import { LabelSchema, type Label } from '../modules/tasks/contracts';
-import { LabelPageSchema, TaskCoverageSchema } from '../modules/tasks/query-contract';
-import { LabelDeletionJobSchema } from '../modules/tasks/metadata-command-contract';
-import { Confirmation, type ConfirmationChoice } from '../client/Confirmation';
-import { checkServerConnection, request } from '../client/http';
-import { useServerConnection } from '../client/useServerConnection';
-import { usePagedResource } from '../client/usePagedResource';
-import { newOperationId } from '../client/operation-identity';
+import { Dialog } from '../../../ui/Dialog';
+import { Icon } from '../../../ui/Icon';
+import type { ConnectionSummary } from '../../accounts/contracts';
+import { LabelSchema, type Label } from '../contracts';
+import { LabelPageSchema, TaskCoverageSchema } from '../query-contract';
+import { LabelDeletionJobSchema } from '../metadata-command-contract';
+import { Confirmation, type ConfirmationChoice } from '../../../client/Confirmation';
+import { checkServerConnection, request } from '../../../client/http';
+import { useServerConnection } from '../../../client/useServerConnection';
+import { usePagedResource } from '../../../client/usePagedResource';
+import { newOperationId } from '../../../client/operation-identity';
 import { useCommands } from './useCommands';
 import './LabelManager.css';
 

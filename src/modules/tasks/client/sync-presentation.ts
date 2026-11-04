@@ -1,4 +1,4 @@
-import type { SyncStatus } from '../modules/tasks/sync-contract';
+import type { SyncStatus } from '../sync-contract';
 
 interface SyncInput {
   connected: boolean;

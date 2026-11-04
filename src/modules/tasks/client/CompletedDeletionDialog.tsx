@@ -1,23 +1,23 @@
 import { useEffect, useRef, useState } from 'react';
-import type { ConnectionSummary } from '../modules/accounts/contracts';
-import { TaskListSchema, type TaskList } from '../modules/tasks/contracts';
+import type { ConnectionSummary } from '../../accounts/contracts';
+import { TaskListSchema, type TaskList } from '../contracts';
 import {
   OperationIdSchema,
   OperationSummarySchema,
   type OperationSummary,
-} from '../modules/tasks/operation-contract';
+} from '../operation-contract';
 import {
   CompletedDeletionPageSchema,
   CompletedDeletionPreviewPageSchema,
   CompletedDeletionSummarySchema,
   type CompletedDeletionSummary,
-} from '../modules/tasks/completed-deletion-contract';
-import { Dialog } from '../ui/Dialog';
-import { Icon } from '../ui/Icon';
-import { request, RequestError } from '../client/http';
-import { newOperationId } from '../client/operation-identity';
-import { usePagedResource } from '../client/usePagedResource';
-import { useServerConnection } from '../client/useServerConnection';
+} from '../completed-deletion-contract';
+import { Dialog } from '../../../ui/Dialog';
+import { Icon } from '../../../ui/Icon';
+import { request, RequestError } from '../../../client/http';
+import { newOperationId } from '../../../client/operation-identity';
+import { usePagedResource } from '../../../client/usePagedResource';
+import { useServerConnection } from '../../../client/useServerConnection';
 import { CompletedDeletionConfirmation } from './CompletedDeletionConfirmation';
 import {
   completedDeletionAcknowledged,

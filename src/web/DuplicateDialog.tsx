@@ -9,7 +9,7 @@ import { request } from '../client/http';
 import { BoardPageSchema, BoardListPageSchema } from '../modules/boards/query-contract';
 import { usePagedResource } from '../client/usePagedResource';
 import { newOperationId } from '../client/operation-identity';
-import { useCommands } from './useCommands';
+import { useCommands } from '../modules/tasks/client/useCommands';
 import { useServerConnection } from '../client/useServerConnection';
 import { Select } from '../ui/Select';
 interface Props {

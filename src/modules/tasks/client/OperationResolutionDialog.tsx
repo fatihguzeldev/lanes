@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { ConnectionSummary } from '../modules/accounts/contracts';
+import type { ConnectionSummary } from '../../accounts/contracts';
 import {
   ResolutionCandidatesSchema,
   ResolutionContextSchema,
@@ -7,12 +7,14 @@ import {
   type ResolutionCandidate,
   type ResolutionContext,
   type ResolutionPreview,
-} from '../modules/tasks/resolution-contract';
-import { OperationSummarySchema } from '../modules/tasks/operation-contract';
-import { Dialog } from '../ui/Dialog';
-import { checkServerConnection, request } from '../client/http';
-import { useServerConnection } from '../client/useServerConnection';
-import { Select } from '../ui/Select';
+} from '../resolution-contract';
+import { OperationSummarySchema } from '../operation-contract';
+import { Dialog } from '../../../ui/Dialog';
+import { checkServerConnection, request } from '../../../client/http';
+import { useServerConnection } from '../../../client/useServerConnection';
+import { Select } from '../../../ui/Select';
+import './OperationResolutionDialog.css';
+
 interface Props {
   account: ConnectionSummary;
   operationId: string;

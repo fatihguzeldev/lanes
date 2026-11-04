@@ -1,4 +1,4 @@
-import type { OperationSummary } from '../modules/tasks/operation-contract';
+import type { OperationSummary } from '../operation-contract';
 
 export interface CompletedDeletionAcknowledgements {
   permanent: boolean;

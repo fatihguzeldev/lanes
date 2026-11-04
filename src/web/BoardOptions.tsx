@@ -6,7 +6,7 @@ import { Icon } from '../ui/Icon';
 import { AnchoredPopover } from '../ui/Popover';
 import { Select } from '../ui/Select';
 import { newOperationId } from '../client/operation-identity';
-import { useCommands } from './useCommands';
+import { useCommands } from '../modules/tasks/client/useCommands';
 import { useServerConnection } from '../client/useServerConnection';
 import './BoardOptions.css';
 
