@@ -1,0 +1,74 @@
+.select {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 100%;
+}
+.select__trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: inherit;
+  text-align: left;
+}
+.select__trigger > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.select__trigger > .icon {
+  color: var(--secondary);
+  flex-shrink: 0;
+}
+.select__trigger:hover:not(:disabled),
+.select__trigger[aria-expanded='true'] {
+  background: var(--paper-hover);
+}
+.select__trigger:disabled {
+  opacity: 0.5;
+}
+.select__trigger[aria-invalid='true'] {
+  border-color: var(--rust);
+}
+.select__popover {
+  min-width: 160px;
+  padding: 4px;
+}
+.select__option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 7px 9px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.select__option[data-active] {
+  background: var(--paper-hover);
+}
+.select__option[aria-disabled='true'] {
+  opacity: 0.45;
+  cursor: default;
+}
+.select__option > .icon {
+  flex-shrink: 0;
+  color: var(--green);
+}
+.select__option > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+@media (pointer: coarse) {
+  .select__trigger,
+  .select__option {
+    min-height: 44px;
+  }
+}

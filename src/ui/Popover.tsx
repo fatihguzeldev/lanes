@@ -1,0 +1,189 @@
+import { useId, useLayoutEffect, useRef, useState, type AriaRole, type ReactNode } from 'react';
+import { placePopover } from './floating';
+import './Popover.css';
+
+type Content = ReactNode | ((close: () => void) => ReactNode);
+
+export interface AnchoredPopoverProps {
+  anchor: HTMLElement;
+  label: string;
+  onClose: () => void;
+  children: Content;
+  align?: 'start' | 'end';
+  className?: string;
+  focusOnOpen?: boolean;
+  role?: AriaRole;
+  id?: string;
+}
+
+export function AnchoredPopover({
+  anchor,
+  label,
+  onClose,
+  children,
+  align = 'start',
+  className,
+  focusOnOpen = true,
+  role = 'dialog',
+  id,
+}: AnchoredPopoverProps) {
+  const ref = useRef<HTMLDivElement>(null);
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+  useLayoutEffect(() => {
+    const panel = ref.current;
+    if (!panel) return;
+    let restoreFocus = true;
+    const position = () => {
+      if (!anchor.isConnected) {
+        closeRef.current();
+        return;
+      }
+      const bounds = panel.getBoundingClientRect();
+      const next = placePopover(
+        anchor.getBoundingClientRect(),
+        bounds,
+        {
+          width: document.documentElement.clientWidth,
+          height: window.innerHeight,
+        },
+        align,
+      );
+      panel.style.left = `${next.left}px`;
+      panel.style.top = `${next.top}px`;
+      panel.style.maxHeight = `${next.maxHeight}px`;
+    };
+    const toggled = (event: Event) => {
+      if (event.target === panel && (event as ToggleEvent).newState === 'closed')
+        closeRef.current();
+    };
+    const outside = (event: PointerEvent) => {
+      if (
+        event.target instanceof Node &&
+        !panel.contains(event.target) &&
+        !anchor.contains(event.target)
+      )
+        restoreFocus = false;
+    };
+    const focus = (event: FocusEvent) => {
+      if (
+        event.target instanceof Node &&
+        !panel.contains(event.target) &&
+        !anchor.contains(event.target)
+      ) {
+        restoreFocus = false;
+        panel.hidePopover();
+      }
+    };
+    panel.addEventListener('toggle', toggled);
+    document.addEventListener('pointerdown', outside, true);
+    document.addEventListener('focusin', focus);
+    panel.showPopover();
+    position();
+    if (focusOnOpen) {
+      panel
+        .querySelector<HTMLElement>(
+          '[autofocus],button:not(:disabled),a[href],input:not(:disabled),textarea:not(:disabled),[tabindex="0"]',
+        )
+        ?.focus({ preventScroll: true });
+    } else anchor.focus({ preventScroll: true });
+    const observer = new ResizeObserver(position);
+    observer.observe(panel);
+    window.addEventListener('resize', position);
+    window.addEventListener('scroll', position, true);
+    return () => {
+      panel.removeEventListener('toggle', toggled);
+      document.removeEventListener('pointerdown', outside, true);
+      document.removeEventListener('focusin', focus);
+      observer.disconnect();
+      window.removeEventListener('resize', position);
+      window.removeEventListener('scroll', position, true);
+      if (panel.matches(':popover-open')) panel.hidePopover();
+      queueMicrotask(() => {
+        if (
+          restoreFocus &&
+          anchor.isConnected &&
+          (document.activeElement === document.body || panel.contains(document.activeElement))
+        )
+          anchor.focus({ preventScroll: true });
+      });
+    };
+  }, [anchor, align, focusOnOpen]);
+  return (
+    <div
+      ref={ref}
+      id={id}
+      popover="auto"
+      className={`popover__panel${className ? ` ${className}` : ''}`}
+      role={role}
+      aria-label={role === 'presentation' ? undefined : label}
+    >
+      {typeof children === 'function' ? children(onClose) : children}
+    </div>
+  );
+}
+
+export interface PopoverProps {
+  label: string;
+  trigger: ReactNode;
+  children: Content;
+  className?: string;
+  triggerClassName?: string;
+  disabled?: boolean;
+  align?: 'start' | 'end';
+  triggerId?: string;
+  'aria-invalid'?: boolean;
+  'aria-describedby'?: string;
+}
+
+export function Popover({
+  label,
+  trigger,
+  children,
+  className,
+  triggerClassName,
+  disabled,
+  align,
+  triggerId,
+  'aria-invalid': invalid,
+  'aria-describedby': describedBy,
+}: PopoverProps) {
+  const [open, setOpen] = useState(false);
+  const button = useRef<HTMLButtonElement>(null);
+  const id = useId();
+  useLayoutEffect(() => {
+    if (open && button.current?.matches(':disabled')) setOpen(false);
+  });
+  return (
+    <span className="popover">
+      <button
+        ref={button}
+        id={triggerId}
+        type="button"
+        className={`popover__trigger${triggerClassName ? ` ${triggerClassName}` : ''}`}
+        aria-label={label}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        aria-invalid={invalid}
+        aria-describedby={describedBy}
+        aria-controls={open ? id : undefined}
+        disabled={disabled}
+        onClick={() => setOpen((value) => !value)}
+      >
+        {trigger}
+      </button>
+      {open && button.current && (
+        <AnchoredPopover
+          anchor={button.current}
+          id={id}
+          label={label}
+          onClose={() => setOpen(false)}
+          {...(align ? { align } : {})}
+          {...(className ? { className } : {})}
+        >
+          {children}
+        </AnchoredPopover>
+      )}
+    </span>
+  );
+}

@@ -1,0 +1,42 @@
+@import './Select.css';
+
+.time-zone__trigger {
+  justify-content: space-between;
+  width: 100%;
+  border: 1px solid var(--line);
+  color: var(--ink);
+  background: var(--paper);
+}
+.time-zone__trigger > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.time-zone__trigger[aria-invalid='true'] {
+  border-color: var(--rust);
+}
+.time-zone__popover {
+  width: 320px;
+}
+.time-zone__search {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--canvas);
+  color: var(--ink);
+  padding: 8px 10px;
+  font-size: 13px;
+  margin-bottom: 5px;
+}
+.time-zone__list {
+  max-height: 250px;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.time-zone__empty {
+  margin: 0;
+  padding: 10px;
+  color: var(--secondary);
+}
