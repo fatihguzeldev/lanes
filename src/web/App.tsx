@@ -1,5 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { Brand } from '../ui/Brand';
+import { WorkspaceSkeleton } from './WorkspaceSkeleton';
 import {
   AccountPageSchema,
   SessionSnapshotSchema,
@@ -184,17 +185,11 @@ export function App() {
   const selected =
     session?.accounts?.items.find((account) => account.id === accountId) ??
     session?.accounts?.items[0];
+  if (!session && !error) return <WorkspaceSkeleton />;
   if (session?.authenticated && selected)
     return (
       <>
-        <Suspense
-          fallback={
-            <main className="entry">
-              <Brand />
-              <p className="entry-footer">opening your workspace…</p>
-            </main>
-          }
-        >
+        <Suspense fallback={<WorkspaceSkeleton />}>
           <Workspace
             key={selected.id}
             account={selected}
@@ -264,13 +259,8 @@ export function App() {
       <div className="entry-brand">
         <Brand />
       </div>
-      <section className="entry-paper" aria-busy={!session && !error}>
-        {!session && !error ? (
-          <>
-            <span className="entry-mark" aria-hidden="true" />
-            <h1>opening your workspace…</h1>
-          </>
-        ) : !session ? (
+      <section className="entry-paper">
+        {!session ? (
           <>
             <h1>couldn’t open lanes.</h1>
             <p role="alert">{error}</p>

@@ -9,7 +9,9 @@ import {
   type CSSProperties,
 } from 'react';
 import { z } from 'zod';
+import { Skeleton } from '../ui/Skeleton';
 import { Brand } from '../ui/Brand';
+import { BoardSkeleton } from '../modules/boards/components/BoardSkeleton';
 import { Icon } from '../ui/Icon';
 import { Dialog } from '../ui/Dialog';
 import type { ConnectionSummary } from '../modules/accounts/contracts';
@@ -82,6 +84,7 @@ import {
   type BoardViewPreferences,
 } from '../modules/boards/view-preferences';
 import './Workspace.css';
+import './WorkspaceSkeleton.css';
 
 export interface WorkspaceProps {
   account: ConnectionSummary;
@@ -251,6 +254,7 @@ export function Workspace({
   >(null);
   const [completedDeletionList, setCompletedDeletionList] = useState<TaskList | null>(null);
   const [resolvedBoard, setResolvedBoard] = useState<Board | null>(null);
+  const [failedBoardLookup, setFailedBoardLookup] = useState<string | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const changed = useCallback(() => setVersion((value) => value + 1), []);
   const commands = useCommands(account.id, clockOffset, changed);
@@ -303,12 +307,14 @@ export function Workspace({
       return;
     }
     const controller = new AbortController();
+    setFailedBoardLookup(null);
     void request(`${base}/boards/${encodeURIComponent(boardId)}`, BoardSchema, {
       signal: controller.signal,
     })
       .then(setResolvedBoard)
       .catch((error) => {
         if (controller.signal.aborted) return;
+        setFailedBoardLookup(boardId);
         if (error instanceof RequestError && error.code === 'not_found') {
           setBoardId(null);
           if (startBoardId === boardId) {
@@ -733,6 +739,11 @@ export function Workspace({
       });
   }
 
+  const awaitingBoard =
+    !board &&
+    (boards.status === 'loading' ||
+      (boardId !== null && failedBoardLookup !== boardId) ||
+      (sync.busy && !sync.status?.initialized));
   return (
     <div className={`workspace${navOpen ? ' workspace--nav-open' : ''}`}>
       <aside
@@ -840,7 +851,13 @@ export function Workspace({
             </button>
           ))}
           {boards.status === 'loading' && !boards.items.length && (
-            <p className="workspace__nav-note">loading boards…</p>
+            <div className="workspace-skeleton__boards" role="status" aria-label="loading boards">
+              {[0, 1, 2].map((key) => (
+                <div key={key} className="workspace-skeleton__board-name">
+                  <Skeleton className="workspace-skeleton__line" />
+                </div>
+              ))}
+            </div>
           )}
           {boards.error && <button onClick={() => void boards.reload()}>retry boards</button>}
           {boards.nextCursor && (
@@ -882,14 +899,26 @@ export function Workspace({
             >
               <Icon name="menu" />
             </button>
-            <h1>
+            <h1
+              aria-busy={awaitingBoard || undefined}
+              aria-label={
+                awaitingBoard && quick === 'all' && !(searchScope === 'account' && search)
+                  ? 'loading board'
+                  : undefined
+              }
+            >
               {quick === 'today'
                 ? 'today'
                 : quick === 'starred'
                   ? 'starred'
                   : searchScope === 'account' && search
                     ? 'search results'
-                    : (board?.title ?? 'your workspace')}
+                    : (board?.title ??
+                      (awaitingBoard ? (
+                        <Skeleton className="workspace-skeleton__title" />
+                      ) : (
+                        'boards'
+                      )))}
             </h1>
             {board && quick === 'all' && !(searchScope === 'account' && search) && (
               <button
@@ -1225,16 +1254,37 @@ export function Workspace({
             }}
           />
         )}
-        {!board && (
-          <div className="workspace__empty">
-            <Icon name="board" size={26} />
-            <h2>{boards.status === 'loading' ? 'opening your boards…' : 'no boards yet'}</h2>
-            <p>
-              {boards.error ||
-                'your google lists will appear here when the first refresh is ready.'}
-            </p>
-          </div>
-        )}
+        {!board &&
+          (awaitingBoard ? (
+            <div className="board-surface">
+              <div className="board-surface__scroll">
+                <BoardSkeleton />
+              </div>
+            </div>
+          ) : (
+            <div className="workspace__empty">
+              <Icon name="board" size={26} />
+              <h2>
+                {failedBoardLookup === boardId && boardId
+                  ? 'couldn’t load this board'
+                  : boards.error
+                    ? 'couldn’t load your boards'
+                    : 'no boards yet'}
+              </h2>
+              {boards.error ? (
+                <p role="alert">{boards.error}</p>
+              ) : (
+                !failedBoardLookup && (
+                  <p>your google lists will appear here when the first refresh is ready.</p>
+                )
+              )}
+              {(boards.error || (boardId && failedBoardLookup === boardId)) && (
+                <button className="workspace__retry-board" onClick={changed}>
+                  try again
+                </button>
+              )}
+            </div>
+          ))}
       </main>
       {editor && (
         <TaskEditorWorkspace
