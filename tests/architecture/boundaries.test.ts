@@ -318,4 +318,13 @@ describe('source ownership and runtime boundaries', () => {
     expect(result.status).toBe(1);
     expect(result.stderr).toContain('browser/server boundary');
   });
+  it('checks type-query imports before exposing private persistence rows', () => {
+    const result = check({
+      'src/modules/boards/contracts/board.ts':
+        "export type Row = import('../../tasks/server/metadata/records').TaskRow;",
+      'src/modules/tasks/server/metadata/records.ts': 'export interface TaskRow{}',
+    });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('explicit public operation/query');
+  });
 });

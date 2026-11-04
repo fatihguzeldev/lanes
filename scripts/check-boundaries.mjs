@@ -159,6 +159,14 @@ for (const file of files) {
             node.exportClause.elements.some((element) => !element.isTypeOnly));
     }
     if (
+      ts.isImportTypeNode(node) &&
+      ts.isLiteralTypeNode(node.argument) &&
+      ts.isStringLiteralLike(node.argument.literal)
+    ) {
+      target = node.argument.literal.text;
+      runtime = false;
+    }
+    if (
       ts.isCallExpression(node) &&
       node.expression.kind === ts.SyntaxKind.ImportKeyword &&
       node.arguments[0] &&
