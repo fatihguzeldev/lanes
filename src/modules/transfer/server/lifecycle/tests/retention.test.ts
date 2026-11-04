@@ -5,10 +5,10 @@ import { OperationStore } from '../../../../operations/server/journal/store';
 import { TaskSnapshotReader } from '../../../../tasks/server/queries/snapshot-reader';
 import { ListSnapshotStore } from '../../../../tasks/server/templates/snapshots';
 import { TemplateDocumentStore } from '../../../../tasks/server/templates/documents';
-import { TransferImportService } from '../../imports/imports';
-import { transferDigest } from '../../identity/content-hash';
+import { TransferImportService } from '../../imports/service';
+import { transferDigest } from '../../integrity';
 import { AccountTransferService } from '../../account-copy/account-transfer';
-import { WorkspaceArchiveStore } from '../../archives/archive-store';
+import { WorkspaceArchiveStore } from '../../archives/import/store';
 import { TransferRetention } from '../retention';
 import type { D1Database } from '@cloudflare/workers-types';
 

@@ -6,7 +6,7 @@ import { AppError } from '../../../shared/contracts/errors';
 import {
   GOOGLE_SHEETS_IMPORT_SCOPE,
   parseSheetRange,
-} from '../../../modules/transfer/server/sheets/sheets';
+} from '../../../modules/transfer/server/sheets/provider';
 import {
   AdoptSheetsVerificationSchema,
   FreshSheetsAttemptSchema,

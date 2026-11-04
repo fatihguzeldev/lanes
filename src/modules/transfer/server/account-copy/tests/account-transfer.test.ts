@@ -1,7 +1,7 @@
 import { afterEach, expect, it } from 'vitest';
 import { seedAccount, testDatabase } from '../../../../../../tests/support/sqlite-d1';
 import { TaskSnapshotReader } from '../../../../tasks/server/queries/snapshot-reader';
-import { TransferImportService } from '../../imports/imports';
+import { TransferImportService } from '../../imports/service';
 import { AccountTransferService } from '../account-transfer';
 const now = Date.parse('2026-11-02T12:00:00Z'),
   id = `${now}:accounttransfer1`;

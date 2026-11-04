@@ -1,9 +1,9 @@
 import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types';
-import { AppError } from '../../../../shared/contracts/errors';
-import { localWriteGuard } from '../../../accounts/server/connections/access';
-import type { ArchiveHeader, ArchiveRecord } from '../../contracts/archive';
-import { canonicalJson, transferDigest } from '../identity/content-hash';
-import { CapturedGraphValidator } from '../imports/captured-graph';
+import { AppError } from '../../../../../shared/contracts/errors';
+import { localWriteGuard } from '../../../../accounts/server/connections/access';
+import type { ArchiveHeader, ArchiveRecord } from '../../../contracts/archive';
+import { canonicalJson, transferDigest } from '../../integrity';
+import { CapturedGraphValidator } from '../../imports/graph';
 export interface ArchiveValidationRow {
   id: string;
   account_id: string;

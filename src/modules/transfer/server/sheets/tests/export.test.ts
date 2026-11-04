@@ -7,12 +7,8 @@ import { CommandRetention } from '../../../../tasks/server/commands/retention';
 import { readActiveLists } from '../../../../tasks/server/queries/lists';
 import { TaskQueries } from '../../../../tasks/server/queries/tasks';
 import { SheetsExportSummarySchema } from '../../../contracts/export';
-import { GoogleSheetsClient } from '../sheets';
-import {
-  MAX_SHEETS_EXPORT_BYTES,
-  MAX_SHEETS_EXPORT_TASKS,
-  SheetsExportService,
-} from '../sheets-export';
+import { GoogleSheetsClient } from '../provider';
+import { MAX_SHEETS_EXPORT_BYTES, MAX_SHEETS_EXPORT_TASKS, SheetsExportService } from '../export';
 
 const initial = Date.parse('2026-11-02T12:00:00Z');
 const databases: ReturnType<typeof testDatabase>[] = [];

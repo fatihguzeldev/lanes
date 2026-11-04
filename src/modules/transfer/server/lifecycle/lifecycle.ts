@@ -10,7 +10,7 @@ import type { OperationStore } from '../../../operations/server/journal/store';
 import type { TaskSnapshotReader } from '../../../tasks/server/queries/snapshot-reader';
 import type { TemplateDocumentStore } from '../../../tasks/server/templates/documents';
 import type { ArchiveHeader } from '../../contracts/archive';
-import { transferDigest } from '../identity/content-hash';
+import { transferDigest } from '../integrity';
 export interface TransferProviderLifecycle {
   pauseAccount(accountId: string, limit?: number): Promise<{ done: boolean; pending: boolean }>;
   removeAccountSlice(

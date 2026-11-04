@@ -8,8 +8,8 @@ import { OperationIdSchema } from '../../../operations/contracts/receipt';
 import type { TaskSnapshotReader } from '../../../tasks/server/queries/snapshot-reader';
 import type { Board } from '../../../boards/contracts/board';
 import type { ImportSummary } from '../../contracts/import';
-import type { TransferImportService } from '../imports/imports';
-import { canonicalJson, transferDigest } from '../identity/content-hash';
+import type { TransferImportService } from '../imports/service';
+import { canonicalJson, transferDigest } from '../integrity';
 const id = ResourceIdSchema.max(1024);
 const schema = z
   .object({

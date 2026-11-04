@@ -10,8 +10,8 @@ import {
   type StartSheetsVerification,
   type SheetsVerificationSummary,
 } from '../../contracts/export';
-import { GoogleSheetsError, parseSpreadsheetId } from './sheets';
-import type { SheetsExportOptions } from './sheets-export';
+import { GoogleSheetsError, parseSpreadsheetId } from './provider';
+import type { SheetsExportOptions } from './export';
 
 type Options = Pick<
   SheetsExportOptions,

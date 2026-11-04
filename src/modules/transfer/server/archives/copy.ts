@@ -4,9 +4,9 @@ import { AppError } from '../../../../shared/contracts/errors';
 import { OperationIdSchema } from '../../../operations/contracts/receipt';
 import type { ArchiveRecord } from '../../contracts/archive';
 import { ImportDestinationSchema, type ImportSummary } from '../../contracts/import';
-import { canonicalJson, transferDigest } from '../identity/content-hash';
-import type { TransferImportService } from '../imports/imports';
-import type { WorkspaceArchiveStore } from './archive-store';
+import { canonicalJson, transferDigest } from '../integrity';
+import type { TransferImportService } from '../imports/service';
+import type { WorkspaceArchiveStore } from './import/store';
 const schema = z
   .object({
     id: OperationIdSchema,

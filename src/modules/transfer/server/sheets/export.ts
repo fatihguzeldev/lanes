@@ -19,12 +19,12 @@ import {
   type SheetsExportSummary,
 } from '../../contracts/export';
 import { TaskCsvExportService, type TaskCsvExportOptions } from '../exports/csv-export';
-import { GoogleSheetsClient, GoogleSheetsError } from './sheets';
+import { GoogleSheetsClient, GoogleSheetsError } from './provider';
 import {
   SheetsResolutionService,
   type AdoptSheetsVerification,
   type StartSheetsVerification,
-} from './sheets-resolution';
+} from './resolution';
 
 export const MAX_SHEETS_EXPORT_TASKS = 99_989;
 export const MAX_SHEETS_EXPORT_BYTES = 20 * 1024 * 1024;

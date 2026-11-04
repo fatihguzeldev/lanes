@@ -7,7 +7,7 @@ import {
   GOOGLE_SHEETS_IMPORT_SCOPE,
   parseSheetRange,
   parseSpreadsheetId,
-} from '../sheets';
+} from '../provider';
 
 const id = 'spreadsheet_1234567890';
 const metadata = {

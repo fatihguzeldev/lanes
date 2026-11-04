@@ -1,4 +1,4 @@
-import { canonicalJson, transferDigest } from '../identity/content-hash';
+import { canonicalJson, transferDigest } from '../integrity';
 import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types';
 import { z } from 'zod';
 import { AppError } from '../../../../shared/contracts/errors';
@@ -11,7 +11,7 @@ import type {
   CopyListDefinition,
 } from '../../../tasks/server/commands/copy-contract';
 import { type NormalizedImportTask } from '../../contracts/parsing';
-import { ImportValidator } from './import-validation';
+import { ImportValidator } from './validation';
 import {
   BeginImportSchema,
   ConfirmImportSchema,

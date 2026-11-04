@@ -1,10 +1,10 @@
 import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types';
-import { AppError } from '../../../../shared/contracts/errors';
-import { type ArchiveRecord } from '../../contracts/archive';
-import { canonicalJson } from '../identity/content-hash';
-import { type ArchiveRow } from './archive-store';
-import type { ArchiveRestoreOptions } from './restore-dependencies';
-import { conflict, type ActionRow, type LocalAction } from './restore-state';
+import { AppError } from '../../../../../shared/contracts/errors';
+import { type ArchiveRecord } from '../../../contracts/archive';
+import { canonicalJson } from '../../integrity';
+import { type ArchiveRow } from '../import/store';
+import type { ArchiveRestoreOptions } from './dependencies';
+import { conflict, type ActionRow, type LocalAction } from './state';
 
 /** Captures each local intent and commits its owner writes with the same receipt. */
 export class ArchiveRestoreCommands {

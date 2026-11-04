@@ -20,7 +20,7 @@ import { TransferLifecycle } from '../../modules/transfer/server/lifecycle/lifec
 import {
   GOOGLE_SHEETS_EXPORT_SCOPE,
   GoogleSheetsClient,
-} from '../../modules/transfer/server/sheets/sheets';
+} from '../../modules/transfer/server/sheets/provider';
 import { AppError } from '../../shared/contracts/errors';
 import type { Configuration, Env } from '../configuration/env';
 import { googleTransport } from '../transport/google-transport';

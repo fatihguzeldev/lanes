@@ -3,7 +3,7 @@ import { createServer } from 'node:http';
 import { afterAll, beforeAll, expect, it } from 'vitest';
 import { exchangeGoogleCode } from '../../src/modules/accounts/server/oauth/google';
 import { GoogleTasksClient } from '../../src/modules/tasks/server/provider/google-tasks';
-import { GoogleSheetsClient } from '../../src/modules/transfer/server/sheets/sheets';
+import { GoogleSheetsClient } from '../../src/modules/transfer/server/sheets/provider';
 
 let origin: string;
 let forwarded = 0;

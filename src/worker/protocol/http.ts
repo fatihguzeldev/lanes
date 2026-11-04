@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { AppError } from '../../shared/contracts/errors';
 import type { ErrorEnvelope } from '../../shared/contracts/http';
 import { GoogleTasksError } from '../../modules/tasks/server/provider/google-tasks';
-import { GoogleSheetsError } from '../../modules/transfer/server/sheets/sheets';
+import { GoogleSheetsError } from '../../modules/transfer/server/sheets/provider';
 
 const maxInputBytes = 64 * 1024;
 

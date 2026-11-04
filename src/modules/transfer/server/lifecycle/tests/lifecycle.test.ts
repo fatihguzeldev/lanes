@@ -3,7 +3,7 @@ import { afterEach, expect, it } from 'vitest';
 import { seedAccount, testDatabase } from '../../../../../../tests/support/sqlite-d1';
 import { TaskSnapshotReader } from '../../../../tasks/server/queries/snapshot-reader';
 import { OperationStore } from '../../../../operations/server/journal/store';
-import { TransferImportService } from '../../imports/imports';
+import { TransferImportService } from '../../imports/service';
 import { TransferLifecycle } from '../lifecycle';
 const now = Date.parse('2026-11-02T12:00:00Z'),
   id = `${now}:abcdefghijklmnop`;
@@ -116,7 +116,7 @@ it('retains transfer evidence when the shared provider journal still has an unre
 it('removes partial import/archive graph checkpoints explicitly without FK cascades or hidden row changes', async () => {
   const f = await fixture();
   await f.imports.sealPreview(id, 'a');
-  const { WorkspaceArchiveStore } = await import('../../archives/archive-store');
+  const { WorkspaceArchiveStore } = await import('../../archives/import/store');
   const store = new WorkspaceArchiveStore(f.db, {
       now: () => now,
       identity: async () => ({

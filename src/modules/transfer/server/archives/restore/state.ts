@@ -1,6 +1,6 @@
-import { AppError } from '../../../../shared/contracts/errors';
-import type { HistoryEventInput } from '../../../history/contracts/events';
-import type { ArchiveField, ArchiveRecord } from '../../contracts/archive';
+import { AppError } from '../../../../../shared/contracts/errors';
+import type { HistoryEventInput } from '../../../../history/contracts/events';
+import type { ArchiveField, ArchiveRecord } from '../../../contracts/archive';
 
 export interface ActionRow {
   archive_id: string;

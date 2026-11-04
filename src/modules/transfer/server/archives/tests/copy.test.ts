@@ -1,8 +1,8 @@
 import { afterEach, expect, it } from 'vitest';
 import { seedAccount, testDatabase } from '../../../../../../tests/support/sqlite-d1';
-import { TransferImportService } from '../../imports/imports';
-import { ArchiveSnapshotCopyService } from '../archive-copy';
-import { WorkspaceArchiveStore } from '../archive-store';
+import { TransferImportService } from '../../imports/service';
+import { ArchiveSnapshotCopyService } from '../copy';
+import { WorkspaceArchiveStore } from '../import/store';
 const now = Date.parse('2026-11-02T12:00:00Z'),
   archiveId = `${now}:abcdefghijklmnop`,
   copyId = `${now}:abcdefghijklmnop2`;

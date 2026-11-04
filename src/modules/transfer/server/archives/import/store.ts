@@ -1,8 +1,11 @@
 import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types';
 import { z } from 'zod';
-import { AppError } from '../../../../shared/contracts/errors';
-import { assertLocalWritable, localWriteGuard } from '../../../accounts/server/connections/access';
-import { OperationIdSchema } from '../../../operations/contracts/receipt';
+import { AppError } from '../../../../../shared/contracts/errors';
+import {
+  assertLocalWritable,
+  localWriteGuard,
+} from '../../../../accounts/server/connections/access';
+import { OperationIdSchema } from '../../../../operations/contracts/receipt';
 import {
   ArchiveCaptureChunkSchema,
   ArchiveHeaderSchema,
@@ -11,10 +14,10 @@ import {
   type ArchiveHeader,
   type ArchiveImportMode,
   type ArchiveRecord,
-} from '../../contracts/archive';
-import { MAX_IMPORT_FILE_BYTES } from '../../contracts/parsing';
-import { canonicalJson, transferDigest } from '../identity/content-hash';
-import { ArchiveValidator } from './archive-validation';
+} from '../../../contracts/archive';
+import { MAX_IMPORT_FILE_BYTES } from '../../../contracts/parsing';
+import { canonicalJson, transferDigest } from '../../integrity';
+import { ArchiveValidator } from './validation';
 const identity = z.string().min(1).max(1024);
 const beginSchema = z
   .object({

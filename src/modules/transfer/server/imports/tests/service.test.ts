@@ -1,7 +1,7 @@
 import { createOperationStore } from '../../../../../../tests/support/operation-store';
 import { afterEach, expect, it } from 'vitest';
 import { seedAccount, testDatabase } from '../../../../../../tests/support/sqlite-d1';
-import { TransferImportService } from '../imports';
+import { TransferImportService } from '../service';
 import type { BeginImport } from '../../../contracts/import';
 const now = Date.parse('2026-11-02T12:00:00Z'),
   id = `${now}:abcdefghijklmnop`;

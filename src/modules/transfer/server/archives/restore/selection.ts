@@ -1,18 +1,18 @@
 import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types';
-import { AppError } from '../../../../shared/contracts/errors';
-import { localWriteGuard } from '../../../accounts/server/connections/access';
+import { AppError } from '../../../../../shared/contracts/errors';
+import { localWriteGuard } from '../../../../accounts/server/connections/access';
 import {
   ArchiveChoiceChunkSchema,
   type ArchiveField,
   type ArchiveMatch,
   type ArchiveRecord,
   type ArchiveRestorePreview,
-} from '../../contracts/archive';
-import { canonicalJson } from '../identity/content-hash';
-import { type ArchiveRecordRow, type ArchiveRow, type ArchiveSummary } from './archive-store';
-import type { ArchiveRestoreOptions } from './restore-dependencies';
-import { ArchiveRestoreSource } from './restore-source';
-import { conflict } from './restore-state';
+} from '../../../contracts/archive';
+import { canonicalJson } from '../../integrity';
+import { type ArchiveRecordRow, type ArchiveRow, type ArchiveSummary } from '../import/store';
+import type { ArchiveRestoreOptions } from './dependencies';
+import { ArchiveRestoreSource } from './source';
+import { conflict } from './state';
 
 const equal = (a: unknown, b: unknown) => canonicalJson(a) === canonicalJson(b);
 

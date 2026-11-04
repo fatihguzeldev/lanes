@@ -1,6 +1,6 @@
 import { afterEach, expect, it } from 'vitest';
-import { seedAccount, testDatabase } from '../../../../../../tests/support/sqlite-d1';
-import { WorkspaceArchiveStore } from '../archive-store';
+import { seedAccount, testDatabase } from '../../../../../../../tests/support/sqlite-d1';
+import { WorkspaceArchiveStore } from '../store';
 const now = Date.parse('2026-11-02T12:00:00Z'),
   id = `${now}:abcdefghijklmnop`;
 const header = {

@@ -3,9 +3,9 @@ import { AppError } from '../../../../shared/contracts/errors';
 import type { OperationQueries } from '../../../operations/server/queries/receipts';
 import type { TaskSnapshotReader } from '../../../tasks/server/queries/snapshot-reader';
 import type { TemplateDocumentStore } from '../../../tasks/server/templates/documents';
-import type { SheetsExportService } from '../sheets/sheets-export';
-import type { ArchiveExportService } from '../archives/archive-export';
-import { transferDigest } from '../identity/content-hash';
+import type { SheetsExportService } from '../sheets/export';
+import type { ArchiveExportService } from '../archives/export/service';
+import { transferDigest } from '../integrity';
 import type { ArchiveHeader } from '../../contracts/archive';
 
 export interface TransferRetentionOptions {

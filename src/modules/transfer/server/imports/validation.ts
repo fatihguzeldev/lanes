@@ -1,8 +1,8 @@
 import type { D1Database } from '@cloudflare/workers-types';
 import { AppError } from '../../../../shared/contracts/errors';
 import { localWriteGuard } from '../../../accounts/server/connections/access';
-import { CapturedGraphValidator } from './captured-graph';
-import { canonicalJson, transferDigest } from '../identity/content-hash';
+import { CapturedGraphValidator } from './graph';
+import { canonicalJson, transferDigest } from '../integrity';
 export interface ImportValidationRow {
   id: string;
   account_id: string;

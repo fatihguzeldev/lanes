@@ -12,7 +12,7 @@ these fixtures contain small authored task examples. no fixture was downloaded f
 
 `workbooks/tasks.xlsx`, `workbooks/tasks.xls`, `workbooks/tasks.ods`, and `workbooks/tasks.numbers` contain the same authored rows. they are actual files in their respective formats, produced by the [official sheetjs community edition 0.20.3 distribution](https://cdn.sheetjs.com/). they are not a common file with renamed extensions.
 
-`workbooks/generate.mjs` records how the files were made. run `node src/modules/transfer/fixtures/workbooks/generate.mjs` after installing the locked dependencies to regenerate them.
+`workbooks/generate.mjs` records how the files were made. run `node src/modules/transfer/formats/fixtures/workbooks/generate.mjs` after installing the locked dependencies to regenerate them.
 
 sheetjs's numbers writer starts with the real working numbers file encoded in its `xlsx/dist/xlsx.zahl.mjs` payload and rewrites its table data. the resulting fixture contains numbers metadata and framed-snappy protobuf `.iwa` records. the payload and writer are distributed in the official Apache-2.0 package. its license is retained verbatim in `workbooks/LICENSE.sheetjs`. see the [official numbers export explanation](https://docs.sheetjs.com/docs/api/write-options/#numbers-exports). the fixture's task values were authored here; its blank template assets come from that licensed payload.
 

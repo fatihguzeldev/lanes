@@ -11,15 +11,15 @@ import { TaskSnapshotReader } from '../../modules/tasks/server/queries/snapshot-
 import type { TaskQueries } from '../../modules/tasks/server/queries/tasks';
 import { TemplateDocumentStore } from '../../modules/tasks/server/templates/documents';
 import { AccountTransferService } from '../../modules/transfer/server/account-copy/account-transfer';
-import { ArchiveSnapshotCopyService } from '../../modules/transfer/server/archives/archive-copy';
-import { ArchiveExportService } from '../../modules/transfer/server/archives/archive-export';
-import { ArchiveRestoreService } from '../../modules/transfer/server/archives/archive-restore';
-import { WorkspaceArchiveStore } from '../../modules/transfer/server/archives/archive-store';
+import { ArchiveSnapshotCopyService } from '../../modules/transfer/server/archives/copy';
+import { ArchiveExportService } from '../../modules/transfer/server/archives/export/service';
+import { ArchiveRestoreService } from '../../modules/transfer/server/archives/restore/service';
+import { WorkspaceArchiveStore } from '../../modules/transfer/server/archives/import/store';
 import { TaskCsvExportService } from '../../modules/transfer/server/exports/csv-export';
-import { TransferImportService } from '../../modules/transfer/server/imports/imports';
+import { TransferImportService } from '../../modules/transfer/server/imports/service';
 import { TransferRetention } from '../../modules/transfer/server/lifecycle/retention';
-import type { GoogleSheetsClient } from '../../modules/transfer/server/sheets/sheets';
-import { SheetsExportService } from '../../modules/transfer/server/sheets/sheets-export';
+import type { GoogleSheetsClient } from '../../modules/transfer/server/sheets/provider';
+import { SheetsExportService } from '../../modules/transfer/server/sheets/export';
 import { AppError } from '../../shared/contracts/errors';
 import { createTemplateOwners, type TemplateOwners } from './template-services';
 interface Dependencies {

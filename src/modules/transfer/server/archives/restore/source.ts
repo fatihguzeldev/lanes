@@ -1,9 +1,9 @@
 import type { D1Database } from '@cloudflare/workers-types';
-import type { BoardQueries } from '../../../boards/server/boards/queries';
-import type { ArchiveHeader, ArchiveRecord } from '../../contracts/archive';
-import { transferDigest } from '../identity/content-hash';
-import type { ArchiveRow } from './archive-store';
-import { conflict } from './restore-state';
+import type { BoardQueries } from '../../../../boards/server/boards/queries';
+import type { ArchiveHeader, ArchiveRecord } from '../../../contracts/archive';
+import { transferDigest } from '../../integrity';
+import type { ArchiveRow } from '../import/store';
+import { conflict } from './state';
 
 export class ArchiveRestoreSource {
   constructor(

@@ -1,19 +1,19 @@
 import type { D1Database } from '@cloudflare/workers-types';
-import { assertLocalWritable } from '../../../accounts/server/connections/access';
-import type { HistoryEventInput } from '../../../history/contracts/events';
-import type { ProviderCommand } from '../../../tasks/contracts/provider-commands';
+import { assertLocalWritable } from '../../../../accounts/server/connections/access';
+import type { HistoryEventInput } from '../../../../history/contracts/events';
+import type { ProviderCommand } from '../../../../tasks/contracts/provider-commands';
 import {
   type ArchiveField,
   type ArchiveHeader,
   type ArchiveMatch,
   type ArchiveRecord,
-} from '../../contracts/archive';
-import { type ArchiveRecordRow, type ArchiveRow, type ArchiveSummary } from './archive-store';
-import { ArchiveRestoreCommands } from './restore-commands';
-import type { ArchiveRestoreOptions } from './restore-dependencies';
-import { ArchiveRestoreSelection } from './restore-selection';
-import { ArchiveRestoreSource } from './restore-source';
-import { conflict, type ActionRow, type LocalAction } from './restore-state';
+} from '../../../contracts/archive';
+import { type ArchiveRecordRow, type ArchiveRow, type ArchiveSummary } from '../import/store';
+import { ArchiveRestoreCommands } from './commands';
+import type { ArchiveRestoreOptions } from './dependencies';
+import { ArchiveRestoreSelection } from './selection';
+import { ArchiveRestoreSource } from './source';
+import { conflict, type ActionRow, type LocalAction } from './state';
 
 /** Restore applies only lanes-owned fields through their owners. Provider content is never created/deleted here. */
 export class ArchiveRestoreService {
