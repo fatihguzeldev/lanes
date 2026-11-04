@@ -1,9 +1,7 @@
 import { useRef, useState } from 'react';
-import { z } from 'zod';
 import { parseFileInWorker } from '../parsing/parser-client';
 import {
   importFields,
-  type ImportField,
   type ImportMapping,
   type ImportOptions,
   type ImportPreview,
@@ -20,12 +18,7 @@ import type { ImportSummary } from '../protocol/response-contracts';
 import { captureImport, createImportCapture, type ImportCapture } from './capture-import';
 import { AccountChoice, DestinationChoice } from '../account-copy/TransferSelection';
 import { destinationValue, useBoardLists } from '../workspace/useBoardLists';
-import {
-  providerReady,
-  transferBase,
-  writable,
-  type TransferProps,
-} from '../workspace/transfer-context';
+import { transferBase, writable, type TransferProps } from '../workspace/transfer-context';
 import { sheetsConsent } from '../sheets/consent';
 import { TransferConnection, TransferError } from '../workspace/TransferFeedback';
 import { useTransferAction } from '../workspace/useTransferAction';

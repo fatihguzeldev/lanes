@@ -1,0 +1,13 @@
+.workspace-settings {
+  width: 260px;
+}
+.workspace-settings__body {
+  display: grid;
+  gap: 15px;
+  padding: 10px;
+}
+.workspace-settings__tools {
+  border-top: 1px solid var(--fine);
+  padding-top: 6px;
+  margin: 0 -6px -6px;
+}

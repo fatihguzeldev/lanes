@@ -1,3 +1,5 @@
+import './WorkspaceNavigation.css';
+import './WorkspaceToolbar.css';
 import { Skeleton } from '../../shared/ui/skeleton/Skeleton';
 import { Brand } from '../../shared/ui/brand/Brand';
 import { Icon } from '../../shared/ui/icon/Icon';

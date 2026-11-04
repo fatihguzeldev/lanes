@@ -9,7 +9,6 @@ import { ConfirmImportSchema, DEFAULT_IMPORTED_LABEL_COLOR } from '../../contrac
 import {
   accountBase,
   escaped,
-  message,
   providerReady,
   transferBase,
   writable,
