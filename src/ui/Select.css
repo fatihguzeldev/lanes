@@ -32,6 +32,13 @@
 .select__trigger[aria-expanded='true'] {
   background: var(--paper-hover);
 }
+.select__trigger:hover:not(:disabled):not([aria-invalid='true']),
+.select__trigger[aria-expanded='true']:not([aria-invalid='true']) {
+  border-color: color-mix(in srgb, var(--green) 55%, var(--line));
+}
+.select__trigger[aria-expanded='true'] > .icon {
+  color: var(--green);
+}
 .select__trigger:disabled {
   opacity: 0.5;
 }
@@ -40,6 +47,7 @@
 }
 .select__popover {
   min-width: 160px;
+  max-width: min(320px, calc(100vw - 24px));
   padding: 4px;
 }
 .select__option {
@@ -53,6 +61,10 @@
 }
 .select__option[data-active] {
   background: var(--paper-hover);
+}
+.select__option[aria-selected='true'] {
+  color: var(--green);
+  background: color-mix(in srgb, var(--green-soft) 45%, var(--paper));
 }
 .select__option[aria-disabled='true'] {
   opacity: 0.45;

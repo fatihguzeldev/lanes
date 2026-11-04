@@ -45,7 +45,9 @@ export function AccountMenu({
                 }}
               >
                 <span>{item.email}</span>
-                {item.id === account.id && <Icon name="check" size={14} />}
+                {item.id === account.id && (
+                  <Icon name="check" size={14} className="account-menu__selected-check" />
+                )}
               </button>
             ))}
           <button
@@ -64,7 +66,7 @@ export function AccountMenu({
               onManage();
             }}
           >
-            connection and data
+            <Icon name="link" size={15} /> connection and data
           </button>
           <button
             className="popover__item"

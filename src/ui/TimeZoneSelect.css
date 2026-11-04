@@ -16,8 +16,16 @@
 .time-zone__trigger[aria-invalid='true'] {
   border-color: var(--rust);
 }
+.time-zone__trigger:hover:not(:disabled):not([aria-invalid='true']),
+.time-zone__trigger[aria-expanded='true']:not([aria-invalid='true']) {
+  border-color: color-mix(in srgb, var(--green) 55%, var(--line));
+}
+.time-zone__trigger[aria-expanded='true'] > .icon {
+  color: var(--green);
+}
 .time-zone__popover {
-  width: 320px;
+  width: 260px;
+  max-width: min(260px, calc(100vw - 24px));
 }
 .time-zone__search {
   width: 100%;
