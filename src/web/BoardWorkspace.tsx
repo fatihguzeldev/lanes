@@ -10,6 +10,8 @@ import type { TaskFilter, TaskSort } from '../modules/tasks/contracts';
 import { useTaskQuery } from './useTaskQuery';
 import { unknownCoverage } from './usePagedResource';
 import { InlineTaskCreate } from './InlineTaskCreate';
+import type { TaskMoveQueue } from './useTaskMoveQueue';
+import { projectTaskMoves } from './task-move-queue';
 import type { InitialViewReadiness } from './workspace-startup';
 
 type Actions = {
@@ -62,6 +64,8 @@ function ColumnData({
       list,
       tasks: [...open.page.items, ...completed.page.items],
       coverage: open.page.coverage,
+      providerComplete: open.page.providerCoverage.complete,
+      readVersion: open.status === 'ready' && open.settled ? version : undefined,
       status: open.status,
       countLoading: open.status === 'loading' && !open.loaded,
       nextCursor: open.page.nextCursor,
@@ -87,6 +91,7 @@ function ColumnData({
       list,
       open.page,
       open.status,
+      open.settled,
       open.loaded,
       open.error,
       completed.page,
@@ -96,6 +101,7 @@ function ColumnData({
       completedRequested,
       discoverCompleted,
       completion,
+      version,
     ],
   );
   useEffect(() => onData(list.id, data), [list.id, data, onData]);
@@ -148,6 +154,7 @@ export interface BoardWorkspaceProps extends Omit<
   | 'providerActionsEnabled'
   | 'relatedTasks'
   | 'renderTaskCreate'
+  | 'onMoveTask'
 > {
   account: ConnectionSummary;
   board: Board;
@@ -160,10 +167,11 @@ export interface BoardWorkspaceProps extends Omit<
   providerActionsEnabled?: boolean;
   clockOffset?: number;
   resetDrafts?: number;
-  onTaskCreated?: () => void;
+  onTaskCreated: () => void;
   onDraftChange?: (dirty: boolean) => void;
   onInspectCreate?: (identity: string) => void;
   onInitialReady?: (state: InitialViewReadiness) => void;
+  moveQueue: TaskMoveQueue;
 }
 export function BoardWorkspace({
   account,
@@ -181,11 +189,11 @@ export function BoardWorkspace({
   onDraftChange,
   onInspectCreate,
   onInitialReady,
+  moveQueue,
   ...props
 }: BoardWorkspaceProps) {
   const [data, setData] = useState<Record<string, BoardColumn>>({}),
-    [completed, setCompleted] = useState<Set<string>>(() => new Set()),
-    [localVersion, setLocalVersion] = useState(0);
+    [completed, setCompleted] = useState<Set<string>>(() => new Set());
   const dirtyLists = useRef(new Set<string>());
   const [readiness, setReadiness] = useState<Record<string, InitialViewReadiness>>({});
   const onReady = useCallback((id: string, next: InitialViewReadiness) => {
@@ -211,8 +219,7 @@ export function BoardWorkspace({
     });
   }, [lists, readiness, version, onInitialReady]);
   const created = useCallback(() => {
-    if (onTaskCreated) onTaskCreated();
-    else setLocalVersion((value) => value + 1);
+    onTaskCreated();
   }, [onTaskCreated]);
   const actions = useRef(new Map<string, Actions>());
   const onData = useCallback(
@@ -233,6 +240,21 @@ export function BoardWorkspace({
         nextCursor: null,
       },
   );
+  const moveScope = JSON.stringify([
+    account.id,
+    board.id,
+    lists.map((list) => list.id),
+    filter,
+    query,
+    sort,
+  ]);
+  const queuedColumns = projectTaskMoves(
+    columns,
+    moveQueue.moves.filter((move) => move.scope === moveScope),
+  );
+  useEffect(() => {
+    moveQueue.reconcile(columns, moveScope);
+  }, [columns, moveQueue, moveScope]);
   return (
     <>
       {lists.map((list) => (
@@ -243,7 +265,7 @@ export function BoardWorkspace({
           filter={filter}
           query={query}
           sort={sort}
-          version={version + localVersion}
+          version={version}
           completedRequested={completed.has(list.id)}
           discoverCompleted={props.showCompleted !== false}
           onData={onData}
@@ -256,7 +278,8 @@ export function BoardWorkspace({
         key={filter.completion ?? 'open'}
         expandCompleted={!!filter.completion && filter.completion !== 'open'}
         accountId={account.id}
-        columns={columns}
+        columns={queuedColumns}
+        onMoveTask={(intent) => moveQueue.enqueue(intent, columns, moveScope)}
         today={today}
         accountTimeZone={account.planningZone}
         sort={sort}

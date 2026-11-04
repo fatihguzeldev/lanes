@@ -65,6 +65,8 @@ import { SyncControl } from './SyncControl';
 import { Select } from '../ui/Select';
 import { AnchoredPopover } from '../ui/Popover';
 import { ChangeStatus } from './ChangeStatus';
+import { TaskMoveError } from './save-task-move';
+import { useTaskMoveQueue } from './useTaskMoveQueue';
 import { OperationPageSchema } from '../modules/tasks/operation-contract';
 import { OperationResolutionDialog } from './OperationResolutionDialog';
 import { AccountLifecycleDialog } from './AccountLifecycleDialog';
@@ -250,6 +252,7 @@ export function Workspace({
     [notice, setNotice] = useState('');
   const [confirmation, setConfirmation] = useState<ConfirmationChoice | null>(null),
     [labelsOpen, setLabelsOpen] = useState(false);
+  const [moveErrorId, setMoveErrorId] = useState<string | null>(null);
   const [reopen, setReopen] = useState<{ task: Task; preview: ReopenPreview } | null>(null);
   const [movingTask, setMovingTask] = useState<Task | null>(null);
   const [copying, setCopying] = useState<
@@ -260,6 +263,29 @@ export function Workspace({
   const [failedBoardLookup, setFailedBoardLookup] = useState<string | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const changed = useCallback(() => setVersion((value) => value + 1), []);
+  const moveQueue = useTaskMoveQueue(account.id, {
+    version,
+    clockOffset,
+    onRefresh: changed,
+    onError: (error) => {
+      setNotice(error instanceof Error ? error.message : 'couldn’t move this task.');
+      setMoveErrorId(error instanceof TaskMoveError ? (error.operationId ?? null) : null);
+    },
+    confirmChildren: (title, count) =>
+      new Promise<boolean>((resolve) => {
+        setConfirmation({
+          title: `move ${title || 'this task'}?`,
+          message: `this moves the task and its ${count} subtasks together.`,
+          confirmLabel: 'move checklist',
+          onConfirm: async () => {
+            resolve(true);
+            return true;
+          },
+          onCancel: () => resolve(false),
+        });
+      }),
+  });
+  const movingTasks = moveQueue.busy;
   const commands = useCommands(account.id, clockOffset, changed);
   const repeatWork = useRecurrenceWork(account.id, account.state === 'connected', changed);
   const syncChanged = useCallback(() => {
@@ -395,6 +421,10 @@ export function Workspace({
     },
     [editorDirty, templateDirty, transferDirty, inlineDirty],
   );
+  const guardAccount = (action: () => void) => {
+    if (movingTasks) setNotice('wait for your task moves to finish before leaving this account.');
+    else guard(action);
+  };
   const submit = async (
     command: unknown,
     category: 'local' | 'provider' = 'local',
@@ -423,14 +453,14 @@ export function Workspace({
   }, [sync.status?.initialized, onAccountsChanged]);
   useEffect(() => {
     const unload = (event: BeforeUnloadEvent) => {
-      if (editorDirty || templateDirty || transferDirty || inlineDirty) {
+      if (editorDirty || templateDirty || transferDirty || inlineDirty || movingTasks) {
         event.preventDefault();
         event.returnValue = '';
       }
     };
     window.addEventListener('beforeunload', unload);
     return () => window.removeEventListener('beforeunload', unload);
-  }, [editorDirty, templateDirty, transferDirty, inlineDirty]);
+  }, [editorDirty, templateDirty, transferDirty, inlineDirty, movingTasks]);
   useEffect(() => {
     const key = (event: KeyboardEvent) => {
       if (
@@ -566,48 +596,6 @@ export function Workspace({
       } else if (await submit(command, 'provider')) void repeatWork.run();
     } catch (error) {
       setNotice(error instanceof Error ? error.message : 'completion could not be checked.');
-    }
-  };
-  const moveTask = async (intent: {
-    accountId: string;
-    taskId: string;
-    revision: number;
-    destinationListId: string;
-    previousTaskId: string | null;
-  }) => {
-    if (intent.accountId !== account.id || !writable) return;
-    const destination = lists.items.find((item) => item.id === intent.destinationListId);
-    if (!destination) return;
-    try {
-      const preview = await request(
-        `${base}/tasks/${encodeURIComponent(intent.taskId)}/consequences`,
-        TaskConsequencesSchema,
-      );
-      if (preview.revision !== intent.revision || !preview.coverageComplete) {
-        changed();
-        setNotice('refresh this task and its complete checklist before moving it.');
-        return;
-      }
-      const command = {
-        kind: 'task.move',
-        taskId: intent.taskId,
-        revision: intent.revision,
-        listId: destination.id,
-        listRevision: destination.revision,
-        parentId: null,
-        previousId: intent.previousTaskId,
-        confirmSubtaskCount: preview.subtaskCount,
-      };
-      if (preview.subtaskCount)
-        setConfirmation({
-          title: `move ${preview.title || 'this task'}?`,
-          message: `this moves the original task and its ${preview.subtaskCount} subtasks together to ${destination.title || 'the selected list'}.`,
-          confirmLabel: 'move checklist',
-          onConfirm: (identity) => submit(command, 'provider', identity),
-        });
-      else await submit(command, 'provider');
-    } catch (error) {
-      setNotice(error instanceof Error ? error.message : 'this move could not be checked.');
     }
   };
   const deleteTask = async (task: Task) => {
@@ -1056,7 +1044,7 @@ export function Workspace({
               }}
               connected={account.state === 'connected'}
               reachable={connection === 'reachable'}
-              busy={sync.busy || commands.busy || repeatWork.busy}
+              busy={sync.busy || commands.busy || repeatWork.busy || movingTasks}
               error={sync.error}
               status={sync.status}
               onRefresh={() =>
@@ -1080,10 +1068,10 @@ export function Workspace({
             <AccountMenu
               account={account}
               accounts={accounts}
-              onSelect={(id) => guard(() => onSelectAccount(id))}
-              onConnect={() => guard(() => onAuthorize('link'))}
+              onSelect={(id) => guardAccount(() => onSelectAccount(id))}
+              onConnect={() => guardAccount(() => onAuthorize('link'))}
               onManage={() => guard(() => setAccountLifecycleOpen(true))}
-              onSignOut={() => guard(onSignOut)}
+              onSignOut={() => guardAccount(onSignOut)}
             />
           </div>
         </header>
@@ -1128,11 +1116,15 @@ export function Workspace({
         {(commands.error || repeatWork.error || notice) && (
           <div className="workspace__notice" role={commands.error ? 'alert' : 'status'}>
             <span>{commands.error || repeatWork.error || notice}</span>
-            {(commands.errorDetails?.operationId || commands.latest?.id) && commands.error && (
+            {(((commands.errorDetails?.operationId || commands.latest?.id) && commands.error) ||
+              moveErrorId) && (
               <button
                 onClick={() => {
                   setInspectedOperation(
-                    commands.errorDetails?.operationId ?? commands.latest?.id ?? null,
+                    moveErrorId ??
+                      commands.errorDetails?.operationId ??
+                      commands.latest?.id ??
+                      null,
                   );
                   setActivity(true);
                 }}
@@ -1145,6 +1137,7 @@ export function Workspace({
               onClick={() => {
                 commands.clearError();
                 setNotice('');
+                setMoveErrorId(null);
               }}
             >
               <Icon name="close" size={14} />
@@ -1204,7 +1197,7 @@ export function Workspace({
                 setListMenuAnchor(anchor);
                 setListMenu(visibleLists.find((item) => item.id === list.id) ?? null);
               }}
-              onMoveTask={(intent) => void moveTask(intent)}
+              moveQueue={moveQueue}
             />
           )}
         {board &&
@@ -1914,6 +1907,7 @@ export function Workspace({
             version={version}
             clockOffset={clockOffset}
             onChanged={changed}
+            onClose={() => setActivity(false)}
             onResolve={setResolvingOperation}
             onOpenTask={(id) =>
               void request(`${base}/tasks/${encodeURIComponent(id)}`, TaskSchema)

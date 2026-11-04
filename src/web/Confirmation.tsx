@@ -7,6 +7,7 @@ export interface ConfirmationChoice {
   message: string;
   confirmLabel: string;
   onConfirm: (identity: string) => Promise<boolean>;
+  onCancel?: () => void;
 }
 export function Confirmation({
   choice,
@@ -22,8 +23,12 @@ export function Confirmation({
   const [pending, setPending] = useState(false),
     [failed, setFailed] = useState(false),
     [identity] = useState(() => newOperationId(clockOffset));
+  const cancel = () => {
+    choice.onCancel?.();
+    onClose();
+  };
   return (
-    <Dialog title={choice.title} onClose={onClose} pending={pending}>
+    <Dialog title={choice.title} onClose={cancel} pending={pending}>
       <div className="dialog__body">
         <p>{choice.message}</p>
         {failed && (
@@ -32,7 +37,7 @@ export function Confirmation({
           </p>
         )}
         <footer>
-          <button onClick={onClose} disabled={pending}>
+          <button onClick={cancel} disabled={pending}>
             cancel
           </button>
           <button

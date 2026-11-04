@@ -16,6 +16,7 @@ interface Props {
   clockOffset: number;
   version: number;
   onChanged: () => void;
+  onClose?: () => void;
   onResolve: (id: string) => void;
   onOpenTask: (id: string) => void;
   onOpenList: (id: string) => void;
@@ -131,9 +132,20 @@ export function ChangeStatus(props: Props) {
                 stop remaining changes
               </button>
             )}
-            <button disabled={disabled} onClick={changed}>
-              check status
-            </button>
+            {operation.finished ? (
+              <button
+                onClick={() => {
+                  changed();
+                  props.onClose?.();
+                }}
+              >
+                back to workspace
+              </button>
+            ) : (
+              <button disabled={disabled} onClick={changed}>
+                check status
+              </button>
+            )}
           </div>
           {saved.items.some(
             (step) =>
