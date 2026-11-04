@@ -4,6 +4,7 @@ import { RecurrenceStatusSchema } from '../modules/tasks/recurrence-contract';
 import { Dialog } from '../ui/Dialog';
 import { request } from './http';
 import { newOperationId } from './useCommands';
+import { Select } from '../ui/Select';
 
 export function ReopenDialog({
   accountId,
@@ -68,21 +69,23 @@ export function ReopenDialog({
         )}
         <label>
           how to reopen
-          <select
+          <Select
             value={choice}
-            onChange={(event) => setChoice(event.target.value as typeof choice)}
+            onChange={(selectedValue) => setChoice(selectedValue as typeof choice)}
             disabled={pending}
-          >
-            {preview.choices.map((value) => (
-              <option key={value} value={value}>
-                {value === 'cancel_pending'
-                  ? 'cancel the unsent successor'
-                  : value === 'remove_untouched'
-                    ? 'verify and remove the untouched successor'
-                    : 'keep the successor; make this a one-off'}
-              </option>
-            ))}
-          </select>
+            aria-label="how to reopen"
+            options={[
+              ...preview.choices.map((value) => ({
+                value: value,
+                label:
+                  value === 'cancel_pending'
+                    ? 'cancel the unsent successor'
+                    : value === 'remove_untouched'
+                      ? 'verify and remove the untouched successor'
+                      : 'keep the successor; make this a one-off',
+              })),
+            ]}
+          />
         </label>
         {choice === 'remove_untouched' && (
           <p className="entry-note">

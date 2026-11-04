@@ -10,6 +10,7 @@ import { BoardPageSchema, BoardListPageSchema } from './schemas';
 import { usePagedResource } from './usePagedResource';
 import { newOperationId, useCommands } from './useCommands';
 import { useServerConnection } from './useServerConnection';
+import { Select } from '../ui/Select';
 interface Props {
   account: ConnectionSummary;
   source: { kind: 'list'; list: BoardList } | { kind: 'task'; task: Task; boardId: string };
@@ -185,20 +186,18 @@ export function DuplicateDialog({
           </label>
           <label>
             destination board
-            <select
+            <Select
               value={boardId}
-              onChange={(event) => {
-                setBoardId(event.target.value);
+              onChange={(selectedValue) => {
+                setBoardId(selectedValue);
                 setListId('');
               }}
-            >
-              {!destinationBoard && <option value={boardId}>current board</option>}
-              {boards.items.map((board) => (
-                <option value={board.id} key={board.id}>
-                  {board.title}
-                </option>
-              ))}
-            </select>
+              aria-label="destination board"
+              options={[
+                ...(!destinationBoard ? [{ value: boardId, label: 'current board' }] : []),
+                ...boards.items.map((board) => ({ value: board.id, label: board.title })),
+              ]}
+            />
           </label>
           {boards.nextCursor && (
             <button type="button" onClick={() => void boards.loadMore()}>
@@ -209,14 +208,18 @@ export function DuplicateDialog({
             <>
               <label>
                 destination list
-                <select value={listId} onChange={(event) => setListId(event.target.value)}>
-                  <option value="">choose a list</option>
-                  {lists.items.map((list) => (
-                    <option value={list.id} key={list.id}>
-                      {list.title || 'untitled list'}
-                    </option>
-                  ))}
-                </select>
+                <Select
+                  value={listId}
+                  onChange={(selectedValue) => setListId(selectedValue)}
+                  aria-label="destination list"
+                  options={[
+                    { value: '', label: 'choose a list' },
+                    ...lists.items.map((list) => ({
+                      value: list.id,
+                      label: list.title || 'untitled list',
+                    })),
+                  ]}
+                />
               </label>
               {lists.nextCursor && (
                 <button type="button" onClick={() => void lists.loadMore()}>

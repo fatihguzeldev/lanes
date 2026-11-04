@@ -31,6 +31,7 @@ import {
 } from './TransferCommon';
 import { TransferImportRun } from './TransferImportRun';
 import { TransferArchiveExport } from './TransferArchiveExport';
+import { Select } from '../ui/Select';
 export function TransferArchive(props: TransferProps) {
   const [dirtyImport, setDirtyImport] = useState(false),
     [dirtyExport, setDirtyExport] = useState(false);
@@ -180,23 +181,25 @@ export function ArchiveImport(
             </div>
             <label>
               import mode
-              <select
+              <Select
                 value={mode}
-                onChange={(event) => {
-                  setMode(event.target.value as typeof mode);
+                onChange={(selectedValue) => {
+                  setMode(selectedValue as typeof mode);
                   setMapped(false);
                 }}
-              >
-                <option value="restore_metadata">
-                  restore lanes metadata to the same google subject
-                </option>
-                <option
-                  value="copy_task_snapshots"
-                  disabled={!document.header.includesTaskSnapshots}
-                >
-                  copy included task snapshots as new google content
-                </option>
-              </select>
+                aria-label="import mode"
+                options={[
+                  {
+                    value: 'restore_metadata',
+                    label: 'restore lanes metadata to the same google subject',
+                  },
+                  {
+                    value: 'copy_task_snapshots',
+                    label: 'copy included task snapshots as new google content',
+                    disabled: !document.header.includesTaskSnapshots,
+                  },
+                ]}
+              />
             </label>
             <p>
               {mode === 'restore_metadata'

@@ -18,6 +18,7 @@ import {
   useTransferDirty,
   type TransferProps,
 } from './TransferCommon';
+import { Select } from '../ui/Select';
 export function TransferArchiveExport(props: TransferProps & { retained?: ArchiveExportSummary }) {
   const [scope, setScope] = useState<'board' | 'account'>('board'),
     [snapshots, setSnapshots] = useState(true),
@@ -117,10 +118,15 @@ export function TransferArchiveExport(props: TransferProps & { retained?: Archiv
       <fieldset disabled={action.busy || Boolean(attempt.current) || Boolean(run)}>
         <label>
           archive scope
-          <select value={scope} onChange={(event) => setScope(event.target.value as typeof scope)}>
-            <option value="board">selected board</option>
-            <option value="account">selected account</option>
-          </select>
+          <Select
+            value={scope}
+            onChange={(selectedValue) => setScope(selectedValue as typeof scope)}
+            aria-label="archive scope"
+            options={[
+              { value: 'board', label: 'selected board' },
+              { value: 'account', label: 'selected account' },
+            ]}
+          />
         </label>
         {scope === 'board' && <BoardChoice resource={resource} />}
         <label className="transfer__check">

@@ -24,6 +24,7 @@ import { usePagedResource } from './usePagedResource';
 import { TransferSheetsExport } from './TransferSheetsExport';
 import { Dialog } from '../ui/Dialog';
 import { describeSheetsScope, readSheetsExportDraft } from './transfer-sheets-model';
+import { Select } from '../ui/Select';
 export function TransferExport(props: TransferProps) {
   const returnedFromSheets =
     typeof location !== 'undefined' &&
@@ -171,15 +172,17 @@ export function TransferExport(props: TransferProps) {
       <fieldset disabled={childDirty}>
         <label>
           export scope
-          <select
+          <Select
             value={scopeKind}
-            onChange={(event) => setScopeKind(event.target.value as typeof scopeKind)}
-          >
-            <option value="board">one board</option>
-            <option value="lists">selected lists</option>
-            <option value="search">account search and filters</option>
-            <option value="account">all lists in this account</option>
-          </select>
+            onChange={(selectedValue) => setScopeKind(selectedValue as typeof scopeKind)}
+            aria-label="export scope"
+            options={[
+              { value: 'board', label: 'one board' },
+              { value: 'lists', label: 'selected lists' },
+              { value: 'search', label: 'account search and filters' },
+              { value: 'account', label: 'all lists in this account' },
+            ]}
+          />
         </label>
         {scopeKind === 'board' && <BoardChoice resource={resource} />}{' '}
         {scopeKind === 'lists' && (
@@ -204,10 +207,10 @@ export function TransferExport(props: TransferProps) {
               <summary>filter the selected account</summary>
               <label>
                 star
-                <select
+                <Select
                   value={filter.starred === undefined ? 'any' : String(filter.starred)}
-                  onChange={(event) => {
-                    const value = event.target.value;
+                  onChange={(selectedValue) => {
+                    const value = selectedValue;
                     setFilter((prior) => {
                       const next = { ...prior };
                       if (value === 'any') delete next.starred;
@@ -215,18 +218,20 @@ export function TransferExport(props: TransferProps) {
                       return next;
                     });
                   }}
-                >
-                  <option value="any">any task</option>
-                  <option value="true">starred</option>
-                  <option value="false">without a star</option>
-                </select>
+                  aria-label="star"
+                  options={[
+                    { value: 'any', label: 'any task' },
+                    { value: 'true', label: 'starred' },
+                    { value: 'false', label: 'without a star' },
+                  ]}
+                />
               </label>
               <label>
                 scheduled
-                <select
+                <Select
                   value={filter.scheduled?.kind ?? 'any'}
-                  onChange={(event) => {
-                    const value = event.target.value;
+                  onChange={(selectedValue) => {
+                    const value = selectedValue;
                     setFilter((prior) => {
                       const next = { ...prior };
                       if (value === 'any') delete next.scheduled;
@@ -238,13 +243,15 @@ export function TransferExport(props: TransferProps) {
                       return next;
                     });
                   }}
-                >
-                  <option value="any">any day</option>
-                  <option value="today">today</option>
-                  <option value="overdue">overdue</option>
-                  <option value="none">no date</option>
-                  <option value="range">date range</option>
-                </select>
+                  aria-label="scheduled"
+                  options={[
+                    { value: 'any', label: 'any day' },
+                    { value: 'today', label: 'today' },
+                    { value: 'overdue', label: 'overdue' },
+                    { value: 'none', label: 'no date' },
+                    { value: 'range', label: 'date range' },
+                  ]}
+                />
               </label>
               {filter.scheduled?.kind === 'range' && (
                 <div className="transfer__two">
@@ -349,18 +356,20 @@ export function TransferExport(props: TransferProps) {
                 <TransferPages resource={labels} />
                 <label>
                   label match
-                  <select
+                  <Select
                     value={filter.labelMatch ?? 'any'}
-                    onChange={(event) =>
+                    onChange={(selectedValue) =>
                       setFilter((prior) => ({
                         ...prior,
-                        labelMatch: event.target.value as 'any' | 'all',
+                        labelMatch: selectedValue as 'any' | 'all',
                       }))
                     }
-                  >
-                    <option value="any">any selected label</option>
-                    <option value="all">every selected label</option>
-                  </select>
+                    aria-label="label match"
+                    options={[
+                      { value: 'any', label: 'any selected label' },
+                      { value: 'all', label: 'every selected label' },
+                    ]}
+                  />
                 </label>
               </fieldset>
               <button type="button" className="transfer__text" onClick={() => setFilter({})}>

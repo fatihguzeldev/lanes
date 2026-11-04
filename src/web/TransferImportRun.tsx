@@ -29,6 +29,7 @@ import {
   ListCapacitySchema,
   type ImportSummary,
 } from './transfer-schemas';
+import { Select } from '../ui/Select';
 
 export function TransferImportRun({
   run: initial,
@@ -346,15 +347,17 @@ export function TransferImportRun({
         </summary>
         <label>
           show
-          <select
+          <Select
             value={recordKind}
             disabled={action.busy}
-            onChange={(event) => setRecordKind(event.target.value as typeof recordKind)}
-          >
-            <option value="task">tasks</option>
-            <option value="list">lists</option>
-            <option value="issue">warnings and errors</option>
-          </select>
+            onChange={(selectedValue) => setRecordKind(selectedValue as typeof recordKind)}
+            aria-label="show"
+            options={[
+              { value: 'task', label: 'tasks' },
+              { value: 'list', label: 'lists' },
+              { value: 'issue', label: 'warnings and errors' },
+            ]}
+          />
         </label>
         <button
           type="button"

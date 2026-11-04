@@ -12,6 +12,7 @@ import { OperationSummarySchema } from '../modules/tasks/operation-contract';
 import { Dialog } from '../ui/Dialog';
 import { checkServerConnection, request } from './http';
 import { useServerConnection } from './useServerConnection';
+import { Select } from '../ui/Select';
 interface Props {
   account: ConnectionSummary;
   operationId: string;
@@ -143,22 +144,22 @@ export function OperationResolutionDialog({ account, operationId, onClose, onRes
                 {candidates.length > 0 && (
                   <label>
                     observed candidates
-                    <select
+                    <Select
                       value={candidateId}
-                      onChange={(event) => {
-                        setCandidateId(event.target.value);
+                      onChange={(selectedValue) => {
+                        setCandidateId(selectedValue);
                         setPreview(null);
                         setIdentityConfirmed(false);
                       }}
-                    >
-                      <option value="">choose a resource</option>
-                      {candidates.map((candidate) => (
-                        <option value={candidate.providerId} key={candidate.providerId}>
-                          {candidate.title || 'untitled'}
-                          {candidate.alreadyRetained ? ' · already retained' : ''}
-                        </option>
-                      ))}
-                    </select>
+                      aria-label="observed candidates"
+                      options={[
+                        { value: '', label: 'choose a resource' },
+                        ...candidates.map((candidate) => ({
+                          value: candidate.providerId,
+                          label: `${candidate.title || 'untitled'}${candidate.alreadyRetained ? ' · already retained' : ''}`,
+                        })),
+                      ]}
+                    />
                   </label>
                 )}
                 {cursor && (

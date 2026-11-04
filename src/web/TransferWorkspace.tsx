@@ -32,6 +32,7 @@ import {
   type TransferProps,
 } from './TransferCommon';
 import type { z } from 'zod';
+import { Select } from '../ui/Select';
 import './TransferWorkspace.css';
 export type TransferWorkspaceProps = TransferProps;
 type Tab = 'import' | 'export' | 'accounts' | 'archive' | 'activity';
@@ -245,12 +246,17 @@ function TransferActivity(props: TransferProps) {
       </p>
       <label>
         retained work
-        <select value={kind} onChange={(event) => setKind(event.target.value as typeof kind)}>
-          <option value="imports">task imports and account copies</option>
-          <option value="archives">workspace archive restores</option>
-          <option value="sheets">google sheets exports</option>
-          <option value="archive_exports">workspace archive exports</option>
-        </select>
+        <Select
+          value={kind}
+          onChange={(selectedValue) => setKind(selectedValue as typeof kind)}
+          aria-label="retained work"
+          options={[
+            { value: 'imports', label: 'task imports and account copies' },
+            { value: 'archives', label: 'workspace archive restores' },
+            { value: 'sheets', label: 'google sheets exports' },
+            { value: 'archive_exports', label: 'workspace archive exports' },
+          ]}
+        />
       </label>
       <div className="transfer__activity">
         {kind === 'imports' &&

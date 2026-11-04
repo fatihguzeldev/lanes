@@ -8,6 +8,7 @@ import { BoardPageSchema, BoardListPageSchema } from './schemas';
 import { usePagedResource } from './usePagedResource';
 import { useTaskQuery } from './useTaskQuery';
 import { newOperationId, useCommands } from './useCommands';
+import { Select } from '../ui/Select';
 
 interface Props {
   account: ConnectionSummary;
@@ -148,22 +149,18 @@ export function TaskMoveDialog({
         </p>
         <label>
           destination board
-          <select
+          <Select
             value={boardId}
-            onChange={(event) => {
-              setBoardId(event.target.value);
+            onChange={(selectedValue) => {
+              setBoardId(selectedValue);
               setListId('');
               setParentId('');
               setAfterId('');
               setConfirmed(false);
             }}
-          >
-            {boards.items.map((board) => (
-              <option value={board.id} key={board.id}>
-                {board.title}
-              </option>
-            ))}
-          </select>
+            aria-label="destination board"
+            options={[...boards.items.map((board) => ({ value: board.id, label: board.title }))]}
+          />
         </label>
         {boards.nextCursor && (
           <button type="button" onClick={() => void boards.loadMore()}>
@@ -172,25 +169,24 @@ export function TaskMoveDialog({
         )}
         <label>
           destination list
-          <select
+          <Select
             value={destination?.id ?? ''}
             disabled={lists.status === 'loading'}
-            onChange={(event) => {
-              setListId(event.target.value);
+            onChange={(selectedValue) => {
+              setListId(selectedValue);
               setParentId('');
               setAfterId('');
               setConfirmed(false);
             }}
-          >
-            <option value="" disabled>
-              choose a list
-            </option>
-            {lists.items.map((list) => (
-              <option key={list.id} value={list.id}>
-                {list.title || 'untitled list'}
-              </option>
-            ))}
-          </select>
+            aria-label="destination list"
+            options={[
+              { value: '', label: 'choose a list', disabled: true },
+              ...lists.items.map((list) => ({
+                value: list.id,
+                label: list.title || 'untitled list',
+              })),
+            ]}
+          />
         </label>
         {lists.nextCursor && (
           <button type="button" onClick={() => void lists.loadMore()}>
@@ -199,29 +195,30 @@ export function TaskMoveDialog({
         )}
         <label>
           nesting
-          <select
+          <Select
             value={parentId}
             disabled={!task.capabilities.canNest || !!preview?.subtaskCount}
-            onChange={(event) => {
-              setParentId(event.target.value);
+            onChange={(selectedValue) => {
+              setParentId(selectedValue);
               setAfterId('');
             }}
-          >
-            <option value="">top level</option>
-            {parents.page.items
-              .filter(
-                (item) =>
-                  item.id !== task.id &&
-                  !item.parentId &&
-                  item.capabilities.canHaveChildren &&
-                  !item.unsupportedHierarchy,
-              )
-              .map((item) => (
-                <option key={item.id} value={item.id}>
-                  under {item.title || 'untitled task'}
-                </option>
-              ))}
-          </select>
+            aria-label="nesting"
+            options={[
+              { value: '', label: 'top level' },
+              ...parents.page.items
+                .filter(
+                  (item) =>
+                    item.id !== task.id &&
+                    !item.parentId &&
+                    item.capabilities.canHaveChildren &&
+                    !item.unsupportedHierarchy,
+                )
+                .map((item) => ({
+                  value: item.id,
+                  label: `under ${item.title || 'untitled task'}`,
+                })),
+            ]}
+          />
         </label>
         {parents.page.nextCursor && (
           <button type="button" onClick={() => void parents.loadMore()}>
@@ -230,29 +227,32 @@ export function TaskMoveDialog({
         )}
         <label>
           position
-          <select
+          <Select
             value={position}
-            onChange={(event) => setPosition(event.target.value as typeof position)}
-          >
-            <option value="last">last in this group</option>
-            <option value="first">first in this group</option>
-            <option value="after">after a specific task</option>
-          </select>
+            onChange={(selectedValue) => setPosition(selectedValue as typeof position)}
+            aria-label="position"
+            options={[
+              { value: 'last', label: 'last in this group' },
+              { value: 'first', label: 'first in this group' },
+              { value: 'after', label: 'after a specific task' },
+            ]}
+          />
         </label>
         {position === 'after' && (
           <>
             <label>
               previous sibling
-              <select value={afterId} onChange={(event) => setAfterId(event.target.value)}>
-                <option value="">choose a task</option>
-                {siblings.page.items
-                  .filter((item) => item.id !== task.id && item.parentId === (parentId || null))
-                  .map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.title || 'untitled task'}
-                    </option>
-                  ))}
-              </select>
+              <Select
+                value={afterId}
+                onChange={(selectedValue) => setAfterId(selectedValue)}
+                aria-label="previous sibling"
+                options={[
+                  { value: '', label: 'choose a task' },
+                  ...siblings.page.items
+                    .filter((item) => item.id !== task.id && item.parentId === (parentId || null))
+                    .map((item) => ({ value: item.id, label: item.title || 'untitled task' })),
+                ]}
+              />
             </label>
             {siblings.page.nextCursor && (
               <button type="button" onClick={() => void siblings.loadMore()}>

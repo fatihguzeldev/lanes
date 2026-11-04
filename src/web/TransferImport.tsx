@@ -43,6 +43,7 @@ import {
   type TransferProps,
 } from './TransferCommon';
 import { TransferImportRun } from './TransferImportRun';
+import { Select } from '../ui/Select';
 type Source = 'file' | 'sheets';
 interface MappingDraft {
   sheet: string;
@@ -556,33 +557,37 @@ export function TransferImport(props: TransferProps) {
         <div className="transfer__two">
           <label>
             group new lists by
-            <select
+            <Select
               value={groupBy}
               disabled={destinationKind === 'existing'}
-              onChange={(event) => {
-                setGroupBy(event.target.value as typeof groupBy);
+              onChange={(selectedValue) => {
+                setGroupBy(selectedValue as typeof groupBy);
                 changed();
               }}
-            >
-              <option value="auto">detected list column, otherwise worksheet</option>
-              <option value="sheet">worksheet / text heading</option>
-              <option value="list-column">mapped list column</option>
-              <option value="single">one new list</option>
-            </select>
+              aria-label="group new lists by"
+              options={[
+                { value: 'auto', label: 'detected list column, otherwise worksheet' },
+                { value: 'sheet', label: 'worksheet / text heading' },
+                { value: 'list-column', label: 'mapped list column' },
+                { value: 'single', label: 'one new list' },
+              ]}
+            />
           </label>
           <label>
             dates
-            <select
+            <Select
               value={convention}
-              onChange={(event) => {
-                setConvention(event.target.value as typeof convention);
+              onChange={(selectedValue) => {
+                setConvention(selectedValue as typeof convention);
                 changed();
               }}
-            >
-              <option value="iso">iso dates only</option>
-              <option value="day-first">day / month / year</option>
-              <option value="month-first">month / day / year</option>
-            </select>
+              aria-label="dates"
+              options={[
+                { value: 'iso', label: 'iso dates only' },
+                { value: 'day-first', label: 'day / month / year' },
+                { value: 'month-first', label: 'month / day / year' },
+              ]}
+            />
           </label>
         </div>
         {groupBy === 'single' && destinationKind === 'new' && (
@@ -678,10 +683,10 @@ export function TransferImport(props: TransferProps) {
                   {importFields.map((field) => (
                     <label key={field}>
                       {field.replaceAll('_', ' ')}
-                      <select
-                        value={table.fields[field] ?? ''}
-                        onChange={(event) => {
-                          const value = event.target.value;
+                      <Select
+                        value={String(table.fields[field] ?? '')}
+                        onChange={(selectedValue) => {
+                          const value = selectedValue;
                           setMapping((prior) =>
                             prior.map((item, position) => {
                               if (position !== index) return item;
@@ -693,25 +698,27 @@ export function TransferImport(props: TransferProps) {
                           );
                           changed();
                         }}
-                      >
-                        <option value="">
-                          {field === 'task' ? 'required · choose a column' : 'not mapped'}
-                        </option>
-                        {Array.from(
+                        aria-label={field.replaceAll('_', ' ')}
+                        options={[
                           {
-                            length: Math.max(
-                              columns.length,
-                              ...Object.values(table.fields).map((value) => (value ?? 0) + 1),
-                              26,
-                            ),
+                            value: '',
+                            label: field === 'task' ? 'required · choose a column' : 'not mapped',
                           },
-                          (_, column) => (
-                            <option key={column} value={column}>
-                              {column + 1} · {columns[column] || `column ${column + 1}`}
-                            </option>
+                          ...Array.from(
+                            {
+                              length: Math.max(
+                                columns.length,
+                                ...Object.values(table.fields).map((value) => (value ?? 0) + 1),
+                                26,
+                              ),
+                            },
+                            (_, column) => ({
+                              value: String(column),
+                              label: `${column + 1} · ${columns[column] || `column ${column + 1}`}`,
+                            }),
                           ),
-                        )}
-                      </select>
+                        ]}
+                      />
                     </label>
                   ))}
                 </div>

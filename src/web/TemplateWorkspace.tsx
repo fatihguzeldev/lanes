@@ -45,6 +45,8 @@ import { BoardListPageSchema, BoardPageSchema } from './schemas';
 import { usePagedResource } from './usePagedResource';
 import { newOperationId, useCommands } from './useCommands';
 import { useServerConnection } from './useServerConnection';
+import { Select } from '../ui/Select';
+import { TimeZoneSelect } from '../ui/TimeZoneSelect';
 import './TemplateWorkspace.css';
 type PersonalTemplate = ListTemplateSummary | BoardTemplateSummary;
 type Kind = PersonalTemplate['kind'];
@@ -824,22 +826,22 @@ function BoardChoice({
     <div>
       <label>
         {label}
-        <select
+        <Select
           value={value}
-          onChange={(event) => onChange(event.target.value)}
+          onChange={(selectedValue) => onChange(selectedValue)}
           disabled={disabled}
-        >
-          <option value="">choose a board</option>
-          {value && !resource.items.some((item) => item.id === value) && (
-            <option value={value}>saved board · not loaded</option>
-          )}
-          {resource.items.map((board) => (
-            <option key={board.id} value={board.id}>
-              {board.title}
-              {board.isMain ? ' · main' : ''}
-            </option>
-          ))}
-        </select>
+          aria-label={label}
+          options={[
+            { value: '', label: 'choose a board' },
+            ...(value && !resource.items.some((item) => item.id === value)
+              ? [{ value: value, label: 'saved board · not loaded' }]
+              : []),
+            ...resource.items.map((board) => ({
+              value: board.id,
+              label: `${board.title}${board.isMain ? ' · main' : ''}`,
+            })),
+          ]}
+        />
       </label>
       <PageState resource={resource} />
     </div>
@@ -1071,20 +1073,18 @@ function SourceEditor({
                 <>
                   <label>
                     source list
-                    <select
+                    <Select
                       value={listId}
-                      onChange={(event) => setListId(event.target.value)}
+                      onChange={(selectedValue) => setListId(selectedValue)}
                       disabled={!boardId}
-                    >
-                      <option value="">choose a list</option>
-                      {lists.items
-                        .filter((item) => item.accountId === account.id)
-                        .map((item) => (
-                          <option key={item.id} value={item.id}>
-                            {item.title}
-                          </option>
-                        ))}
-                    </select>
+                      aria-label="source list"
+                      options={[
+                        { value: '', label: 'choose a list' },
+                        ...lists.items
+                          .filter((item) => item.accountId === account.id)
+                          .map((item) => ({ value: item.id, label: item.title })),
+                      ]}
+                    />
                   </label>
                   {boardId && <PageState resource={lists} />}
                 </>
@@ -1113,13 +1113,15 @@ function SourceEditor({
               )}
               <label>
                 dates
-                <select
+                <Select
                   value={dateMode}
-                  onChange={(event) => setDateMode(event.target.value as 'relative' | 'none')}
-                >
-                  <option value="relative">relative to the application day</option>
-                  <option value="none">no dates, times or active repeat rules</option>
-                </select>
+                  onChange={(selectedValue) => setDateMode(selectedValue as 'relative' | 'none')}
+                  aria-label="dates"
+                  options={[
+                    { value: 'relative', label: 'relative to the application day' },
+                    { value: 'none', label: 'no dates, times or active repeat rules' },
+                  ]}
+                />
               </label>
               <label className="templates__check">
                 <input
@@ -1636,16 +1638,18 @@ function ApplyEditor({
                 {template.kind === 'board' && (
                   <label>
                     destination
-                    <select
+                    <Select
                       value={newBoard ? 'new' : 'existing'}
-                      onChange={(event) => {
-                        setNewBoard(event.target.value === 'new');
+                      onChange={(selectedValue) => {
+                        setNewBoard(selectedValue === 'new');
                         setAcknowledged(false);
                       }}
-                    >
-                      <option value="existing">add lists to an existing board</option>
-                      <option value="new">create a new board</option>
-                    </select>
+                      aria-label="destination"
+                      options={[
+                        { value: 'existing', label: 'add lists to an existing board' },
+                        { value: 'new', label: 'create a new board' },
+                      ]}
+                    />
                   </label>
                 )}
                 {newBoard ? (
@@ -2172,31 +2176,30 @@ function ScheduleEditor({
             <fieldset disabled={busy || reviewing || !localWritable(account)}>
               <label>
                 personal template
-                <select
+                <Select
                   value={selection}
-                  onChange={(event) => setSelection(event.target.value)}
+                  onChange={(selectedValue) => setSelection(selectedValue)}
                   required
-                >
-                  <option value="">choose a template</option>
-                  {initialRef &&
+                  aria-label="personal template"
+                  options={[
+                    { value: '', label: 'choose a template' },
+                    ...(initialRef &&
                     !templates.some(
                       (item) => `${item.kind}:${item.id}:${item.contentRevision}` === selection,
-                    ) && (
-                      <option
-                        value={`${initialRef.kind}:${initialRef.id}:${initialRef.contentRevision}`}
-                      >
-                        saved {initialRef.kind} template · v{initialRef.contentRevision}
-                      </option>
-                    )}
-                  {templates.map((item) => (
-                    <option
-                      key={`${item.kind}:${item.id}`}
-                      value={`${item.kind}:${item.id}:${item.contentRevision}`}
-                    >
-                      {item.name} · {item.kind} · v{item.contentRevision}
-                    </option>
-                  ))}
-                </select>
+                    )
+                      ? [
+                          {
+                            value: `${initialRef.kind}:${initialRef.id}:${initialRef.contentRevision}`,
+                            label: `saved ${initialRef.kind} template · v${initialRef.contentRevision}`,
+                          },
+                        ]
+                      : []),
+                    ...templates.map((item) => ({
+                      value: `${item.kind}:${item.id}:${item.contentRevision}`,
+                      label: `${item.name} · ${item.kind} · v${item.contentRevision}`,
+                    })),
+                  ]}
+                />
               </label>
               {moreTemplates && (
                 <button type="button" className="templates__text" onClick={onMoreTemplates}>
@@ -2213,41 +2216,47 @@ function ScheduleEditor({
               <div className="templates__two-fields">
                 <label>
                   frequency
-                  <select
+                  <Select
                     value={frequency}
-                    onChange={(event) => setFrequency(event.target.value as 'weekly' | 'monthly')}
-                  >
-                    <option value="weekly">weekly</option>
-                    <option value="monthly">monthly</option>
-                  </select>
+                    onChange={(selectedValue) =>
+                      setFrequency(selectedValue as 'weekly' | 'monthly')
+                    }
+                    aria-label="frequency"
+                    options={[
+                      { value: 'weekly', label: 'weekly' },
+                      { value: 'monthly', label: 'monthly' },
+                    ]}
+                  />
                 </label>
                 {frequency === 'weekly' ? (
                   <label>
                     weekday
-                    <select
-                      value={weekday}
-                      onChange={(event) => setWeekday(Number(event.target.value))}
-                    >
-                      {[1, 2, 3, 4, 5, 6, 7].map((day) => (
-                        <option key={day} value={day}>
-                          {weekdayName(day)}
-                        </option>
-                      ))}
-                    </select>
+                    <Select
+                      value={String(weekday)}
+                      onChange={(selectedValue) => setWeekday(Number(selectedValue))}
+                      aria-label="weekday"
+                      options={[
+                        ...[1, 2, 3, 4, 5, 6, 7].map((day) => ({
+                          value: String(day),
+                          label: weekdayName(day),
+                        })),
+                      ]}
+                    />
                   </label>
                 ) : (
                   <label>
                     day of month
-                    <select
-                      value={monthDay}
-                      onChange={(event) => setMonthDay(Number(event.target.value))}
-                    >
-                      {Array.from({ length: 28 }, (_, index) => index + 1).map((day) => (
-                        <option key={day} value={day}>
-                          {day}
-                        </option>
-                      ))}
-                    </select>
+                    <Select
+                      value={String(monthDay)}
+                      onChange={(selectedValue) => setMonthDay(Number(selectedValue))}
+                      aria-label="day of month"
+                      options={[
+                        ...Array.from({ length: 28 }, (_, index) => index + 1).map((day) => ({
+                          value: String(day),
+                          label: String(day),
+                        })),
+                      ]}
+                    />
                   </label>
                 )}
               </div>
@@ -2263,12 +2272,7 @@ function ScheduleEditor({
                 </label>
                 <label>
                   time zone
-                  <input
-                    value={zone}
-                    onChange={(event) => setZone(event.target.value)}
-                    placeholder={account.planningZone}
-                    required
-                  />
+                  <TimeZoneSelect value={zone} onChange={setZone} aria-label="schedule time zone" />
                 </label>
               </div>
               <p>

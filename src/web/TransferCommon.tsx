@@ -9,6 +9,7 @@ import { usePagedResource } from './usePagedResource';
 import { useServerConnection } from './useServerConnection';
 import { serverConnection } from './connectivity';
 import { googleAuthorizationHref } from './transfer-client';
+import { Select } from '../ui/Select';
 export interface TransferProps {
   initialTab?: 'import' | 'export';
   account: ConnectionSummary;
@@ -166,15 +167,20 @@ export function AccountChoice({
   return (
     <label>
       {label}
-      <select value={value} onChange={(event) => onChange(event.target.value)} disabled={disabled}>
-        {accounts
-          .filter((account) => account.id !== exclude)
-          .map((account) => (
-            <option key={account.id} value={account.id}>
-              {account.email} · {account.state.replaceAll('_', ' ')}
-            </option>
-          ))}
-      </select>
+      <Select
+        value={value}
+        onChange={(selectedValue) => onChange(selectedValue)}
+        disabled={disabled}
+        aria-label={label}
+        options={[
+          ...accounts
+            .filter((account) => account.id !== exclude)
+            .map((account) => ({
+              value: account.id,
+              label: `${account.email} · ${account.state.replaceAll('_', ' ')}`,
+            })),
+        ]}
+      />
     </label>
   );
 }
@@ -226,19 +232,19 @@ export function BoardChoice({
     <>
       <label>
         {label}
-        <select
+        <Select
           value={resource.boardId}
           disabled={disabled}
-          onChange={(event) => resource.setBoardId(event.target.value)}
-        >
-          <option value="">choose a board</option>
-          {resource.boards.items.map((board) => (
-            <option value={board.id} key={board.id}>
-              {board.title}
-              {board.isMain ? ' · main' : ''}
-            </option>
-          ))}
-        </select>
+          onChange={(selectedValue) => resource.setBoardId(selectedValue)}
+          aria-label={label}
+          options={[
+            { value: '', label: 'choose a board' },
+            ...resource.boards.items.map((board) => ({
+              value: board.id,
+              label: `${board.title}${board.isMain ? ' · main' : ''}`,
+            })),
+          ]}
+        />
       </label>
       <TransferPages resource={resource.boards} />
     </>
@@ -328,27 +334,30 @@ export function DestinationChoice({
     <fieldset disabled={disabled}>
       <label>
         destination
-        <select
+        <Select
           value={kind}
-          onChange={(event) => setKind(event.target.value as 'new' | 'existing')}
-        >
-          <option value="new">create distinct new lists</option>
-          <option value="existing">append to an existing list</option>
-        </select>
+          onChange={(selectedValue) => setKind(selectedValue as 'new' | 'existing')}
+          aria-label="destination"
+          options={[
+            { value: 'new', label: 'create distinct new lists' },
+            { value: 'existing', label: 'append to an existing list' },
+          ]}
+        />
       </label>
       <BoardChoice resource={resource} label="destination board" />
       {kind === 'existing' && (
         <>
           <label>
             destination list
-            <select value={listId} onChange={(event) => setListId(event.target.value)}>
-              <option value="">choose a list</option>
-              {resource.lists.items.map((list) => (
-                <option key={list.id} value={list.id}>
-                  {list.title}
-                </option>
-              ))}
-            </select>
+            <Select
+              value={listId}
+              onChange={(selectedValue) => setListId(selectedValue)}
+              aria-label="destination list"
+              options={[
+                { value: '', label: 'choose a list' },
+                ...resource.lists.items.map((list) => ({ value: list.id, label: list.title })),
+              ]}
+            />
           </label>
           {resource.boardId && <TransferPages resource={resource.lists} />}
         </>

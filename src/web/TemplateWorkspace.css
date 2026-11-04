@@ -310,7 +310,7 @@
   min-width: 0;
 }
 .templates__form input,
-.templates__form select,
+.templates__form .select__trigger,
 .templates__form textarea {
   font-family: var(--font);
   font-size: 13px;

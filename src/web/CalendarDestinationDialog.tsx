@@ -11,6 +11,7 @@ import { request } from './http';
 import { BoardListPageSchema, BoardPageSchema } from './schemas';
 import { usePagedResource } from './usePagedResource';
 import { useServerConnection } from './useServerConnection';
+import { Select } from '../ui/Select';
 import './CalendarDestinationDialog.css';
 
 export function CalendarDestinationDialog({
@@ -78,13 +79,17 @@ export function CalendarDestinationDialog({
           <>
             <label>
               board
-              <select value={boardId} onChange={(event) => setBoardId(event.target.value)}>
-                {choices.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.title || 'untitled board'}
-                  </option>
-                ))}
-              </select>
+              <Select
+                value={boardId}
+                onChange={(selectedValue) => setBoardId(selectedValue)}
+                aria-label="board"
+                options={[
+                  ...choices.map((item) => ({
+                    value: item.id,
+                    label: item.title || 'untitled board',
+                  })),
+                ]}
+              />
             </label>
             {boards.status === 'loading' && <p role="status">loading boards…</p>}
             {boards.error && (

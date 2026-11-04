@@ -72,7 +72,7 @@
   color: var(--secondary);
 }
 .transfer input,
-.transfer select,
+.transfer .select__trigger,
 .transfer textarea {
   border: 1px solid var(--line);
   background: var(--canvas);
