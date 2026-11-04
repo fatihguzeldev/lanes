@@ -33,6 +33,39 @@ const allowed = {
   history: ['tasks'],
   transfer: ['accounts', 'tasks', 'boards', 'history'],
 };
+// Explicit operations and query capabilities used by another owner. Their helpers stay private.
+const publicServerFiles = {
+  accounts: ['access.ts', 'lifecycle.ts', 'portability.ts'],
+  tasks: [
+    'server/queries/lists.ts',
+    'server/list-templates.ts',
+    'server/operations.ts',
+    'server/commands/provider-commands.ts',
+    'server/commands/provider-copy-contract.ts',
+    'server/metadata.ts',
+    'server/template-documents.ts',
+    'server/queries/snapshot-reader.ts',
+    'server/queries/tasks.ts',
+  ],
+  boards: ['server.ts', 'server/templates.ts', 'server/template-schedules.ts'],
+  history: ['server.ts'],
+};
+const isServerFile = (file) => {
+  const name = relative(file);
+  return (
+    name.startsWith('src/worker/') ||
+    /\/server(?:\/|\.[cm]?[jt]s$)/.test(name) ||
+    /\/(crypto|google|access|provider|repository|persistence)\.[cm]?[jt]s$/.test(name) ||
+    /^src\/modules\/accounts\/(access|crypto|google|lifecycle|maintenance|portability|provider-access)\.ts$/.test(
+      name,
+    ) ||
+    name === 'src/modules/boards/projection.ts'
+  );
+};
+const isBrowserFile = (file) =>
+  /^(?:src\/(?:web|client|ui)\/|src\/modules\/[^/]+\/(?:client|components)\/)/.test(
+    relative(file),
+  ) || file.endsWith('.tsx');
 const edges = new Map();
 const issues = [];
 for (const file of files) {
@@ -80,26 +113,47 @@ for (const file of files) {
           if (
             !allowed[fromOwner]?.includes(toOwner) ||
             (fromOwner === 'history' &&
-              !/^src\/modules\/tasks\/(contracts|model|planning|planning-contract)\.ts$/.test(
+              !/^src\/modules\/tasks\/(?:contracts|model|planning|planning-contract|query-contract|client\/usePlanningToday)\.ts$/.test(
                 relative(resolved),
               ))
           )
             issues.push(`${relative(file)} cannot depend on ${relative(resolved)}`);
-          if (/\/(repository|persistence|provider)\.[cm]?[jt]s$/.test(resolved))
+          if (
+            isServerFile(resolved) &&
+            !publicServerFiles[toOwner]?.includes(
+              relative(resolved).slice(`src/modules/${toOwner}/`.length),
+            )
+          )
             issues.push(
               `${relative(file)} must use an explicit public operation/query rather than ${relative(resolved)}`,
             );
         }
-        if (relative(file).startsWith('src/ui/') && toOwner)
+        if (fromOwner && relative(resolved).startsWith('src/web/'))
+          issues.push(
+            `${relative(file)} cannot depend on the application shell ${relative(resolved)}`,
+          );
+        if (
+          relative(file).startsWith('src/client/') &&
+          (toOwner || relative(resolved).startsWith('src/web/'))
+        )
+          issues.push(
+            `${relative(file)} is browser infrastructure and cannot import ${relative(resolved)}`,
+          );
+        if (
+          relative(file).startsWith('src/ui/') &&
+          (toOwner || /^src\/(web|client|worker)\//.test(relative(resolved)))
+        )
           issues.push(`${relative(file)} is shared ui and cannot import ${relative(resolved)}`);
         if (
           relative(file).startsWith('src/contracts/') &&
-          /src\/(modules|web|worker|ui)\//.test(relative(resolved))
+          /src\/(modules|web|client|worker|ui)\//.test(relative(resolved))
         )
           issues.push(`${relative(file)} must remain context independent`);
         if (
-          (relative(file).startsWith('src/worker/') || /\/server(?:\/|\.[jt]s$)/.test(file)) &&
-          (/\.(tsx|css)$/.test(resolved) || /^src\/(web|ui|styles)\//.test(relative(resolved)))
+          isServerFile(file) &&
+          (isBrowserFile(resolved) ||
+            /\.css$/.test(resolved) ||
+            relative(resolved).startsWith('src/styles/'))
         )
           issues.push(
             `${relative(file)} cannot depend on browser presentation ${relative(resolved)}`,
@@ -115,9 +169,7 @@ const isServer = (value) =>
   value.startsWith('node:') ||
   value.startsWith('cloudflare:') ||
   value === '@cloudflare/workers-types' ||
-  /src\/worker\//.test(relative(value)) ||
-  /\/server(?:\/|\.[jt]s$)/.test(value) ||
-  /\/(crypto|google|access|provider|repository|persistence)\.[jt]s$/.test(value);
+  isServerFile(value);
 const seen = new Set();
 function walk(file, chain) {
   if (seen.has(file)) return;
@@ -130,9 +182,7 @@ function walk(file, chain) {
     else walk(next, [...chain, relative(file)]);
   }
 }
-const browserEntries = files.filter(
-  (file) => relative(file).startsWith('src/web/') || file.endsWith('.tsx'),
-);
+const browserEntries = files.filter(isBrowserFile);
 if (!files.length || !browserEntries.length)
   issues.push(
     'no browser source entry points were checked; update the boundary configuration for the actual source layout',
