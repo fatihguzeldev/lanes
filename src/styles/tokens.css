@@ -7,39 +7,45 @@
 }
 :root {
   color-scheme: light;
-  --canvas: #f1f0e9;
-  --sidebar: #e5e7db;
-  --paper: #fdfbf6;
-  --paper-hover: #f3f3e8;
-  --ink: #30392f;
-  --secondary: #697063;
-  --muted: #727b65;
-  --line: #d7d9cd;
-  --fine: #e5e4dc;
+  --canvas: #f3f3f1;
+  --sidebar: #eeeee9;
+  --paper: #fdfdfb;
+  --paper-hover: #f5f5f1;
+  --ink: #2d2d2b;
+  --secondary: #696963;
+  --muted: #70706a;
+  --line: #e1e1dc;
+  --fine: #eeeee9;
   --green: #3d5847;
-  --green-soft: #dce3d3;
+  --green-soft: #e7eae2;
+  --on-accent: #fdfdfb;
+  --check-border: #92928b;
+  --focus: var(--green);
+  --star: #8c712e;
   --rust: #a2553a;
   --rust-soft: #f3e6d9;
-  --shadow: 0 2px 4px #303e2d04, 0 12px 28px #303e2d04;
+  --shadow: 0 3px 12px #0000000a;
   --font: 'DM Sans', sans-serif;
-  --workspace-padding: 32px;
+  --workspace-padding: 24px;
 }
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --canvas: #20251f;
-  --sidebar: #1b211b;
-  --paper: #292f27;
-  --paper-hover: #30382d;
-  --ink: #e4e6db;
-  --secondary: #b6bfaa;
-  --muted: #a4b097;
-  --line: #434e3b;
-  --fine: #384332;
+  --canvas: #222222;
+  --sidebar: #202020;
+  --paper: #2b2b2b;
+  --paper-hover: #30302e;
+  --ink: #eeede9;
+  --secondary: #b6b5af;
+  --muted: #a4a39c;
+  --line: #3b3b39;
+  --fine: #333332;
   --green: #b1c59b;
-  --green-soft: #3a4b31;
+  --green-soft: #363c31;
+  --on-accent: #232323;
+  --star: #ccb77f;
   --rust: #dfab8d;
   --rust-soft: #4a382d;
-  --shadow: 0 2px 4px #00000008, 0 12px 28px #00000008;
+  --shadow: 0 3px 16px #00000022;
 }
 * {
   box-sizing: border-box;
@@ -74,8 +80,8 @@ a:focus-visible,
 input:focus-visible,
 textarea:focus-visible,
 select:focus-visible {
-  outline: 2px solid var(--green);
-  outline-offset: 4px;
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
 }
 a {
   color: var(--green);
@@ -107,12 +113,12 @@ textarea {
 }
 @media (max-width: 800px) {
   :root {
-    --workspace-padding: 22px;
+    --workspace-padding: 18px;
   }
 }
 @media (max-width: 560px) {
   :root {
-    --workspace-padding: 19px;
+    --workspace-padding: 16px;
   }
 }
 @media (prefers-reduced-motion: reduce) {
