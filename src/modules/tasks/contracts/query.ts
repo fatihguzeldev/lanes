@@ -1,3 +1,4 @@
+import { CoverageSchema } from '../../../shared/contracts/coverage';
 import { z } from 'zod';
 import { LabelSchema, TaskFilterSchema, TaskSchema, TaskSortSchema } from './task';
 import { ResourceIdSchema } from '../../../shared/contracts/identity';
@@ -34,13 +35,6 @@ export const TaskQuerySchema = z
 export type TaskQueryInput = z.input<typeof TaskQuerySchema>;
 export type TaskQuery = z.output<typeof TaskQuerySchema>;
 
-export const TaskCoverageSchema = z
-  .object({
-    complete: z.boolean(),
-    lastSyncedAt: z.iso.datetime().nullable(),
-    stale: z.boolean(),
-  })
-  .strict();
 export const TaskDependantSchema = z
   .object({
     id: ResourceIdSchema,
@@ -67,7 +61,7 @@ export const TaskDependantsPageSchema = z
   .object({
     items: z.array(TaskDependantSchema).max(100),
     nextCursor: z.string().nullable(),
-    coverage: TaskCoverageSchema,
+    coverage: CoverageSchema,
     graphRevision: z.number().int().nonnegative(),
   })
   .strict();
@@ -89,8 +83,8 @@ export const TaskPageSchema = z
     contextTaskIds: z.array(ResourceIdSchema).max(100),
     subtaskSummaries: z.record(ResourceIdSchema, SubtaskSummarySchema),
     nextCursor: z.string().nullable(),
-    coverage: TaskCoverageSchema,
-    providerCoverage: TaskCoverageSchema,
+    coverage: CoverageSchema,
+    providerCoverage: CoverageSchema,
   })
   .strict();
 export type TaskPage = z.infer<typeof TaskPageSchema>;
@@ -107,7 +101,7 @@ export const TaskExportPageSchema = z
     matchedTaskIds: z.array(ResourceIdSchema).max(10),
     contextTaskIds: z.array(ResourceIdSchema).max(10),
     nextCursor: z.string().nullable(),
-    providerCoverage: TaskCoverageSchema,
+    providerCoverage: CoverageSchema,
   })
   .strict();
 export type TaskExportPage = z.infer<typeof TaskExportPageSchema>;
@@ -124,6 +118,6 @@ export const LabelPageSchema = z
   .object({
     items: z.array(LabelSchema).max(100),
     nextCursor: z.string().nullable(),
-    coverage: TaskCoverageSchema,
+    coverage: CoverageSchema,
   })
   .strict();

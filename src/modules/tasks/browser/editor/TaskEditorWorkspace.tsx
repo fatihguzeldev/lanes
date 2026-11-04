@@ -4,7 +4,8 @@ import type { ConnectionSummary } from '../../../accounts/contracts/connection';
 import { TaskEditor, type TaskEditorCreate, type TaskEditorSave } from './TaskEditor';
 import { TaskSchema, type Label, type Task, type TaskList } from '../../contracts/task';
 import { LabelDeletionJobSchema } from '../../contracts/metadata-commands';
-import { TaskCoverageSchema, TaskDependantsPageSchema } from '../../contracts/query';
+import { CoverageSchema } from '../../../../shared/contracts/coverage';
+import { TaskDependantsPageSchema } from '../../contracts/query';
 import { RecurrenceStatusSchema, type RecurrenceStatus } from '../../contracts/recurrence';
 import { checkServerConnection, request } from '../../../../shared/browser/http/http';
 import { useTaskQuery } from '../queries/useTaskQuery';
@@ -44,7 +45,7 @@ const deletionPage = z
   .object({
     items: z.array(LabelDeletionJobSchema).max(100),
     nextCursor: z.string().nullable(),
-    coverage: TaskCoverageSchema,
+    coverage: CoverageSchema,
   })
   .strict();
 const providerFields = new Set([

@@ -1,10 +1,11 @@
+import { CoverageSchema } from '../../../../shared/contracts/coverage';
 import { useState } from 'react';
 import { z } from 'zod';
 import { Dialog } from '../../../../shared/ui/dialog/Dialog';
 import { Icon } from '../../../../shared/ui/icon/Icon';
 import type { ConnectionSummary } from '../../../accounts/contracts/connection';
 import { LabelSchema, type Label } from '../../contracts/task';
-import { LabelPageSchema, TaskCoverageSchema } from '../../contracts/query';
+import { LabelPageSchema } from '../../contracts/query';
 import { LabelDeletionJobSchema } from '../../contracts/metadata-commands';
 import {
   Confirmation,
@@ -21,7 +22,7 @@ const deletionPage = z
   .object({
     items: z.array(LabelDeletionJobSchema).max(100),
     nextCursor: z.string().nullable(),
-    coverage: TaskCoverageSchema,
+    coverage: CoverageSchema,
   })
   .strict();
 interface Props {
