@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { seedAccount, testDatabase } from '../../../../../../tests/sqlite-d1';
+import { seedAccount, testDatabase } from '../../../../../../tests/support/sqlite-d1';
 import { OperationStore } from '../../../../operations/server/journal/store';
 import { CapturedCopyPlanner } from '../copy-plan';
 import type { BeginCapturedCopy, CopyEntry } from '../copy-contract';
-import { invocationDatabase } from '../../../../../../tests/d1-invocation';
+import { invocationDatabase } from '../../../../../../tests/support/d1-invocation';
 import { CommandRetention } from '../retention';
 import { TasksLifecycle } from '../../lifecycle/account';
 const now = Date.parse('2026-11-02T12:00:00Z');

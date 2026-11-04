@@ -1,7 +1,7 @@
 import type { D1Database } from '@cloudflare/workers-types';
-import type { Configuration } from '../env';
-import type { Services } from '../services';
-import { jsonResponse } from '../http';
+import type { Configuration } from '../configuration/env';
+import type { Services } from '../composition/services';
+import { jsonResponse } from '../protocol/http';
 import { lifecycleRoute } from './lifecycle';
 import { transferRoute } from './transfer';
 import { templateRoute } from './templates';

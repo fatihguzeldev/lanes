@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ConnectionSummary } from '../../../accounts/contracts/connection';
 import type { Board } from '../../contracts/board';
-import { groupCompletedTasks, sevenDayCompletionSummary } from '../../../history/model/completion/completed';
+import {
+  groupCompletedTasks,
+  sevenDayCompletionSummary,
+} from '../../../history/model/completion/completed';
 import type { CompletedGroupKey } from '../../../history/contracts/events';
 import type { Task, TaskFilter, TaskList } from '../../../tasks/contracts/task';
 import { Icon } from '../../../../shared/ui/icon/Icon';

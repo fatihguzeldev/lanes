@@ -1,17 +1,17 @@
-import type { Services } from '../../services';
+import type { Services } from '../../composition/services';
 import type { AccountRouteContext } from '../context';
 
 import { z } from 'zod';
 import { OperationIdSchema } from '../../../modules/operations/contracts/receipt';
-import { ImportDestinationSchema } from '../../../modules/transfer/server-contract';
+import { ImportDestinationSchema } from '../../../modules/transfer/contracts/import';
 import {
   ArchiveCaptureChunkSchema,
   ArchiveChoiceChunkSchema,
   ArchiveExportSelectionSchema,
   ArchiveHeaderSchema,
   ArchiveImportModeSchema,
-} from '../../../modules/transfer/archive-contract';
-import { jsonResponse, readJson } from '../../http';
+} from '../../../modules/transfer/contracts/archive';
+import { jsonResponse, readJson } from '../../protocol/http';
 import { transferPage, recordPage } from './pagination';
 const BeginArchiveRequestSchema = z
   .object({

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { seedAccount, testDatabase } from '../../../../../../tests/sqlite-d1';
+import { seedAccount, testDatabase } from '../../../../../../tests/support/sqlite-d1';
 import { OperationStore, type StopRecordedIntent } from '../store';
 import { TasksLifecycle } from '../../../../tasks/server/lifecycle/account';
 

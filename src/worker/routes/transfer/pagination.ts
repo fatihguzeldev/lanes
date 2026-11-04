@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { parseValue } from '../../http';
+import { parseValue } from '../../protocol/http';
 export function transferPage(url: URL): { limit: number; cursor?: string } {
   const value = parseValue(
     z

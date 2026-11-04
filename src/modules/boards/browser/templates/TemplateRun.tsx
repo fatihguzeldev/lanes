@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ConnectionSummary } from '../../../accounts/contracts/connection';
 import { TemplateRunSummarySchema, type TemplateRunSummary } from '../../contracts/template';
-import { OperationSummarySchema, type OperationSummary } from '../../../operations/contracts/receipt';
+import {
+  OperationSummarySchema,
+  type OperationSummary,
+} from '../../../operations/contracts/receipt';
 import { Dialog } from '../../../../shared/ui/dialog/Dialog';
 import { Icon } from '../../../../shared/ui/icon/Icon';
 import { request, RequestError } from '../../../../shared/browser/http/http';

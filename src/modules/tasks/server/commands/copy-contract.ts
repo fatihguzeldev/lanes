@@ -1,6 +1,11 @@
 import type { D1PreparedStatement } from '@cloudflare/workers-types';
 import { z } from 'zod';
-import { CreateTaskSchema, LabelInputSchema, ListTitleSchema, PrioritySchema } from '../../contracts/task';
+import {
+  CreateTaskSchema,
+  LabelInputSchema,
+  ListTitleSchema,
+  PrioritySchema,
+} from '../../contracts/task';
 import { ResourceIdSchema } from '../../../../shared/contracts/identity';
 import { TaskScheduleSchema } from '../../contracts/planning';
 import type { CreationSource } from '../../../history/contracts/events';

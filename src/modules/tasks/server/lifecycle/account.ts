@@ -1,7 +1,13 @@
 import type { D1Database } from '@cloudflare/workers-types';
 import { AppError } from '../../../../shared/contracts/errors';
-import { accountRemovalGuard, type LifecycleOwner } from '../../../accounts/server/lifecycle/removal';
-import { assertDisconnecting, disconnectWorkGuard } from '../../../accounts/server/connections/access';
+import {
+  accountRemovalGuard,
+  type LifecycleOwner,
+} from '../../../accounts/server/lifecycle/removal';
+import {
+  assertDisconnecting,
+  disconnectWorkGuard,
+} from '../../../accounts/server/connections/access';
 import type { OperationStore } from '../../../operations/server/journal/store';
 import type { TaskCommandService } from '../commands/service';
 import type { CompletedTaskDeletionService } from '../completed-deletion/service';

@@ -6,7 +6,10 @@ import type { ConnectionSummary } from '../../../accounts/contracts/connection';
 import { LabelSchema, type Label } from '../../contracts/task';
 import { LabelPageSchema, TaskCoverageSchema } from '../../contracts/query';
 import { LabelDeletionJobSchema } from '../../contracts/metadata-commands';
-import { Confirmation, type ConfirmationChoice } from '../../../operations/browser/submission/Confirmation';
+import {
+  Confirmation,
+  type ConfirmationChoice,
+} from '../../../operations/browser/submission/Confirmation';
 import { checkServerConnection, request } from '../../../../shared/browser/http/http';
 import { useServerConnection } from '../../../../shared/browser/connectivity/useServerConnection';
 import { usePagedResource } from '../../../../shared/browser/resources/usePagedResource';

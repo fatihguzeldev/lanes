@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { seedAccount, testDatabase } from '../../../../../../tests/sqlite-d1';
+import { seedAccount, testDatabase } from '../../../../../../tests/support/sqlite-d1';
 import { TaskCommandService } from '../service';
 import { TaskProjectionStore } from '../../projection/store';
 import { OperationStore } from '../../../../operations/server/journal/store';

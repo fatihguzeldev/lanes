@@ -1,16 +1,16 @@
 import { z } from 'zod';
 import { AppError } from '../../shared/contracts/errors';
-import type { Services } from '../services';
+import type { Services } from '../composition/services';
 import type { AccountRouteContext } from './context';
-import { jsonResponse, readJson, pageOptions } from '../http';
-import { LocalSubmissionSchema, submitLocalCommand } from '../local-commands';
+import { jsonResponse, readJson, pageOptions } from '../protocol/http';
+import { LocalSubmissionSchema, submitLocalCommand } from '../composition/local-commands';
 import {
   ResolutionCandidatesRequestSchema,
   ResolutionConfirmSchema,
   ResolutionPreviewRequestSchema,
 } from '../../modules/tasks/contracts/resolution';
 import type { D1Database } from '@cloudflare/workers-types';
-import type { Configuration } from '../env';
+import type { Configuration } from '../configuration/env';
 
 export async function operationRoute(
   context: AccountRouteContext,

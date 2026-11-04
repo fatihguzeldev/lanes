@@ -3,9 +3,9 @@ import type { D1Database } from '@cloudflare/workers-types';
 import { AppError } from '../../shared/contracts/errors';
 import { StartOAuthSchema } from '../../modules/accounts/contracts/connection';
 import { initializeTaskWorkspace } from '../../modules/tasks/server/lifecycle/workspace';
-import type { Configuration } from '../env';
-import type { Services } from '../services';
-import { jsonResponse, readJson } from '../http';
+import type { Configuration } from '../configuration/env';
+import type { Services } from '../composition/services';
+import { jsonResponse, readJson } from '../protocol/http';
 function redirect(origin: string, path: string, cookies: string[] = []): Response {
   const headers = new Headers({
     location: new URL(path, origin).href,

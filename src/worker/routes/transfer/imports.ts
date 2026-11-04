@@ -1,4 +1,4 @@
-import type { Services } from '../../services';
+import type { Services } from '../../composition/services';
 import type { AccountRouteContext } from '../context';
 
 import { z } from 'zod';
@@ -8,8 +8,8 @@ import {
   BeginImportSchema,
   ConfirmImportSchema,
   ImportChunkSchema,
-} from '../../../modules/transfer/server-contract';
-import { jsonResponse, parseValue, readJson } from '../../http';
+} from '../../../modules/transfer/contracts/import';
+import { jsonResponse, parseValue, readJson } from '../../protocol/http';
 import { transferPage, recordPage } from './pagination';
 const BeginImportRequestSchema = z
   .object(BeginImportSchema.shape)

@@ -1,8 +1,8 @@
 import { z } from 'zod';
 import { AppError } from '../../shared/contracts/errors';
-import type { Services } from '../services';
+import type { Services } from '../composition/services';
 import type { AccountRouteContext } from './context';
-import { jsonResponse, parseValue, readJson, pageOptions } from '../http';
+import { jsonResponse, parseValue, readJson, pageOptions } from '../protocol/http';
 import { TaskQuerySchema, LabelQuerySchema } from '../../modules/tasks/contracts/query';
 import { HistoryQuerySchema } from '../../modules/history/contracts/events';
 import { accountToday } from '../../modules/tasks/model/planning';

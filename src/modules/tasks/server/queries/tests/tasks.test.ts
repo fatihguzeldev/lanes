@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { seedAccount, testDatabase } from '../../../../../../tests/sqlite-d1';
-import { invocationDatabase } from '../../../../../../tests/d1-invocation';
+import { seedAccount, testDatabase } from '../../../../../../tests/support/sqlite-d1';
+import { invocationDatabase } from '../../../../../../tests/support/d1-invocation';
 import { AppError } from '../../../../../shared/contracts/errors';
 import { normalizeTaskSearchText } from '../../../model/task';
 import { TaskDependantsPageSchema, TaskPageSchema } from '../../../contracts/query';

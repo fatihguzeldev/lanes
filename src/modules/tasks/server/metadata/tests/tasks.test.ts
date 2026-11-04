@@ -1,10 +1,13 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import type { D1PreparedStatement } from '@cloudflare/workers-types';
-import { seedAccount, testDatabase } from '../../../../../../tests/sqlite-d1';
+import { seedAccount, testDatabase } from '../../../../../../tests/support/sqlite-d1';
 import { HistoryService } from '../../../../history/server/events/event-store';
 import { TaskQueries } from '../../queries/tasks';
 import { TaskMetadataService, type MetadataContext } from '../tasks';
-import { MetadataCommandSchema, TaskMetadataPatchSchema } from '../../../contracts/metadata-commands';
+import {
+  MetadataCommandSchema,
+  TaskMetadataPatchSchema,
+} from '../../../contracts/metadata-commands';
 
 const now = Date.parse('2026-11-02T12:00:00Z');
 const databases: ReturnType<typeof testDatabase>[] = [];

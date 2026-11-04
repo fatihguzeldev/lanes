@@ -3,14 +3,19 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ConnectionSummary } from '../../../modules/accounts/contracts/connection';
 import type { Board } from '../../../modules/boards/contracts/board';
-import { CalendarView, type CalendarViewProps } from '../../../modules/boards/browser/calendar/CalendarView';
+import {
+  CalendarView,
+  type CalendarViewProps,
+} from '../../../modules/boards/browser/calendar/CalendarView';
 import { TaskCard } from '../../../modules/tasks/browser/items/TaskCard';
 import { TaskSchema, type TaskList } from '../../../modules/tasks/contracts/task';
 import type { TaskPage } from '../../../modules/tasks/contracts/query';
 import { CompletedWorkspace } from '../../../modules/boards/browser/completed/CompletedWorkspace';
 import { TaskCollectionWorkspace } from '../../../modules/tasks/browser/queries/TaskCollectionWorkspace';
 
-vi.mock('../../../modules/tasks/browser/queries/useTaskQuery', () => ({ useTaskQuery: () => queryState }));
+vi.mock('../../../modules/tasks/browser/queries/useTaskQuery', () => ({
+  useTaskQuery: () => queryState,
+}));
 vi.mock('../../../modules/tasks/browser/planning/usePlanningToday', () => ({
   usePlanningToday: () => '2026-11-04',
 }));

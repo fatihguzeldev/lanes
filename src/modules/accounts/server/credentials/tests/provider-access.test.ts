@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { testDatabase } from '../../../../../../tests/sqlite-d1';
+import { testDatabase } from '../../../../../../tests/support/sqlite-d1';
 import { decryptToken, encryptToken } from '../crypto';
 import { GOOGLE_TASKS_SCOPE, GoogleOAuthError } from '../../oauth/google';
 import type { GoogleGrant } from '../../oauth/google';

@@ -1,6 +1,6 @@
 import type { ConnectionSummary } from '../../modules/accounts/contracts/connection';
-import type { Services } from '../services';
-import { jsonResponse } from '../http';
+import type { Services } from '../composition/services';
+import { jsonResponse } from '../protocol/http';
 import { transferImportRoute } from './transfer/imports';
 import { accountTransferRoute } from './transfer/accounts';
 import { sheetsTransferRoute } from './transfer/sheets';

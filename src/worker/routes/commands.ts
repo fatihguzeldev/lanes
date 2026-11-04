@@ -1,13 +1,13 @@
 import { z } from 'zod';
 import { AppError } from '../../shared/contracts/errors';
-import type { Services } from '../services';
+import type { Services } from '../composition/services';
 import type { AccountRouteContext } from './context';
-import { jsonResponse, readJson } from '../http';
-import { LocalSubmissionSchema, submitLocalCommand } from '../local-commands';
+import { jsonResponse, readJson } from '../protocol/http';
+import { LocalSubmissionSchema, submitLocalCommand } from '../composition/local-commands';
 import { ProviderCommandSchema } from '../../modules/tasks/contracts/provider-commands';
 import { OperationIdSchema } from '../../modules/operations/contracts/receipt';
 import type { D1Database } from '@cloudflare/workers-types';
-import type { Configuration } from '../env';
+import type { Configuration } from '../configuration/env';
 
 export async function commandRoute(
   context: AccountRouteContext,

@@ -15,8 +15,8 @@ import {
 } from '../../modules/tasks/contracts/template';
 import { OperationIdSchema } from '../../modules/operations/contracts/receipt';
 import { accountToday } from '../../modules/tasks/model/planning';
-import type { createServices } from '../services';
-import { jsonResponse, parseValue, readJson } from '../http';
+import type { createServices } from '../composition/services';
+import { jsonResponse, parseValue, readJson } from '../protocol/http';
 
 /** Authenticated HTTP composition; template rules and storage stay with their owners. */
 export async function templateRoute(

@@ -2,7 +2,10 @@ import type { TaskMoveIntent } from '../../contracts/task';
 import { TaskSchema, TaskListSchema } from '../../contracts/task';
 import { TaskConsequencesSchema } from '../../contracts/consequence';
 import { TaskPageSchema } from '../../contracts/query';
-import { OperationSummarySchema, type OperationSummary } from '../../../operations/contracts/receipt';
+import {
+  OperationSummarySchema,
+  type OperationSummary,
+} from '../../../operations/contracts/receipt';
 import { SyncAdvanceSchema, SyncStatusSchema } from '../../contracts/sync';
 import { request, RequestError } from '../../../../shared/browser/http/http';
 import { serverConnection } from '../../../../shared/browser/connectivity/connectivity';

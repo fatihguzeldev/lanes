@@ -1,8 +1,8 @@
 import { z } from 'zod';
 import { AppError } from '../../shared/contracts/errors';
-import type { Services } from '../services';
+import type { Services } from '../composition/services';
 import type { AccountRouteContext } from './context';
-import { jsonResponse, readJson } from '../http';
+import { jsonResponse, readJson } from '../protocol/http';
 import { initializeTaskWorkspace } from '../../modules/tasks/server/lifecycle/workspace';
 import { RefreshRequestSchema } from '../../modules/tasks/contracts/sync';
 import type { D1Database } from '@cloudflare/workers-types';

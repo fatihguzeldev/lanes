@@ -1,7 +1,7 @@
-import { parseConfiguration, type Env } from './env';
-import { createServices } from './services';
-import { advanceScheduledWork } from './scheduler';
-import { runMaintenance } from './maintenance';
+import { parseConfiguration, type Env } from './configuration/env';
+import { createServices } from './composition/services';
+import { advanceScheduledWork } from './scheduling/scheduler';
+import { runMaintenance } from './scheduling/maintenance';
 import { maintainAccounts } from '../modules/accounts/server/session/maintenance';
 export async function handleScheduled(
   _controller: { scheduledTime: number },

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { seedAccount, testDatabase } from '../../../../../../tests/sqlite-d1';
+import { seedAccount, testDatabase } from '../../../../../../tests/support/sqlite-d1';
 import { ListSnapshotStore } from '../../../../tasks/server/templates/lists';
 import { BoardTemplateService, readTemplateListAppearance } from '../definitions';
 const now = Date.parse('2026-11-02T12:00:00Z');

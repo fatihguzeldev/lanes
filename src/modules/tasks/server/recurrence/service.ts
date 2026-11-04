@@ -1,6 +1,9 @@
 import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types';
 import { AppError } from '../../../../shared/contracts/errors';
-import { assertProviderWritable, providerWriteGuard } from '../../../accounts/server/connections/access';
+import {
+  assertProviderWritable,
+  providerWriteGuard,
+} from '../../../accounts/server/connections/access';
 
 import { ResourceIdSchema } from '../../../../shared/contracts/identity';
 import { RepeatRuleSchema, type RepeatRule } from '../../contracts/planning';

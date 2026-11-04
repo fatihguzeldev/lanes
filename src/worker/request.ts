@@ -1,7 +1,7 @@
 import { AppError } from '../shared/contracts/errors';
-import { parseConfiguration, type Env } from './env';
-import { createServices } from './services';
-import { errorResponse, jsonResponse, pageOptions, requireSameOrigin } from './http';
+import { parseConfiguration, type Env } from './configuration/env';
+import { createServices } from './composition/services';
+import { errorResponse, jsonResponse, pageOptions, requireSameOrigin } from './protocol/http';
 import { authenticationRoute, signOutRoute } from './routes/auth';
 import { accountRoute } from './routes/account';
 function parts(path: string): string[] {

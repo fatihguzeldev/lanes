@@ -1,5 +1,5 @@
 import { afterEach, expect, it } from 'vitest';
-import { seedAccount, testDatabase } from '../../../../../../tests/sqlite-d1';
+import { seedAccount, testDatabase } from '../../../../../../tests/support/sqlite-d1';
 import { AccountsPortability } from '../portability';
 const databases: ReturnType<typeof testDatabase>[] = [];
 afterEach(() => {

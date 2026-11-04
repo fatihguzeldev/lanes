@@ -1,12 +1,7 @@
 import { z } from 'zod';
 import { CreateTaskSchema, LabelInputSchema, PrioritySchema } from './task';
 import { ResourceIdSchema } from '../../../shared/contracts/identity';
-import {
-  CalendarDateSchema,
-  LocalTimeSchema,
-  RepeatRuleSchema,
-  TimeZoneSchema,
-} from './planning';
+import { CalendarDateSchema, LocalTimeSchema, RepeatRuleSchema, TimeZoneSchema } from './planning';
 const key = ResourceIdSchema.max(256);
 const timestamp = z.iso.datetime({ offset: true });
 export const TemplateNameSchema = z

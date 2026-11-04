@@ -18,7 +18,10 @@ import {
   nextTemplateSlot,
   wallClockInstant,
 } from '../../../tasks/model/planning';
-import { TemplatePageOptionsSchema, type TemplatePageOptions } from '../../../tasks/contracts/template';
+import {
+  TemplatePageOptionsSchema,
+  type TemplatePageOptions,
+} from '../../../tasks/contracts/template';
 import type { MetadataContext } from '../../../tasks/server/metadata/tasks';
 import {
   CreateTemplateScheduleSchema,

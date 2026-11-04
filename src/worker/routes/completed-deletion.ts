@@ -5,7 +5,7 @@ import {
   ConfirmCompletedDeletionSchema,
 } from '../../modules/tasks/contracts/completed-deletion';
 import type { CompletedTaskDeletionService } from '../../modules/tasks/server/completed-deletion/service';
-import { jsonResponse, parseValue, readJson } from '../http';
+import { jsonResponse, parseValue, readJson } from '../protocol/http';
 
 const empty = z.object({}).strict();
 const pageSchema = z

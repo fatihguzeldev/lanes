@@ -2,7 +2,15 @@ import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types'
 import { z } from 'zod';
 import { AppError } from '../../../../shared/contracts/errors';
 import type { Coverage, Page } from '../../../../shared/contracts/http';
-import { LabelInputSchema, LabelSchema, TaskCapabilitiesSchema, TaskSchema, type Label, type Task, type TaskSort } from '../../contracts/task';
+import {
+  LabelInputSchema,
+  LabelSchema,
+  TaskCapabilitiesSchema,
+  TaskSchema,
+  type Label,
+  type Task,
+  type TaskSort,
+} from '../../contracts/task';
 import { ResourceIdSchema } from '../../../../shared/contracts/identity';
 import { normalizeTaskSearchText, sortTasks } from '../../model/task';
 import { CalendarDateSchema } from '../../contracts/planning';

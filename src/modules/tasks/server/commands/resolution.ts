@@ -6,7 +6,10 @@ import type {
   ResolutionContext,
   ResolutionPreview,
 } from '../../contracts/resolution';
-import { ResolutionConfirmSchema, ResolutionPreviewRequestSchema } from '../../contracts/resolution';
+import {
+  ResolutionConfirmSchema,
+  ResolutionPreviewRequestSchema,
+} from '../../contracts/resolution';
 import type { CapturedStep } from './state';
 import {
   GoogleTasksError,
@@ -14,7 +17,11 @@ import {
   type GoogleTaskListDTO,
   type GoogleTasksClient,
 } from '../provider/google-tasks';
-import type { OperationStep, OperationStore, ResolutionEvidence } from '../../../operations/server/journal/store';
+import type {
+  OperationStep,
+  OperationStore,
+  ResolutionEvidence,
+} from '../../../operations/server/journal/store';
 import type { TaskProjectionStore } from '../projection/store';
 import { normalizeTaskSearchText } from '../../model/task';
 interface Dependencies {

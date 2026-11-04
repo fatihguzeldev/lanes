@@ -13,7 +13,11 @@ import type { InitialViewReadiness } from '../../shared/browser/resources/readin
 import { Icon } from '../../shared/ui/icon/Icon';
 import { Dialog } from '../../shared/ui/dialog/Dialog';
 import type { ConnectionSummary } from '../../modules/accounts/contracts/connection';
-import { BoardMembershipSchema, type Board, type BoardList } from '../../modules/boards/contracts/board';
+import {
+  BoardMembershipSchema,
+  type Board,
+  type BoardList,
+} from '../../modules/boards/contracts/board';
 import {
   TaskSchema,
   TaskListSchema,
@@ -27,7 +31,10 @@ import { accountToday } from '../../modules/tasks/model/planning';
 import { checkServerConnection, request } from '../../shared/browser/http/http';
 import { useServerConnection } from '../../shared/browser/connectivity/useServerConnection';
 import { usePagedResource } from '../../shared/browser/resources/usePagedResource';
-import { PromptDialog, type Prompt } from '../../modules/operations/browser/submission/PromptDialog';
+import {
+  PromptDialog,
+  type Prompt,
+} from '../../modules/operations/browser/submission/PromptDialog';
 import { useCommands } from '../../modules/operations/browser/submission/useCommands';
 import { useWorkspaceSync } from '../../modules/tasks/browser/sync/useWorkspaceSync';
 import { BoardWorkspace } from '../../modules/boards/browser/board/BoardWorkspace';
@@ -35,7 +42,10 @@ import { CalendarWorkspace } from '../../modules/boards/browser/calendar/Calenda
 import { CompletedWorkspace } from '../../modules/boards/browser/completed/CompletedWorkspace';
 import { HistoryPanel } from '../../modules/history/browser/activity/HistoryPanel';
 import { TaskEditorWorkspace } from '../../modules/tasks/browser/editor/TaskEditorWorkspace';
-import { Confirmation, type ConfirmationChoice } from '../../modules/operations/browser/submission/Confirmation';
+import {
+  Confirmation,
+  type ConfirmationChoice,
+} from '../../modules/operations/browser/submission/Confirmation';
 import { LabelManager } from '../../modules/tasks/browser/labels/LabelManager';
 import { TaskCollectionWorkspace } from '../../modules/tasks/browser/queries/TaskCollectionWorkspace';
 import { useRecurrenceWork } from '../../modules/tasks/browser/planning/useRecurrenceWork';
@@ -92,7 +102,7 @@ const TemplateWorkspace = lazy(() =>
   })),
 );
 const TransferWorkspace = lazy(() =>
-  import('../../modules/transfer/client/TransferWorkspace').then((module) => ({
+  import('../../modules/transfer/browser/workspace/TransferWorkspace').then((module) => ({
     default: module.TransferWorkspace,
   })),
 );

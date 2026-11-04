@@ -5,7 +5,13 @@ import type { Page } from '../../../../shared/contracts/http';
 import { assertLocalWritable, localWriteGuard } from '../../../accounts/server/connections/access';
 import type { HistoryService } from '../../../history/server/events/event-store';
 import type { HistoryEventInput } from '../../../history/contracts/events';
-import { LabelInputSchema, LabelSchema, PrioritySchema, type Label, type Priority } from '../../contracts/task';
+import {
+  LabelInputSchema,
+  LabelSchema,
+  PrioritySchema,
+  type Label,
+  type Priority,
+} from '../../contracts/task';
 import { ResourceIdSchema } from '../../../../shared/contracts/identity';
 import {
   LabelDeletionJobSchema,

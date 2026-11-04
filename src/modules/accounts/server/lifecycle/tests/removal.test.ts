@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import type { D1Database } from '@cloudflare/workers-types';
-import { testDatabase, seedAccount } from '../../../../../../tests/sqlite-d1';
+import { testDatabase, seedAccount } from '../../../../../../tests/support/sqlite-d1';
 import { encryptToken } from '../../credentials/crypto';
 import { accountGrantContext, type AccountConfig } from '../../oauth/account-service';
 import { GOOGLE_TASKS_SCOPE } from '../../oauth/google';

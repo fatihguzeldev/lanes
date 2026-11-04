@@ -1,14 +1,18 @@
 import { afterEach, expect, it } from 'vitest';
-import { seedAccount, testDatabase } from '../../../../../../tests/sqlite-d1';
+import { seedAccount, testDatabase } from '../../../../../../tests/support/sqlite-d1';
 import { HistoryService } from '../../../../history/server/events/event-store';
-import { GoogleTasksClient, type GoogleTaskDTO, type GoogleTasksFetch } from '../../provider/google-tasks';
+import {
+  GoogleTasksClient,
+  type GoogleTaskDTO,
+  type GoogleTasksFetch,
+} from '../../provider/google-tasks';
 import { OperationStore } from '../../../../operations/server/journal/store';
 import { TaskProjectionStore } from '../../projection/store';
 import { TaskCommandService } from '../../commands/service';
 import { TaskQueries } from '../../queries/tasks';
 import { CompletedTaskDeletionService } from '../service';
 import { AppError } from '../../../../../shared/contracts/errors';
-import { invocationDatabase } from '../../../../../../tests/d1-invocation';
+import { invocationDatabase } from '../../../../../../tests/support/d1-invocation';
 import type { D1Database } from '@cloudflare/workers-types';
 
 const initial = Date.parse('2026-11-02T12:00:00Z'),

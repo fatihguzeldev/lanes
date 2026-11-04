@@ -1,7 +1,13 @@
 import type { D1Database } from '@cloudflare/workers-types';
 import { AppError } from '../../../../shared/contracts/errors';
-import { assertDisconnecting, disconnectWorkGuard } from '../../../accounts/server/connections/access';
-import { accountRemovalGuard, type LifecycleOwner } from '../../../accounts/server/lifecycle/removal';
+import {
+  assertDisconnecting,
+  disconnectWorkGuard,
+} from '../../../accounts/server/connections/access';
+import {
+  accountRemovalGuard,
+  type LifecycleOwner,
+} from '../../../accounts/server/lifecycle/removal';
 import type { ListSnapshotStore } from '../../../tasks/server/templates/lists';
 
 /** Board/template metadata settles before task-list removal; neither path deletes google content. */

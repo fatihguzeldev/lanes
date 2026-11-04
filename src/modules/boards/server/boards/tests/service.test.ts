@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types';
-import { testDatabase, seedAccount } from '../../../../../../tests/sqlite-d1';
+import { testDatabase, seedAccount } from '../../../../../../tests/support/sqlite-d1';
 import { AppError } from '../../../../../shared/contracts/errors';
 import { BoardAppearanceSchema, CreateBoardSchema } from '../../../contracts/board';
 import { BoardService } from '../service';

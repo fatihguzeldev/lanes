@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { testDatabase, seedAccount } from '../../../../../../tests/sqlite-d1';
+import { testDatabase, seedAccount } from '../../../../../../tests/support/sqlite-d1';
 import { HistoryService } from '../../../../history/server/events/event-store';
 import { RepeatRuleSchema } from '../../../contracts/planning';
 import { TaskMetadataService } from '../../metadata/tasks';
