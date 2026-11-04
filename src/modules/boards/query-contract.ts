@@ -1,7 +1,6 @@
 import { z } from 'zod';
-import { BoardListSchema, BoardSchema } from '../modules/boards/contracts';
-import { HistoryEventSchema } from '../modules/history/contracts';
-import { TaskCoverageSchema } from '../modules/tasks/query-contract';
+import { BoardListSchema, BoardSchema } from './contracts';
+import { TaskCoverageSchema } from '../tasks/query-contract';
 const page = <T extends z.ZodType>(item: T) =>
   z
     .object({
@@ -12,4 +11,3 @@ const page = <T extends z.ZodType>(item: T) =>
     .strict();
 export const BoardPageSchema = page(BoardSchema);
 export const BoardListPageSchema = page(BoardListSchema);
-export const HistoryPageSchema = page(HistoryEventSchema);

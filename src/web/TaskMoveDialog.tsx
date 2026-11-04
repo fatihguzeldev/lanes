@@ -4,7 +4,7 @@ import { TaskConsequencesSchema } from '../modules/tasks/consequence-contract';
 import type { Task } from '../modules/tasks/contracts';
 import { Dialog } from '../ui/Dialog';
 import { request } from '../client/http';
-import { BoardPageSchema, BoardListPageSchema } from './schemas';
+import { BoardPageSchema, BoardListPageSchema } from '../modules/boards/query-contract';
 import { usePagedResource } from '../client/usePagedResource';
 import { useTaskQuery } from './useTaskQuery';
 import { newOperationId } from '../client/operation-identity';

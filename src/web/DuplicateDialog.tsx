@@ -6,7 +6,7 @@ import type { Task } from '../modules/tasks/contracts';
 import type { ProviderCommandInput } from '../modules/tasks/provider-command-contract';
 import { Dialog } from '../ui/Dialog';
 import { request } from '../client/http';
-import { BoardPageSchema, BoardListPageSchema } from './schemas';
+import { BoardPageSchema, BoardListPageSchema } from '../modules/boards/query-contract';
 import { usePagedResource } from '../client/usePagedResource';
 import { newOperationId } from '../client/operation-identity';
 import { useCommands } from './useCommands';

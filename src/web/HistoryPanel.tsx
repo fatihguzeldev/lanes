@@ -8,7 +8,7 @@ import { addCalendarDays } from '../modules/tasks/planning';
 import { Dialog } from '../ui/Dialog';
 import { Icon, type IconName } from '../ui/Icon';
 import { request } from '../client/http';
-import { HistoryPageSchema } from './schemas';
+import { HistoryPageSchema } from '../modules/history/query-contract';
 import { usePagedResource } from '../client/usePagedResource';
 import { usePlanningToday } from './usePlanningToday';
 import { Select } from '../ui/Select';

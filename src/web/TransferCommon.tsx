@@ -4,7 +4,7 @@ import type { ConnectionSummary } from '../modules/accounts/contracts';
 import type { Board, BoardList } from '../modules/boards/contracts';
 import { Icon } from '../ui/Icon';
 import { request, checkServerConnection } from '../client/http';
-import { BoardListPageSchema, BoardPageSchema } from './schemas';
+import { BoardListPageSchema, BoardPageSchema } from '../modules/boards/query-contract';
 import { usePagedResource } from '../client/usePagedResource';
 import { useServerConnection } from '../client/useServerConnection';
 import { serverConnection } from '../client/connectivity';

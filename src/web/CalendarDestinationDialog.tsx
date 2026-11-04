@@ -8,7 +8,7 @@ import {
 import { Dialog } from '../ui/Dialog';
 import { Icon } from '../ui/Icon';
 import { request } from '../client/http';
-import { BoardListPageSchema, BoardPageSchema } from './schemas';
+import { BoardListPageSchema, BoardPageSchema } from '../modules/boards/query-contract';
 import { usePagedResource } from '../client/usePagedResource';
 import { useServerConnection } from '../client/useServerConnection';
 import { Select } from '../ui/Select';

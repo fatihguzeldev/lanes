@@ -41,7 +41,7 @@ import { OperationSummarySchema, type OperationSummary } from '../modules/tasks/
 import { Dialog } from '../ui/Dialog';
 import { Icon } from '../ui/Icon';
 import { checkServerConnection, request, RequestError } from '../client/http';
-import { BoardListPageSchema, BoardPageSchema } from './schemas';
+import { BoardListPageSchema, BoardPageSchema } from '../modules/boards/query-contract';
 import { usePagedResource } from '../client/usePagedResource';
 import { newOperationId } from '../client/operation-identity';
 import { useCommands } from './useCommands';

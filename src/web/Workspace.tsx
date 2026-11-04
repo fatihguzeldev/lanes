@@ -36,7 +36,7 @@ import { LabelPageSchema } from '../modules/tasks/query-contract';
 import { accountToday } from '../modules/tasks/planning';
 import { checkServerConnection, request, RequestError } from '../client/http';
 import { useServerConnection } from '../client/useServerConnection';
-import { BoardPageSchema, BoardListPageSchema } from './schemas';
+import { BoardPageSchema, BoardListPageSchema } from '../modules/boards/query-contract';
 import { usePagedResource } from '../client/usePagedResource';
 import { newOperationId } from '../client/operation-identity';
 import { useCommands } from './useCommands';
