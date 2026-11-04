@@ -2,10 +2,15 @@ import { useState } from 'react';
 import type { ConnectionSummary } from '../modules/accounts/contracts';
 import { BoardPatchSchema, type Board } from '../modules/boards/contracts';
 import type { BoardViewPreferences } from '../modules/boards/view-preferences';
-import { Dialog } from '../ui/Dialog';
+import { Icon } from '../ui/Icon';
+import { AnchoredPopover } from '../ui/Popover';
+import { Select } from '../ui/Select';
 import { newOperationId, useCommands } from './useCommands';
 import { useServerConnection } from './useServerConnection';
+import './BoardOptions.css';
+
 interface Props {
+  anchor: HTMLElement;
   account: ConnectionSummary;
   board: Board;
   boards: readonly Board[];
@@ -17,8 +22,11 @@ interface Props {
   onChanged: () => void;
   onClose: () => void;
   onDelete: () => void;
+  onHistory: () => void;
+  onCompleted: () => void;
 }
 export function BoardOptions({
+  anchor,
   account,
   board,
   boards,
@@ -30,6 +38,8 @@ export function BoardOptions({
   onChanged,
   onClose,
   onDelete,
+  onHistory,
+  onCompleted,
 }: Props) {
   const [title, setTitle] = useState(board.title),
     [emoji, setEmoji] = useState(board.emoji ?? ''),
@@ -57,180 +67,222 @@ export function BoardOptions({
       .then((result) => {
         if (result?.state === 'succeeded') onClose();
       });
+
   return (
-    <Dialog title="board settings" onClose={onClose} pending={commands.busy}>
-      <form
-        className="dialog__body"
-        onSubmit={(event) => {
-          event.preventDefault();
-          if (!dirty || !writable || recorded) return;
-          const parsed = BoardPatchSchema.safeParse({
-            ...(title !== board.title ? { title } : {}),
-            ...(emoji !== (board.emoji ?? '') ? { emoji: emoji || null } : {}),
-            ...(color !== board.color ? { color } : {}),
-            ...(background !== (board.backgroundUrl ?? '')
-              ? { backgroundUrl: background || null }
-              : {}),
-          });
-          if (!parsed.success) {
-            setError(parsed.error.issues[0]?.message ?? 'check these board settings.');
-            return;
-          }
-          setError('');
-          void commands
-            .submit(
-              {
-                kind: 'board.update',
-                boardId: board.id,
-                revision: board.revision,
-                input: parsed.data,
-              },
-              'local',
-              identity,
-            )
-            .then((result) => {
-              if (result?.state === 'succeeded') onClose();
+    <AnchoredPopover
+      anchor={anchor}
+      label="board options"
+      onClose={onClose}
+      className="board-options"
+    >
+      <div className="popover__menu">
+        <button
+          type="button"
+          className="popover__item"
+          disabled={commands.busy}
+          onClick={onHistory}
+        >
+          <Icon name="history" size={15} /> history
+        </button>
+        <button
+          type="button"
+          className="popover__item"
+          disabled={commands.busy}
+          onClick={onCompleted}
+        >
+          <Icon name="check" size={15} /> completed tasks
+        </button>
+      </div>
+      <details className="board-options__section">
+        <summary>
+          appearance <Icon name="down" size={13} />
+        </summary>
+        <form
+          className="board-options__fields"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (!dirty || !writable || commands.busy || recorded) return;
+            const parsed = BoardPatchSchema.safeParse({
+              ...(title !== board.title ? { title } : {}),
+              ...(emoji !== (board.emoji ?? '') ? { emoji: emoji || null } : {}),
+              ...(color !== board.color ? { color } : {}),
+              ...(background !== (board.backgroundUrl ?? '')
+                ? { backgroundUrl: background || null }
+                : {}),
             });
-        }}
-      >
-        <fieldset disabled={!writable || commands.busy || recorded} style={{ display: 'contents' }}>
-          <label>
-            name
-            <input
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-              required
-              maxLength={256}
-            />
-          </label>
-          <label>
-            emoji <span>optional</span>
-            <input
-              value={emoji}
-              onChange={(event) => setEmoji(event.target.value)}
-              maxLength={64}
-              placeholder="🌱"
-            />
-          </label>
-          <label>
-            board color
-            <input
-              value={color}
-              onChange={(event) => setColor(event.target.value)}
-              spellCheck={false}
-              placeholder="#f1f0e9"
-            />
-          </label>
-          <label>
-            background
-            <select
-              value={
-                background.startsWith('/backgrounds/') ? background : background ? 'custom' : ''
-              }
-              onChange={(event) =>
-                setBackground(event.target.value === 'custom' ? 'https://' : event.target.value)
-              }
-            >
-              <option value="">color only</option>
-              <option value="/backgrounds/lines.svg">quiet lines</option>
-              <option value="/backgrounds/circles.svg">soft shapes</option>
-              <option value="custom">an image url</option>
-            </select>
-          </label>
-          {!!background && !background.startsWith('/backgrounds/') && (
+            if (!parsed.success) {
+              setError(parsed.error.issues[0]?.message ?? 'check these board settings.');
+              return;
+            }
+            setError('');
+            void commands
+              .submit(
+                {
+                  kind: 'board.update',
+                  boardId: board.id,
+                  revision: board.revision,
+                  input: parsed.data,
+                },
+                'local',
+                identity,
+              )
+              .then((result) => {
+                if (result?.state === 'succeeded') onClose();
+              });
+          }}
+        >
+          <fieldset disabled={!writable || commands.busy || recorded}>
             <label>
-              https image url
+              name
               <input
-                type="url"
-                value={background}
-                onChange={(event) => setBackground(event.target.value)}
-                maxLength={4096}
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+                required
+                maxLength={256}
               />
-              <small>your browser contacts this image host when opening the board.</small>
             </label>
+            <div className="board-options__pair">
+              <label>
+                emoji
+                <input
+                  value={emoji}
+                  onChange={(event) => setEmoji(event.target.value)}
+                  maxLength={64}
+                  placeholder="🌱"
+                />
+              </label>
+              <label>
+                color
+                <input
+                  value={color}
+                  onChange={(event) => setColor(event.target.value)}
+                  spellCheck={false}
+                  placeholder="#f1f0e9"
+                />
+              </label>
+            </div>
+            <label>
+              background
+              <Select
+                value={
+                  background.startsWith('/backgrounds/') ? background : background ? 'custom' : ''
+                }
+                onChange={(value) => setBackground(value === 'custom' ? 'https://' : value)}
+                aria-label="board background"
+                options={[
+                  { value: '', label: 'color only' },
+                  { value: '/backgrounds/lines.svg', label: 'quiet lines' },
+                  { value: '/backgrounds/circles.svg', label: 'soft shapes' },
+                  { value: 'custom', label: 'an image url' },
+                ]}
+              />
+            </label>
+            {!!background && !background.startsWith('/backgrounds/') && (
+              <label>
+                https image url
+                <input
+                  type="url"
+                  value={background}
+                  onChange={(event) => setBackground(event.target.value)}
+                  maxLength={4096}
+                />
+                <small>your browser contacts this image host when opening the board.</small>
+              </label>
+            )}
+          </fieldset>
+          {dirty && (
+            <button
+              type="submit"
+              className="board-options__save"
+              disabled={!writable || commands.busy || recorded}
+            >
+              {commands.busy ? 'saving…' : 'save appearance'}
+            </button>
           )}
-        </fieldset>
-        <fieldset className="board-options__preferences">
-          <legend>in this browser</legend>
+        </form>
+      </details>
+      <details className="board-options__section">
+        <summary>
+          view preferences <Icon name="down" size={13} />
+        </summary>
+        <div className="board-options__checks">
           <label>
-            <span>
-              <input
-                type="checkbox"
-                checked={startBoardId === board.id || (board.isMain && !startBoardId)}
-                onChange={(event) => onStartBoard(event.target.checked ? board.id : null)}
-              />{' '}
-              open this board first
-            </span>
+            <input
+              type="checkbox"
+              checked={startBoardId === board.id || (board.isMain && !startBoardId)}
+              onChange={(event) => onStartBoard(event.target.checked ? board.id : null)}
+            />
+            open this board first
           </label>
           {(['showCounts', 'showCompleted', 'showNotes'] as const).map((field) => (
             <label key={field}>
-              <span>
-                <input
-                  type="checkbox"
-                  checked={preferences[field]}
-                  onChange={(event) => onPreferences({ [field]: event.target.checked })}
-                />
-                {field === 'showCounts'
-                  ? 'show task counts'
-                  : field === 'showCompleted'
-                    ? 'show completed sections'
-                    : 'show note excerpts'}
-              </span>
+              <input
+                type="checkbox"
+                checked={preferences[field]}
+                onChange={(event) => onPreferences({ [field]: event.target.checked })}
+              />
+              {field === 'showCounts'
+                ? 'show task counts'
+                : field === 'showCompleted'
+                  ? 'show completed sections'
+                  : 'show note excerpts'}
             </label>
           ))}
-        </fieldset>
-        <div className="board-options__order">
+        </div>
+      </details>
+      <details className="board-options__section">
+        <summary>
+          board order <Icon name="down" size={13} />
+        </summary>
+        <div className="popover__menu">
           <button
             type="button"
+            className="popover__item"
             disabled={!writable || commands.busy || dirty || index <= 0}
             onClick={() => reorder(index - 1)}
           >
-            move earlier
+            <Icon name="up" size={14} /> move up
           </button>
           <button
             type="button"
+            className="popover__item"
             disabled={
               !writable || commands.busy || dirty || index < 0 || index === boards.length - 1
             }
             onClick={() => reorder(index + 1)}
           >
-            move later
+            <Icon name="down" size={14} /> move down
           </button>
         </div>
-        {(error || commands.error) && (
-          <p className="error" role="alert">
-            {error || commands.error}
-          </p>
-        )}
-        {recorded && commands.latest?.state === 'failed' && commands.latest.finished && (
-          <button
-            type="button"
-            onClick={() => {
-              setIdentity(newOperationId(clockOffset));
-              commands.clearError();
-            }}
-          >
-            start a new attempt
-          </button>
-        )}
-        <footer>
-          <button
-            type="button"
-            className="danger"
-            disabled={board.isMain || !writable || commands.busy}
-            onClick={onDelete}
-          >
-            delete board{board.isMain ? ' · main board stays' : ''}
-          </button>
-          <button
-            type="submit"
-            className="primary"
-            disabled={!dirty || !writable || commands.busy || recorded}
-          >
-            {commands.busy ? 'saving…' : 'save'}
-          </button>
-        </footer>
-      </form>
-    </Dialog>
+      </details>
+      {(error || commands.error) && (
+        <p className="board-options__error" role="alert">
+          {error || commands.error}
+        </p>
+      )}
+      {recorded && commands.latest?.state === 'failed' && commands.latest.finished && (
+        <button
+          type="button"
+          className="popover__item"
+          onClick={() => {
+            setIdentity(newOperationId(clockOffset));
+            commands.clearError();
+          }}
+        >
+          start a new attempt
+        </button>
+      )}
+      <div className="board-options__delete">
+        <button
+          type="button"
+          className="popover__item danger"
+          disabled={board.isMain || !writable || commands.busy}
+          onClick={onDelete}
+          title={board.isMain ? 'the main board cannot be deleted' : undefined}
+        >
+          <Icon name="trash" size={15} /> delete board
+        </button>
+      </div>
+    </AnchoredPopover>
   );
 }

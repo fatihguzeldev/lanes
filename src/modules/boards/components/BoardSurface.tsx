@@ -61,6 +61,7 @@ export interface BoardSurfaceProps {
   errorMessage?: string | undefined;
   onRetry?: (() => void) | undefined;
   onAddList?: (() => void) | undefined;
+  onLoadMoreLists?: (() => void) | undefined;
   onOpenTask: (task: Task) => void;
   onToggleComplete: (task: Task, completed: boolean) => void;
   onTaskMenu: (task: Task, anchor: HTMLButtonElement) => void;
@@ -548,6 +549,17 @@ export function BoardSurface(options: BoardSurfaceProps) {
                 dropOnColumn={dropOnColumn}
               />
             ))}
+            {options.onLoadMoreLists && (
+              <button
+                className="board-surface__more-lists"
+                type="button"
+                disabled={status === 'loading'}
+                onClick={options.onLoadMoreLists}
+              >
+                more lists
+                <Icon name="right" size={13} />
+              </button>
+            )}
             {options.onAddList && (
               <button
                 className="board-surface__add-list"

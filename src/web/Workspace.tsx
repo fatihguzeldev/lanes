@@ -29,7 +29,6 @@ import {
 } from '../modules/tasks/contracts';
 import { LabelPageSchema } from '../modules/tasks/query-contract';
 import { accountToday } from '../modules/tasks/planning';
-import { OperationPageSchema, OperationSummarySchema } from '../modules/tasks/operation-contract';
 import { checkServerConnection, request, RequestError } from './http';
 import { useServerConnection } from './useServerConnection';
 import { BoardPageSchema, BoardListPageSchema } from './schemas';
@@ -54,8 +53,14 @@ import { TaskMoveDialog } from './TaskMoveDialog';
 import { BoardOptions } from './BoardOptions';
 import { DuplicateDialog } from './DuplicateDialog';
 import { CompletedDeletionDialog } from './CompletedDeletionDialog';
-import { TaskFiltersDialog } from './TaskFiltersDialog';
-import { OperationsPanel } from './OperationsPanel';
+import { AccountMenu } from './AccountMenu';
+import { WorkspaceSettings } from './WorkspaceSettings';
+import { WorkspaceViewMenu } from './WorkspaceViewMenu';
+import { SyncControl } from './SyncControl';
+import { Select } from '../ui/Select';
+import { AnchoredPopover } from '../ui/Popover';
+import { ChangeStatus } from './ChangeStatus';
+import { OperationPageSchema } from '../modules/tasks/operation-contract';
 import { OperationResolutionDialog } from './OperationResolutionDialog';
 import { AccountLifecycleDialog } from './AccountLifecycleDialog';
 import { portabilityLanding } from './landing';
@@ -136,10 +141,7 @@ function PromptDialog({
             .submit(value, identity)
             .then((done) => {
               if (done) onClose();
-              else
-                setError(
-                  'this change has not been confirmed. inspect its operation before trying again.',
-                );
+              else setError('the save is not confirmed yet. check its status before trying again.');
             })
             .catch((error) =>
               setError(
@@ -218,10 +220,18 @@ export function Workspace({
     [filter, setFilter] = useState<TaskFilter>({});
   const [searchScope, setSearchScope] = useState<'board' | 'account'>('board');
   const [navOpen, setNavOpen] = useState(false),
-    [settings, setSettings] = useState(false),
     [activity, setActivity] = useState(false),
-    [history, setHistory] = useState(false),
-    [filtersOpen, setFiltersOpen] = useState(false);
+    [history, setHistory] = useState(false);
+  const [historyTask, setHistoryTask] = useState<Task | null>(null);
+  const [inlineDirty, setInlineDirty] = useState(false);
+  const [draftContext, setDraftContext] = useState<{ board: Board; lists: BoardList[] } | null>(
+    null,
+  );
+  const [resetInlineDrafts, setResetInlineDrafts] = useState(0);
+  const [draggingBoard, setDraggingBoard] = useState<string | null>(null);
+  const [taskMenuAnchor, setTaskMenuAnchor] = useState<HTMLElement | null>(null);
+  const [listMenuAnchor, setListMenuAnchor] = useState<HTMLElement | null>(null);
+  const [boardMenuAnchor, setBoardMenuAnchor] = useState<HTMLElement | null>(null);
   const closeNavigation = useCallback(() => setNavOpen(false), []);
   const navigation = useMobileNavigation(navOpen, closeNavigation);
   const [prompt, setPrompt] = useState<Prompt | null>(null),
@@ -264,8 +274,10 @@ export function Workspace({
   );
   const board = boardId
     ? (boards.items.find((item) => item.id === boardId) ??
-      (resolvedBoard?.id === boardId ? resolvedBoard : null))
-    : (boards.items.find((item) => item.isMain) ?? null);
+      (resolvedBoard?.id === boardId ? resolvedBoard : null) ??
+      (draftContext?.board.id === boardId ? draftContext.board : null))
+    : (boards.items.find((item) => item.isMain) ??
+      (draftContext?.board.isMain ? draftContext.board : null));
   const viewPreferences = board
     ? storedView?.boardId === board.id
       ? storedView.value
@@ -278,10 +290,16 @@ export function Workspace({
     setStoredView({ boardId: board.id, value: next });
     saveBoardView(account.id, board.id, next);
   };
-  const setView = (next: BoardViewPreferences['view']) => updateBoardView({ view: next });
+  const setView = (next: BoardViewPreferences['view']) =>
+    guard(() => updateBoardView({ view: next }));
   useEffect(() => {
-    if (!boardId || boards.items.some((item) => item.id === boardId)) {
+    if (!boardId) {
       setResolvedBoard(null);
+      return;
+    }
+    const loaded = boards.items.find((item) => item.id === boardId);
+    if (loaded) {
+      setResolvedBoard(loaded);
       return;
     }
     const controller = new AbortController();
@@ -313,6 +331,28 @@ export function Workspace({
     (list) => list.id,
     version,
   );
+  const visibleLists =
+    inlineDirty && draftContext && draftContext.board.id === board?.id
+      ? [
+          ...draftContext.lists.map(
+            (saved) => lists.items.find((item) => item.id === saved.id) ?? saved,
+          ),
+          ...lists.items.filter(
+            (item) => !draftContext.lists.some((saved) => saved.id === item.id),
+          ),
+        ]
+      : lists.items;
+  const unfinished = usePagedResource(
+    `${account.id}:unfinished-saves`,
+    (cursor, signal) =>
+      request(
+        `${base}/operations?active=1&limit=10${cursor ? '&cursor=' + encodeURIComponent(cursor) : ''}`,
+        OperationPageSchema,
+        { signal },
+      ),
+    (item) => item.id,
+    version,
+  );
   const labels = usePagedResource(
     `${account.id}:labels`,
     (cursor, signal) =>
@@ -341,10 +381,10 @@ export function Workspace({
     !['disconnecting', 'disconnected'].includes(account.state) && connection === 'reachable';
   const guard = useCallback(
     (action: () => void) => {
-      if (editorDirty || templateDirty || transferDirty) setDiscard(() => action);
+      if (editorDirty || templateDirty || transferDirty || inlineDirty) setDiscard(() => action);
       else action();
     },
-    [editorDirty, templateDirty, transferDirty],
+    [editorDirty, templateDirty, transferDirty, inlineDirty],
   );
   const submit = async (
     command: unknown,
@@ -359,7 +399,9 @@ export function Workspace({
     }
     if (result)
       setNotice(
-        `${result.state.replaceAll('_', ' ')} · ${result.confirmedSteps}/${result.totalSteps} steps confirmed`,
+        result.totalSteps > 1
+          ? `${result.confirmedSteps} of ${result.totalSteps} changes saved. check the remaining changes.`
+          : 'this change needs attention. check its save status.',
       );
     return false;
   };
@@ -372,33 +414,31 @@ export function Workspace({
   }, [sync.status?.initialized, onAccountsChanged]);
   useEffect(() => {
     const unload = (event: BeforeUnloadEvent) => {
-      if (editorDirty || templateDirty || transferDirty) {
+      if (editorDirty || templateDirty || transferDirty || inlineDirty) {
         event.preventDefault();
         event.returnValue = '';
       }
     };
     window.addEventListener('beforeunload', unload);
     return () => window.removeEventListener('beforeunload', unload);
-  }, [editorDirty, templateDirty, transferDirty]);
+  }, [editorDirty, templateDirty, transferDirty, inlineDirty]);
   useEffect(() => {
     const key = (event: KeyboardEvent) => {
       if (
         event.target instanceof HTMLElement &&
-        event.target.closest('input,textarea,select,[contenteditable=true],dialog')
+        event.target.closest(
+          'input,textarea,select,[role=combobox],[contenteditable=true],dialog,[popover]',
+        )
       )
         return;
       if (event.key === '/') {
         event.preventDefault();
         searchRef.current?.focus();
       }
-      if (event.key === 'n' && !event.metaKey && !event.ctrlKey && writable && lists.items[0]) {
-        event.preventDefault();
-        guard(() => setEditor({ task: null, list: lists.items[0]! }));
-      }
     };
     window.addEventListener('keydown', key);
     return () => window.removeEventListener('keydown', key);
-  }, [lists.items, writable, guard]);
+  }, []);
   const openTask = (task: Task) => {
     const list = lists.items.find((item) => item.id === task.listId);
     if (list)
@@ -671,7 +711,7 @@ export function Workspace({
   };
   function newBoard() {
     setPrompt({
-      title: 'a new board',
+      title: 'new board',
       label: 'board name',
       initial: '',
       submit: (value, identity) =>
@@ -681,10 +721,9 @@ export function Workspace({
   function newList() {
     if (board)
       setPrompt({
-        title: 'a new list',
+        title: 'new list',
         label: 'list name',
         initial: '',
-        description: `a google tasks list in ${board.title}.`,
         submit: (value, identity) =>
           submit(
             { kind: 'list.create', title: value, boardId: board.id, boardRevision: board.revision },
@@ -704,26 +743,15 @@ export function Workspace({
         aria-modal={navOpen || undefined}
       >
         <Brand />
-        <button
-          className="workspace__quick-add"
-          disabled={!writable || !lists.items.length || commands.busy}
-          onClick={() =>
-            guard(() => {
-              setNavOpen(false);
-              setEditor({ task: null, list: lists.items[0]! });
-            })
-          }
-        >
-          <Icon name="plus" size={16} />
-          new task<kbd>n</kbd>
-        </button>
         <nav className="workspace__navigation">
           <button
             className={quick === 'today' ? 'active' : ''}
             onClick={() => {
-              setQuick('today');
-              setView('board');
-              setNavOpen(false);
+              guard(() => {
+                setQuick('today');
+                updateBoardView({ view: 'board' });
+                setNavOpen(false);
+              });
             }}
           >
             <Icon name="sun" size={16} />
@@ -732,9 +760,11 @@ export function Workspace({
           <button
             className={quick === 'starred' ? 'active' : ''}
             onClick={() => {
-              setQuick('starred');
-              setView('board');
-              setNavOpen(false);
+              guard(() => {
+                setQuick('starred');
+                updateBoardView({ view: 'board' });
+                setNavOpen(false);
+              });
             }}
           >
             <Icon name="star" size={16} />
@@ -758,20 +788,55 @@ export function Workspace({
           {boards.items.map((item) => (
             <button
               key={item.id}
-              className={board?.id === item.id && quick === 'all' ? 'active' : ''}
+              className={
+                board?.id === item.id && quick === 'all' && !(searchScope === 'account' && search)
+                  ? 'active'
+                  : ''
+              }
+              draggable={localWritable}
+              onDragStart={(event) => {
+                setDraggingBoard(item.id);
+                event.dataTransfer.effectAllowed = 'move';
+                event.dataTransfer.setData('text/plain', item.id);
+              }}
+              onDragEnd={() => setDraggingBoard(null)}
+              onDragOver={(event) => {
+                if (draggingBoard && draggingBoard !== item.id) event.preventDefault();
+              }}
+              onDrop={(event) => {
+                event.preventDefault();
+                const source = boards.items.find((value) => value.id === draggingBoard);
+                setDraggingBoard(null);
+                if (!source || source.id === item.id || !localWritable) return;
+                void submit(
+                  {
+                    kind: 'board.reorder',
+                    boardId: source.id,
+                    revision: source.revision,
+                    position: boards.items.findIndex((value) => value.id === item.id),
+                  },
+                  'local',
+                );
+              }}
               onClick={() =>
                 guard(() => {
                   setBoardId(item.id);
+                  setResolvedBoard(item);
                   setQuick('all');
+                  setSearchScope('board');
+                  setSearch('');
+                  setQuery('');
                   setNavOpen(false);
                 })
               }
             >
-              <span className="workspace__board-symbol">
+              <span
+                className="workspace__board-symbol"
+                style={{ '--board-color': item.color } as CSSProperties}
+              >
                 {item.emoji ?? <Icon name="board" size={15} />}
               </span>
               <span>{item.title || 'untitled board'}</span>
-              {item.isMain && <span className="workspace__main-dot" title="main board" />}
             </button>
           ))}
           {boards.status === 'loading' && !boards.items.length && (
@@ -785,77 +850,6 @@ export function Workspace({
             </button>
           )}
         </nav>
-        <div className="workspace__sidebar-bottom">
-          <button
-            onClick={() =>
-              guard(() => {
-                setNavOpen(false);
-                setTransferOpen(true);
-              })
-            }
-          >
-            <Icon name="arrow" size={15} />
-            import & export
-          </button>
-          <button
-            onClick={() =>
-              guard(() => {
-                setNavOpen(false);
-                setTemplatesOpen(true);
-              })
-            }
-          >
-            <Icon name="copy" size={15} />
-            templates
-          </button>
-          <button
-            onClick={() => {
-              setNavOpen(false);
-              setHistory(true);
-            }}
-          >
-            <Icon name="history" size={15} />
-            history
-          </button>
-          <button
-            onClick={() => {
-              setNavOpen(false);
-              setActivity(true);
-            }}
-          >
-            <Icon name="sync" size={15} />
-            operations
-          </button>
-          <button
-            onClick={() => {
-              setNavOpen(false);
-              setSettings(true);
-            }}
-          >
-            <Icon name="settings" size={15} />
-            settings
-          </button>
-        </div>
-        <div className="workspace__account">
-          <span className="workspace__avatar">
-            {account.displayName.slice(0, 1).toLocaleLowerCase()}
-          </span>
-          <label>
-            <span className="sr-only">google account</span>
-            <select
-              value={account.id}
-              onChange={(event) => guard(() => onSelectAccount(event.target.value))}
-            >
-              {accounts.map((item) => (
-                <option value={item.id} key={item.id}>
-                  {item.displayName} · {item.email}
-                </option>
-              ))}
-            </select>
-            <small title={account.email}>{account.email}</small>
-          </label>
-          <Icon name="down" size={12} />
-        </div>
       </aside>
       {navOpen && (
         <button
@@ -864,11 +858,7 @@ export function Workspace({
           onClick={() => setNavOpen(false)}
         />
       )}
-      <main
-        className="workspace__main"
-        inert={navOpen || undefined}
-        style={{ '--board-tint': board?.color ?? '#f1f0e9' } as CSSProperties}
-      >
+      <main className="workspace__main" inert={navOpen || undefined}>
         {board?.backgroundUrl && (
           <img
             key={board.backgroundUrl}
@@ -882,8 +872,8 @@ export function Workspace({
             }}
           />
         )}
-        <header className="workspace__header">
-          <div className="workspace__heading">
+        <header className="workspace__topbar">
+          <div className="workspace__title">
             <button
               ref={navigation.trigger}
               className="workspace__mobile-menu"
@@ -892,96 +882,124 @@ export function Workspace({
             >
               <Icon name="menu" />
             </button>
-            <div className="workspace__heading-copy">
-              <span className="workspace__eyebrow">a place for your things</span>
-              <h1>
-                {quick === 'all' && board?.emoji && (
-                  <span className="workspace__board-emoji" aria-hidden="true">
-                    {board.emoji}
-                  </span>
-                )}
-                {quick === 'today'
-                  ? 'today'
-                  : quick === 'starred'
-                    ? 'starred'
+            <h1>
+              {quick === 'today'
+                ? 'today'
+                : quick === 'starred'
+                  ? 'starred'
+                  : searchScope === 'account' && search
+                    ? 'search results'
                     : (board?.title ?? 'your workspace')}
-              </h1>
-            </div>
-            {board && (
+            </h1>
+            {board && quick === 'all' && !(searchScope === 'account' && search) && (
               <button
-                className="workspace__board-menu"
+                className="workspace__icon-button"
                 aria-label={`options for ${board.title}`}
-                onClick={() => setBoardMenu(true)}
+                onClick={(event) => {
+                  setBoardMenuAnchor(event.currentTarget);
+                  setBoardMenu(true);
+                }}
               >
                 <Icon name="more" />
               </button>
             )}
-            <span className="workspace__account-scope" title={account.email}>
-              {account.email}
-            </span>
-            <button
-              className="workspace__primary"
-              disabled={!writable || !board || commands.busy}
-              onClick={newList}
-            >
-              <Icon name="plus" size={15} />
-              new list
-            </button>
           </div>
-          <div className="workspace__toolbar">
-            <div className="workspace__views" aria-label="workspace view">
-              {(['board', 'list', 'calendar'] as const).map((mode) => (
-                <button aria-pressed={view === mode} key={mode} onClick={() => setView(mode)}>
-                  <Icon
-                    name={mode === 'board' ? 'board' : mode === 'list' ? 'list' : 'calendar'}
-                    size={14}
-                  />
-                  {mode}
-                </button>
-              ))}
-            </div>
-            <span className="workspace__toolbar-divider" />
-            <button
-              className={`workspace__tool${Object.keys(filter).length ? ' active' : ''}`}
-              onClick={() => setFiltersOpen(true)}
-            >
-              <Icon name="filter" size={14} />
-              filter
-            </button>
-            <label className="workspace__sort">
-              <Icon name="sort" size={14} />
-              <span className="sr-only">sort tasks</span>
-              <select value={sort} onChange={(event) => setSort(event.target.value as TaskSort)}>
-                <option value="manual">manual</option>
-                <option value="scheduled">scheduled</option>
-                <option value="priority">priority</option>
-                <option value="title">title</option>
-                <option value="updated">updated</option>
-              </select>
-            </label>
+          <div className="workspace__search-controls">
             <label className="workspace__search">
-              <Icon name="search" size={15} />
+              <Icon name="search" size={16} />
               <input
                 ref={searchRef}
                 value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="find something"
+                onChange={(event) => {
+                  const value = event.target.value;
+                  if (inlineDirty && searchScope === 'account') guard(() => setQuery(value));
+                  else setQuery(value);
+                }}
+                placeholder="search tasks"
                 aria-label="search tasks"
               />
               <kbd>/</kbd>
             </label>
             {query && (
-              <label className="workspace__search-scope">
-                <span className="sr-only">search scope</span>
-                <select
-                  value={searchScope}
-                  onChange={(event) => setSearchScope(event.target.value as 'board' | 'account')}
-                >
-                  <option value="board">this board</option>
-                  <option value="account">all boards</option>
-                </select>
-              </label>
+              <Select
+                aria-label="search scope"
+                value={searchScope}
+                className="workspace__search-scope"
+                onChange={(value) => guard(() => setSearchScope(value as 'board' | 'account'))}
+                options={[
+                  { value: 'board', label: 'this board' },
+                  { value: 'account', label: 'all boards' },
+                ]}
+              />
             )}
+            <WorkspaceViewMenu
+              allowLayout={quick === 'all' && !(searchScope === 'account' && search)}
+              view={view}
+              sort={sort}
+              filter={filter}
+              lists={visibleLists}
+              labels={labels.items}
+              today={today}
+              moreLists={!!lists.nextCursor}
+              moreLabels={!!labels.nextCursor}
+              onView={setView}
+              onSort={setSort}
+              onFilter={(next) => guard(() => setFilter(next))}
+              onClear={() =>
+                guard(() => {
+                  setFilter({});
+                  setSearch('');
+                  setQuery('');
+                })
+              }
+              onMoreLists={() => void lists.loadMore()}
+              onMoreLabels={() => void labels.loadMore()}
+            />
+          </div>
+          <div className="workspace__global-controls">
+            <SyncControl
+              unfinished={unfinished.items}
+              moreUnfinished={!!unfinished.nextCursor}
+              unfinishedLoading={unfinished.status === 'loading'}
+              unfinishedError={unfinished.error}
+              onMoreUnfinished={() => void unfinished.loadMore()}
+              onRetryUnfinished={() => void unfinished.reload()}
+              onInspectChange={(id) => {
+                setInspectedOperation(id);
+                setActivity(true);
+              }}
+              connected={account.state === 'connected'}
+              reachable={connection === 'reachable'}
+              busy={sync.busy || commands.busy || repeatWork.busy}
+              error={sync.error}
+              status={sync.status}
+              onRefresh={() =>
+                void sync.refresh(
+                  'manual',
+                  lists.items.map((list) => list.id),
+                )
+              }
+            />
+            <WorkspaceSettings
+              account={account}
+              clockOffset={clockOffset}
+              theme={theme}
+              onTheme={onTheme}
+              onChanged={() => {
+                changed();
+                onAccountsChanged();
+              }}
+              onTransfer={() => guard(() => setTransferOpen(true))}
+              onTemplates={() => guard(() => setTemplatesOpen(true))}
+            />
+            <AccountMenu
+              account={account}
+              accounts={accounts}
+              onSelect={(id) => guard(() => onSelectAccount(id))}
+              onConnect={() => guard(() => onAuthorize('link'))}
+              onManage={() => guard(() => setAccountLifecycleOpen(true))}
+              onSignOut={() => guard(onSignOut)}
+            />
           </div>
         </header>
         {connection !== 'reachable' && (
@@ -1022,23 +1040,29 @@ export function Workspace({
             )}
           </div>
         )}
-        {(commands.error || sync.error || repeatWork.error || notice) && (
-          <div
-            className="workspace__notice"
-            role={commands.error || sync.error ? 'alert' : 'status'}
-          >
-            <span>{commands.error || sync.error || repeatWork.error || notice}</span>
+        {(commands.error || repeatWork.error || notice) && (
+          <div className="workspace__notice" role={commands.error ? 'alert' : 'status'}>
+            <span>{commands.error || repeatWork.error || notice}</span>
+            {(commands.errorDetails?.operationId || commands.latest?.id) && commands.error && (
+              <button
+                onClick={() => {
+                  setInspectedOperation(
+                    commands.errorDetails?.operationId ?? commands.latest?.id ?? null,
+                  );
+                  setActivity(true);
+                }}
+              >
+                check save
+              </button>
+            )}
             <button
+              aria-label="dismiss message"
               onClick={() => {
-                setInspectedOperation(
-                  commands.errorDetails?.operationId ?? commands.latest?.id ?? null,
-                );
                 commands.clearError();
                 setNotice('');
-                setActivity(true);
               }}
             >
-              inspect
+              <Icon name="close" size={14} />
             </button>
           </div>
         )}
@@ -1050,7 +1074,7 @@ export function Workspace({
               key={`${account.id}:${board.id}`}
               account={account}
               board={board}
-              lists={lists.items}
+              lists={visibleLists}
               today={today}
               labels={labels.items}
               filter={activeFilter}
@@ -1071,13 +1095,29 @@ export function Workspace({
               errorMessage={lists.error}
               onRetry={() => void lists.reload()}
               onAddList={newList}
+              {...(lists.nextCursor ? { onLoadMoreLists: () => void lists.loadMore() } : {})}
+              clockOffset={clockOffset}
+              onTaskCreated={changed}
+              onDraftChange={(dirty) => {
+                if (dirty && board) setDraftContext({ board, lists: visibleLists });
+                if (!dirty) setDraftContext(null);
+                setInlineDirty(dirty);
+              }}
+              resetDrafts={resetInlineDrafts}
+              onInspectCreate={(id) => {
+                setInspectedOperation(id);
+                setActivity(true);
+              }}
               onOpenTask={openTask}
               onToggleComplete={(task, completed) => void toggleComplete(task, completed)}
-              onTaskMenu={(task) => setTaskMenu(task)}
-              onAddTask={(list) => guard(() => setEditor({ task: null, list }))}
-              onListMenu={(list) =>
-                setListMenu(lists.items.find((item) => item.id === list.id) ?? null)
-              }
+              onTaskMenu={(task, anchor) => {
+                setTaskMenuAnchor(anchor);
+                setTaskMenu(task);
+              }}
+              onListMenu={(list, anchor) => {
+                setListMenuAnchor(anchor);
+                setListMenu(visibleLists.find((item) => item.id === list.id) ?? null);
+              }}
               onMoveTask={(intent) => void moveTask(intent)}
             />
           )}
@@ -1094,7 +1134,10 @@ export function Workspace({
               version={version}
               onOpenTask={openTask}
               onToggleComplete={(task, completed) => void toggleComplete(task, completed)}
-              onTaskMenu={(task) => setTaskMenu(task)}
+              onTaskMenu={(task, anchor) => {
+                setTaskMenuAnchor(anchor);
+                setTaskMenu(task);
+              }}
               onOpenBoard={(id) =>
                 guard(() => {
                   setBoardId(id);
@@ -1111,7 +1154,7 @@ export function Workspace({
             key={`${account.id}:${board.id}`}
             account={account}
             board={board}
-            lists={lists.items}
+            lists={visibleLists}
             today={today}
             filter={activeFilter}
             query={search}
@@ -1119,7 +1162,10 @@ export function Workspace({
             version={version}
             providerActionsEnabled={writable}
             onOpenTask={openTask}
-            onTaskMenu={(task) => setTaskMenu(task)}
+            onTaskMenu={(task, anchor) => {
+              setTaskMenuAnchor(anchor);
+              setTaskMenu(task);
+            }}
             onCreateTask={(intent) => {
               if (intent.accountId !== account.id) return;
               guard(() => {
@@ -1168,56 +1214,27 @@ export function Workspace({
             key={`${account.id}:${board.id}`}
             account={account}
             board={board}
-            lists={lists.items}
+            lists={visibleLists}
             query={search}
             filter={activeFilter}
             version={version}
             onOpenTask={openTask}
-            onTaskMenu={(task) => setTaskMenu(task)}
+            onTaskMenu={(task, anchor) => {
+              setTaskMenuAnchor(anchor);
+              setTaskMenu(task);
+            }}
           />
         )}
         {!board && (
           <div className="workspace__empty">
             <Icon name="board" size={26} />
-            <h2>
-              {boards.status === 'loading' ? 'opening your boards…' : 'make room for your things.'}
-            </h2>
+            <h2>{boards.status === 'loading' ? 'opening your boards…' : 'no boards yet'}</h2>
             <p>
               {boards.error ||
                 'your google lists will appear here when the first refresh is ready.'}
             </p>
           </div>
         )}
-        <footer className="workspace__footer">
-          <button
-            onClick={() =>
-              void sync.refresh(
-                'manual',
-                lists.items.map((list) => list.id),
-              )
-            }
-            disabled={sync.busy}
-          >
-            <Icon name="sync" size={12} />
-            {sync.busy ? 'refreshing…' : 'refresh'}
-          </button>
-          <span>
-            {lists.items.length} lists loaded{lists.nextCursor ? ' · more available' : ''}
-          </span>
-          {lists.nextCursor && (
-            <button onClick={() => void lists.loadMore()}>
-              load more lists
-              <Icon name="down" size={12} />
-            </button>
-          )}
-          <button
-            className="workspace__completed-link"
-            onClick={() => setView(view === 'completed' ? 'board' : 'completed')}
-          >
-            {view === 'completed' ? 'back to board' : 'completed tasks'}
-            <Icon name="right" size={12} />
-          </button>
-        </footer>
       </main>
       {editor && (
         <TaskEditorWorkspace
@@ -1240,6 +1257,10 @@ export function Workspace({
             setEditorDirty(false);
             changed();
             onAccountsChanged();
+          }}
+          onInspectChange={(id) => {
+            setInspectedOperation(id);
+            setActivity(true);
           }}
           onDirtyChange={setEditorDirty}
           onOpenTask={openTask}
@@ -1416,6 +1437,7 @@ export function Workspace({
           clockOffset={clockOffset}
           account={account}
           board={board}
+          task={historyTask}
           lists={lists.items}
           version={version}
           onClose={() => setHistory(false)}
@@ -1447,10 +1469,7 @@ export function Workspace({
       {discard && (
         <Dialog title="leave this draft?" onClose={() => setDiscard(null)}>
           <div className="dialog__body">
-            <p>
-              your unsent changes will be discarded. submitted operations keep their original
-              account and destination.
-            </p>
+            <p>your unsent changes will be discarded. changes already sent will keep saving.</p>
             <footer>
               <button onClick={() => setDiscard(null)}>keep editing</button>
               <button
@@ -1459,6 +1478,8 @@ export function Workspace({
                   const next = discard;
                   setDiscard(null);
                   setEditorDirty(false);
+                  setInlineDirty(false);
+                  setResetInlineDrafts((value) => value + 1);
                   setTemplateDirty(false);
                   setTransferDirty(false);
                   setEditor(null);
@@ -1471,8 +1492,18 @@ export function Workspace({
           </div>
         </Dialog>
       )}
-      {boardMenu && board && (
+      {boardMenu && board && boardMenuAnchor && (
         <BoardOptions
+          anchor={boardMenuAnchor}
+          onHistory={() => {
+            setBoardMenu(false);
+            setHistoryTask(null);
+            setHistory(true);
+          }}
+          onCompleted={() => {
+            setBoardMenu(false);
+            setView('completed');
+          }}
           account={account}
           board={board}
           boards={boards.items}
@@ -1486,34 +1517,40 @@ export function Workspace({
           }}
           onChanged={changed}
           onClose={() => setBoardMenu(false)}
-          onDelete={() => {
-            setBoardMenu(false);
-            setPrompt({
-              title: `delete ${board.title}?`,
-              label: 'type the board name',
-              initial: '',
-              destructive: true,
-              description:
-                'its lists and tasks will move to your main board. google content is preserved.',
-              submit: (value, identity) =>
-                value === board.title
-                  ? submit(
-                      {
-                        kind: 'board.delete',
-                        boardId: board.id,
-                        revision: board.revision,
-                        confirmed: true,
-                      },
-                      'local',
-                      identity,
-                    )
-                  : Promise.resolve(false),
-            });
-          }}
+          onDelete={() =>
+            guard(() => {
+              setBoardMenu(false);
+              setPrompt({
+                title: `delete ${board.title}?`,
+                label: 'type the board name',
+                initial: '',
+                destructive: true,
+                description:
+                  'its lists and tasks will move to your main board. google content is preserved.',
+                submit: (value, identity) =>
+                  value === board.title
+                    ? submit(
+                        {
+                          kind: 'board.delete',
+                          boardId: board.id,
+                          revision: board.revision,
+                          confirmed: true,
+                        },
+                        'local',
+                        identity,
+                      )
+                    : Promise.resolve(false),
+              });
+            })
+          }
         />
       )}
-      {listMenu && (
-        <Dialog title={listMenu.title || 'list options'} onClose={() => setListMenu(null)}>
+      {listMenu && listMenuAnchor && (
+        <AnchoredPopover
+          anchor={listMenuAnchor}
+          label={listMenu.title || 'list options'}
+          onClose={() => setListMenu(null)}
+        >
           <div className="dialog__actions">
             <button
               disabled={!writable}
@@ -1569,34 +1606,32 @@ export function Workspace({
             </button>
             <label className="workspace__move-list">
               move to board
-              <select
+              <Select
+                aria-label="move to board"
                 value={listMenu.boardId}
                 disabled={!localWritable || listMenu.isDefault}
-                onChange={(event) => {
-                  void submit({
-                    kind: 'list.placement',
-                    listId: listMenu.id,
-                    boardId: event.target.value,
-                    revision: listMenu.membershipRevision,
-                  }).then((done) => {
-                    if (done) setListMenu(null);
-                  });
-                }}
-              >
-                {boards.items.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.title}
-                  </option>
-                ))}
-              </select>
+                onChange={(value) =>
+                  guard(() => {
+                    void submit({
+                      kind: 'list.placement',
+                      listId: listMenu.id,
+                      boardId: value,
+                      revision: listMenu.membershipRevision,
+                    }).then((done) => {
+                      if (done) setListMenu(null);
+                    });
+                  })
+                }
+                options={boards.items.map((item) => ({ value: item.id, label: item.title }))}
+              />
             </label>
             <button
               disabled={
-                !localWritable || lists.items.findIndex((list) => list.id === listMenu.id) <= 0
+                !localWritable || visibleLists.findIndex((list) => list.id === listMenu.id) <= 0
               }
               onClick={() => {
                 const list = listMenu;
-                const index = lists.items.findIndex((item) => item.id === list.id);
+                const index = visibleLists.findIndex((item) => item.id === list.id);
                 void submit({
                   kind: 'list.placement',
                   listId: list.id,
@@ -1608,16 +1643,16 @@ export function Workspace({
                 });
               }}
             >
-              move column earlier
+              move column left
             </button>
             <button
               disabled={
                 !localWritable ||
-                lists.items.findIndex((list) => list.id === listMenu.id) === lists.items.length - 1
+                visibleLists.findIndex((list) => list.id === listMenu.id) === lists.items.length - 1
               }
               onClick={() => {
                 const list = listMenu;
-                const index = lists.items.findIndex((item) => item.id === list.id);
+                const index = visibleLists.findIndex((item) => item.id === list.id);
                 void submit({
                   kind: 'list.placement',
                   listId: list.id,
@@ -1629,7 +1664,7 @@ export function Workspace({
                 });
               }}
             >
-              move column later
+              move column right
             </button>
             <button
               disabled={!writable}
@@ -1654,17 +1689,30 @@ export function Workspace({
             <button
               className="danger"
               disabled={!writable || listMenu.isDefault}
-              onClick={() => void deleteList(listMenu)}
+              onClick={() => guard(() => void deleteList(listMenu))}
             >
               <Icon name="trash" size={16} />
               delete list
             </button>
           </div>
-        </Dialog>
+        </AnchoredPopover>
       )}
-      {taskMenu && (
-        <Dialog title={taskMenu.title || 'task options'} onClose={() => setTaskMenu(null)}>
+      {taskMenu && taskMenuAnchor && (
+        <AnchoredPopover
+          anchor={taskMenuAnchor}
+          label={taskMenu.title || 'task options'}
+          onClose={() => setTaskMenu(null)}
+        >
           <div className="dialog__actions">
+            <button
+              onClick={() => {
+                setHistoryTask(taskMenu);
+                setTaskMenu(null);
+                setHistory(true);
+              }}
+            >
+              <Icon name="history" size={16} /> history
+            </button>
             <button
               onClick={() => {
                 openTask(taskMenu);
@@ -1708,7 +1756,7 @@ export function Workspace({
               }}
             >
               <Icon name="arrow" size={16} />
-              move, nest or promote
+              move task
             </button>
             <button
               disabled={!writable}
@@ -1729,87 +1777,7 @@ export function Workspace({
               delete task
             </button>
           </div>
-        </Dialog>
-      )}
-      {filtersOpen && (
-        <TaskFiltersDialog
-          filter={filter}
-          lists={lists.items}
-          labels={labels.items}
-          today={today}
-          onChange={setFilter}
-          onClear={() => {
-            setFilter({});
-            setQuick('all');
-            setSearch('');
-            setQuery('');
-          }}
-          onClose={() => setFiltersOpen(false)}
-          moreLists={!!lists.nextCursor}
-          moreLabels={!!labels.nextCursor}
-          onMoreLists={() => void lists.loadMore()}
-          onMoreLabels={() => void labels.loadMore()}
-        />
-      )}
-      {settings && (
-        <Dialog title="make yourself at home" onClose={() => setSettings(false)}>
-          <div className="dialog__body">
-            <p>{account.email}</p>
-            <label>
-              appearance
-              <select value={theme} onChange={(event) => onTheme(event.target.value as Theme)}>
-                <option value="system">system</option>
-                <option value="light">light</option>
-                <option value="dark">dark</option>
-              </select>
-            </label>
-            <label>
-              planning time zone
-              <input
-                defaultValue={account.planningZone}
-                key={account.planningZone}
-                onBlur={(event) => {
-                  if (event.target.value !== account.planningZone)
-                    void submit({
-                      kind: 'account.preferences',
-                      input: { revision: account.revision, planningZone: event.target.value },
-                    });
-                }}
-                disabled={!localWritable}
-              />
-            </label>
-            <label>
-              week starts on
-              <select
-                value={account.weekStart}
-                disabled={!localWritable}
-                onChange={(event) =>
-                  void submit({
-                    kind: 'account.preferences',
-                    input: { revision: account.revision, weekStart: Number(event.target.value) },
-                  })
-                }
-              >
-                <option value={1}>monday</option>
-                <option value={7}>sunday</option>
-              </select>
-            </label>
-            <footer>
-              <button
-                onClick={() => {
-                  setSettings(false);
-                  setAccountLifecycleOpen(true);
-                }}
-              >
-                connection and local data
-              </button>
-              <button onClick={() => guard(onSignOut)}>sign out</button>
-              <button className="primary" onClick={() => guard(() => onAuthorize('link'))}>
-                connect another account
-              </button>
-            </footer>
-          </div>
-        </Dialog>
+        </AnchoredPopover>
       )}
       {accountLifecycleOpen && (
         <AccountLifecycleDialog
@@ -1826,14 +1794,13 @@ export function Workspace({
           }}
         />
       )}
-      {activity && (
-        <Dialog title="operations" wide onClose={() => setActivity(false)}>
-          <OperationsPanel
+      {activity && inspectedOperation && (
+        <Dialog title="change status" onClose={() => setActivity(false)}>
+          <ChangeStatus
             account={account}
+            operationId={inspectedOperation}
             version={version}
             clockOffset={clockOffset}
-            selectedId={inspectedOperation}
-            onSelect={setInspectedOperation}
             onChanged={changed}
             onResolve={setResolvingOperation}
             onOpenTask={(id) =>

@@ -28,18 +28,30 @@ const base: BoardSurfaceProps = {
   onLoadMore() {},
   onRetryList() {},
 };
-function render(column: Partial<BoardColumn> = {}) {
+function render(column: Partial<BoardColumn> = {}, surface: Partial<BoardSurfaceProps> = {}) {
   return renderToStaticMarkup(
     createElement(BoardSurface, {
       ...base,
       columns: [
         { list, tasks: [], coverage: complete, status: 'ready', nextCursor: null, ...column },
       ],
+      ...surface,
     }),
   );
 }
 
 describe('board list presentation', () => {
+  it('keeps later list pages accessible beside the end of the visible columns', () => {
+    expect(render()).not.toContain('board-surface__more-lists');
+    const markup = render({}, { onLoadMoreLists() {}, onAddList() {} });
+    expect(markup).toContain('board-surface__more-lists');
+    expect(markup.indexOf('board-surface__more-lists')).toBeLessThan(
+      markup.indexOf('board-surface__add-list'),
+    );
+    expect(render({}, { onLoadMoreLists() {}, status: 'loading' })).toMatch(
+      /class="board-surface__more-lists"[^>]*disabled=""/,
+    );
+  });
   it('hides completed sections with no known completed tasks', () => {
     expect(render({ completedCoverage: complete })).not.toContain('board-column__completed');
   });

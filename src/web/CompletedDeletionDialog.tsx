@@ -397,8 +397,8 @@ export function CompletedDeletionDialog({
               )}
               {summary.state === 'uncertain' && (
                 <p>
-                  resolve the uncertain provider operation in activity before continuing. do not
-                  start another deletion to retry it.
+                  check the last deletion below before continuing. do not start another deletion to
+                  retry it.
                 </p>
               )}
               {summary.operationId && (
@@ -642,7 +642,7 @@ export function CompletedDeletionDialog({
         </footer>
         <p className="completed-deletion__note">
           closing stops this browser's progress checks. the preview and admitted work remain
-          available here and in activity; closing does not undo confirmed deletions.
+          available here; closing does not undo confirmed deletions.
         </p>
       </div>
     </Dialog>

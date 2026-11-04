@@ -267,7 +267,8 @@
   opacity: 0.55;
   cursor: not-allowed;
 }
-.board-surface__add-list {
+.board-surface__add-list,
+.board-surface__more-lists {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -280,11 +281,16 @@
   font-size: 13px;
   text-align: left;
 }
-.board-surface__add-list:hover:not(:disabled) {
+.board-surface__more-lists {
+  flex: 0 0 auto;
+}
+.board-surface__add-list:hover:not(:disabled),
+.board-surface__more-lists:hover:not(:disabled) {
   color: var(--ink);
   background: var(--paper);
 }
-.board-surface__add-list:disabled {
+.board-surface__add-list:disabled,
+.board-surface__more-lists:disabled {
   opacity: 0.45;
 }
 .board-surface__sr-only {

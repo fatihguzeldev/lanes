@@ -18,8 +18,8 @@ export class AppBoundary extends Component<{ children: ReactNode }, { failed: bo
         <section className="entry-paper" aria-labelledby="app-recovery-title">
           <h1 id="app-recovery-title">let’s open your workspace again.</h1>
           <p>
-            this screen could not load. reload lanes, then check operations before retrying an
-            interrupted change.
+            this screen could not load. reload lanes and check that your last change was saved
+            before trying it again.
           </p>
           <button className="entry-primary" onClick={() => window.location.reload()}>
             reload lanes

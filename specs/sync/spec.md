@@ -95,7 +95,7 @@ do not roll back a partial import or template by deleting created google content
 
 ## browser/server contract
 
-keep progress and recovery with the action that started the work. an import, copy, or template can reopen its saved progress; a task edit reports its own result. durable operation records do not require a permanent operations navigation item or expose internal step names as ordinary product copy.
+keep progress and recovery with the action that started the work. an import, copy, or template can reopen its saved progress; a task edit reports its own result. durable operation records do not require a permanent operations navigation item or expose internal step names as ordinary product copy. the sync menu exposes unfinished saves after reload, with bounded pages and a link to each saved result or recovery action.
 
 return a consistent error envelope with a stable lowercase code, readable message, request/operation reference, retryability, and field details where useful. no tokens, raw provider response bodies, or stack traces in browser errors.
 

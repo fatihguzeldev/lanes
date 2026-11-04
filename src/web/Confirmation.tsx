@@ -28,8 +28,7 @@ export function Confirmation({
         <p>{choice.message}</p>
         {failed && (
           <p className="error" role="alert">
-            {error ||
-              'this action has not been confirmed. inspect its operation before repeating it.'}
+            {error || 'the save is not confirmed yet. check its status before trying again.'}
           </p>
         )}
         <footer>
