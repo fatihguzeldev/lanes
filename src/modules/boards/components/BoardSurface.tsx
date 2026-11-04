@@ -506,7 +506,10 @@ export function BoardSurface(options: BoardSurfaceProps) {
       )}
       <div className="board-surface__scroll">
         {columns.length === 0 && status === 'loading' ? (
-          <BoardSkeleton />
+          <BoardSkeleton
+            showAddList={!!options.onAddList}
+            showCounts={options.showCounts !== false}
+          />
         ) : columns.length === 0 && status === 'ready' ? (
           <div className="board-surface__empty">
             <Icon name="board" size={28} />

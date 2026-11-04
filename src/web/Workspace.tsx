@@ -854,6 +854,7 @@ export function Workspace({
             <div className="workspace-skeleton__boards" role="status" aria-label="loading boards">
               {[0, 1, 2].map((key) => (
                 <div key={key} className="workspace-skeleton__board-name">
+                  <Skeleton className="workspace-skeleton__board-symbol" />
                   <Skeleton className="workspace-skeleton__line" />
                 </div>
               ))}
@@ -920,6 +921,11 @@ export function Workspace({
                         'boards'
                       )))}
             </h1>
+            {awaitingBoard && quick === 'all' && !(searchScope === 'account' && search) && (
+              <span className="workspace__icon-button" aria-hidden="true">
+                <Icon name="more" />
+              </span>
+            )}
             {board && quick === 'all' && !(searchScope === 'account' && search) && (
               <button
                 className="workspace__icon-button"
@@ -1258,7 +1264,9 @@ export function Workspace({
           (awaitingBoard ? (
             <div className="board-surface">
               <div className="board-surface__scroll">
-                <BoardSkeleton />
+                <BoardSkeleton
+                  showAddList={quick === 'all' && !(searchScope === 'account' && search)}
+                />
               </div>
             </div>
           ) : (

@@ -73,6 +73,11 @@ describe('board list presentation', () => {
     expect(
       render({ coverage: { ...complete, complete: false } }, { showCounts: false }),
     ).not.toContain('board-skeleton__count');
+    expect(
+      renderToStaticMarkup(
+        createElement(BoardSurface, { ...base, status: 'loading', showCounts: false }),
+      ),
+    ).not.toContain('board-skeleton__count');
   });
 
   it('keeps the completed section discoverable when a completed task is known', () => {

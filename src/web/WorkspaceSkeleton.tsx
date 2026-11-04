@@ -18,18 +18,21 @@ export function WorkspaceSkeleton() {
         <div className="workspace__navigation">
           <div>
             <Icon name="sun" size={16} />
-            <Skeleton className="workspace-skeleton__line" />
+            today
           </div>
           <div>
             <Icon name="star" size={16} />
-            <Skeleton className="workspace-skeleton__line" />
+            starred
           </div>
         </div>
         <div className="workspace__section-label">
-          <Skeleton className="workspace-skeleton__line" />
+          <span>your boards</span>
+          <span className="workspace-skeleton__new-board">
+            <Icon name="plus" size={14} />
+          </span>
         </div>
         <div className="workspace-skeleton__board-name">
-          <Icon name="board" size={15} />
+          <Skeleton className="workspace-skeleton__board-symbol" />
           <Skeleton className="workspace-skeleton__line" />
         </div>
       </aside>
@@ -40,10 +43,15 @@ export function WorkspaceSkeleton() {
               <Icon name="menu" />
             </span>
             <Skeleton className="workspace-skeleton__title" />
+            <span className="workspace__icon-button">
+              <Icon name="more" />
+            </span>
           </div>
           <div className="workspace__search-controls">
             <span className="workspace__search">
               <Icon name="search" size={16} />
+              <span className="workspace-skeleton__search-label">search tasks</span>
+              <kbd>/</kbd>
             </span>
             <span className="workspace__icon-button">
               <Icon name="filter" size={16} />
@@ -61,7 +69,7 @@ export function WorkspaceSkeleton() {
         </header>
         <div className="board-surface">
           <div className="board-surface__scroll">
-            <BoardSkeleton />
+            <BoardSkeleton showAddList />
           </div>
         </div>
       </main>

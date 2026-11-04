@@ -192,6 +192,8 @@
   border-bottom: 0;
 }
 .board-skeleton__check {
+  display: block;
+  border: 1px solid var(--line);
   width: 15px;
   height: 15px;
   flex: none;
@@ -207,11 +209,6 @@
 .board-column__skeleton-row:nth-child(3) .board-skeleton__task-title {
   width: 57%;
 }
-.board-skeleton__symbol {
-  width: 15px;
-  height: 15px;
-  flex: none;
-}
 .board-skeleton__list-title {
   width: 100px;
   height: 13px;
@@ -221,26 +218,14 @@
   height: 10px;
   flex: none;
 }
-.board-skeleton__menu {
-  width: 14px;
-  height: 5px;
-  margin-left: auto;
-  flex: none;
-}
 .board-column__skeleton-add {
+  font-size: 12px;
+  color: var(--secondary);
   display: flex;
   align-items: center;
   gap: 7px;
   height: 38px;
   padding: 0 14px;
-}
-.board-skeleton__add-symbol {
-  width: 13px;
-  height: 13px;
-}
-.board-skeleton__add-title {
-  width: 66px;
-  height: 10px;
 }
 .board-surface__error {
   display: flex;
@@ -395,4 +380,9 @@
   .board-column__header h2 {
     font-size: 14px;
   }
+}
+
+.board-column--skeleton .board-column__menu,
+.board-skeleton__add-list {
+  pointer-events: none;
 }

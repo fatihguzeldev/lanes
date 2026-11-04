@@ -12,6 +12,15 @@ describe('workspace startup', () => {
     expect(html).toContain('workspace__topbar');
     expect(html).toContain('board-column--skeleton');
     expect(html).toContain('aria-busy="true"');
+    for (const label of [
+      'today',
+      'starred',
+      'your boards',
+      'search tasks',
+      'add a task',
+      'new list',
+    ])
+      expect(html).toContain(label);
     expect(html).not.toContain('entry-paper');
     expect(html).not.toContain('opening your workspace');
   });
