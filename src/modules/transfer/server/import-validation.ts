@@ -2,7 +2,7 @@ import type { D1Database } from '@cloudflare/workers-types';
 import { AppError } from '../../../contracts/errors';
 import { localWriteGuard } from '../../accounts/access';
 import { CapturedGraphValidator } from './captured-graph';
-import { canonicalJson, transferDigest } from './imports';
+import { canonicalJson, transferDigest } from './content-hash';
 export interface ImportValidationRow {
   id: string;
   account_id: string;

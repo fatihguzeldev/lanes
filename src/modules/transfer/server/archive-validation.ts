@@ -2,7 +2,7 @@ import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types'
 import { AppError } from '../../../contracts/errors';
 import { localWriteGuard } from '../../accounts/access';
 import type { ArchiveHeader, ArchiveRecord } from '../archive-contract';
-import { canonicalJson, transferDigest } from './imports';
+import { canonicalJson, transferDigest } from './content-hash';
 import { CapturedGraphValidator } from './captured-graph';
 export interface ArchiveValidationRow {
   id: string;

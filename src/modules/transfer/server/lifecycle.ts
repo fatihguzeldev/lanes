@@ -6,7 +6,7 @@ import type { OperationStore } from '../../tasks/server/operations';
 import type { TaskSnapshotReader } from '../../tasks/server/queries/snapshot-reader';
 import type { TemplateDocumentStore } from '../../tasks/server/template-documents';
 import type { ArchiveHeader } from '../archive-contract';
-import { transferDigest } from './imports';
+import { transferDigest } from './content-hash';
 export interface TransferProviderLifecycle {
   pauseAccount(accountId: string, limit?: number): Promise<{ done: boolean; pending: boolean }>;
   removeAccountSlice(

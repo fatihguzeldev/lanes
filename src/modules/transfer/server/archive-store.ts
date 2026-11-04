@@ -14,7 +14,7 @@ import {
 } from '../archive-contract';
 import { MAX_IMPORT_FILE_BYTES, TransferParseError } from '../parse-contract';
 import { ArchiveValidator } from './archive-validation';
-import { canonicalJson, transferDigest } from './imports';
+import { canonicalJson, transferDigest } from './content-hash';
 const identity = z.string().min(1).max(1024);
 const beginSchema = z
   .object({

@@ -7,7 +7,8 @@ import { OperationIdSchema } from '../../tasks/operation-contract';
 import type { TaskSnapshotReader } from '../../tasks/server/queries/snapshot-reader';
 import type { Board } from '../../boards/contracts';
 import type { ImportSummary } from '../server-contract';
-import { canonicalJson, transferDigest, type TransferImportService } from './imports';
+import type { TransferImportService } from './imports';
+import { canonicalJson, transferDigest } from './content-hash';
 const id = ResourceIdSchema.max(1024);
 const schema = z
   .object({

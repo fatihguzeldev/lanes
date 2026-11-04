@@ -30,7 +30,7 @@ import {
   type ArchiveRow,
   type ArchiveSummary,
 } from './archive-store';
-import { canonicalJson, transferDigest } from './imports';
+import { canonicalJson, transferDigest } from './content-hash';
 export interface RestoreOwners {
   boards: BoardService;
   metadata: TaskMetadataService;

@@ -5,7 +5,7 @@ import type { TaskSnapshotReader } from '../../tasks/server/queries/snapshot-rea
 import type { TemplateDocumentStore } from '../../tasks/server/template-documents';
 import type { SheetsExportService } from './sheets-export';
 import type { ArchiveExportService } from './archive-export';
-import { transferDigest } from './imports';
+import { transferDigest } from './content-hash';
 import type { ArchiveHeader } from '../archive-contract';
 
 export interface TransferRetentionOptions {

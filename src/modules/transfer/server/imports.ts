@@ -1,3 +1,4 @@
+import { canonicalJson, transferDigest } from './content-hash';
 import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types';
 import { z } from 'zod';
 import { AppError } from '../../../contracts/errors';
@@ -59,26 +60,6 @@ export interface ImportServiceOptions {
   operations?: OperationStore;
   now?: () => number;
   prepareSourceCaptureGuards?: (manifest: ImportManifest) => Promise<D1PreparedStatement[]>;
-}
-export function canonicalJson(value: unknown): string {
-  const walk = (value: unknown): unknown =>
-    Array.isArray(value)
-      ? value.map(walk)
-      : value && typeof value === 'object'
-        ? Object.fromEntries(
-            Object.entries(value)
-              .filter(([, value]) => value !== undefined)
-              .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-              .map(([key, value]) => [key, walk(value)]),
-          )
-        : value;
-  return JSON.stringify(walk(value));
-}
-export async function transferDigest(value: string): Promise<string> {
-  return Array.from(
-    new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value))),
-    (byte) => byte.toString(16).padStart(2, '0'),
-  ).join('');
 }
 function parse<S extends z.ZodType>(schema: S, input: unknown): z.output<S> {
   const result = schema.safeParse(input);

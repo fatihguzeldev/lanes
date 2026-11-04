@@ -5,7 +5,8 @@ import { OperationIdSchema } from '../../tasks/operation-contract';
 import { ImportDestinationSchema, type ImportSummary } from '../server-contract';
 import type { ArchiveRecord } from '../archive-contract';
 import type { WorkspaceArchiveStore } from './archive-store';
-import { canonicalJson, transferDigest, type TransferImportService } from './imports';
+import type { TransferImportService } from './imports';
+import { canonicalJson, transferDigest } from './content-hash';
 const schema = z
   .object({
     id: OperationIdSchema,
