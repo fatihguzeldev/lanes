@@ -1,20 +1,20 @@
 import { z } from 'zod';
-import { LabelInputSchema, PrioritySchema } from '../tasks/contracts';
+import { LabelInputSchema, PrioritySchema } from '../tasks/contracts/task';
 import {
   CalendarDateSchema,
   TaskScheduleSchema,
   TemplateScheduleSchema,
   TimeZoneSchema,
-} from '../tasks/planning-contract';
-import { BoardColorSchema, BoardEmojiSchema, BoardBackgroundSchema } from '../boards/contracts';
+} from '../tasks/contracts/planning';
+import { BoardColorSchema, BoardEmojiSchema, BoardBackgroundSchema } from '../boards/contracts/board';
 import {
   TemplateDocumentHeaderSchema,
   TemplateListSchema,
   TemplateTaskSchema,
   TemplateNameSchema,
   TemplateDescriptionSchema,
-} from '../tasks/template-contract';
-import { BoardTemplateAppearanceSchema } from '../boards/template-contract';
+} from '../tasks/contracts/template';
+import { BoardTemplateAppearanceSchema } from '../boards/contracts/template';
 import { HistoryEventSchema } from '../history/contracts/events';
 export const ARCHIVE_FORMAT = 'lanes-workspace';
 export const ARCHIVE_VERSION = 1;

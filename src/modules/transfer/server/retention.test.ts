@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { seedAccount, testDatabase } from '../../../../tests/sqlite-d1';
-import { OperationStore } from '../../tasks/server/operations';
+import { OperationStore } from '../../operations/server/journal/store';
 import { TaskSnapshotReader } from '../../tasks/server/queries/snapshot-reader';
-import { ListSnapshotStore } from '../../tasks/server/list-templates';
-import { TemplateDocumentStore } from '../../tasks/server/template-documents';
+import { ListSnapshotStore } from '../../tasks/server/templates/lists';
+import { TemplateDocumentStore } from '../../tasks/server/templates/documents';
 import { TransferImportService } from './imports';
 import { transferDigest } from './content-hash';
 import { AccountTransferService } from './account-transfer';

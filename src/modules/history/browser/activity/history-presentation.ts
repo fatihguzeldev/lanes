@@ -1,6 +1,6 @@
 import type { HistoryEvent } from '../../contracts/events';
 import type { IconName } from '../../../../shared/ui/icon/Icon';
-import { addCalendarDays } from '../../../tasks/planning';
+import { addCalendarDays } from '../../../tasks/model/planning';
 
 export function describeHistoryEvent(event: HistoryEvent): {
   action: string;

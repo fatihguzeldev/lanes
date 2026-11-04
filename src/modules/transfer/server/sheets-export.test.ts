@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { seedAccount, testDatabase } from '../../../../tests/sqlite-d1';
 import { TaskQueries } from '../../tasks/server/queries/tasks';
 import { readActiveLists } from '../../tasks/server/queries/lists';
-import { OperationStore } from '../../tasks/server/operations';
+import { OperationStore } from '../../operations/server/journal/store';
 import { GoogleSheetsClient } from './sheets';
 import {
   MAX_SHEETS_EXPORT_BYTES,

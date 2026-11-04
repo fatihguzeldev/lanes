@@ -1,8 +1,8 @@
 import type { D1Database } from '@cloudflare/workers-types';
 import { AppError } from '../../../shared/contracts/errors';
-import type { OperationStore } from '../../tasks/server/operations';
+import type { OperationStore } from '../../operations/server/journal/store';
 import type { TaskSnapshotReader } from '../../tasks/server/queries/snapshot-reader';
-import type { TemplateDocumentStore } from '../../tasks/server/template-documents';
+import type { TemplateDocumentStore } from '../../tasks/server/templates/documents';
 import type { SheetsExportService } from './sheets-export';
 import type { ArchiveExportService } from './archive-export';
 import { transferDigest } from './content-hash';

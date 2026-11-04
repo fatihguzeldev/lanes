@@ -2,7 +2,7 @@ import { z } from 'zod';
 import type { D1Database } from '@cloudflare/workers-types';
 import { AppError } from '../../shared/contracts/errors';
 import { StartOAuthSchema } from '../../modules/accounts/contracts/connection';
-import { initializeTaskWorkspace } from '../../modules/tasks/server/workspace';
+import { initializeTaskWorkspace } from '../../modules/tasks/server/lifecycle/workspace';
 import type { Configuration } from '../env';
 import type { Services } from '../services';
 import { jsonResponse, readJson } from '../http';

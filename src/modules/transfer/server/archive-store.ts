@@ -2,7 +2,7 @@ import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types'
 import { z } from 'zod';
 import { AppError } from '../../../shared/contracts/errors';
 import { assertLocalWritable, localWriteGuard } from '../../accounts/server/connections/access';
-import { OperationIdSchema } from '../../tasks/operation-contract';
+import { OperationIdSchema } from '../../operations/contracts/receipt';
 import {
   ArchiveCaptureChunkSchema,
   ArchiveHeaderSchema,

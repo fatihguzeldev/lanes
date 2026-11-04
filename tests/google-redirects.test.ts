@@ -2,7 +2,7 @@ import { once } from 'node:events';
 import { createServer } from 'node:http';
 import { afterAll, beforeAll, expect, it } from 'vitest';
 import { exchangeGoogleCode } from '../src/modules/accounts/server/oauth/google';
-import { GoogleTasksClient } from '../src/modules/tasks/server/provider';
+import { GoogleTasksClient } from '../src/modules/tasks/server/provider/google-tasks';
 import { GoogleSheetsClient } from '../src/modules/transfer/server/sheets';
 
 let origin: string;

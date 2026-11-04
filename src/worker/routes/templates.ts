@@ -3,18 +3,18 @@ import type { ConnectionSummary } from '../../modules/accounts/contracts/connect
 import {
   ApplyTemplateSchema,
   TemplateReferenceSchema,
-} from '../../modules/boards/template-contract';
+} from '../../modules/boards/contracts/template';
 import {
   BoardTemplateSourceSchema,
   ListTemplateSourceSchema,
-} from '../../modules/boards/template-command-contract';
+} from '../../modules/boards/contracts/template-commands';
 import {
   SnapshotPageOptionsSchema,
   TemplateApplicationOptionsSchema,
   TemplatePageOptionsSchema,
-} from '../../modules/tasks/template-contract';
-import { OperationIdSchema } from '../../modules/tasks/operation-contract';
-import { accountToday } from '../../modules/tasks/planning';
+} from '../../modules/tasks/contracts/template';
+import { OperationIdSchema } from '../../modules/operations/contracts/receipt';
+import { accountToday } from '../../modules/tasks/model/planning';
 import type { createServices } from '../services';
 import { jsonResponse, parseValue, readJson } from '../http';
 

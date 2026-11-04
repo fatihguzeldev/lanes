@@ -3,8 +3,8 @@ import { AppError } from '../../shared/contracts/errors';
 import {
   BeginCompletedDeletionSchema,
   ConfirmCompletedDeletionSchema,
-} from '../../modules/tasks/completed-deletion-contract';
-import type { CompletedTaskDeletionService } from '../../modules/tasks/server/completed-deletion';
+} from '../../modules/tasks/contracts/completed-deletion';
+import type { CompletedTaskDeletionService } from '../../modules/tasks/server/completed-deletion/service';
 import { jsonResponse, parseValue, readJson } from '../http';
 
 const empty = z.object({}).strict();

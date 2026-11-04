@@ -1,5 +1,5 @@
 import type { ConnectionSummary } from '../../accounts/contracts/connection';
-import type { BoardList } from '../../boards/contracts';
+import type { BoardList } from '../../boards/contracts/board';
 import { Select } from '../../../shared/ui/select/Select';
 import { Icon } from '../../../shared/ui/icon/Icon';
 import { TransferPages } from './TransferFeedback';

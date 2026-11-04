@@ -3,7 +3,7 @@ import { Icon } from '../../shared/ui/icon/Icon';
 import { Popover } from '../../shared/ui/popover/Popover';
 import { Select } from '../../shared/ui/select/Select';
 import { TimeZoneSelect } from '../../shared/ui/time-zone/TimeZoneSelect';
-import { useCommands } from '../../modules/tasks/client/useCommands';
+import { useCommands } from '../../modules/operations/browser/submission/useCommands';
 import { useServerConnection } from '../../shared/browser/connectivity/useServerConnection';
 
 interface Props {

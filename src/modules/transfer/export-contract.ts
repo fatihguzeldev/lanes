@@ -1,11 +1,12 @@
 import { z } from 'zod';
-import { ResourceIdSchema, TaskFilterSchema } from '../tasks/contracts';
-import { CalendarDateSchema } from '../tasks/planning-contract';
+import { TaskFilterSchema } from '../tasks/contracts/task';
+import { ResourceIdSchema } from '../../shared/contracts/identity';
+import { CalendarDateSchema } from '../tasks/contracts/planning';
 import {
   OperationIdSchema,
   OperationStateSchema,
   OperationSummarySchema,
-} from '../tasks/operation-contract';
+} from '../operations/contracts/receipt';
 
 export const CsvExportScopeSchema = z
   .object({

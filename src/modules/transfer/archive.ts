@@ -12,7 +12,7 @@ import {
   type ImportIssue,
   type NormalizedImportPlan,
 } from './parse-contract';
-import type { LabelInput } from '../tasks/contracts';
+import type { LabelInput } from '../tasks/contracts/task';
 function fail(code: string, message: string): never {
   throw new TransferParseError(code, message);
 }

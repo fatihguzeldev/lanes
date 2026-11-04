@@ -8,7 +8,7 @@ import {
   ResolutionCandidatesRequestSchema,
   ResolutionConfirmSchema,
   ResolutionPreviewRequestSchema,
-} from '../../modules/tasks/resolution-contract';
+} from '../../modules/tasks/contracts/resolution';
 import type { D1Database } from '@cloudflare/workers-types';
 import type { Configuration } from '../env';
 

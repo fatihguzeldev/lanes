@@ -4,8 +4,8 @@ import type { Services } from '../services';
 import type { AccountRouteContext } from './context';
 import { jsonResponse, readJson } from '../http';
 import { LocalSubmissionSchema, submitLocalCommand } from '../local-commands';
-import { ProviderCommandSchema } from '../../modules/tasks/provider-command-contract';
-import { OperationIdSchema } from '../../modules/tasks/operation-contract';
+import { ProviderCommandSchema } from '../../modules/tasks/contracts/provider-commands';
+import { OperationIdSchema } from '../../modules/operations/contracts/receipt';
 import type { D1Database } from '@cloudflare/workers-types';
 import type { Configuration } from '../env';
 

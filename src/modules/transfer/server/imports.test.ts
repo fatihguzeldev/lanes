@@ -131,11 +131,11 @@ it('binds manifest replay and confirmation to one immutable plan and destination
 it('executes admitted import parents, children and metadata via the ordinary journal; interrupted replay never recreates output', async () => {
   const { db, service: previewOnly } = await fixture();
   const { HistoryService } = await import('../../history/server/events/event-store');
-  const { TaskProjectionStore } = await import('../../tasks/server/projection');
-  const { TaskMetadataService } = await import('../../tasks/server/metadata');
-  const { OperationStore } = await import('../../tasks/server/operations');
-  const { TaskCommandService } = await import('../../tasks/server/commands/provider-commands');
-  const { GoogleTasksClient } = await import('../../tasks/server/provider');
+  const { TaskProjectionStore } = await import('../../tasks/server/projection/store');
+  const { TaskMetadataService } = await import('../../tasks/server/metadata/tasks');
+  const { OperationStore } = await import('../../operations/server/journal/store');
+  const { TaskCommandService } = await import('../../tasks/server/commands/service');
+  const { GoogleTasksClient } = await import('../../tasks/server/provider/google-tasks');
   const operations = new OperationStore(db),
     history = new HistoryService(db, { now: () => now }),
     projection = new TaskProjectionStore(db, { history, now: () => now });
@@ -253,9 +253,9 @@ it('freezes large graphs before admission and resumes validation from bounded ha
 it('admits an aged recorded source under one fresh provider operation identity at explicit confirmation', async () => {
   const { db } = await fixture();
   let tick = now;
-  const { OperationStore } = await import('../../tasks/server/operations'),
-    { TaskCommandService } = await import('../../tasks/server/commands/provider-commands'),
-    { TaskProjectionStore } = await import('../../tasks/server/projection'),
+  const { OperationStore } = await import('../../operations/server/journal/store'),
+    { TaskCommandService } = await import('../../tasks/server/commands/service'),
+    { TaskProjectionStore } = await import('../../tasks/server/projection/store'),
     { HistoryService } = await import('../../history/server/events/event-store');
   const operations = new OperationStore(db),
     history = new HistoryService(db),

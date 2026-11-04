@@ -1,0 +1,230 @@
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { describe, expect, it } from 'vitest';
+import { TaskSchema, type TaskList } from '../../../../tasks/contracts/task';
+import { BoardSurface, type BoardColumn, type BoardSurfaceProps } from '../BoardSurface';
+
+const list: TaskList = {
+  id: 'list',
+  accountId: 'account',
+  title: 'reading',
+  revision: 0,
+  providerId: 'google-list',
+  providerEtag: null,
+  isDefault: false,
+};
+const complete = { complete: true, stale: false, lastSyncedAt: '2026-11-04T12:00:00Z' };
+const base: BoardSurfaceProps = {
+  accountId: 'account',
+  columns: [],
+  labels: [],
+  today: '2026-11-04',
+  accountTimeZone: 'UTC',
+  onOpenTask() {},
+  onToggleComplete() {},
+  onTaskMenu() {},
+  onAddTask() {},
+  onListMenu() {},
+  onLoadMore() {},
+  onRetryList() {},
+};
+function render(column: Partial<BoardColumn> = {}, surface: Partial<BoardSurfaceProps> = {}) {
+  return renderToStaticMarkup(
+    createElement(BoardSurface, {
+      ...base,
+      columns: [
+        { list, tasks: [], coverage: complete, status: 'ready', nextCursor: null, ...column },
+      ],
+      ...surface,
+    }),
+  );
+}
+
+const completedTask = TaskSchema.parse({
+  id: 'task',
+  accountId: 'account',
+  listId: 'list',
+  title: 'read chapter',
+  completed: true,
+  parentId: null,
+  notes: '',
+  labelIds: [],
+  priority: 'none',
+  starred: false,
+  blockedBy: [],
+  scheduledDay: null,
+  scheduledTime: null,
+  timeZone: null,
+  repeatRule: null,
+  occurrenceId: null,
+  seriesId: null,
+  completedAt: '2026-11-04T11:00:00Z',
+  revision: 0,
+  unsupportedHierarchy: false,
+  provider: {
+    id: 'google-task',
+    listId: 'google-list',
+    etag: null,
+    position: '1',
+    updatedAt: null,
+  },
+  capabilities: {
+    canEdit: true,
+    canEditNotes: true,
+    canMove: true,
+    canDelete: true,
+    canHaveChildren: true,
+    canNest: true,
+    assignmentSource: null,
+    sourceUrl: null,
+    restriction: null,
+  },
+});
+
+describe('board list presentation', () => {
+  const first = {
+    ...completedTask,
+    id: 'first',
+    title: 'first',
+    completed: false,
+    completedAt: null,
+  };
+  const second = {
+    ...first,
+    id: 'second',
+    title: 'second',
+    provider: { ...first.provider, position: '2' },
+  };
+
+  it('renders queued ranks only in manual order, without rewriting task positions', () => {
+    const column = { tasks: [first, second], orderedTaskIds: ['second', 'first'] };
+    const manual = render(column);
+    expect(manual.indexOf('data-task-id="second"')).toBeLessThan(
+      manual.indexOf('data-task-id="first"'),
+    );
+    const alphabetical = render(column, { sort: 'title' });
+    expect(alphabetical.indexOf('data-task-id="first"')).toBeLessThan(
+      alphabetical.indexOf('data-task-id="second"'),
+    );
+    expect(first.provider.position).toBe('1');
+    expect(second.provider.position).toBe('2');
+  });
+
+  it('uses a captured complete drag order without claiming complete provider coverage', () => {
+    const column = {
+      tasks: [first],
+      status: 'loading' as const,
+      coverage: { ...complete, complete: false },
+      orderReady: true,
+    };
+    const markup = render(column, { onMoveTask() {} });
+    expect(markup).toContain('draggable="true"');
+    expect(markup).not.toContain('board-column__count');
+    expect(render({ ...column, orderReady: false }, { onMoveTask() {} })).toContain(
+      'draggable="false"',
+    );
+  });
+
+  it('keeps pending root and child controls disabled without adding saving rows', () => {
+    const child = { ...second, parentId: first.id };
+    const markup = render(
+      {
+        tasks: [first, child],
+        matchedTaskIds: [child.id],
+        subtaskSummaries: { [first.id]: { total: 1, open: 1, complete: true } },
+      },
+      { filtered: true, pendingTaskIds: new Set([first.id, child.id]) },
+    );
+    expect(markup).toContain('aria-busy="true"');
+    expect(markup).toContain('aria-label="complete first"');
+    expect(markup).toContain('aria-label="complete second"');
+    expect(markup).toMatch(/aria-label="complete first"[^>]*disabled=""/);
+    expect(markup).toMatch(/aria-label="complete second"[^>]*disabled=""/);
+    expect(markup).not.toContain('saving…');
+  });
+
+  it('keeps later list pages accessible beside the end of the visible columns', () => {
+    expect(render()).not.toContain('board-surface__more-lists');
+    const markup = render({}, { onLoadMoreLists() {}, onAddList() {} });
+    expect(markup).toContain('board-surface__more-lists');
+    expect(markup.indexOf('board-surface__more-lists')).toBeLessThan(
+      markup.indexOf('board-surface__add-list'),
+    );
+    expect(render({}, { onLoadMoreLists() {}, status: 'loading' })).toMatch(
+      /class="board-surface__more-lists"[^>]*disabled=""/,
+    );
+  });
+  it('hides completed sections with no known completed tasks', () => {
+    expect(render({ completedCoverage: complete })).not.toContain('board-column__completed');
+  });
+
+  it('does not publish loaded-page counts as an exact total', () => {
+    const markup = render({ coverage: { ...complete, complete: false }, nextCursor: 'next' });
+    expect(markup).not.toContain('board-column__count');
+    expect(markup).not.toContain('board-skeleton__count');
+    expect(markup).toContain('load more tasks');
+    expect(markup).not.toContain('partially loaded');
+    expect(markup).not.toContain('refresh needed');
+  });
+
+  it.each(['ready', 'error'] as const)(
+    'does not leave the count loading after an incomplete query is %s',
+    (status) => {
+      const markup = render({ status, coverage: { ...complete, complete: false } });
+      expect(markup).not.toContain('board-column__count');
+      expect(markup).not.toContain('board-skeleton__count');
+    },
+  );
+
+  it('shows an unknown count as loading while its query is running', () => {
+    const markup = render({
+      status: 'loading',
+      countLoading: true,
+      coverage: { ...complete, complete: false },
+    });
+    expect(markup).not.toContain('board-column__count');
+    expect(markup).toContain('board-skeleton__count');
+  });
+
+  it('does not restart a settled incomplete count during a background refresh', () => {
+    const markup = render({
+      status: 'loading',
+      countLoading: false,
+      coverage: { ...complete, complete: false },
+    });
+    expect(markup).not.toContain('board-column__count');
+    expect(markup).not.toContain('board-skeleton__count');
+  });
+
+  it('retains a confirmed count when its cached tasks are refreshing', () => {
+    const markup = render({ status: 'loading' });
+    expect(markup).toContain('class="board-column__count"');
+    expect(markup).not.toContain('board-skeleton__count');
+    expect(markup).not.toContain('board-column__skeleton-row');
+    expect(markup).toContain('no tasks.');
+    expect(
+      render({ coverage: { ...complete, complete: false } }, { showCounts: false }),
+    ).not.toContain('board-skeleton__count');
+    expect(
+      renderToStaticMarkup(
+        createElement(BoardSurface, { ...base, status: 'loading', showCounts: false }),
+      ),
+    ).not.toContain('board-skeleton__count');
+  });
+
+  it('keeps the completed section discoverable when a completed task is known', () => {
+    const task = completedTask;
+    expect(render({ tasks: [task], completedCoverage: complete })).toContain(
+      'board-column__completed',
+    );
+    const partial = { tasks: [task], completedCoverage: { ...complete, complete: false } };
+    expect(render(partial)).not.toContain('board-skeleton__count');
+    expect(render({ ...partial, completedCountLoading: true })).toContain('board-skeleton__count');
+    expect(
+      render({ ...partial, completedLoading: true, completedCountLoading: false }),
+    ).not.toContain('board-skeleton__count');
+    expect(render({ ...partial, completedError: 'could not load completed tasks' })).not.toContain(
+      'board-skeleton__count',
+    );
+  });
+});

@@ -1,15 +1,15 @@
 import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types';
 import { AppError } from '../shared/contracts/errors';
-import type { BoardService } from '../modules/boards/server';
+import type { BoardService } from '../modules/boards/server/boards/service';
 import {
   BoardTemplateService,
   readTemplateListAppearance,
-} from '../modules/boards/server/templates';
-import { TemplateApplicationService } from '../modules/boards/server/template-runs';
-import { TemplateScheduleService } from '../modules/boards/server/template-schedules';
-import { ListSnapshotStore, ListTemplateService } from '../modules/tasks/server/list-templates';
-import type { TaskCommandService } from '../modules/tasks/server/commands/provider-commands';
-import type { OperationStore } from '../modules/tasks/server/operations';
+} from '../modules/boards/server/templates/definitions';
+import { TemplateApplicationService } from '../modules/boards/server/templates/runs';
+import { TemplateScheduleService } from '../modules/boards/server/templates/schedules';
+import { ListSnapshotStore, ListTemplateService } from '../modules/tasks/server/templates/lists';
+import type { TaskCommandService } from '../modules/tasks/server/commands/service';
+import type { OperationStore } from '../modules/operations/server/journal/store';
 export type CommitTemplateWrites = (writes: D1PreparedStatement[]) => Promise<unknown>;
 interface Dependencies {
   boards: BoardService;

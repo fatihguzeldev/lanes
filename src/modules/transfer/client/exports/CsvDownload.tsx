@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { type CsvExportRequest } from '../../export-contract';
-import { accountToday } from '../../../tasks/planning';
+import { accountToday } from '../../../tasks/model/planning';
 import { request } from '../../../../shared/browser/http/http';
 import { downloadFile } from '../download-file';
 import { CsvPageSchema } from '../response-contracts';

@@ -3,8 +3,8 @@ import { AppError } from '../../shared/contracts/errors';
 import type { Services } from '../services';
 import type { AccountRouteContext } from './context';
 import { jsonResponse, readJson } from '../http';
-import { initializeTaskWorkspace } from '../../modules/tasks/server/workspace';
-import { RefreshRequestSchema } from '../../modules/tasks/sync-contract';
+import { initializeTaskWorkspace } from '../../modules/tasks/server/lifecycle/workspace';
+import { RefreshRequestSchema } from '../../modules/tasks/contracts/sync';
 import type { D1Database } from '@cloudflare/workers-types';
 
 export async function syncRoute(

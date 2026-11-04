@@ -2,17 +2,17 @@ import { AppError } from '../shared/contracts/errors';
 import { assertLocalWritable } from '../modules/accounts/server/connections/access';
 import { AccountService } from '../modules/accounts/server/oauth/account-service';
 import { ProviderAccess } from '../modules/accounts/server/credentials/provider-access';
-import { BoardService } from '../modules/boards/server';
-import { BoardProjection } from '../modules/boards/projection';
+import { BoardService } from '../modules/boards/server/boards/service';
+import { BoardProjection } from '../modules/boards/server/boards/projection';
 import { HistoryService } from '../modules/history/server/events/event-store';
-import { OperationStore } from '../modules/tasks/server/operations';
-import { GoogleTasksClient } from '../modules/tasks/server/provider';
+import { OperationStore } from '../modules/operations/server/journal/store';
+import { GoogleTasksClient } from '../modules/tasks/server/provider/google-tasks';
 import { TaskQueries } from '../modules/tasks/server/queries/tasks';
-import { TaskSyncService } from '../modules/tasks/server/sync';
-import { TaskProjectionStore } from '../modules/tasks/server/projection';
-import { TaskMetadataService } from '../modules/tasks/server/metadata';
-import { TaskCommandService } from '../modules/tasks/server/commands/provider-commands';
-import { RecurrenceService } from '../modules/tasks/server/recurrence';
+import { TaskSyncService } from '../modules/tasks/server/sync/service';
+import { TaskProjectionStore } from '../modules/tasks/server/projection/store';
+import { TaskMetadataService } from '../modules/tasks/server/metadata/tasks';
+import { TaskCommandService } from '../modules/tasks/server/commands/service';
+import { RecurrenceService } from '../modules/tasks/server/recurrence/service';
 import { googleTransport } from './google-transport';
 import type { Configuration, Env } from './env';
 import {
@@ -23,11 +23,11 @@ import {
 import { createTransferOwners } from './transfer-services';
 import { GOOGLE_SHEETS_EXPORT_SCOPE, GoogleSheetsClient } from '../modules/transfer/server/sheets';
 import { AccountLifecycle } from '../modules/accounts/server/lifecycle/removal';
-import { TasksLifecycle } from '../modules/tasks/server/lifecycle';
-import { BoardLifecycle } from '../modules/boards/server/lifecycle';
+import { TasksLifecycle } from '../modules/tasks/server/lifecycle/account';
+import { BoardLifecycle } from '../modules/boards/server/lifecycle/account';
 import { TransferLifecycle } from '../modules/transfer/server/lifecycle';
-import { LabelDeletionWork } from '../modules/tasks/server/label-work';
-import { CompletedTaskDeletionService } from '../modules/tasks/server/completed-deletion';
+import { LabelDeletionWork } from '../modules/tasks/server/metadata/label-work';
+import { CompletedTaskDeletionService } from '../modules/tasks/server/completed-deletion/service';
 
 /** Invocation-local composition. Durable owners hold every execution claim. */
 export function createServices(env: Env, config: Configuration, providerRequestLimit: 4 | 10 = 4) {

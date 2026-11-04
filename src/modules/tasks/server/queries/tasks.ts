@@ -2,18 +2,10 @@ import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types'
 import { z } from 'zod';
 import { AppError } from '../../../../shared/contracts/errors';
 import type { Coverage, Page } from '../../../../shared/contracts/http';
-import {
-  LabelInputSchema,
-  LabelSchema,
-  ResourceIdSchema,
-  TaskCapabilitiesSchema,
-  TaskSchema,
-  type Label,
-  type Task,
-  type TaskSort,
-} from '../../contracts';
-import { normalizeTaskSearchText, sortTasks } from '../../model';
-import { CalendarDateSchema } from '../../planning-contract';
+import { LabelInputSchema, LabelSchema, TaskCapabilitiesSchema, TaskSchema, type Label, type Task, type TaskSort } from '../../contracts/task';
+import { ResourceIdSchema } from '../../../../shared/contracts/identity';
+import { normalizeTaskSearchText, sortTasks } from '../../model/task';
+import { CalendarDateSchema } from '../../contracts/planning';
 import {
   LabelQuerySchema,
   TaskDependantSchema,
@@ -30,7 +22,7 @@ import {
   type TaskPage,
   type TaskQuery,
   type TaskQueryInput,
-} from '../../query-contract';
+} from '../../contracts/query';
 
 export interface TaskQueriesOptions {
   boardListSelection?:

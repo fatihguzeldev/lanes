@@ -1,7 +1,7 @@
 import { afterEach, expect, it } from 'vitest';
 import { seedAccount, testDatabase } from '../../../../tests/sqlite-d1';
 import { TaskSnapshotReader } from '../../tasks/server/queries/snapshot-reader';
-import { OperationStore } from '../../tasks/server/operations';
+import { OperationStore } from '../../operations/server/journal/store';
 import { TransferImportService } from './imports';
 import { TransferLifecycle } from './lifecycle';
 const now = Date.parse('2026-11-02T12:00:00Z'),

@@ -1,7 +1,8 @@
 import { z } from 'zod';
 import { AppError } from '../../../shared/contracts/errors';
-import { ResourceIdSchema, type Label, type TaskList } from '../../tasks/contracts';
-import type { TaskExportQueryInput } from '../../tasks/query-contract';
+import { type Label, type TaskList } from '../../tasks/contracts/task';
+import { ResourceIdSchema } from '../../../shared/contracts/identity';
+import type { TaskExportQueryInput } from '../../tasks/contracts/query';
 import type { TaskQueries } from '../../tasks/server/queries/tasks';
 import {
   CsvExportRequestSchema,

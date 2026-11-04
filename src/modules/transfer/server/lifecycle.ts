@@ -2,9 +2,9 @@ import type { D1Database } from '@cloudflare/workers-types';
 import { AppError } from '../../../shared/contracts/errors';
 import { assertDisconnecting, disconnectWorkGuard } from '../../accounts/server/connections/access';
 import { accountRemovalGuard, type LifecycleOwner } from '../../accounts/server/lifecycle/removal';
-import type { OperationStore } from '../../tasks/server/operations';
+import type { OperationStore } from '../../operations/server/journal/store';
 import type { TaskSnapshotReader } from '../../tasks/server/queries/snapshot-reader';
-import type { TemplateDocumentStore } from '../../tasks/server/template-documents';
+import type { TemplateDocumentStore } from '../../tasks/server/templates/documents';
 import type { ArchiveHeader } from '../archive-contract';
 import { transferDigest } from './content-hash';
 export interface TransferProviderLifecycle {

@@ -4,7 +4,7 @@ import {
   type CsvExportRequest,
   type SheetsExportSummary,
 } from '../../export-contract';
-import { OperationIdSchema } from '../../../tasks/operation-contract';
+import { OperationIdSchema } from '../../../operations/contracts/receipt';
 const DraftSchema = z
   .object({
     version: z.literal(1),

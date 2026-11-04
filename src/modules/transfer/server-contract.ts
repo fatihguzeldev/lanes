@@ -1,6 +1,7 @@
 import { z } from 'zod';
-import { OperationIdSchema } from '../tasks/operation-contract';
-import { LabelInputSchema, ResourceIdSchema } from '../tasks/contracts';
+import { OperationIdSchema } from '../operations/contracts/receipt';
+import { LabelInputSchema } from '../tasks/contracts/task';
+import { ResourceIdSchema } from '../../shared/contracts/identity';
 import { NormalizedImportListSchema, NormalizedImportTaskSchema } from './parse-contract';
 const identity = ResourceIdSchema.max(1024);
 export const DEFAULT_IMPORTED_LABEL_COLOR = '#7a8178';

@@ -7,7 +7,7 @@ import {
 } from '../archive-contract';
 import { ImportDestinationSchema, ImportIssueSchema, ImportSourceSchema } from '../server-contract';
 import { NormalizedImportListSchema, NormalizedImportTaskSchema } from '../parse-contract';
-import { LabelInputSchema } from '../../tasks/contracts';
+import { LabelInputSchema } from '../../tasks/contracts/task';
 export const TransferCoverageSchema = z
   .object({ complete: z.boolean(), stale: z.boolean(), lastSyncedAt: z.string().nullable() })
   .strict();

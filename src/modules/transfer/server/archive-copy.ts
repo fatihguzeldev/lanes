@@ -1,7 +1,7 @@
 import type { D1Database } from '@cloudflare/workers-types';
 import { z } from 'zod';
 import { AppError } from '../../../shared/contracts/errors';
-import { OperationIdSchema } from '../../tasks/operation-contract';
+import { OperationIdSchema } from '../../operations/contracts/receipt';
 import { ImportDestinationSchema, type ImportSummary } from '../server-contract';
 import type { ArchiveRecord } from '../archive-contract';
 import type { WorkspaceArchiveStore } from './archive-store';

@@ -2,7 +2,7 @@ import type { Services } from '../../services';
 import type { AccountRouteContext } from '../context';
 
 import { z } from 'zod';
-import { OperationIdSchema } from '../../../modules/tasks/operation-contract';
+import { OperationIdSchema } from '../../../modules/operations/contracts/receipt';
 import { ImportDestinationSchema } from '../../../modules/transfer/server-contract';
 import {
   ArchiveCaptureChunkSchema,

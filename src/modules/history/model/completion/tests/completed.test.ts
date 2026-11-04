@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Task, TaskList } from '../../../../tasks/contracts';
+import type { Task, TaskList } from '../../../../tasks/contracts/task';
 import { HistoryEventSchema } from '../../../contracts/events';
 import {
   groupCompletedTasks,

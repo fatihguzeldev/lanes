@@ -4,7 +4,7 @@ import {
   OperationProgressSchema,
   OperationSummarySchema,
   type OperationSummary,
-} from '../../../tasks/operation-contract';
+} from '../../../operations/contracts/receipt';
 import { ConfirmImportSchema, DEFAULT_IMPORTED_LABEL_COLOR } from '../../server-contract';
 import {
   accountBase,

@@ -1,8 +1,8 @@
 import { Skeleton } from '../../shared/ui/skeleton/Skeleton';
 import { Brand } from '../../shared/ui/brand/Brand';
 import { Icon } from '../../shared/ui/icon/Icon';
-import { BoardSkeleton } from '../../modules/boards/components/BoardSkeleton';
-import { BoardNavigationSkeleton } from '../../modules/boards/client/BoardNavigation';
+import { BoardSkeleton } from '../../modules/boards/browser/board/BoardSkeleton';
+import { BoardNavigationSkeleton } from '../../modules/boards/browser/navigation/BoardNavigation';
 import type { ResolvedTheme } from '../theme/theme';
 import './Workspace.css';
 import './WorkspaceSkeleton.css';

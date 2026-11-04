@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import type { BoardList } from '../../boards/contracts';
+import type { BoardList } from '../../boards/contracts/board';
 import { request } from '../../../shared/browser/http/http';
 import { newOperationId } from '../../operations/browser/submission/operation-identity';
 import { AccountChoice, ListSelection } from './TransferSelection';

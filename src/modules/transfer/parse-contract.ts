@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { CreateTaskSchema, LabelInputSchema, PrioritySchema } from '../tasks/contracts';
-import { TaskScheduleSchema } from '../tasks/planning-contract';
+import { CreateTaskSchema, LabelInputSchema, PrioritySchema } from '../tasks/contracts/task';
+import { TaskScheduleSchema } from '../tasks/contracts/planning';
 
 export const MAX_IMPORT_FILE_BYTES = 20 * 1024 * 1024;
 export const MAX_IMPORT_EXPANDED_BYTES = 100 * 1024 * 1024;

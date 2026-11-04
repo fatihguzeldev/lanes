@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { seedAccount, testDatabase } from '../../../../tests/sqlite-d1';
 import { AppError } from '../../../shared/contracts/errors';
-import { normalizeTaskSearchText } from '../../tasks/model';
+import { normalizeTaskSearchText } from '../../tasks/model/task';
 import { TaskQueries } from '../../tasks/server/queries/tasks';
 import { readActiveLists } from '../../tasks/server/queries/lists';
 import { parseImportFile } from '../parser';

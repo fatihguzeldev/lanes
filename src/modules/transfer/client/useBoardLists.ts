@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { request } from '../../../shared/browser/http/http';
 import { usePagedResource } from '../../../shared/browser/resources/usePagedResource';
-import { BoardListPageSchema, BoardPageSchema } from '../../boards/query-contract';
+import { BoardListPageSchema, BoardPageSchema } from '../../boards/contracts/query';
 import { accountBase, pageQuery, escaped } from './transfer-context';
 export function useBoardLists(accountId: string, version = 0) {
   const [boardId, setBoardId] = useState('');

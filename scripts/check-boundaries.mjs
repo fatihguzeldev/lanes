@@ -48,21 +48,29 @@ const publicServerFiles = {
   tasks: [
     'server/queries/lists.ts',
     'server/list-templates.ts',
+    'server/templates/lists.ts',
     'server/operations.ts',
     'server/commands/provider-commands.ts',
+    'server/commands/service.ts',
     'server/commands/provider-copy-contract.ts',
+    'server/commands/copy-contract.ts',
     'server/metadata.ts',
+    'server/metadata/tasks.ts',
     'server/template-documents.ts',
+    'server/templates/documents.ts',
     'server/queries/snapshot-reader.ts',
     'server/queries/tasks.ts',
   ],
   boards: [
     'server.ts',
+    'server/boards/service.ts',
     'server/events/event-store.ts',
     'server/templates.ts',
+    'server/templates/definitions.ts',
     'server/template-schedules.ts',
+    'server/templates/schedules.ts',
   ],
-  history: ['server.ts', 'server/events/event-store.ts'],
+  history: ['server.ts', 'server/boards/service.ts', 'server/events/event-store.ts'],
 };
 const isServerFile = (file) => {
   const name = relative(file);
@@ -127,7 +135,7 @@ for (const file of files) {
           if (
             !allowed[fromOwner]?.includes(toOwner) ||
             (fromOwner === 'history' &&
-              !/^src\/modules\/tasks\/(?:contracts|model|planning|planning-contract|query-contract|client\/usePlanningToday)\.ts$/.test(
+              !/^src\/modules\/tasks\/(?:contracts|model|planning|planning-contract|query-contract|client\/usePlanningToday|contracts\/[^/]+|model\/(?:task|planning)|browser\/planning\/usePlanningToday)\.ts$/.test(
                 relative(resolved),
               ))
           )

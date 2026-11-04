@@ -2,8 +2,9 @@ import type { Services } from '../../services';
 import type { AccountRouteContext } from '../context';
 
 import { z } from 'zod';
-import { ResourceIdSchema } from '../../../modules/tasks/contracts';
-import { OperationIdSchema } from '../../../modules/tasks/operation-contract';
+
+import { ResourceIdSchema } from '../../../shared/contracts/identity';
+import { OperationIdSchema } from '../../../modules/operations/contracts/receipt';
 import { jsonResponse, readJson } from '../../http';
 const id = ResourceIdSchema.max(1024),
   empty = z.object({}).strict();

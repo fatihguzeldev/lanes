@@ -3,7 +3,7 @@ import { AppError } from '../../shared/contracts/errors';
 import type { Services } from '../services';
 import type { AccountRouteContext } from './context';
 import { jsonResponse, readJson } from '../http';
-import { ReopenRequestSchema } from '../../modules/tasks/recurrence-contract';
+import { ReopenRequestSchema } from '../../modules/tasks/contracts/recurrence';
 
 export async function recurrenceRoute(
   context: AccountRouteContext,

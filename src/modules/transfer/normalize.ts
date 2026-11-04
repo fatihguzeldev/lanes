@@ -1,10 +1,10 @@
 import { z } from 'zod';
-import { CreateTaskSchema, LabelInputSchema, PrioritySchema } from '../tasks/contracts';
+import { CreateTaskSchema, LabelInputSchema, PrioritySchema } from '../tasks/contracts/task';
 import {
   CalendarDateSchema,
   RepeatRuleSchema,
   TaskScheduleSchema,
-} from '../tasks/planning-contract';
+} from '../tasks/contracts/planning';
 import {
   MAX_IMPORT_LISTS,
   MAX_IMPORT_TASKS,

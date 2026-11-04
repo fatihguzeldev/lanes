@@ -5,15 +5,15 @@ import { assertLocalWritable } from '../modules/accounts/server/connections/acce
 import { AccountPreferenceCommandSchema } from '../modules/accounts/contracts/preferences';
 import { AccountService } from '../modules/accounts/server/oauth/account-service';
 import type { Configuration } from './env';
-import { BoardCommandSchema } from '../modules/boards/command-contract';
-import { BoardService } from '../modules/boards/server';
-import { OperationIdSchema } from '../modules/tasks/operation-contract';
-import { OperationStore } from '../modules/tasks/server/operations';
-import { MetadataCommandSchema } from '../modules/tasks/metadata-command-contract';
-import { TaskMetadataService } from '../modules/tasks/server/metadata';
+import { BoardCommandSchema } from '../modules/boards/contracts/commands';
+import { BoardService } from '../modules/boards/server/boards/service';
+import { OperationIdSchema } from '../modules/operations/contracts/receipt';
+import { OperationStore } from '../modules/operations/server/journal/store';
+import { MetadataCommandSchema } from '../modules/tasks/contracts/metadata-commands';
+import { TaskMetadataService } from '../modules/tasks/server/metadata/tasks';
 import { HistoryService } from '../modules/history/server/events/event-store';
-import { TemplateCommandSchema } from '../modules/boards/template-command-contract';
-import { accountToday } from '../modules/tasks/planning';
+import { TemplateCommandSchema } from '../modules/boards/contracts/template-commands';
+import { accountToday } from '../modules/tasks/model/planning';
 import type { CommitTemplateWrites, TemplateOwners } from './template-services';
 
 export const LocalSubmissionSchema = z

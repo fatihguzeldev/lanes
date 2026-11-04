@@ -11,7 +11,7 @@ import {
 import {
   IssuedOperationStepSchema,
   type IssuedOperationStep,
-} from '../../../tasks/operation-contract';
+} from '../../../operations/contracts/receipt';
 import { request } from '../../../../shared/browser/http/http';
 import { newOperationId } from '../../../operations/browser/submission/operation-identity';
 import { accountBase, escaped, transferBase } from '../transfer-context';

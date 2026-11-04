@@ -2,16 +2,16 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ConnectionSummary } from '../../../modules/accounts/contracts/connection';
-import type { Board } from '../../../modules/boards/contracts';
-import { CalendarView, type CalendarViewProps } from '../../../modules/boards/components/CalendarView';
-import { TaskCard } from '../../../modules/tasks/components/TaskCard';
-import { TaskSchema, type TaskList } from '../../../modules/tasks/contracts';
-import type { TaskPage } from '../../../modules/tasks/query-contract';
-import { CompletedWorkspace } from '../../../modules/boards/client/CompletedWorkspace';
-import { TaskCollectionWorkspace } from '../../../modules/tasks/client/TaskCollectionWorkspace';
+import type { Board } from '../../../modules/boards/contracts/board';
+import { CalendarView, type CalendarViewProps } from '../../../modules/boards/browser/calendar/CalendarView';
+import { TaskCard } from '../../../modules/tasks/browser/items/TaskCard';
+import { TaskSchema, type TaskList } from '../../../modules/tasks/contracts/task';
+import type { TaskPage } from '../../../modules/tasks/contracts/query';
+import { CompletedWorkspace } from '../../../modules/boards/browser/completed/CompletedWorkspace';
+import { TaskCollectionWorkspace } from '../../../modules/tasks/browser/queries/TaskCollectionWorkspace';
 
-vi.mock('../../../modules/tasks/client/useTaskQuery', () => ({ useTaskQuery: () => queryState }));
-vi.mock('../../../modules/tasks/client/usePlanningToday', () => ({
+vi.mock('../../../modules/tasks/browser/queries/useTaskQuery', () => ({ useTaskQuery: () => queryState }));
+vi.mock('../../../modules/tasks/browser/planning/usePlanningToday', () => ({
   usePlanningToday: () => '2026-11-04',
 }));
 

@@ -4,16 +4,16 @@ import { AppError } from '../../../shared/contracts/errors';
 import type { Coverage, Page } from '../../../shared/contracts/http';
 import { assertDisconnecting, assertLocalWritable, localWriteGuard } from '../../accounts/server/connections/access';
 import type { AccountsPortability } from '../../accounts/server/connections/portability';
-import type { BoardService } from '../../boards/server';
-import type { BoardTemplateService } from '../../boards/server/templates';
-import type { TemplateScheduleService } from '../../boards/server/template-schedules';
-import type { TemplateScheduleSummary } from '../../boards/template-contract';
+import type { BoardService } from '../../boards/server/boards/service';
+import type { BoardTemplateService } from '../../boards/server/templates/definitions';
+import type { TemplateScheduleService } from '../../boards/server/templates/schedules';
+import type { TemplateScheduleSummary } from '../../boards/contracts/template';
 import type { HistoryEvent } from '../../history/contracts/events';
 import type { HistoryService } from '../../history/server/events/event-store';
-import type { Task } from '../../tasks/contracts';
+import type { Task } from '../../tasks/contracts/task';
 import type { TaskQueries } from '../../tasks/server/queries/tasks';
 import type { TaskSnapshotReader } from '../../tasks/server/queries/snapshot-reader';
-import type { ListSnapshotStore, ListTemplateService } from '../../tasks/server/list-templates';
+import type { ListSnapshotStore, ListTemplateService } from '../../tasks/server/templates/lists';
 import {
   ArchiveExportSelectionSchema,
   ArchiveHeaderSchema,

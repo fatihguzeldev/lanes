@@ -2,7 +2,8 @@ import type { D1Database } from '@cloudflare/workers-types';
 import { z } from 'zod';
 import { AppError } from '../../../../shared/contracts/errors';
 import type { Coverage } from '../../../../shared/contracts/http';
-import { ResourceIdSchema, type TaskList } from '../../contracts';
+import { type TaskList } from '../../contracts/task';
+import { ResourceIdSchema } from '../../../../shared/contracts/identity';
 
 interface ListRow {
   id: string;

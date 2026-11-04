@@ -3,19 +3,19 @@ import { z } from 'zod';
 import { AppError } from '../../../shared/contracts/errors';
 import { assertLocalWritable, localWriteGuard } from '../../accounts/server/connections/access';
 import type { AccountsPortability } from '../../accounts/server/connections/portability';
-import type { BoardService } from '../../boards/server';
-import type { BoardTemplateService } from '../../boards/server/templates';
-import type { TemplateScheduleService } from '../../boards/server/template-schedules';
+import type { BoardService } from '../../boards/server/boards/service';
+import type { BoardTemplateService } from '../../boards/server/templates/definitions';
+import type { TemplateScheduleService } from '../../boards/server/templates/schedules';
 import type { HistoryService } from '../../history/server/events/event-store';
 import type { HistoryEventInput } from '../../history/contracts/events';
 import type { TaskQueries } from '../../tasks/server/queries/tasks';
 import type { TaskSnapshotReader } from '../../tasks/server/queries/snapshot-reader';
-import type { TaskMetadataService } from '../../tasks/server/metadata';
-import type { TemplateDocumentStore } from '../../tasks/server/template-documents';
-import type { ListTemplateService } from '../../tasks/server/list-templates';
-import type { TaskCommandService } from '../../tasks/server/commands/provider-commands';
-import type { OperationStore } from '../../tasks/server/operations';
-import type { ProviderCommand } from '../../tasks/provider-command-contract';
+import type { TaskMetadataService } from '../../tasks/server/metadata/tasks';
+import type { TemplateDocumentStore } from '../../tasks/server/templates/documents';
+import type { ListTemplateService } from '../../tasks/server/templates/lists';
+import type { TaskCommandService } from '../../tasks/server/commands/service';
+import type { OperationStore } from '../../operations/server/journal/store';
+import type { ProviderCommand } from '../../tasks/contracts/provider-commands';
 import {
   ArchiveChoiceChunkSchema,
   type ArchiveField,

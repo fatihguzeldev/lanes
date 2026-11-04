@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { TaskCoverageSchema } from '../../tasks/query-contract';
+import { TaskCoverageSchema } from '../../tasks/contracts/query';
 import { HistoryEventSchema } from './events';
 
 export const HistoryPageSchema = z

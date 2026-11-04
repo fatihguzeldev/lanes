@@ -11,13 +11,13 @@ import {
   maintainAccountLifecycle,
   type LifecycleOwner,
 } from '../removal';
-import { OperationStore } from '../../../../tasks/server/operations';
-import { TasksLifecycle } from '../../../../tasks/server/lifecycle';
+import { OperationStore } from '../../../../operations/server/journal/store';
+import { TasksLifecycle } from '../../../../tasks/server/lifecycle/account';
 import { AppError } from '../../../../../shared/contracts/errors';
 import { HistoryService } from '../../../../history/server/events/event-store';
-import { TaskProjectionStore } from '../../../../tasks/server/projection';
-import { TaskCommandService } from '../../../../tasks/server/commands/provider-commands';
-import { RecurrenceService } from '../../../../tasks/server/recurrence';
+import { TaskProjectionStore } from '../../../../tasks/server/projection/store';
+import { TaskCommandService } from '../../../../tasks/server/commands/service';
+import { RecurrenceService } from '../../../../tasks/server/recurrence/service';
 const now = Date.parse('2026-11-02T12:00:00Z');
 const config: AccountConfig = {
   origin: 'https://lanes.example',

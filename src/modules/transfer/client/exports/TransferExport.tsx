@@ -1,8 +1,8 @@
 import { useRef, useState } from 'react';
-import { LabelSchema, type TaskFilter } from '../../../tasks/contracts';
-import type { BoardList } from '../../../boards/contracts';
+import { LabelSchema, type TaskFilter } from '../../../tasks/contracts/task';
+import type { BoardList } from '../../../boards/contracts/board';
 import { CsvExportRequestSchema } from '../../export-contract';
-import { accountToday } from '../../../tasks/planning';
+import { accountToday } from '../../../tasks/model/planning';
 import { request } from '../../../../shared/browser/http/http';
 import { transferPage } from '../response-contracts';
 import { accountBase, pageQuery, type TransferProps } from '../transfer-context';

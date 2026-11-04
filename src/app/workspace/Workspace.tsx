@@ -1,19 +1,19 @@
-import { ListOptions } from '../../modules/boards/client/ListOptions';
-import { BoardNavigation } from '../../modules/boards/client/BoardNavigation';
-import { TaskOptions } from '../../modules/tasks/client/TaskOptions';
-import { createTaskActions } from '../../modules/tasks/client/task-actions';
+import { ListOptions } from '../../modules/boards/browser/placement/ListOptions';
+import { BoardNavigation } from '../../modules/boards/browser/navigation/BoardNavigation';
+import { TaskOptions } from '../../modules/tasks/browser/actions/TaskOptions';
+import { createTaskActions } from '../../modules/tasks/browser/actions/task-actions';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { z } from 'zod';
 import { Skeleton } from '../../shared/ui/skeleton/Skeleton';
 import { Brand } from '../../shared/ui/brand/Brand';
-import { BoardSkeleton } from '../../modules/boards/components/BoardSkeleton';
+import { BoardSkeleton } from '../../modules/boards/browser/board/BoardSkeleton';
 import { WorkspaceSkeleton } from './WorkspaceSkeleton';
 import { initialWorkspaceReady } from './workspace-startup';
 import type { InitialViewReadiness } from '../../shared/browser/resources/readiness';
 import { Icon } from '../../shared/ui/icon/Icon';
 import { Dialog } from '../../shared/ui/dialog/Dialog';
 import type { ConnectionSummary } from '../../modules/accounts/contracts/connection';
-import { BoardMembershipSchema, type Board, type BoardList } from '../../modules/boards/contracts';
+import { BoardMembershipSchema, type Board, type BoardList } from '../../modules/boards/contracts/board';
 import {
   TaskSchema,
   TaskListSchema,
@@ -21,49 +21,49 @@ import {
   type TaskFilter,
   type TaskList,
   type TaskSort,
-} from '../../modules/tasks/contracts';
-import { LabelPageSchema } from '../../modules/tasks/query-contract';
-import { accountToday } from '../../modules/tasks/planning';
+} from '../../modules/tasks/contracts/task';
+import { LabelPageSchema } from '../../modules/tasks/contracts/query';
+import { accountToday } from '../../modules/tasks/model/planning';
 import { checkServerConnection, request } from '../../shared/browser/http/http';
 import { useServerConnection } from '../../shared/browser/connectivity/useServerConnection';
 import { usePagedResource } from '../../shared/browser/resources/usePagedResource';
 import { PromptDialog, type Prompt } from '../../modules/operations/browser/submission/PromptDialog';
-import { useCommands } from '../../modules/tasks/client/useCommands';
-import { useWorkspaceSync } from '../../modules/tasks/client/useWorkspaceSync';
-import { BoardWorkspace } from '../../modules/boards/client/BoardWorkspace';
-import { CalendarWorkspace } from '../../modules/boards/client/CalendarWorkspace';
-import { CompletedWorkspace } from '../../modules/boards/client/CompletedWorkspace';
+import { useCommands } from '../../modules/operations/browser/submission/useCommands';
+import { useWorkspaceSync } from '../../modules/tasks/browser/sync/useWorkspaceSync';
+import { BoardWorkspace } from '../../modules/boards/browser/board/BoardWorkspace';
+import { CalendarWorkspace } from '../../modules/boards/browser/calendar/CalendarWorkspace';
+import { CompletedWorkspace } from '../../modules/boards/browser/completed/CompletedWorkspace';
 import { HistoryPanel } from '../../modules/history/browser/activity/HistoryPanel';
-import { TaskEditorWorkspace } from '../../modules/tasks/client/TaskEditorWorkspace';
+import { TaskEditorWorkspace } from '../../modules/tasks/browser/editor/TaskEditorWorkspace';
 import { Confirmation, type ConfirmationChoice } from '../../modules/operations/browser/submission/Confirmation';
-import { LabelManager } from '../../modules/tasks/client/LabelManager';
-import { TaskCollectionWorkspace } from '../../modules/tasks/client/TaskCollectionWorkspace';
-import { useRecurrenceWork } from '../../modules/tasks/client/useRecurrenceWork';
-import { ReopenDialog } from '../../modules/tasks/client/ReopenDialog';
-import { TaskMoveDialog } from '../../modules/boards/client/TaskMoveDialog';
-import { BoardOptions } from '../../modules/boards/client/BoardOptions';
-import { DuplicateDialog } from '../../modules/boards/client/DuplicateDialog';
-import { CompletedDeletionDialog } from '../../modules/tasks/client/CompletedDeletionDialog';
+import { LabelManager } from '../../modules/tasks/browser/labels/LabelManager';
+import { TaskCollectionWorkspace } from '../../modules/tasks/browser/queries/TaskCollectionWorkspace';
+import { useRecurrenceWork } from '../../modules/tasks/browser/planning/useRecurrenceWork';
+import { ReopenDialog } from '../../modules/tasks/browser/planning/ReopenDialog';
+import { TaskMoveDialog } from '../../modules/boards/browser/placement/TaskMoveDialog';
+import { BoardOptions } from '../../modules/boards/browser/board/BoardOptions';
+import { DuplicateDialog } from '../../modules/boards/browser/placement/DuplicateDialog';
+import { CompletedDeletionDialog } from '../../modules/tasks/browser/completion/CompletedDeletionDialog';
 import { AccountMenu } from '../../modules/accounts/browser/identity/AccountMenu';
 import { ThemeToggle } from '../theme/ThemeToggle';
 import { WorkspaceSettings } from './WorkspaceSettings';
-import { WorkspaceViewMenu } from '../../modules/boards/client/WorkspaceViewMenu';
-import { SyncControl } from '../../modules/tasks/client/SyncControl';
+import { WorkspaceViewMenu } from '../../modules/boards/browser/view/WorkspaceViewMenu';
+import { SyncControl } from '../../modules/tasks/browser/sync/SyncControl';
 import { Select } from '../../shared/ui/select/Select';
-import { ChangeStatus } from '../../modules/tasks/client/ChangeStatus';
-import { TaskMoveError } from '../../modules/tasks/client/save-task-move';
-import { useTaskMoveQueue } from '../../modules/tasks/client/useTaskMoveQueue';
-import { OperationPageSchema } from '../../modules/tasks/operation-contract';
-import { OperationResolutionDialog } from '../../modules/tasks/client/OperationResolutionDialog';
+import { ChangeStatus } from '../../modules/operations/browser/status/ChangeStatus';
+import { TaskMoveError } from '../../modules/tasks/browser/movement/save-task-move';
+import { useTaskMoveQueue } from '../../modules/tasks/browser/movement/useTaskMoveQueue';
+import { OperationPageSchema } from '../../modules/operations/contracts/receipt';
+import { OperationResolutionDialog } from '../../modules/tasks/browser/operations/OperationResolutionDialog';
 import { AccountLifecycleDialog } from '../../modules/accounts/browser/connections/AccountLifecycleDialog';
 import { portabilityLanding } from '../entry/landing';
-import { usePlanningToday } from '../../modules/tasks/client/usePlanningToday';
+import { usePlanningToday } from '../../modules/tasks/browser/planning/usePlanningToday';
 import { useMobileNavigation } from './useMobileNavigation';
-import type { ReopenPreview } from '../../modules/tasks/recurrence-contract';
+import type { ReopenPreview } from '../../modules/tasks/contracts/recurrence';
 import type { ResolvedTheme } from '../theme/theme';
-import type { BoardViewPreferences } from '../../modules/boards/client/view-preferences';
-import { useBoardData } from '../../modules/boards/client/useBoardData';
-import { useBoardViewPreferences } from '../../modules/boards/client/useBoardViewPreferences';
+import type { BoardViewPreferences } from '../../modules/boards/browser/view/view-preferences';
+import { useBoardData } from '../../modules/boards/browser/navigation/useBoardData';
+import { useBoardViewPreferences } from '../../modules/boards/browser/view/useBoardViewPreferences';
 import './Workspace.css';
 import './WorkspaceSkeleton.css';
 
@@ -87,7 +87,7 @@ type Editor = {
   boardId?: string;
 };
 const TemplateWorkspace = lazy(() =>
-  import('../../modules/boards/client/templates/TemplateWorkspace').then((module) => ({
+  import('../../modules/boards/browser/templates/TemplateWorkspace').then((module) => ({
     default: module.TemplateWorkspace,
   })),
 );

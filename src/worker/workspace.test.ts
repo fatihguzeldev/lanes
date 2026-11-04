@@ -3,13 +3,13 @@ import { seedAccount, testDatabase } from '../../tests/sqlite-d1';
 import { invocationDatabase } from '../../tests/d1-invocation';
 import { AccountService, accountGrantContext } from '../modules/accounts/server/oauth/account-service';
 import { encryptToken } from '../modules/accounts/server/credentials/crypto';
-import { BoardService } from '../modules/boards/server';
-import { accountToday } from '../modules/tasks/planning';
+import { BoardService } from '../modules/boards/server/boards/service';
+import { accountToday } from '../modules/tasks/model/planning';
 import { parseConfiguration, type Env } from './env';
 import worker, { handleRequest } from './index';
-import { OperationStore } from '../modules/tasks/server/operations';
+import { OperationStore } from '../modules/operations/server/journal/store';
 import type { ImportSummary } from '../modules/transfer/server-contract';
-import type { CompletedDeletionSummary } from '../modules/tasks/completed-deletion-contract';
+import type { CompletedDeletionSummary } from '../modules/tasks/contracts/completed-deletion';
 
 const open: ReturnType<typeof testDatabase>[] = [];
 afterEach(() => open.splice(0).forEach((database) => database.close()));

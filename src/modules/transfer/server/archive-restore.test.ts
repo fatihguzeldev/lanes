@@ -1,18 +1,18 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { testDatabase, seedAccount } from '../../../../tests/sqlite-d1';
 import { AccountsPortability } from '../../accounts/server/connections/portability';
-import { BoardService } from '../../boards/server';
+import { BoardService } from '../../boards/server/boards/service';
 import { HistoryService } from '../../history/server/events/event-store';
 import { TaskQueries } from '../../tasks/server/queries/tasks';
-import { TaskMetadataService } from '../../tasks/server/metadata';
+import { TaskMetadataService } from '../../tasks/server/metadata/tasks';
 import { TaskSnapshotReader } from '../../tasks/server/queries/snapshot-reader';
-import { TaskProjectionStore } from '../../tasks/server/projection';
-import { TaskCommandService } from '../../tasks/server/commands/provider-commands';
-import { OperationStore } from '../../tasks/server/operations';
+import { TaskProjectionStore } from '../../tasks/server/projection/store';
+import { TaskCommandService } from '../../tasks/server/commands/service';
+import { OperationStore } from '../../operations/server/journal/store';
 import { WorkspaceArchiveStore } from './archive-store';
 import { ArchiveRestoreService } from './archive-restore';
 import { createTemplateOwners } from '../../../worker/template-services';
-import { TemplateDocumentStore } from '../../tasks/server/template-documents';
+import { TemplateDocumentStore } from '../../tasks/server/templates/documents';
 const now = Date.parse('2026-11-02T12:00:00Z'),
   id = `${now}:abcdefghijklmnop`;
 const databases: ReturnType<typeof testDatabase>[] = [];

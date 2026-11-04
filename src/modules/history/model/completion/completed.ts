@@ -1,6 +1,6 @@
 import { Temporal } from '@js-temporal/polyfill';
-import type { Task } from '../../../tasks/contracts';
-import { accountToday } from '../../../tasks/planning';
+import type { Task } from '../../../tasks/contracts/task';
+import { accountToday } from '../../../tasks/model/planning';
 import type {
   CompletedGroup,
   CompletedGroupKey,

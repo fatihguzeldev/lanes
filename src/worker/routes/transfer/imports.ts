@@ -2,8 +2,8 @@ import type { Services } from '../../services';
 import type { AccountRouteContext } from '../context';
 
 import { z } from 'zod';
-import { LabelInputSchema } from '../../../modules/tasks/contracts';
-import { normalizeLabelName } from '../../../modules/tasks/model';
+import { LabelInputSchema } from '../../../modules/tasks/contracts/task';
+import { normalizeLabelName } from '../../../modules/tasks/model/task';
 import {
   BeginImportSchema,
   ConfirmImportSchema,

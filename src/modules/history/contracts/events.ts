@@ -1,11 +1,12 @@
 import { z } from 'zod';
-import { PrioritySchema, ResourceIdSchema, type Task, type TaskList } from '../../tasks/contracts';
+import { PrioritySchema, type Task, type TaskList } from '../../tasks/contracts/task';
+import { ResourceIdSchema } from '../../../shared/contracts/identity';
 import {
   CalendarDateSchema,
   LocalTimeSchema,
   RepeatRuleSchema,
   TimeZoneSchema,
-} from '../../tasks/planning-contract';
+} from '../../tasks/contracts/planning';
 
 export const HISTORY_RETENTION_MS = 90 * 86_400_000;
 const timestamp = z.iso.datetime({ offset: true });

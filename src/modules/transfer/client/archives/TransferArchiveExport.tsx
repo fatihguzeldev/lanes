@@ -4,7 +4,7 @@ import {
   ArchiveExportSummarySchema,
   type ArchiveExportSummary,
 } from '../../archive-export-contract';
-import { accountToday } from '../../../tasks/planning';
+import { accountToday } from '../../../tasks/model/planning';
 import { request } from '../../../../shared/browser/http/http';
 import { downloadFile } from '../download-file';
 import { BoardChoice } from '../TransferSelection';
