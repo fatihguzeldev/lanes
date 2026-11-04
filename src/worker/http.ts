@@ -99,3 +99,11 @@ export function errorResponse(error: unknown, requestId: string): Response {
   };
   return jsonResponse(body, known ? failure.status : 500);
 }
+
+export function pageOptions(url: URL) {
+  const limit = url.searchParams.has('limit') ? Number(url.searchParams.get('limit')) : undefined;
+  const cursor = url.searchParams.get('cursor') ?? undefined;
+  if (limit !== undefined && (!Number.isInteger(limit) || limit < 1 || limit > 100))
+    throw new AppError('validation_failed', 'choose a page size from 1 to 100.', 400);
+  return { ...(limit === undefined ? {} : { limit }), ...(cursor === undefined ? {} : { cursor }) };
+}

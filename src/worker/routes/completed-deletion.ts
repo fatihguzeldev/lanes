@@ -1,11 +1,11 @@
 import { z } from 'zod';
-import { AppError } from '../contracts/errors';
+import { AppError } from '../../contracts/errors';
 import {
   BeginCompletedDeletionSchema,
   ConfirmCompletedDeletionSchema,
-} from '../modules/tasks/completed-deletion-contract';
-import type { CompletedTaskDeletionService } from '../modules/tasks/server/completed-deletion';
-import { jsonResponse, parseValue, readJson } from './http';
+} from '../../modules/tasks/completed-deletion-contract';
+import type { CompletedTaskDeletionService } from '../../modules/tasks/server/completed-deletion';
+import { jsonResponse, parseValue, readJson } from '../http';
 
 const empty = z.object({}).strict();
 const pageSchema = z

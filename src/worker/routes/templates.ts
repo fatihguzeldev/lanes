@@ -1,19 +1,22 @@
 import { z } from 'zod';
-import type { ConnectionSummary } from '../modules/accounts/contracts';
-import { ApplyTemplateSchema, TemplateReferenceSchema } from '../modules/boards/template-contract';
+import type { ConnectionSummary } from '../../modules/accounts/contracts';
+import {
+  ApplyTemplateSchema,
+  TemplateReferenceSchema,
+} from '../../modules/boards/template-contract';
 import {
   BoardTemplateSourceSchema,
   ListTemplateSourceSchema,
-} from '../modules/boards/template-command-contract';
+} from '../../modules/boards/template-command-contract';
 import {
   SnapshotPageOptionsSchema,
   TemplateApplicationOptionsSchema,
   TemplatePageOptionsSchema,
-} from '../modules/tasks/template-contract';
-import { OperationIdSchema } from '../modules/tasks/operation-contract';
-import { accountToday } from '../modules/tasks/planning';
-import type { createServices } from './services';
-import { jsonResponse, parseValue, readJson } from './http';
+} from '../../modules/tasks/template-contract';
+import { OperationIdSchema } from '../../modules/tasks/operation-contract';
+import { accountToday } from '../../modules/tasks/planning';
+import type { createServices } from '../services';
+import { jsonResponse, parseValue, readJson } from '../http';
 
 /** Authenticated HTTP composition; template rules and storage stay with their owners. */
 export async function templateRoute(

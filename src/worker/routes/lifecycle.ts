@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import type { AccountService } from '../modules/accounts/server';
-import type { AccountLifecycle } from '../modules/accounts/lifecycle';
-import { RemoveAccountSchema } from '../modules/accounts/lifecycle-contract';
-import { jsonResponse, readJson } from './http';
+import type { AccountService } from '../../modules/accounts/server';
+import type { AccountLifecycle } from '../../modules/accounts/lifecycle';
+import { RemoveAccountSchema } from '../../modules/accounts/lifecycle-contract';
+import { jsonResponse, readJson } from '../http';
 
 /** The owner session is already verified. Completion receipts survive the connection row. */
 export async function lifecycleRoute(

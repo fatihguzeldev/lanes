@@ -8,8 +8,8 @@ import { HistoryService } from '../modules/history/server';
 import { OperationStore } from '../modules/tasks/server/operations';
 import { GoogleTasksClient } from '../modules/tasks/server/provider';
 import { TaskQueries } from '../modules/tasks/server/queries/tasks';
-import { TaskProjectionStore } from '../modules/tasks/server/projection';
 import { TaskSyncService } from '../modules/tasks/server/sync';
+import { TaskProjectionStore } from '../modules/tasks/server/projection';
 import { TaskMetadataService } from '../modules/tasks/server/metadata';
 import { TaskCommandService } from '../modules/tasks/server/commands/provider-commands';
 import { RecurrenceService } from '../modules/tasks/server/recurrence';
@@ -219,3 +219,5 @@ export function createServices(env: Env, config: Configuration, providerRequestL
     completedDeletion,
   };
 }
+
+export type Services = ReturnType<typeof createServices>;
