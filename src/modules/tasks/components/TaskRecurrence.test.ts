@@ -40,6 +40,7 @@ const props = {
   error: null,
   pending: false,
   onResume() {},
+  onInspect() {},
   onRestore() {},
   onRetry() {},
 };
@@ -95,9 +96,10 @@ describe('repeat recovery presentation', () => {
         status: { ...status, state: 'uncertain', errorCode: 'outcome_uncertain' },
       }),
     );
-    expect(html).toContain('resolve the uncertain operation in activity');
+    expect(html).toContain('check the last save before continuing repetition');
     expect(html).not.toContain('resume repeat work');
-    expect(html).toContain('operation');
+    expect(html).toContain('check repeat progress');
+    expect(html).not.toContain('<code>');
   });
   it('explains a newly assigned rule on a historical completed task without inventing a successor', () => {
     const html = renderToStaticMarkup(

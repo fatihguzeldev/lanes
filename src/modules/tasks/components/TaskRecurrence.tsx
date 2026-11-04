@@ -15,6 +15,7 @@ export interface TaskRecurrenceProps {
   error: string | null;
   pending: boolean;
   onResume?(): void;
+  onInspect?(id: string): void;
   onRestore(rule: RepeatRule): void;
   onRetry?(): void;
   onOpenSuccessor?(taskId: string): void;
@@ -116,10 +117,7 @@ export function TaskRecurrence(props: TaskRecurrenceProps) {
       ) : (
         <>
           {uncertain ? (
-            <p>
-              resolve the uncertain operation in activity before continuing repeat work. confirmed
-              tasks stay in place.
-            </p>
+            <p>check the last save before continuing repetition.</p>
           ) : (
             stateText && <p>{stateText}.</p>
           )}
@@ -163,11 +161,14 @@ export function TaskRecurrence(props: TaskRecurrenceProps) {
           {status?.errorCode && !uncertain && (
             <p>repeat work needs attention: {status.errorCode.replaceAll('_', ' ')}.</p>
           )}
-          {status?.operationId && stateText && (
-            <p className="task-editor__repeat-operation">
-              operation <code>{status.operationId}</code> · inspect confirmed output and recovery in
-              activity.
-            </p>
+          {status?.operationId && (stateText || uncertain) && props.onInspect && (
+            <button
+              type="button"
+              className="task-editor__text-button"
+              onClick={() => props.onInspect?.(status.operationId!)}
+            >
+              check repeat progress
+            </button>
           )}
         </>
       )}

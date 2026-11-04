@@ -22,6 +22,8 @@ import {
 import type { RecurrenceStatus } from '../recurrence-contract';
 import { TaskRecurrence } from './TaskRecurrence';
 import { TaskDependants, type TaskDependantsProps } from './TaskDependants';
+import { TimeZoneSelect } from '../../../ui/TimeZoneSelect';
+import { Select } from '../../../ui/Select';
 import './TaskEditor.css';
 
 export interface TaskEditorSave {
@@ -59,6 +61,8 @@ export interface TaskEditorProps {
   onCheckConnection?(): void;
   submitted?: boolean;
   onRetryFailed?: () => void;
+  onInspectSave?(): void;
+  onInspectRecurrence?(id: string): void;
   error?: { message: string; code?: string; fields?: Record<string, string> } | null;
   subtasks?: {
     items: readonly Task[];
@@ -103,16 +107,6 @@ const providerFields = [
   'scheduledTime',
   'timeZone',
   'repeatRule',
-];
-const zoneSuggestions = [
-  'UTC',
-  'Europe/Istanbul',
-  'Europe/London',
-  'Europe/Berlin',
-  'America/New_York',
-  'America/Los_Angeles',
-  'Asia/Tokyo',
-  'Australia/Sydney',
 ];
 
 /** Presentation identity is keyed by the shell; closing/account changes use its discard guard. */
@@ -366,10 +360,9 @@ function EditorForm(props: TaskEditorProps) {
             open the task again.
           </p>
         )}
-        {props.submitted && (
-          <p className="task-editor__notice">
-            this input is recorded as an operation. inspect its outcome before making another
-            change. you can close this editor; its operation stays available.
+        {props.submitted && !props.error && (
+          <p className="task-editor__notice" role="status">
+            saving…
           </p>
         )}
         {props.serverReachable === false && (
@@ -473,14 +466,13 @@ function EditorForm(props: TaskEditorProps) {
             {draft.scheduledTime && (
               <label className="task-editor__zone" htmlFor={inputId('zone')}>
                 time zone
-                <input
+                <TimeZoneSelect
                   id={inputId('zone')}
-                  list={inputId('zones')}
                   value={draft.timeZone}
                   disabled={!providerEnabled || !draft.scheduledDay}
-                  onChange={(event) => set('timeZone', event.target.value)}
+                  onChange={(value) => set('timeZone', value)}
+                  aria-label="scheduled time zone"
                   aria-invalid={invalid('timeZone')}
-                  spellCheck={false}
                 />
               </label>
             )}
@@ -507,6 +499,7 @@ function EditorForm(props: TaskEditorProps) {
               dirty={dirty}
               available={providerEnabled && props.serverReachable !== false}
               {...props.recurrence}
+              {...(props.onInspectRecurrence ? { onInspect: props.onInspectRecurrence } : {})}
               {...(props.onRetryRecurrence ? { onRetry: props.onRetryRecurrence } : {})}
               {...(props.onResumeRecurrence ? { onResume: props.onResumeRecurrence } : {})}
               {...(props.onOpenRecurrenceTask
@@ -561,22 +554,24 @@ function EditorForm(props: TaskEditorProps) {
                     </label>
                     <label>
                       frequency
-                      <select
+                      <Select
                         value={draft.repeatFrequency}
-                        onChange={(event) =>
+                        onChange={(selectedValue) =>
                           set(
                             'repeatFrequency',
-                            event.target.value as TaskEditorDraft['repeatFrequency'],
+                            selectedValue as TaskEditorDraft['repeatFrequency'],
                           )
                         }
                         disabled={!providerEnabled || !draft.scheduledDay}
-                      >
-                        <option value="daily">day</option>
-                        <option value="weekdays">weekday</option>
-                        <option value="weekly">week</option>
-                        <option value="monthly">month</option>
-                        <option value="yearly">year</option>
-                      </select>
+                        aria-label="frequency"
+                        options={[
+                          { value: 'daily', label: 'day' },
+                          { value: 'weekdays', label: 'weekday' },
+                          { value: 'weekly', label: 'week' },
+                          { value: 'monthly', label: 'month' },
+                          { value: 'yearly', label: 'year' },
+                        ]}
+                      />
                     </label>
                   </div>
                   {draft.repeatFrequency === 'weekly' && (
@@ -607,17 +602,19 @@ function EditorForm(props: TaskEditorProps) {
                   <div className="task-editor__repeat-row">
                     <label>
                       ends
-                      <select
+                      <Select
                         value={draft.repeatEnd}
-                        onChange={(event) =>
-                          set('repeatEnd', event.target.value as TaskEditorDraft['repeatEnd'])
+                        onChange={(selectedValue) =>
+                          set('repeatEnd', selectedValue as TaskEditorDraft['repeatEnd'])
                         }
                         disabled={!providerEnabled || !draft.scheduledDay}
-                      >
-                        <option value="never">never</option>
-                        <option value="date">on a day</option>
-                        <option value="count">after a count</option>
-                      </select>
+                        aria-label="ends"
+                        options={[
+                          { value: 'never', label: 'never' },
+                          { value: 'date', label: 'on a day' },
+                          { value: 'count', label: 'after a count' },
+                        ]}
+                      />
                     </label>
                     {draft.repeatEnd === 'date' && (
                       <label>
@@ -648,12 +645,11 @@ function EditorForm(props: TaskEditorProps) {
                   </div>
                   <label className="task-editor__repeat-zone">
                     rule's time zone
-                    <input
-                      list={inputId('zones')}
+                    <TimeZoneSelect
                       value={draft.repeatZone}
-                      onChange={(event) => set('repeatZone', event.target.value)}
+                      onChange={(value) => set('repeatZone', value)}
+                      aria-label="repeat time zone"
                       disabled={!providerEnabled || !draft.scheduledDay}
-                      spellCheck={false}
                     />
                   </label>
                   <p className="task-editor__hint">
@@ -665,11 +661,6 @@ function EditorForm(props: TaskEditorProps) {
               )}
             </div>
           </details>
-          <datalist id={inputId('zones')}>
-            {zoneSuggestions.map((zone) => (
-              <option key={zone} value={zone} />
-            ))}
-          </datalist>
         </section>
 
         <section className="task-editor__section" aria-labelledby={inputId('details-heading')}>
@@ -680,18 +671,20 @@ function EditorForm(props: TaskEditorProps) {
           <div className="task-editor__metadata-row">
             <label>
               priority
-              <select
+              <Select
                 value={draft.priority}
-                onChange={(event) =>
-                  set('priority', event.target.value as TaskEditorDraft['priority'])
+                onChange={(selectedValue) =>
+                  set('priority', selectedValue as TaskEditorDraft['priority'])
                 }
                 disabled={!localEnabled}
-              >
-                <option value="none">none</option>
-                <option value="low">low</option>
-                <option value="medium">medium</option>
-                <option value="high">high</option>
-              </select>
+                aria-label="priority"
+                options={[
+                  { value: 'none', label: 'none' },
+                  { value: 'low', label: 'low' },
+                  { value: 'medium', label: 'medium' },
+                  { value: 'high', label: 'high' },
+                ]}
+              />
             </label>
             <button
               className={`task-editor__star${draft.starred ? ' is-starred' : ''}`}
@@ -983,6 +976,15 @@ function EditorForm(props: TaskEditorProps) {
                   <li key={key}>{message}</li>
                 ))}
               </ul>
+            )}
+            {props.onInspectSave && (
+              <button
+                className="task-editor__text-button"
+                type="button"
+                onClick={props.onInspectSave}
+              >
+                check save
+              </button>
             )}
             {props.onRetryFailed && (
               <button

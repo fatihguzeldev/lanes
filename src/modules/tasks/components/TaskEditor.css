@@ -26,7 +26,7 @@
 }
 .task-editor textarea,
 .task-editor input,
-.task-editor select {
+.task-editor .select {
   min-width: 0;
   accent-color: var(--green);
 }
@@ -101,7 +101,7 @@
   line-height: 1.5;
 }
 .task-editor input:not([type='checkbox']),
-.task-editor select {
+.task-editor .select__trigger {
   width: 100%;
   min-height: 36px;
   padding: 7px 9px;
@@ -113,11 +113,11 @@
   line-height: 1.5;
 }
 .task-editor input:not([type='checkbox']):hover:not(:disabled),
-.task-editor select:hover:not(:disabled) {
+.task-editor .select__trigger:hover:not(:disabled) {
   border-color: var(--secondary);
 }
 .task-editor input:disabled,
-.task-editor select:disabled {
+.task-editor .select__trigger:disabled {
   opacity: 0.55;
   cursor: not-allowed;
 }

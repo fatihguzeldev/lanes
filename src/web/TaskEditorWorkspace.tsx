@@ -42,6 +42,7 @@ interface Props {
   onDelete: (task: Task) => void;
   onCreateSubtask: (task: Task) => void;
   onManageLabels: () => void;
+  onInspectChange: (id: string) => void;
 }
 const graphSchema = z.object({ revision: z.number().int().nonnegative() }).strict();
 const resolvedSchema = z.object({ items: z.array(TaskSchema).max(100) }).strict();
@@ -78,6 +79,7 @@ export function TaskEditorWorkspace({
   onDelete,
   onCreateSubtask,
   onManageLabels,
+  onInspectChange,
 }: Props) {
   const connection = useServerConnection();
   const [recurrence, setRecurrence] = useState<RecurrenceStatus | null>(null),
@@ -399,6 +401,13 @@ export function TaskEditorWorkspace({
         error: recurrenceError || repeatWork.error || null,
         pending: resumePending || repeatWork.busy,
       }}
+      {...(commands.errorDetails?.operationId || (submitted && commands.latest?.id)
+        ? {
+            onInspectSave: () =>
+              onInspectChange(commands.errorDetails?.operationId ?? commands.latest!.id),
+          }
+        : {})}
+      onInspectRecurrence={onInspectChange}
       onRetryRecurrence={() => setRecurrenceVersion((value) => value + 1)}
       onResumeRecurrence={resumeRecurrence}
       onOpenRecurrenceTask={(taskId) => {
