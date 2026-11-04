@@ -1209,7 +1209,9 @@ export class OperationStore {
     claimId: string,
     now = Date.now(),
     guards: D1PreparedStatement[] = [],
+    dispatchInput?: unknown,
   ): Promise<void> {
+    const inputJson = dispatchInput === undefined ? null : boundedJson(dispatchInput);
     const operation = await this.db
       .prepare('SELECT account_id FROM tasks_operations WHERE id=?')
       .bind(id)
@@ -1221,11 +1223,11 @@ export class OperationStore {
         ...guards,
         this.db
           .prepare(
-            `UPDATE tasks_operation_steps SET state='dispatched',dispatched_at=?
+            `UPDATE tasks_operation_steps SET state='dispatched',dispatched_at=?,input_json=COALESCE(?,input_json)
           WHERE operation_id=? AND item_key=? AND state='claimed' AND claim_id=? AND claim_until>?
           AND EXISTS(SELECT 1 FROM tasks_operations WHERE id=? AND cancel_requested=0 AND terminal_at IS NULL)`,
           )
-          .bind(now, id, key, claimId, now, id),
+          .bind(now, inputJson, id, key, claimId, now, id),
       ]);
       if (!results[1 + guards.length]?.meta.changes)
         throw new AppError(

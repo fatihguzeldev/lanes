@@ -26,6 +26,24 @@ const input = (operationId = id()) => ({
 });
 
 describe('durable provider intent', () => {
+  it('records refreshed dispatch input under the active claim without replacing the original intent', async () => {
+    const { store } = await fixture();
+    const original = input();
+    const admitted = await store.admit(original, now);
+    await store.claimNext(id(), 'expired', now);
+    const refreshed = { title: 'a task', provider: { etag: 'fresh-order' } };
+    await expect(
+      store.markDispatched(id(), 'task-1', 'expired', now + 31_000, [], refreshed),
+    ).rejects.toMatchObject({ code: 'conflict' });
+    expect((await store.getStep(id(), 'task-1'))?.input).toEqual({ title: 'a task' });
+    await store.claimNext(id(), 'current', now + 31_000);
+    await store.markDispatched(id(), 'task-1', 'current', now + 31_001, [], refreshed);
+    expect(await store.getStep(id(), 'task-1')).toMatchObject({
+      state: 'dispatched',
+      input: refreshed,
+    });
+    expect((await store.admit(original, now + 31_002)).input).toEqual(admitted.input);
+  });
   it('counts confirmed, uncertain and unsent work without exposing captured bodies or treating markers as tasks', async () => {
     const { store } = await fixture();
     await store.admit(

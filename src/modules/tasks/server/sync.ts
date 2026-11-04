@@ -873,6 +873,44 @@ export class TaskSyncService {
       errorCode: job?.error_code ?? null,
     };
   }
+  /** Join these writes to the confirmed move and its projection revision update. */
+  providerOrderRefreshWrites(accountId: string, listIds: readonly string[]): D1PreparedStatement[] {
+    identity(accountId);
+    const lists = [...new Set(listIds)];
+    if (!lists.length || lists.length > 2)
+      throw new AppError('validation_failed', 'refresh the move source and destination only.', 422);
+    for (const list of lists) identity(list);
+    const at = this.now();
+    return [
+      ...lists.flatMap((list) => [
+        this.db
+          .prepare(
+            'INSERT INTO tasks_write_guards(valid) SELECT 0 WHERE NOT EXISTS(SELECT 1 FROM tasks_lists WHERE account_id=? AND id=? AND deleted_at IS NULL)',
+          )
+          .bind(accountId, list),
+        this.db
+          .prepare(
+            'UPDATE tasks_lists SET tasks_complete_at=NULL,completed_complete_at=NULL WHERE account_id=? AND id=?',
+          )
+          .bind(accountId, list),
+        this.db
+          .prepare(
+            `INSERT INTO tasks_sync_list_work(account_id,list_id,priority,next_at,mode) VALUES (?,?,0,?,'full')
+          ON CONFLICT(account_id,list_id) DO UPDATE SET priority=0,next_at=MIN(next_at,excluded.next_at),
+          mode='full',page_token=NULL,scan_id=NULL,started_at=NULL,updated_min=NULL`,
+          )
+          .bind(accountId, list, at),
+      ]),
+      this.db.prepare('UPDATE tasks_sync_fairness SET turn=turn+1 WHERE singleton=1'),
+      this.db
+        .prepare(
+          `INSERT INTO tasks_sync_jobs(account_id,next_at,requested_at,default_pending,inventory_pending,fairness_order)
+        SELECT ?,?,?,0,0,turn FROM tasks_sync_fairness WHERE singleton=1
+        ON CONFLICT(account_id) DO UPDATE SET next_at=MIN(next_at,excluded.next_at),attempts=0,error_code=NULL`,
+        )
+        .bind(accountId, at, at),
+    ];
+  }
   async requestRefresh(
     accountId: string,
     request: RefreshRequest,

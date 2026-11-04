@@ -4,7 +4,7 @@ import { HistoryService } from '../../history/server';
 import { GoogleTasksClient } from './provider';
 import type { GoogleTasksFetch } from './provider';
 import { OperationStore } from './operations';
-import { TaskProjectionStore } from './sync';
+import { TaskProjectionStore, TaskSyncService } from './sync';
 import { TaskMetadataService } from './metadata';
 import { TaskQueries } from './queries';
 import { TaskCommandService } from './provider-commands';
@@ -1108,4 +1108,240 @@ it('keeps a create uncertain when a received Google result could not be recorded
   f.advance(31000);
   await service.advance('account-a', op());
   expect(f.calls.filter((call) => call.method === 'POST')).toHaveLength(1);
+});
+
+async function reorderingFixture() {
+  const f = await fixture();
+  const tail = {
+    id: 'google-tail',
+    title: 'last',
+    status: 'needsAction' as const,
+    etag: '"tail-v1"',
+    position: '300',
+  };
+  f.tasks.set(tail.id, tail);
+  await f.db.batch(
+    (
+      await f.projection.prepareConfirmedWrites('account-a', 'list-a', [tail], {
+        knownTaskIds: new Map([[tail.id, 'task-b']]),
+      })
+    ).writes,
+  );
+  const sentEtags: (string | null)[] = [];
+  let loseResponse = false;
+  const client = new GoogleTasksClient({
+    accessToken: 'token',
+    fetch: async (input, init) => {
+      const url = new URL(String(input));
+      if (init?.method === 'POST' && url.pathname.endsWith('/move')) {
+        const id = decodeURIComponent(url.pathname.split('/').at(-2)!);
+        const current = f.tasks.get(id)!;
+        sentEtags.push(new Headers(init.headers).get('if-match'));
+        if (sentEtags.at(-1) !== current.etag)
+          return Response.json({ error: { code: 412 } }, { status: 412 });
+        const moved = { ...current, position: '400', etag: '"move-v3"' };
+        f.tasks.set(id, moved);
+        if (loseResponse) throw new TypeError('response lost');
+        return Response.json(moved);
+      }
+      return f.fetcher(input, init);
+    },
+  });
+  const sync = new TaskSyncService(f.db, {
+    history: f.options.history,
+    clientFor: async () => client,
+    now: f.options.now,
+  });
+  const service = new TaskCommandService(f.db, {
+    ...f.options,
+    clientFor: async () => client,
+    providerOrderRefreshWrites: sync.providerOrderRefreshWrites.bind(sync),
+  });
+  const prepare = () =>
+    service.prepare({
+      operationId: op(),
+      accountId: 'account-a',
+      ownerSubject: 'owner',
+      command: {
+        kind: 'task.move',
+        taskId: 'task-a',
+        revision: 1,
+        listId: 'list-a',
+        listRevision: 1,
+        parentId: null,
+        previousId: 'task-b',
+        previousRevision: 1,
+        confirmSubtaskCount: 0,
+      },
+    });
+  return {
+    ...f,
+    service,
+    prepare,
+    sentEtags,
+    loseResponse: () => {
+      loseResponse = true;
+    },
+  };
+}
+
+it('keeps an already-adjacent move local without contacting Google or changing metadata', async () => {
+  const f = await fixture();
+  await submit(f, {
+    kind: 'task.move',
+    taskId: 'task-a',
+    revision: 1,
+    listId: 'list-a',
+    listRevision: 1,
+    parentId: null,
+    previousId: null,
+    confirmSubtaskCount: 0,
+  });
+  const result = await f.service.advance('account-a', op());
+  expect(result.operation.state).toBe('succeeded');
+  expect(f.calls).toHaveLength(0);
+  expect(await f.queries.getTask('account-a', 'task-a')).toMatchObject({
+    revision: 1,
+    notes: 'keep this note',
+    provider: { position: '100', etag: '"task-v1"' },
+  });
+});
+
+it('rebases a move after Google only resequenced siblings and refreshes their full order', async () => {
+  const f = await reorderingFixture();
+  f.tasks.set('google-task', { ...f.tasks.get('google-task'), position: '200', etag: '"sort-v2"' });
+  await f.prepare();
+  const result = await f.service.advance('account-a', op());
+  expect(result.operation.state).toBe('succeeded');
+  expect(f.sentEtags).toEqual(['"sort-v2"']);
+  expect(await f.queries.getTask('account-a', 'task-a')).toMatchObject({
+    notes: 'keep this note',
+    provider: { position: '400', etag: '"move-v3"' },
+  });
+  const step = await f.operations.getStep(op(), 'step-0');
+  expect(step?.input).toMatchObject({ task: { provider: { position: '200', etag: '"sort-v2"' } } });
+  expect(
+    await f.db
+      .prepare('SELECT tasks_complete_at,completed_complete_at FROM tasks_lists WHERE id=?')
+      .bind('list-a')
+      .first(),
+  ).toEqual({ tasks_complete_at: null, completed_complete_at: null });
+  expect(
+    await f.db.prepare('SELECT list_id,mode,page_token FROM tasks_sync_list_work').first(),
+  ).toMatchObject({ list_id: 'list-a', mode: 'full', page_token: null });
+  expect(
+    await f.db.prepare('SELECT default_pending,inventory_pending FROM tasks_sync_jobs').first(),
+  ).toEqual({ default_pending: 0, inventory_pending: 0 });
+  await expect(
+    f.service.prepare({
+      operationId: op('second-order-intent'),
+      accountId: 'account-a',
+      ownerSubject: 'owner',
+      command: {
+        kind: 'task.move',
+        taskId: 'task-b',
+        revision: 1,
+        listId: 'list-a',
+        listRevision: 1,
+        parentId: null,
+        previousId: null,
+        confirmSubtaskCount: 0,
+      },
+    }),
+  ).rejects.toMatchObject({ code: 'conflict' });
+  expect(f.sentEtags).toHaveLength(1);
+});
+
+it('retains the rebased dispatch evidence when a move response is lost', async () => {
+  const f = await reorderingFixture();
+  f.tasks.set('google-task', { ...f.tasks.get('google-task'), position: '200', etag: '"sort-v2"' });
+  f.loseResponse();
+  await f.prepare();
+  const result = await f.service.advance('account-a', op());
+  expect(result.operation.state).toBe('uncertain');
+  expect((await f.operations.getStep(op(), 'step-0'))?.input).toMatchObject({
+    task: { provider: { etag: '"sort-v2"', position: '200' } },
+  });
+  await f.service.advance('account-a', op());
+  expect(f.sentEtags).toHaveLength(1);
+});
+
+it.each([
+  ['notes', { notes: 'changed elsewhere' }],
+  ['title', { title: 'changed elsewhere' }],
+  ['completion', { status: 'completed', completed: '2026-11-02T12:00:00Z' }],
+  ['day', { due: '2026-12-01T00:00:00Z' }],
+  ['parent', { parent: 'another-parent' }],
+])(
+  'does not rebase a move when its %s changed with the provider position',
+  async (_field, change) => {
+    const f = await reorderingFixture();
+    f.tasks.set('google-task', {
+      ...f.tasks.get('google-task'),
+      ...change,
+      position: '200',
+      etag: '"changed-v2"',
+    });
+    await f.prepare();
+    const result = await f.service.advance('account-a', op());
+    expect(result.operation.state).toBe('failed');
+    expect(f.sentEtags).toHaveLength(0);
+    expect((await f.operations.getStep(op(), 'step-0'))?.state).toBe('failed');
+  },
+);
+
+it('keeps content edits protected when only the Google version and position changed', async () => {
+  const f = await fixture();
+  f.tasks.set('google-task', { ...f.tasks.get('google-task'), position: '200', etag: '"sort-v2"' });
+  await submit(f, {
+    kind: 'task.edit',
+    taskId: 'task-a',
+    revision: 1,
+    patch: { title: 'owner draft' },
+  });
+  const result = await f.service.advance('account-a', op());
+  expect(result.operation.state).toBe('failed');
+  expect(f.calls.map((call) => call.method)).toEqual(['GET']);
+  expect((await f.queries.getTask('account-a', 'task-a')).title).toBe('original');
+});
+
+it('keeps list etag checks when preparing a rename', async () => {
+  const f = await fixture();
+  const calls: string[] = [];
+  const client = new GoogleTasksClient({
+    accessToken: 'token',
+    fetch: async (_input, init) => {
+      calls.push(init?.method ?? 'GET');
+      return Response.json({ id: 'google-list', title: 'home', etag: '"list-v2"' });
+    },
+  });
+  const service = new TaskCommandService(f.db, { ...f.options, clientFor: async () => client });
+  await service.prepare({
+    operationId: op(),
+    accountId: 'account-a',
+    ownerSubject: 'owner',
+    command: { kind: 'list.rename', listId: 'list-a', revision: 1, title: 'new name' },
+  });
+  expect((await service.advance('account-a', op())).operation.state).toBe('failed');
+  expect(calls).toEqual(['GET']);
+});
+
+it('rejects a captured local no-op if the confirmed sibling order changed before settlement', async () => {
+  const f = await fixture();
+  await submit(f, {
+    kind: 'task.move',
+    taskId: 'task-a',
+    revision: 1,
+    listId: 'list-a',
+    listRevision: 1,
+    parentId: null,
+    previousId: null,
+    confirmSubtaskCount: 0,
+  });
+  await f.db
+    .prepare('UPDATE tasks_lists SET projection_revision=projection_revision+1 WHERE id=?')
+    .bind('list-a')
+    .run();
+  expect((await f.service.advance('account-a', op())).operation.state).toBe('failed');
+  expect(f.calls).toHaveLength(0);
 });

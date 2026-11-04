@@ -100,6 +100,7 @@ export function createServices(env: Env, config: Configuration, providerRequestL
     clientFor,
     refreshRejectedToken,
     remainingProviderRequests: () => Math.max(0, 4 - budget.used),
+    providerOrderRefreshWrites: sync.providerOrderRefreshWrites.bind(sync),
     validateBoardTarget: async (accountId, boardId, revision, operationId) => {
       let board;
       try {

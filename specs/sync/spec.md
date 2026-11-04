@@ -72,6 +72,10 @@ metadata uses a local revision and an atomic compare-and-set update. for provide
 
 a stale revision returns the current confirmed values and identifies the conflicting fields. retain the draft and let the owner refresh or explicitly reapply. do not automatically replace a newer title/note with the old editor's full resource object.
 
+a move may accept a fresh provider version when google only resequenced an ordinary, unassigned task among its siblings. verify that its identity, parent, title, notes, completion, scheduled day, and hidden state still match the captured task, and that the local task and list revisions remain current. a content or hierarchy change remains a conflict; this exception does not apply to edits or deletion. record the fresh provider version and position in the durable dispatched step before sending the move, so response repair and uncertainty checks use the version actually dispatched.
+
+a confirmed move can change sibling positions and etags beyond the returned task. invalidate task coverage and queue a targeted full order reconciliation for its source and destination lists in the same local commit. the next positioning command waits for that coverage before capturing its predecessor; it must not use stale sibling positions or trigger a full-account refresh instead.
+
 google exposes etags, but support for conditional behavior must be verified for each mutation used. see [google's performance guidance](https://developers.google.com/workspace/tasks/performance). where a method lacks an effective precondition, a read-before-write narrows the race but does not make external editing serializable. document that ceiling and reconcile the returned result; do not promise complete protection against concurrent google-client edits.
 
 ## uncertain outcomes
@@ -130,3 +134,5 @@ measure cpu on the deployed free plan; waiting on google is not the whole cost. 
 - `sync-09`: expired grants, rate limits, storage limits, outages, and uncertainty produce distinct states without continuous retry.
 - `sync-10`: stale coverage is visible, work remains bounded on the free plan, and old operation replay cannot create new content after receipt cleanup.
 - `sync-11`: an externally moved task with a verified unchanged provider id keeps its lanes identity, metadata, dependencies, and history across pages; stale source pages and live address collisions do not merge or recreate it.
+- `sync-12`: a move accepts an order-only provider change while rejecting changed content or hierarchy; lost responses retain the fresh dispatched version for recovery.
+- `sync-13`: confirmed moves schedule source and destination order reconciliation, and later positioning commands cannot capture stale sibling order before it completes.

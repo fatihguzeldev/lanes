@@ -45,6 +45,7 @@ export interface TaskCommandOptions {
   queries?: TaskQueries;
   clientFor(accountId: string): Promise<GoogleTasksClient>;
   remainingProviderRequests?(): number;
+  providerOrderRefreshWrites?(accountId: string, listIds: readonly string[]): D1PreparedStatement[];
   refreshRejectedToken?(accountId: string, client: GoogleTasksClient): Promise<void>;
   validateBoardTarget?(
     accountId: string,
@@ -393,6 +394,25 @@ export class TaskCommandService {
       }
     }
     return { parent, previous };
+  }
+  private async alreadyPositioned(
+    accountId: string,
+    task: TaskRef,
+    destination: ListRef,
+    parent: TaskRef | null,
+    previous: TaskRef | null,
+  ): Promise<boolean> {
+    if (task.listId !== destination.id || task.parentId !== (parent?.id ?? null)) return false;
+    const current = await this.db
+      .prepare(
+        `SELECT previous_id FROM (
+      SELECT id,LAG(id) OVER(ORDER BY provider_position IS NULL,provider_position,id) AS previous_id
+      FROM tasks_tasks WHERE account_id=? AND list_id=? AND parent_id IS ? AND deleted_at IS NULL AND provider_hidden=0
+      ) WHERE id=?`,
+      )
+      .bind(accountId, task.listId, task.parentId, task.id)
+      .first<{ previous_id: string | null }>();
+    return current !== null && current.previous_id === (previous?.id ?? null);
   }
   private revisionGuard(accountId: string, task: TaskRef): D1PreparedStatement {
     return this.db
@@ -897,7 +917,15 @@ export class TaskCommandService {
               .bind(input.operationId, accountId, task.id),
           );
         steps.push({
-          action: 'task.move',
+          action: (await this.alreadyPositioned(
+            accountId,
+            task,
+            destination,
+            position.parent,
+            position.previous,
+          ))
+            ? 'task.local'
+            : 'task.move',
           task,
           list,
           destination,
@@ -1307,6 +1335,7 @@ export class TaskCommandService {
       step.action === 'task.move' ||
       step.action === 'task.delete' ||
       step.action === 'list.delete' ||
+      step.commandKind === 'task.move' ||
       step.commandKind === 'task.complete' ||
       step.commandKind === 'task.reopen'
     );
@@ -1362,7 +1391,59 @@ export class TaskCommandService {
     for (const value of [step.parent, step.previous])
       if (value) await this.task(accountId, value.id, value.revision);
   }
-  private async preflight(client: GoogleTasksClient, step: CapturedStep): Promise<void> {
+  private async rebaseMove(
+    accountId: string,
+    step: CapturedStep,
+    current: GoogleTaskDTO,
+  ): Promise<CapturedStep | null> {
+    if (
+      step.action !== 'task.move' ||
+      !step.task ||
+      !current.etag ||
+      current.position === undefined ||
+      current.position === step.task.provider.position ||
+      current.deleted ||
+      current.assignmentInfo ||
+      step.task.capabilities.assignmentSource
+    )
+      return null;
+    const cached = await this.task(accountId, step.task.id, step.task.revision);
+    const address = await this.db
+      .prepare(
+        'SELECT provider_parent_id,provider_hidden FROM tasks_tasks WHERE account_id=? AND id=? AND revision=? AND deleted_at IS NULL',
+      )
+      .bind(accountId, cached.id, cached.revision)
+      .first<{ provider_parent_id: string | null; provider_hidden: number }>();
+    if (
+      !address ||
+      current.id !== cached.provider.id ||
+      current.title !== cached.title ||
+      (current.notes ?? '') !== cached.notes ||
+      current.status !== (cached.completed ? 'completed' : 'needsAction') ||
+      (current.completed ?? null) !== cached.completedAt ||
+      (current.due?.slice(0, 10) ?? null) !== cached.scheduledDay ||
+      (current.parent ?? null) !== address.provider_parent_id ||
+      Boolean(current.hidden) !== Boolean(address.provider_hidden)
+    )
+      return null;
+    return {
+      ...step,
+      task: {
+        ...step.task,
+        provider: {
+          ...step.task.provider,
+          etag: current.etag,
+          position: current.position,
+          updatedAt: current.updated ?? null,
+        },
+      },
+    };
+  }
+  private async preflight(
+    accountId: string,
+    client: GoogleTasksClient,
+    step: CapturedStep,
+  ): Promise<CapturedStep> {
     if (step.task) {
       const current = await client.getTask(step.list.providerId, step.task.provider.id);
       if (
@@ -1379,10 +1460,13 @@ export class TaskCommandService {
       if (
         current.id !== step.task.provider.id ||
         (step.task.provider.etag !== null && current.etag !== step.task.provider.etag)
-      )
+      ) {
+        const rebased = await this.rebaseMove(accountId, step, current);
+        if (rebased) return rebased;
         throw conflict(
           'google changed this task after the editor captured it. refresh before reapplying.',
         );
+      }
     }
     if (step.action === 'list.rename' || step.action === 'list.delete') {
       const current = await client.getTaskList(step.list.providerId);
@@ -1394,6 +1478,7 @@ export class TaskCommandService {
           'google changed this list after the editor captured it. refresh before reapplying.',
         );
     }
+    return step;
   }
   async advance(accountId: string, operationId: string): Promise<CommandAdvance> {
     const operation = await this.options.operations.get(operationId, accountId);
@@ -1520,6 +1605,9 @@ export class TaskCommandService {
             [step.list.id],
             [
               this.revisionGuard(accountId, step.task!),
+              ...(step.commandKind === 'task.move'
+                ? [this.projectionFence(accountId, operationId, step.list)]
+                : []),
               ...(step.ordinaryReopenIdentity ? [this.ordinaryReopenGuard(accountId, step)] : []),
               ...(await this.metadataWrites(accountId, operationId, claim.key, step, false)),
               ...this.scheduleWrites(accountId, operationId, claim.key, step),
@@ -1539,7 +1627,8 @@ export class TaskCommandService {
         if (step.action !== 'list.create')
           await this.assertCapturedCurrent(accountId, step, operationId);
         client = await this.options.clientFor(accountId);
-        await this.preflight(client, step);
+        const beforePreflight = step;
+        step = await this.preflight(accountId, client, step);
         if (step.action === 'list.create')
           await this.options.validateBoardTarget?.(
             accountId,
@@ -1579,6 +1668,7 @@ export class TaskCommandService {
                 value ? [this.revisionGuard(accountId, value)] : [],
               ),
             ],
+            step === beforePreflight ? undefined : step,
           );
         } catch (error) {
           if (step.action !== 'list.create')
@@ -2573,6 +2663,10 @@ export class TaskCommandService {
           )
           .bind(accountId, step.list.id, list.id),
       );
+      if (step.action === 'task.move')
+        writes.push(
+          ...(this.options.providerOrderRefreshWrites?.(accountId, [step.list.id, list.id]) ?? []),
+        );
       result = {
         taskId: id,
         listId: list.id,

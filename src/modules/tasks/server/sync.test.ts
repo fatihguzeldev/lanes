@@ -96,6 +96,91 @@ describe('durable bounded provider reconciliation', () => {
     )?.id as string;
   }
 
+  it('refreshes only the move source and destination from full pages, replacing old delta cursors', async () => {
+    lists = [
+      {
+        items: [
+          defaultList,
+          { id: 'destination', title: 'destination' },
+          { id: 'unrelated', title: 'unrelated' },
+        ],
+        nextPageToken: null,
+      },
+    ];
+    await refresh();
+    const rows = (
+      await db
+        .prepare('SELECT id,provider_id FROM tasks_lists WHERE account_id=?')
+        .bind('a')
+        .all<{ id: string; provider_id: string }>()
+    ).results;
+    const source = rows.find((row) => row.provider_id === defaultList.id)!.id;
+    const destination = rows.find((row) => row.provider_id === 'destination')!.id;
+    const unrelated = rows.find((row) => row.provider_id === 'unrelated')!.id;
+    await db
+      .prepare(
+        "INSERT INTO tasks_sync_list_work(account_id,list_id,priority,next_at,mode,page_token,scan_id,started_at,updated_min) VALUES ('a',?,1,?,'delta','old-page','old-scan',?,'old-watermark')",
+      )
+      .bind(source, clock, clock)
+      .run();
+    clock += 10_000;
+    calls = [];
+    await db.batch(sync.providerOrderRefreshWrites('a', [source, source, destination]));
+    expect(
+      await one(
+        'SELECT default_pending,inventory_pending FROM tasks_sync_jobs WHERE account_id=?',
+        'a',
+      ),
+    ).toEqual({ default_pending: 0, inventory_pending: 0 });
+    expect(
+      await one(
+        'SELECT mode,page_token,scan_id,started_at,updated_min FROM tasks_sync_list_work WHERE account_id=? AND list_id=?',
+        'a',
+        source,
+      ),
+    ).toEqual({
+      mode: 'full',
+      page_token: null,
+      scan_id: null,
+      started_at: null,
+      updated_min: null,
+    });
+    expect(await one('SELECT tasks_complete_at FROM tasks_lists WHERE id=?', source)).toEqual({
+      tasks_complete_at: null,
+    });
+    taskPage = async (_listId, input) => {
+      expect(input.updatedMin).toBeUndefined();
+      expect(input.pageToken).toBeUndefined();
+      return { items: [], nextPageToken: null };
+    };
+    await drain();
+    expect([...calls].sort()).toEqual(['tasks:destination', 'tasks:' + defaultList.id].sort());
+    for (const id of [source, destination])
+      expect(
+        await one('SELECT tasks_complete_at,completed_complete_at FROM tasks_lists WHERE id=?', id),
+      ).toEqual({ tasks_complete_at: clock, completed_complete_at: clock });
+    expect(await one('SELECT tasks_complete_at FROM tasks_lists WHERE id=?', unrelated)).toEqual({
+      tasks_complete_at: now,
+    });
+  });
+  it('rejects an order refresh crossing an account boundary without invalidating the valid source', async () => {
+    await refresh();
+    const source = await listId();
+    await seedAccount(db, 'b', now);
+    await db
+      .prepare(
+        "INSERT INTO tasks_lists(id,account_id,provider_id,title) VALUES ('foreign','b','foreign-google','foreign')",
+      )
+      .run();
+    await expect(
+      db.batch(sync.providerOrderRefreshWrites('a', [source, 'foreign'])),
+    ).rejects.toThrow();
+    expect(await one('SELECT tasks_complete_at FROM tasks_lists WHERE id=?', source)).toEqual({
+      tasks_complete_at: now,
+    });
+    expect((await one('SELECT COUNT(*) AS n FROM tasks_sync_jobs'))?.n).toBe(0);
+    expect((await one('SELECT COUNT(*) AS n FROM tasks_sync_list_work'))?.n).toBe(0);
+  });
   it('resolves default identity explicitly and reads at most one provider resource per ordinary slice', async () => {
     lists = [{ items: [{ id: 'first', title: 'inbox' }, defaultList], nextPageToken: null }];
     await sync.requestRefresh('a', { reason: 'entry' });
