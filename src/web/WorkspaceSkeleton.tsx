@@ -2,11 +2,11 @@ import { Skeleton } from '../ui/Skeleton';
 import { Brand } from '../ui/Brand';
 import { Icon } from '../ui/Icon';
 import { BoardSkeleton } from '../modules/boards/components/BoardSkeleton';
-import type { Theme } from './theme';
+import type { ResolvedTheme } from './theme';
 import './Workspace.css';
 import './WorkspaceSkeleton.css';
 
-export function WorkspaceSkeleton({ theme = 'system' }: { theme?: Theme }) {
+export function WorkspaceSkeleton({ theme = 'light' }: { theme?: ResolvedTheme }) {
   return (
     <div
       className="workspace workspace-skeleton"
@@ -63,7 +63,7 @@ export function WorkspaceSkeleton({ theme = 'system' }: { theme?: Theme }) {
               <Icon name="cloud" />
             </span>
             <span className="workspace__icon-button">
-              <Icon name={theme === 'system' ? 'monitor' : theme === 'dark' ? 'moon' : 'sun'} />
+              <Icon name={theme === 'dark' ? 'sun' : 'moon'} />
             </span>
             <span className="workspace__icon-button">
               <Icon name="settings" />

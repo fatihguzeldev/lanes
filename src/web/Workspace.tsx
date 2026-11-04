@@ -56,7 +56,7 @@ import { BoardOptions } from './BoardOptions';
 import { DuplicateDialog } from './DuplicateDialog';
 import { CompletedDeletionDialog } from './CompletedDeletionDialog';
 import { AccountMenu } from './AccountMenu';
-import { ThemeMenu } from './ThemeMenu';
+import { ThemeToggle } from './ThemeToggle';
 import { WorkspaceSettings } from './WorkspaceSettings';
 import { WorkspaceViewMenu } from './WorkspaceViewMenu';
 import { SyncControl } from './SyncControl';
@@ -75,7 +75,7 @@ import {
   ReopenPreviewSchema,
   type ReopenPreview,
 } from '../modules/tasks/recurrence-contract';
-import type { Theme } from './theme';
+import type { ResolvedTheme } from './theme';
 import {
   defaultBoardView,
   readBoardView,
@@ -91,8 +91,8 @@ export interface WorkspaceProps {
   account: ConnectionSummary;
   accounts: readonly ConnectionSummary[];
   clockOffset: number;
-  theme: Theme;
-  onTheme: (theme: Theme) => void;
+  theme: ResolvedTheme;
+  onTheme: (theme: ResolvedTheme) => void;
   onSelectAccount: (id: string) => void;
   onAuthorize: (purpose: 'link' | 'reconnect', accountId?: string) => void;
   onAccountsChanged: () => void;
@@ -1016,7 +1016,7 @@ export function Workspace({
                 )
               }
             />
-            <ThemeMenu theme={theme} onTheme={onTheme} />
+            <ThemeToggle theme={theme} onTheme={onTheme} />
             <WorkspaceSettings
               account={account}
               clockOffset={clockOffset}

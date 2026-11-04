@@ -35,7 +35,7 @@ export function App() {
   selectedAccountId.current = accountId;
   const channel = useRef<BroadcastChannel | null>(null);
   const sessionFlight = useRef<AbortController | null>(null);
-  const [theme, setTheme] = useTheme();
+  const [, setTheme, resolvedTheme] = useTheme();
   const [clockOffset, setClockOffset] = useState(0);
   const load = useCallback(async () => {
     sessionFlight.current?.abort();
@@ -185,17 +185,17 @@ export function App() {
   const selected =
     session?.accounts?.items.find((account) => account.id === accountId) ??
     session?.accounts?.items[0];
-  if (!session && !error) return <WorkspaceSkeleton theme={theme} />;
+  if (!session && !error) return <WorkspaceSkeleton theme={resolvedTheme} />;
   if (session?.authenticated && selected)
     return (
       <>
-        <Suspense fallback={<WorkspaceSkeleton theme={theme} />}>
+        <Suspense fallback={<WorkspaceSkeleton theme={resolvedTheme} />}>
           <Workspace
             key={selected.id}
             account={selected}
             accounts={session.accounts!.items}
             clockOffset={clockOffset}
-            theme={theme}
+            theme={resolvedTheme}
             onTheme={setTheme}
             onSelectAccount={selectAccount}
             onAuthorize={(purpose, id) => void authorize(purpose, id)}
