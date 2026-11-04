@@ -21,6 +21,8 @@ export interface TaskCardProps {
   contextOnly?: boolean;
   parentTitle?: string;
   draggable?: boolean;
+  dragging?: boolean;
+  dropEdge?: 'before' | 'after' | undefined;
   initiallyExpanded?: boolean;
   showNotes?: boolean;
   layout?: 'column' | 'row';
@@ -109,6 +111,8 @@ export function TaskCard({
   contextOnly = false,
   parentTitle,
   draggable = false,
+  dragging = false,
+  dropEdge,
   initiallyExpanded = false,
   showNotes = true,
   layout = 'column',
@@ -159,11 +163,12 @@ export function TaskCard({
 
   return (
     <article
-      className={`task-card task-card--${layout}${task.completed ? ' task-card--completed' : ''}${pending ? ' task-card--pending' : ''}${contextOnly ? ' task-card--context' : ''}`}
+      className={`task-card task-card--${layout}${task.completed ? ' task-card--completed' : ''}${pending ? ' task-card--pending' : ''}${contextOnly ? ' task-card--context' : ''}${dragging ? ' task-card--dragging' : ''}`}
       role="listitem"
       aria-busy={pending || undefined}
       data-task-id={task.id}
       data-account-id={task.accountId}
+      data-drop-edge={dropEdge}
       draggable={
         draggable &&
         !pending &&
@@ -283,11 +288,6 @@ export function TaskCard({
             )}
           </div>
         )}
-        {pending && (
-          <span className="task-card__pending-label" role="status">
-            saving…
-          </span>
-        )}
       </div>
       {children.length > 0 && (
         <ul
@@ -325,11 +325,6 @@ export function TaskCard({
                       {taskTitle(child)}
                     </button>
                     <DueDate task={child} today={today} accountTimeZone={accountTimeZone} />
-                    {childPending && (
-                      <span className="task-card__pending-label" role="status">
-                        saving…
-                      </span>
-                    )}
                   </div>
                   {onMenu && (
                     <button

@@ -25,7 +25,23 @@
   cursor: grab;
 }
 .task-card--dragging {
-  opacity: 0.4;
+  opacity: 0.35;
+}
+.task-card[data-drop-edge]::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--green);
+  pointer-events: none;
+}
+.task-card[data-drop-edge='before']::after {
+  top: -1px;
+}
+.task-card[data-drop-edge='after']::after {
+  bottom: -1px;
 }
 .task-card__main {
   position: relative;
@@ -79,8 +95,9 @@
   background: var(--green-soft, #dce3d3);
 }
 .task-card__check--completed {
-  border-color: var(--secondary, #697063);
-  background: var(--secondary, #697063);
+  border-color: var(--green);
+  background: var(--green);
+  color: var(--on-accent);
 }
 .task-card__check--completed:hover:not(:disabled) {
   background: var(--green, #3d5847);
@@ -92,24 +109,28 @@
 .task-card__menu {
   position: absolute;
   top: 0;
-  right: -13px;
+  right: -12px;
   display: grid;
   place-items: center;
   width: 23px;
   height: 25px;
-  margin: -1px -5px 0 0;
+  margin: -1px 0 0;
   padding: 0;
   border: 0;
   border-radius: 4px;
   background: none;
   color: var(--secondary, #697063);
-  opacity: 0;
+  opacity: 0.8;
   cursor: pointer;
+}
+.task-card__menu .icon {
+  stroke-width: 2.4;
 }
 .task-card:hover .task-card__menu,
 .task-card:focus-within .task-card__menu,
 .task-card__menu:focus-visible {
   opacity: 1;
+  color: var(--green);
 }
 .task-card__menu:hover {
   background: color-mix(in srgb, var(--green-soft, #dce3d3) 65%, transparent);
@@ -274,8 +295,7 @@
   font-size: 12px;
   color: var(--secondary, #697063);
 }
-.task-card__context-label,
-.task-card__pending-label {
+.task-card__context-label {
   display: flex;
   align-items: center;
   gap: 5px;
@@ -289,9 +309,6 @@
   flex: none;
   margin-top: 4px;
   color: var(--secondary);
-}
-.task-card__child .task-card__pending-label {
-  margin: 0;
 }
 .task-card--pending .task-card__check {
   border-style: dashed;
@@ -329,8 +346,7 @@
 }
 .task-card--row .task-card__notes,
 .task-card--row .task-card__parent,
-.task-card--row .task-card__context-label,
-.task-card--row .task-card__pending-label {
+.task-card--row .task-card__context-label {
   grid-column: 1 / -1;
 }
 .task-card--row .task-card__parent {

@@ -40,7 +40,109 @@ function render(column: Partial<BoardColumn> = {}, surface: Partial<BoardSurface
   );
 }
 
+const completedTask = TaskSchema.parse({
+  id: 'task',
+  accountId: 'account',
+  listId: 'list',
+  title: 'read chapter',
+  completed: true,
+  parentId: null,
+  notes: '',
+  labelIds: [],
+  priority: 'none',
+  starred: false,
+  blockedBy: [],
+  scheduledDay: null,
+  scheduledTime: null,
+  timeZone: null,
+  repeatRule: null,
+  occurrenceId: null,
+  seriesId: null,
+  completedAt: '2026-11-04T11:00:00Z',
+  revision: 0,
+  unsupportedHierarchy: false,
+  provider: {
+    id: 'google-task',
+    listId: 'google-list',
+    etag: null,
+    position: '1',
+    updatedAt: null,
+  },
+  capabilities: {
+    canEdit: true,
+    canEditNotes: true,
+    canMove: true,
+    canDelete: true,
+    canHaveChildren: true,
+    canNest: true,
+    assignmentSource: null,
+    sourceUrl: null,
+    restriction: null,
+  },
+});
+
 describe('board list presentation', () => {
+  const first = {
+    ...completedTask,
+    id: 'first',
+    title: 'first',
+    completed: false,
+    completedAt: null,
+  };
+  const second = {
+    ...first,
+    id: 'second',
+    title: 'second',
+    provider: { ...first.provider, position: '2' },
+  };
+
+  it('renders queued ranks only in manual order, without rewriting task positions', () => {
+    const column = { tasks: [first, second], orderedTaskIds: ['second', 'first'] };
+    const manual = render(column);
+    expect(manual.indexOf('data-task-id="second"')).toBeLessThan(
+      manual.indexOf('data-task-id="first"'),
+    );
+    const alphabetical = render(column, { sort: 'title' });
+    expect(alphabetical.indexOf('data-task-id="first"')).toBeLessThan(
+      alphabetical.indexOf('data-task-id="second"'),
+    );
+    expect(first.provider.position).toBe('1');
+    expect(second.provider.position).toBe('2');
+  });
+
+  it('uses a captured complete drag order without claiming complete provider coverage', () => {
+    const column = {
+      tasks: [first],
+      status: 'loading' as const,
+      coverage: { ...complete, complete: false },
+      orderReady: true,
+    };
+    const markup = render(column, { onMoveTask() {} });
+    expect(markup).toContain('draggable="true"');
+    expect(markup).not.toContain('board-column__count');
+    expect(render({ ...column, orderReady: false }, { onMoveTask() {} })).toContain(
+      'draggable="false"',
+    );
+  });
+
+  it('keeps pending root and child controls disabled without adding saving rows', () => {
+    const child = { ...second, parentId: first.id };
+    const markup = render(
+      {
+        tasks: [first, child],
+        matchedTaskIds: [child.id],
+        subtaskSummaries: { [first.id]: { total: 1, open: 1, complete: true } },
+      },
+      { filtered: true, pendingTaskIds: new Set([first.id, child.id]) },
+    );
+    expect(markup).toContain('aria-busy="true"');
+    expect(markup).toContain('aria-label="complete first"');
+    expect(markup).toContain('aria-label="complete second"');
+    expect(markup).toMatch(/aria-label="complete first"[^>]*disabled=""/);
+    expect(markup).toMatch(/aria-label="complete second"[^>]*disabled=""/);
+    expect(markup).not.toContain('saving…');
+  });
+
   it('keeps later list pages accessible beside the end of the visible columns', () => {
     expect(render()).not.toContain('board-surface__more-lists');
     const markup = render({}, { onLoadMoreLists() {}, onAddList() {} });
@@ -111,46 +213,7 @@ describe('board list presentation', () => {
   });
 
   it('keeps the completed section discoverable when a completed task is known', () => {
-    const task = TaskSchema.parse({
-      id: 'task',
-      accountId: 'account',
-      listId: 'list',
-      title: 'read chapter',
-      completed: true,
-      parentId: null,
-      notes: '',
-      labelIds: [],
-      priority: 'none',
-      starred: false,
-      blockedBy: [],
-      scheduledDay: null,
-      scheduledTime: null,
-      timeZone: null,
-      repeatRule: null,
-      occurrenceId: null,
-      seriesId: null,
-      completedAt: '2026-11-04T11:00:00Z',
-      revision: 0,
-      unsupportedHierarchy: false,
-      provider: {
-        id: 'google-task',
-        listId: 'google-list',
-        etag: null,
-        position: '1',
-        updatedAt: null,
-      },
-      capabilities: {
-        canEdit: true,
-        canEditNotes: true,
-        canMove: true,
-        canDelete: true,
-        canHaveChildren: true,
-        canNest: true,
-        assignmentSource: null,
-        sourceUrl: null,
-        restriction: null,
-      },
-    });
+    const task = completedTask;
     expect(render({ tasks: [task], completedCoverage: complete })).toContain(
       'board-column__completed',
     );

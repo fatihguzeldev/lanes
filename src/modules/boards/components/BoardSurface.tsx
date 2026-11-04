@@ -1,6 +1,7 @@
 import {
   useId,
   useMemo,
+  useRef,
   useState,
   type CSSProperties,
   type DragEvent,
@@ -13,14 +14,25 @@ import type { Label, Task, TaskList, TaskSort } from '../../tasks/contracts';
 import { countOpenTasks, getBlockingStates, sortTasks } from '../../tasks/model';
 import { TaskCard } from '../../tasks/components/TaskCard';
 import { BoardSkeleton, ColumnSkeleton } from './BoardSkeleton';
+import {
+  orderForPresentation,
+  resolveTaskDrop,
+  sameDropPosition,
+  taskDropSide,
+  type TaskDropPosition,
+} from './drag-model';
 import './BoardSurface.css';
 import type { SubtaskSummary } from '../../tasks/query-contract';
 
 export interface BoardColumn {
+  readVersion?: number | undefined;
+  providerComplete?: boolean | undefined;
   list: TaskList;
   tasks: readonly Task[];
   coverage: Coverage;
   status: 'loading' | 'ready' | 'error';
+  orderedTaskIds?: readonly string[] | undefined;
+  orderReady?: boolean | undefined;
   countLoading?: boolean | undefined;
   nextCursor: string | null;
   subtaskSummaries?: Record<string, SubtaskSummary> | undefined;
@@ -91,6 +103,17 @@ function confirmedTasks(tasks: readonly Task[], accountId: string, listId?: stri
   return [...byId.values()];
 }
 
+function columnEntries(column: BoardColumn, accountId: string, sort: TaskSort = 'manual'): Task[] {
+  const tasks = sortTasks(confirmedTasks(column.tasks, accountId, column.list.id), sort);
+  return sort === 'manual' ? orderForPresentation(tasks, column.orderedTaskIds) : tasks;
+}
+
+function columnRootIds(column: BoardColumn, accountId: string): string[] {
+  return columnEntries(column, accountId)
+    .filter((task) => !task.parentId && !task.completed)
+    .map((task) => task.id);
+}
+
 function readDrag(data: string): DraggedTask | null {
   try {
     const value: unknown = JSON.parse(data);
@@ -122,7 +145,7 @@ interface ColumnProps {
   knownTasks: readonly Task[];
   canReorder: boolean;
   dragging: DraggedTask | null;
-  dropTarget: string | null;
+  dropTarget: TaskDropPosition | null;
   startDrag: (task: Task, event: DragEvent<HTMLElement>) => void;
   endDrag: () => void;
   overColumn: (column: BoardColumn, event: DragEvent<HTMLElement>) => void;
@@ -146,9 +169,8 @@ function ListColumn({
   const completedId = useId();
   const { list } = column;
   const entries = useMemo(
-    () =>
-      sortTasks(confirmedTasks(column.tasks, options.accountId, list.id), options.sort ?? 'manual'),
-    [column.tasks, options.accountId, options.sort, list.id],
+    () => columnEntries(column, options.accountId, options.sort ?? 'manual'),
+    [column, options.accountId, options.sort],
   );
   const blockers = useMemo(() => getBlockingStates(entries, knownTasks), [entries, knownTasks]);
   const byId = new Map(entries.map((task) => [task.id, task]));
@@ -168,7 +190,9 @@ function ListColumn({
     options.accountId,
   );
   const completedCoverage = column.completedCoverage ?? column.coverage;
-  const canDrop = canReorder && column.coverage.complete && column.status !== 'loading';
+  const canDrop = canReorder && (column.orderReady ?? column.coverage.complete);
+  const placement = dropTarget?.listId === list.id ? dropTarget : null;
+  const lastOpenRoot = openCards.filter((task) => !task.parentId && !task.completed).at(-1)?.id;
   const columnStyle =
     column.color && /^#[\da-f]{3}(?:[\da-f]{3})?$/i.test(column.color)
       ? ({ '--list-color': column.color } as CSSProperties)
@@ -198,6 +222,17 @@ function ListColumn({
       contextOnly={!completedRow && task.completed}
       {...(parentTitle(task) ? { parentTitle: parentTitle(task)! } : {})}
       draggable={canDrop && !task.completed && task.capabilities.canMove}
+      dragging={dragging?.taskId === task.id}
+      dropEdge={
+        !completedRow && placement?.beforeTaskId === task.id
+          ? 'before'
+          : !completedRow &&
+              placement &&
+              placement.beforeTaskId === null &&
+              lastOpenRoot === task.id
+            ? 'after'
+            : undefined
+      }
       showNotes={options.showNotes ?? true}
       layout={options.layout === 'stacked' ? 'row' : 'column'}
       onOpen={options.onOpenTask}
@@ -217,7 +252,7 @@ function ListColumn({
 
   return (
     <section
-      className={`board-column${dropTarget === list.id && dragging ? ' board-column--drop-target' : ''}`}
+      className={`board-column${placement && dragging ? ' board-column--drop-target' : ''}`}
       style={columnStyle}
       aria-labelledby={headingId}
       aria-busy={column.status === 'loading' || undefined}
@@ -276,6 +311,9 @@ function ListColumn({
         role={openCards.length ? 'list' : undefined}
         aria-label={openCards.length ? `open tasks in ${title(list)}` : undefined}
       >
+        {placement && !lastOpenRoot && (
+          <div className="board-column__drop-slot" aria-hidden="true" />
+        )}
         {openCards.map((task) => renderCard(task))}
         {entries.length === 0 && column.status === 'loading' && !column.coverage.complete && (
           <ColumnSkeleton />
@@ -366,7 +404,9 @@ function ListColumn({
 
 export function BoardSurface(options: BoardSurfaceProps) {
   const [dragging, setDragging] = useState<DraggedTask | null>(null);
-  const [dropTarget, setDropTarget] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<TaskDropPosition | null>(null);
+  const activeDrag = useRef<DraggedTask | null>(null);
+  const currentTarget = useRef<TaskDropPosition | null>(null);
   const [announcement, setAnnouncement] = useState('');
   const columns = options.columns.filter((column) => column.list.accountId === options.accountId);
   const knownTasks = useMemo(
@@ -384,11 +424,63 @@ export function BoardSurface(options: BoardSurfaceProps) {
     (options.sort ?? 'manual') === 'manual',
   );
 
+  function showTarget(next: TaskDropPosition | null) {
+    if (sameDropPosition(currentTarget.current, next)) return;
+    currentTarget.current = next;
+    setDropTarget(next);
+  }
+
+  function targetPosition(
+    column: BoardColumn,
+    event: DragEvent<HTMLElement>,
+    dragged: DraggedTask,
+  ): TaskDropPosition | null {
+    const source = columns.find((item) => item.list.id === dragged.sourceListId);
+    if (
+      !source ||
+      !(source.orderReady ?? source.coverage.complete) ||
+      !(column.orderReady ?? column.coverage.complete)
+    )
+      return null;
+    const destinationTaskIds = columnRootIds(column, options.accountId);
+    const card =
+      event.target instanceof Element ? event.target.closest<HTMLElement>('[data-task-id]') : null;
+    let targetTaskId: string | null = null;
+    let side: 'before' | 'after' = 'after';
+    if (card) {
+      const id = card.dataset.taskId;
+      if (!id || !destinationTaskIds.includes(id)) return null;
+      targetTaskId = id;
+      side = taskDropSide(event.clientY, card.getBoundingClientRect());
+    } else {
+      const cards = event.currentTarget.querySelectorAll<HTMLElement>('[data-task-id]');
+      for (const candidate of cards) {
+        const id = candidate.dataset.taskId;
+        if (!id || id === dragged.taskId || !destinationTaskIds.includes(id)) continue;
+        if (taskDropSide(event.clientY, candidate.getBoundingClientRect()) === 'before') {
+          targetTaskId = id;
+          side = 'before';
+          break;
+        }
+      }
+    }
+    return resolveTaskDrop({
+      taskId: dragged.taskId,
+      sourceListId: dragged.sourceListId,
+      destinationListId: column.list.id,
+      sourceTaskIds: columnRootIds(source, options.accountId),
+      destinationTaskIds,
+      targetTaskId,
+      side,
+    });
+  }
+
   function startDrag(task: Task, event: DragEvent<HTMLElement>) {
     if (
       !canReorder ||
       task.accountId !== options.accountId ||
       task.parentId ||
+      task.completed ||
       !task.capabilities.canMove ||
       task.unsupportedHierarchy ||
       options.pendingTaskIds?.has(task.id)
@@ -397,7 +489,7 @@ export function BoardSurface(options: BoardSurfaceProps) {
       return;
     }
     const source = columns.find((column) => column.list.id === task.listId);
-    if (!source?.coverage.complete || source.status === 'loading') {
+    if (!source || !(source.orderReady ?? source.coverage.complete)) {
       event.preventDefault();
       return;
     }
@@ -409,72 +501,78 @@ export function BoardSurface(options: BoardSurfaceProps) {
     };
     event.dataTransfer.setData(dragType, JSON.stringify(payload));
     event.dataTransfer.effectAllowed = 'move';
-    setDragging(payload);
+    activeDrag.current = payload;
+    showTarget(null);
+    requestAnimationFrame(() => {
+      if (activeDrag.current === payload) setDragging(payload);
+    });
     setAnnouncement(
       `moving ${task.title || 'untitled task'}. task options provide keyboard movement.`,
     );
   }
 
   function endDrag() {
+    activeDrag.current = null;
     setDragging(null);
-    setDropTarget(null);
+    showTarget(null);
   }
 
   function overColumn(column: BoardColumn, event: DragEvent<HTMLElement>) {
+    const dragged = activeDrag.current;
     if (
       !canReorder ||
-      !dragging ||
-      dragging.accountId !== options.accountId ||
-      !column.coverage.complete ||
-      column.status === 'loading'
-    )
+      !dragged ||
+      dragged.accountId !== options.accountId ||
+      !(column.orderReady ?? column.coverage.complete)
+    ) {
+      showTarget(null);
       return;
+    }
     event.preventDefault();
     event.dataTransfer.dropEffect = 'move';
-    setDropTarget(column.list.id);
+    showTarget(targetPosition(column, event, dragged));
   }
 
   function dropOnColumn(column: BoardColumn, event: DragEvent<HTMLElement>) {
-    if (!canReorder || !dragging || !column.coverage.complete || column.status === 'loading')
-      return;
+    const dragged = activeDrag.current;
+    if (!canReorder || !dragged || !(column.orderReady ?? column.coverage.complete)) return;
     event.preventDefault();
     const payload = readDrag(event.dataTransfer.getData(dragType));
-    const task = payload
-      ? knownTasks.find(
-          (item) =>
-            item.id === payload.taskId &&
-            item.accountId === payload.accountId &&
-            item.listId === payload.sourceListId,
-        )
-      : undefined;
+    const source = payload ? columns.find((item) => item.list.id === payload.sourceListId) : null;
+    const task =
+      payload && source
+        ? confirmedTasks(source.tasks, options.accountId, source.list.id).find(
+            (item) =>
+              item.id === payload.taskId &&
+              item.accountId === payload.accountId &&
+              item.listId === payload.sourceListId,
+          )
+        : undefined;
     if (
       !payload ||
       !task ||
       payload.accountId !== options.accountId ||
-      payload.accountId !== dragging.accountId ||
-      payload.taskId !== dragging.taskId ||
-      payload.revision !== dragging.revision ||
-      payload.sourceListId !== dragging.sourceListId ||
+      payload.accountId !== dragged.accountId ||
+      payload.taskId !== dragged.taskId ||
+      payload.revision !== dragged.revision ||
+      payload.sourceListId !== dragged.sourceListId ||
       task.revision !== payload.revision ||
       !task.capabilities.canMove ||
-      task.parentId
+      task.parentId ||
+      task.completed ||
+      task.unsupportedHierarchy ||
+      options.pendingTaskIds?.has(task.id)
     ) {
       endDrag();
       setAnnouncement('the task changed. choose its destination again.');
       return;
     }
-    const siblings = sortTasks(
-      confirmedTasks(column.tasks, options.accountId, column.list.id).filter(
-        (item) => !item.parentId && item.id !== task.id,
-      ),
-      'manual',
-    );
-    const targetElement =
-      event.target instanceof Element ? event.target.closest<HTMLElement>('[data-task-id]') : null;
-    const before = targetElement
-      ? siblings.findIndex((item) => item.id === targetElement.dataset.taskId)
-      : -1;
-    const previous = before >= 0 ? siblings[before - 1] : siblings[siblings.length - 1];
+    const position = targetPosition(column, event, payload);
+    endDrag();
+    if (!position) {
+      setAnnouncement('task order unchanged.');
+      return;
+    }
     options.onMoveTask?.({
       accountId: options.accountId,
       taskId: task.id,
@@ -482,16 +580,29 @@ export function BoardSurface(options: BoardSurfaceProps) {
       sourceListId: payload.sourceListId,
       destinationListId: column.list.id,
       parentId: null,
-      previousTaskId: previous?.id ?? null,
+      previousTaskId: position.previousTaskId,
     });
     setAnnouncement(`move requested for ${task.title || 'untitled task'}.`);
-    endDrag();
   }
 
   const status = options.status ?? 'ready';
   return (
     <div
-      className={`board-surface${options.layout === 'stacked' ? ' board-surface--stacked' : ''}`}
+      className={`board-surface${options.layout === 'stacked' ? ' board-surface--stacked' : ''}${dragging ? ' board-surface--dragging' : ''}`}
+      onDragOver={(event) => {
+        if (!(event.target instanceof Element) || !event.target.closest('[data-list-id]'))
+          showTarget(null);
+      }}
+      onDragLeave={(event) => {
+        const bounds = event.currentTarget.getBoundingClientRect();
+        if (
+          event.clientX < bounds.left ||
+          event.clientX > bounds.right ||
+          event.clientY < bounds.top ||
+          event.clientY > bounds.bottom
+        )
+          showTarget(null);
+      }}
     >
       <div className="board-surface__sr-only" role="status" aria-live="polite">
         {announcement}
