@@ -2,13 +2,13 @@
 
 ## organization
 
-keep tests beside the behavior they verify. extract a shared component when its meaning is shared across uses.
+keep tests under the owning responsibility's `tests/` directory. keep fixtures local; share database and invocation support through `tests/support/`. extract a shared component when its meaning is shared across uses.
 
 use explicit cross-owner imports and local relative imports inside a small owned unit. avoid pass-through index files and broad barrels that mix browser and server exports.
 
-keep application composition in `web/`, generic browser infrastructure in `client/`, and feature workflows under their module owner. an owner's `client/` and `components/` files cannot depend back on the shell. see the [ownership map](architecture.md#ownership-map) for the dependency direction.
+keep browser composition in `app/`, server composition in `worker/`, and feature behavior under `modules/`. use `shared/` for code with no feature dependency. group browser flows by their responsibility, including presentation, controllers, styles, and tests. see [source ownership](architecture.md#source-ownership) for the dependency direction.
 
-when moving a unit, move its tests and local styles, then update every consumer. check test mock paths, dynamic imports, and `new URL(..., import.meta.url)` worker references as well as static imports. do not leave a compatibility file that hides the old ownership.
+when moving a unit, move its tests, fixtures, and local styles, then update every consumer. check test mock paths, dynamic imports, and `new URL(..., import.meta.url)` worker references as well as static imports. do not leave a compatibility file that hides the old ownership. keep public server context types separate from private persistence records. preserve the lifetime of requests and draft controllers when moving a view into a conditional popover or dialog.
 
 validate user input, imported data, configuration, and provider responses at their entry boundaries. use one predictable error shape at the browser/server boundary. make account expiry, validation failures, provider failures, and interrupted writes distinguishable.
 
