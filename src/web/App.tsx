@@ -185,11 +185,11 @@ export function App() {
   const selected =
     session?.accounts?.items.find((account) => account.id === accountId) ??
     session?.accounts?.items[0];
-  if (!session && !error) return <WorkspaceSkeleton />;
+  if (!session && !error) return <WorkspaceSkeleton theme={theme} />;
   if (session?.authenticated && selected)
     return (
       <>
-        <Suspense fallback={<WorkspaceSkeleton />}>
+        <Suspense fallback={<WorkspaceSkeleton theme={theme} />}>
           <Workspace
             key={selected.id}
             account={selected}

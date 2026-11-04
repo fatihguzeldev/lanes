@@ -5,13 +5,10 @@ import { Select } from '../ui/Select';
 import { TimeZoneSelect } from '../ui/TimeZoneSelect';
 import { useCommands } from './useCommands';
 import { useServerConnection } from './useServerConnection';
-import type { Theme } from './theme';
 
 interface Props {
   account: ConnectionSummary;
   clockOffset: number;
-  theme: Theme;
-  onTheme: (theme: Theme) => void;
   onChanged: () => void;
   onTransfer: () => void;
   onTemplates: () => void;
@@ -41,19 +38,6 @@ export function WorkspaceSettings(props: Props) {
     >
       {(close) => (
         <div className="workspace-settings__body">
-          <label>
-            appearance
-            <Select
-              aria-label="appearance"
-              value={props.theme}
-              onChange={(value) => props.onTheme(value as Theme)}
-              options={[
-                { value: 'system', label: 'system' },
-                { value: 'light', label: 'light' },
-                { value: 'dark', label: 'dark' },
-              ]}
-            />
-          </label>
           <label>
             time zone
             <TimeZoneSelect

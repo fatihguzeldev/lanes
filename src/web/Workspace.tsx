@@ -56,6 +56,7 @@ import { BoardOptions } from './BoardOptions';
 import { DuplicateDialog } from './DuplicateDialog';
 import { CompletedDeletionDialog } from './CompletedDeletionDialog';
 import { AccountMenu } from './AccountMenu';
+import { ThemeMenu } from './ThemeMenu';
 import { WorkspaceSettings } from './WorkspaceSettings';
 import { WorkspaceViewMenu } from './WorkspaceViewMenu';
 import { SyncControl } from './SyncControl';
@@ -1015,11 +1016,10 @@ export function Workspace({
                 )
               }
             />
+            <ThemeMenu theme={theme} onTheme={onTheme} />
             <WorkspaceSettings
               account={account}
               clockOffset={clockOffset}
-              theme={theme}
-              onTheme={onTheme}
               onChanged={() => {
                 changed();
                 onAccountsChanged();
