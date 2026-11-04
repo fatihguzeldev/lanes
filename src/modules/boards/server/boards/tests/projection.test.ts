@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { seedAccount, testDatabase } from '../../../../../../tests/support/sqlite-d1';
-import { BoardService } from '../service';
 import { BoardProjection } from '../projection';
+import { BoardService } from '../service';
 const open: ReturnType<typeof testDatabase>[] = [];
 afterEach(() => open.splice(0).forEach((database) => database.close()));
 async function fixture() {
@@ -30,11 +30,11 @@ describe('list placement from confirmed provider data', () => {
       )
       .run();
     await db.batch(projection.placementWrites(list, false));
-    expect((await boards.getMembership('account-a', 'list')).boardId).toBe(main.id);
+    expect((await boards.queries.getMembership('account-a', 'list')).boardId).toBe(main.id);
     const custom = await boards.createBoard('account-a', { title: 'custom' });
     await boards.moveList('account-a', 'list', custom.id, 0);
     await db.batch(projection.placementWrites(list, false));
-    expect((await boards.getMembership('account-a', 'list')).boardId).toBe(custom.id);
+    expect((await boards.queries.getMembership('account-a', 'list')).boardId).toBe(custom.id);
   });
   it('moves a newly resolved default to main and fences stale membership edits', async () => {
     const { db, boards, projection, main } = await fixture();
@@ -64,7 +64,7 @@ describe('list placement from confirmed provider data', () => {
         true,
       ),
     );
-    const membership = await boards.getMembership('account-a', 'list');
+    const membership = await boards.queries.getMembership('account-a', 'list');
     expect(membership.boardId).toBe(main.id);
     expect(membership.revision).toBe(1);
     await db.batch(
@@ -81,7 +81,7 @@ describe('list placement from confirmed provider data', () => {
         false,
       ),
     );
-    expect((await boards.getMembership('account-a', 'list')).revision).toBe(1);
+    expect((await boards.queries.getMembership('account-a', 'list')).revision).toBe(1);
   });
   it('validates board ownership before exposing a selection', async () => {
     const { projection, main } = await fixture();

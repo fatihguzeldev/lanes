@@ -21,9 +21,9 @@ export async function workspaceQueryRoute(
   const accountId = account.id;
   const { boards, queries, history } = services;
   if (route.length === 4 && route[3] === 'boards' && request.method === 'GET')
-    return jsonResponse(await boards.listBoards(accountId, pageOptions(url)));
+    return jsonResponse(await boards.queries.listBoards(accountId, pageOptions(url)));
   if (route.length === 5 && route[3] === 'boards' && route[4] && request.method === 'GET')
-    return jsonResponse(await boards.getBoard(accountId, route[4]));
+    return jsonResponse(await boards.queries.getBoard(accountId, route[4]));
   if (
     route.length === 6 &&
     route[3] === 'boards' &&
@@ -31,7 +31,7 @@ export async function workspaceQueryRoute(
     route[5] === 'lists' &&
     request.method === 'GET'
   )
-    return jsonResponse(await boards.listBoardLists(accountId, route[4], pageOptions(url)));
+    return jsonResponse(await boards.queries.listBoardLists(accountId, route[4], pageOptions(url)));
   if (
     route.length === 5 &&
     route[3] === 'tasks' &&
@@ -94,7 +94,7 @@ export async function workspaceQueryRoute(
     route[5] === 'placement' &&
     request.method === 'GET'
   )
-    return jsonResponse(await boards.getMembership(accountId, route[4]));
+    return jsonResponse(await boards.queries.getMembership(accountId, route[4]));
   if (
     route.length === 6 &&
     route[3] === 'tasks' &&

@@ -18,7 +18,7 @@ export class BoardProjection {
     accountId: string,
     boardId: string,
   ): Promise<{ sql: string; bindings: string[] }> {
-    await this.boards.getBoard(accountId, boardId);
+    await this.boards.queries.getBoard(accountId, boardId);
     return {
       sql: 'SELECT list_id FROM boards_memberships WHERE account_id=? AND board_id=?',
       bindings: [accountId, boardId],
@@ -133,7 +133,7 @@ export class BoardProjection {
   }
 
   async appearanceSnapshot(accountId: string, listId: string): Promise<{ color: string }> {
-    const membership = await this.boards.getMembership(accountId, listId);
+    const membership = await this.boards.queries.getMembership(accountId, listId);
     return { color: membership.color };
   }
 
@@ -158,7 +158,7 @@ export class BoardProjection {
     listId: string,
     requestedBoardId: string,
   ): Promise<{ boardId: string; fellBack: boolean }> {
-    const membership = await this.boards.getMembership(accountId, listId);
+    const membership = await this.boards.queries.getMembership(accountId, listId);
     return { boardId: membership.boardId, fellBack: membership.boardId !== requestedBoardId };
   }
 }

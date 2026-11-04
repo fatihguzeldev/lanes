@@ -108,7 +108,7 @@ export class ArchiveRestoreService {
     const board = await this.source(row, key);
     if (board.kind !== 'board') throw conflict('the captured destination is not a board.');
     return board.isMain
-      ? (await this.options.boards.getMainBoard(row.account_id)).id
+      ? (await this.options.boards.queries.getMainBoard(row.account_id)).id
       : this.stable(row, key, 'archive-board');
   }
   private async matched(row: ArchiveRow, record: ArchiveRecord): Promise<ArchiveMatch> {
@@ -131,7 +131,7 @@ export class ArchiveRestoreService {
       const id = await this.targetBoard(row, record.key);
       let current;
       try {
-        current = await this.options.boards.getBoard(row.account_id, id);
+        current = await this.options.boards.queries.getBoard(row.account_id, id);
       } catch (error) {
         if (!(error instanceof AppError) || error.code !== 'not_found') throw error;
       }
@@ -161,7 +161,7 @@ export class ArchiveRestoreService {
         return missing(
           'this exact provider list was not found under the mapped google subject; metadata restore never creates it.',
         );
-      const placement = await this.options.boards.getMembership(row.account_id, found.id);
+      const placement = await this.options.boards.queries.getMembership(row.account_id, found.id);
       base.destinationId = found.id;
       base.destinationRevision = placement.revision;
       change(
@@ -173,7 +173,7 @@ export class ArchiveRestoreService {
       if (
         found.isDefault &&
         (await this.targetBoard(row, record.boardKey)) !==
-          (await this.options.boards.getMainBoard(row.account_id)).id
+          (await this.options.boards.queries.getMainBoard(row.account_id)).id
       )
         base.blockedFields.placement =
           'the google default list must remain on this account main board.';
@@ -1128,7 +1128,7 @@ export class ArchiveRestoreService {
           : await owners.boardTemplates?.get(row.account_id, templateId);
       if (!current) throw conflict('restore the selected template before its paused schedule.');
       const boardId = await this.targetBoard(row, record.boardKey),
-        board = await this.options.boards.getBoard(row.account_id, boardId);
+        board = await this.options.boards.queries.getBoard(row.account_id, boardId);
       const input = {
         template: {
           kind: template.templateKind,

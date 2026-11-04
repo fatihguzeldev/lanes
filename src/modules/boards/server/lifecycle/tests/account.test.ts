@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { seedAccount, testDatabase } from '../../../../../../tests/support/sqlite-d1';
+import { ListSnapshotStore } from '../../../../tasks/server/templates/snapshots';
 import { BoardService } from '../../boards/service';
 import { BoardLifecycle } from '../account';
-import { ListSnapshotStore } from '../../../../tasks/server/templates/snapshots';
 
 const open: ReturnType<typeof testDatabase>[] = [];
 afterEach(() => open.splice(0).forEach((database) => database.close()));

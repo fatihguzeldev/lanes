@@ -6,23 +6,24 @@ import {
   assertLocalWritable,
   assertProviderWritable,
 } from '../../../accounts/server/connections/access';
+import type { BoardQueries } from '../boards/queries';
 
 import { ResourceIdSchema } from '../../../../shared/contracts/identity';
 import { OperationIdSchema } from '../../../operations/contracts/receipt';
+import type { OperationRecord } from '../../../operations/server/journal/context';
 import type { OperationStore } from '../../../operations/server/journal/store';
-import { type OperationRecord } from '../../../operations/server/journal/context';
-import type { TaskCommandService } from '../../../tasks/server/commands/service';
+import {
+  TemplatePageOptionsSchema,
+  type TemplateApplicationOptions as ApplicationSettings,
+  type SnapshotSummary,
+  type TemplatePageOptions,
+  type TemplatePreview,
+} from '../../../tasks/contracts/template';
 import type { BeginCapturedCopy } from '../../../tasks/server/commands/copy-contract';
+import type { TaskCommandService } from '../../../tasks/server/commands/service';
 import { ListSnapshotStore } from '../../../tasks/server/templates/snapshots';
 import { ListTemplateService } from '../../../tasks/server/templates/definitions';
 import { materializeTemplateTask } from '../../../tasks/server/templates/materialize';
-import {
-  TemplatePageOptionsSchema,
-  type SnapshotSummary,
-  type TemplateApplicationOptions as ApplicationSettings,
-  type TemplatePreview,
-  type TemplatePageOptions,
-} from '../../../tasks/contracts/template';
 import {
   ApplyTemplateSchema,
   TemplateReferenceSchema,
@@ -86,7 +87,8 @@ export interface TemplateApplicationDependencies {
   snapshots: ListSnapshotStore;
   listTemplates: ListTemplateService;
   boardTemplates: BoardTemplateService;
-  boards: Pick<BoardService, 'getBoard' | 'prepareCreateBoard'>;
+  boards: Pick<BoardService, 'prepareCreateBoard'>;
+  boardQueries: Pick<BoardQueries, 'getBoard'>;
   commands: Pick<
     TaskCommandService,
     | 'beginCapturedCopy'
@@ -284,7 +286,7 @@ export class TemplateApplicationService {
     await this.options.snapshots.previewApplication(accountId, snapshot.id, settings(input));
     let destinationBoardId: string, destinationRevision: number;
     if (input.destination.kind === 'existing') {
-      const board = await this.options.boards.getBoard(accountId, input.destination.boardId);
+      const board = await this.options.boardQueries.getBoard(accountId, input.destination.boardId);
       if (board.revision !== input.destination.boardRevision)
         throw new AppError(
           'conflict',
@@ -609,7 +611,10 @@ export class TemplateApplicationService {
     if (row.state === 'cancelled' || row.state === 'succeeded') return model(row);
     const operation = await this.options.operations.get(row.operation_id, accountId);
     if (captured.input.destination.kind === 'existing' || (operation?.confirmedSteps ?? 0) > 0) {
-      const board = await this.options.boards.getBoard(accountId, captured.destinationBoardId);
+      const board = await this.options.boardQueries.getBoard(
+        accountId,
+        captured.destinationBoardId,
+      );
       if (board.revision !== captured.destinationRevision)
         throw new AppError(
           'conflict',

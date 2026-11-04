@@ -1,3 +1,4 @@
+import { readConnectionState } from '../../../accounts/server/connections/access';
 import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types';
 import { z } from 'zod';
 import { AppError } from '../../../../shared/contracts/errors';
@@ -8,9 +9,14 @@ import {
   localWriteGuard,
   providerWriteGuard,
 } from '../../../accounts/server/connections/access';
+import type { BoardQueries } from '../boards/queries';
 
 import { ResourceIdSchema } from '../../../../shared/contracts/identity';
 import { TemplateScheduleSchema, type TemplateSchedule } from '../../../tasks/contracts/planning';
+import {
+  TemplatePageOptionsSchema,
+  type TemplatePageOptions,
+} from '../../../tasks/contracts/template';
 import {
   accountToday,
   addCalendarDays,
@@ -18,20 +24,14 @@ import {
   nextTemplateSlot,
   wallClockInstant,
 } from '../../../tasks/model/planning';
-import {
-  TemplatePageOptionsSchema,
-  type TemplatePageOptions,
-} from '../../../tasks/contracts/template';
 import type { MetadataContext } from '../../../tasks/server/metadata/context';
 import {
   CreateTemplateScheduleSchema,
-  TemplateReferenceSchema,
   TemplateSchedulePatchSchema,
   TemplateScheduleSummarySchema,
   type TemplateReference,
   type TemplateScheduleSummary,
 } from '../../contracts/template';
-import type { BoardService } from '../boards/service';
 import { TemplateApplicationService } from './runs';
 const id = ResourceIdSchema.max(1024),
   revision = z.number().int().nonnegative().safe();
@@ -60,7 +60,7 @@ interface ScheduleRow {
 }
 export interface TemplateScheduleOptions {
   applications: TemplateApplicationService;
-  boards: Pick<BoardService, 'getBoard'>;
+  boardQueries: Pick<BoardQueries, 'getBoard'>;
   ownerSubjectFor(accountId: string): Promise<string>;
   commitWrites(writes: D1PreparedStatement[]): Promise<unknown>;
   now?: () => number;
@@ -241,15 +241,10 @@ export class TemplateScheduleService {
     parse(id, admittedId);
     await assertLocalWritable(this.db, accountId);
     const source = await this.options.applications.reference(accountId, value.template),
-      board = await this.options.boards.getBoard(accountId, value.boardId);
+      board = await this.options.boardQueries.getBoard(accountId, value.boardId);
     if (board.revision !== value.boardRevision)
       throw new AppError('conflict', 'the schedule destination changed', 409);
-    const account = await this.db
-        .prepare('SELECT state FROM accounts_connections WHERE id=?')
-        .bind(accountId)
-        .first<{
-          state: string;
-        }>(),
+    const account = await readConnectionState(this.db, accountId),
       active = !importPaused && account?.state === 'connected',
       next = active ? this.next(value.timing, null) : null;
     await this.commit(
@@ -300,7 +295,7 @@ export class TemplateScheduleService {
     if (value.boardId !== undefined && value.boardRevision === undefined)
       throw new AppError('validation_failed', 'choose the destination board revision', 422);
     const target = value.boardId ?? row.board_id,
-      board = await this.options.boards.getBoard(accountId, target);
+      board = await this.options.boardQueries.getBoard(accountId, target);
     if (value.boardRevision !== undefined && board.revision !== value.boardRevision)
       throw new AppError('conflict', 'the destination board changed', 409);
     const template = value.template ?? reference(row),
@@ -385,7 +380,7 @@ export class TemplateScheduleService {
     }
     const template = reference(row),
       source = await this.options.applications.reference(accountId, template),
-      board = await this.options.boards.getBoard(accountId, row.board_id),
+      board = await this.options.boardQueries.getBoard(accountId, row.board_id),
       timing = this.timing(row),
       latest = this.eligible(timing, row.last_resolved_day);
     const skippedThrough =
@@ -548,12 +543,7 @@ export class TemplateScheduleService {
       .bind(this.now(), this.now())
       .first<ScheduleRow>();
     if (!row) return { kind: 'idle' };
-    const account = await this.db
-      .prepare('SELECT state FROM accounts_connections WHERE id=?')
-      .bind(row.account_id)
-      .first<{
-        state: string;
-      }>();
+    const account = await readConnectionState(this.db, row.account_id);
     if (
       !account ||
       ['reconnect_required', 'disconnecting', 'disconnected'].includes(account.state)
@@ -590,7 +580,7 @@ export class TemplateScheduleService {
       ...(row.last_resolved_day ? { after: row.last_resolved_day } : {}),
     });
     try {
-      const board = await this.options.boards.getBoard(row.account_id, row.board_id);
+      const board = await this.options.boardQueries.getBoard(row.account_id, row.board_id);
       const result = await this.options.applications.begin(
         row.account_id,
         {

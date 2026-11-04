@@ -1,211 +1,42 @@
-import type { D1Database, D1PreparedStatement, D1Result } from '@cloudflare/workers-types';
-import { z } from 'zod';
+import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types';
 import { AppError } from '../../../../shared/contracts/errors';
-import type { Page } from '../../../../shared/contracts/http';
-import {
-  readActiveList,
-  readActiveLists,
-  readListInventoryCoverage,
-} from '../../../tasks/server/queries/lists';
-
 import { ResourceIdSchema } from '../../../../shared/contracts/identity';
+import { readActiveList } from '../../../tasks/server/queries/lists';
 import {
   BoardAppearanceSchema,
   BoardColorSchema,
-  BoardPageOptionsSchema,
   BoardPatchSchema,
   CreateBoardSchema,
   type Board,
   type BoardAppearance,
-  type BoardList,
   type BoardMembership,
-  type BoardPageOptions,
   type BoardPatch,
   type CreateBoardInput,
   type DeleteBoardResult,
 } from '../../contracts/board';
-
-interface BoardRow {
-  id: string;
-  account_id: string;
-  title: string;
-  is_main: number;
-  emoji: string | null;
-  color: string;
-  background_url: string | null;
-  position: number;
-  revision: number;
-  created_at: number;
-}
-interface MembershipRow {
-  account_id: string;
-  list_id: string;
-  board_id: string;
-  color: string;
-  position: number;
-  revision: number;
-}
-export interface BoardServiceOptions {
-  assertLocalWritable(accountId: string): Promise<void>;
-  commitWrites?(writes: D1PreparedStatement[]): Promise<D1Result[]>;
-  onDeleteWrites?(accountId: string, boardId: string): D1PreparedStatement[];
-}
-const boardFields =
-  'id,account_id,title,is_main,emoji,color,background_url,position,revision,created_at';
-const membershipFields = 'account_id,list_id,board_id,color,position,revision';
-const revisionSchema = z.number().int().nonnegative();
-const positionSchema = z.number().int().nonnegative();
-const cursorSchema = z
-  .object({
-    kind: z.enum(['boards', 'lists']),
-    accountId: z.string(),
-    boardId: z.string().optional(),
-    position: z.number().int(),
-    id: z.string().min(1),
-  })
-  .strict();
-type Cursor = z.infer<typeof cursorSchema>;
-function parse<S extends z.ZodType>(schema: S, input: unknown): z.output<S> {
-  const result = schema.safeParse(input);
-  if (!result.success)
-    throw new AppError(
-      'validation_failed',
-      'check the submitted board fields',
-      422,
-      false,
-      Object.fromEntries(
-        result.error.issues.map((issue) => [issue.path.join('.') || 'input', issue.message]),
-      ),
-    );
-  return result.data;
-}
-function board(row: BoardRow): Board {
-  return {
-    id: row.id,
-    accountId: row.account_id,
-    title: row.title,
-    isMain: row.is_main === 1,
-    emoji: row.emoji,
-    color: row.color,
-    backgroundUrl: row.background_url,
-    position: row.position,
-    revision: row.revision,
-    createdAt: new Date(row.created_at).toISOString(),
-  };
-}
-function membership(row: MembershipRow): BoardMembership {
-  return {
-    accountId: row.account_id,
-    listId: row.list_id,
-    boardId: row.board_id,
-    color: row.color,
-    position: row.position,
-    revision: row.revision,
-  };
-}
-function encodeCursor(cursor: Cursor): string {
-  const bytes = new TextEncoder().encode(JSON.stringify(cursor));
-  return btoa(String.fromCharCode(...bytes))
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/g, '');
-}
-function decodeCursor(
-  value: string | undefined,
-  expected: { kind: Cursor['kind']; accountId: string; boardId?: string },
-): Cursor | null {
-  if (value === undefined) return null;
-  try {
-    if (!/^[\w-]+$/.test(value)) throw new Error('invalid cursor');
-    const padded = value
-      .replace(/-/g, '+')
-      .replace(/_/g, '/')
-      .padEnd(Math.ceil(value.length / 4) * 4, '=');
-    const text = new TextDecoder('utf-8', { fatal: true }).decode(
-      Uint8Array.from(atob(padded), (character) => character.charCodeAt(0)),
-    );
-    const cursor = cursorSchema.parse(JSON.parse(text));
-    if (
-      cursor.kind !== expected.kind ||
-      cursor.accountId !== expected.accountId ||
-      cursor.boardId !== expected.boardId
-    )
-      throw new Error('wrong cursor scope');
-    return cursor;
-  } catch {
-    throw new AppError(
-      'validation_failed',
-      'the page cursor does not belong to this selection',
-      422,
-    );
-  }
-}
-const localCoverage = { complete: true, lastSyncedAt: null, stale: false } as const;
+import type { BoardServiceOptions } from './context';
+import { BoardPersistence } from './persistence';
+import { BoardQueries } from './queries';
+import { board, boardFields, type BoardRow } from './records';
+import { parse, positionSchema, revisionSchema } from './validation';
 
 export class BoardService {
+  private readonly persistence: BoardPersistence;
+  readonly queries: BoardQueries;
   constructor(
     private readonly db: D1Database,
     private readonly options: BoardServiceOptions,
-  ) {}
+  ) {
+    this.persistence = new BoardPersistence(db, options);
+    this.queries = new BoardQueries(db, this.persistence);
+  }
 
-  private async first<T>(statement: D1PreparedStatement): Promise<T | null> {
-    try {
-      return await statement.first<T>();
-    } catch {
-      throw new AppError('storage_unavailable', 'the workspace could not be read', 503, true);
-    }
-  }
-  private async rows<T>(statement: D1PreparedStatement): Promise<T[]> {
-    try {
-      return (await statement.all<T>()).results;
-    } catch {
-      throw new AppError('storage_unavailable', 'the workspace could not be read', 503, true);
-    }
-  }
-  private async batch<T>(
-    statements: D1PreparedStatement[],
-    checkConflict: () => Promise<void>,
-  ): Promise<D1Result<T>[]> {
-    try {
-      const results = this.options.commitWrites
-        ? await this.options.commitWrites(statements)
-        : await this.db.batch(statements);
-      return results as unknown as D1Result<T>[];
-    } catch (error) {
-      if (error instanceof AppError) throw error;
-      await checkConflict();
-      throw new AppError(
-        'storage_unavailable',
-        'the workspace change could not be saved',
-        503,
-        true,
-      );
-    }
-  }
-  // A failed SQL precondition must abort the whole D1 batch, including delete hooks.
-  // The CHECK table stays empty: valid commands insert nothing; invalid ones abort.
-  private assertBatch(sql: string, bindings: (string | number | null)[]): D1PreparedStatement {
-    return this.db
-      .prepare(`INSERT INTO boards_write_guards(valid) SELECT 0 WHERE NOT EXISTS (${sql})`)
-      .bind(...bindings);
-  }
-  private boardGuard(
-    accountId: string,
-    boardId: string,
-    revision: number,
-    customOnly = false,
-  ): D1PreparedStatement {
-    return this.assertBatch(
-      `SELECT 1 FROM boards_boards WHERE account_id=? AND id=? AND revision=?${customOnly ? ' AND is_main=0' : ''}`,
-      [accountId, boardId, revision],
-    );
-  }
   private async checkBoardRevision(
     accountId: string,
     boardId: string,
     expectedRevision: number,
   ): Promise<Board> {
-    const current = await this.getBoard(accountId, boardId);
+    const current = await this.queries.getBoard(accountId, boardId);
     if (current.revision !== expectedRevision)
       throw new AppError(
         'conflict',
@@ -216,12 +47,13 @@ export class BoardService {
       );
     return current;
   }
+
   private async checkMembershipRevision(
     accountId: string,
     listId: string,
     expectedRevision: number,
   ): Promise<BoardMembership> {
-    const current = await this.getMembership(accountId, listId);
+    const current = await this.queries.getMembership(accountId, listId);
     if (current.revision !== expectedRevision)
       throw new AppError(
         'conflict',
@@ -233,20 +65,8 @@ export class BoardService {
     return current;
   }
 
-  /** Read-only portability/preview seam; initialization remains explicit. */
-  async getMainBoard(accountId: string): Promise<Board> {
-    const existing = await this.first<BoardRow>(
-      this.db
-        .prepare(`SELECT ${boardFields} FROM boards_boards WHERE account_id=? AND is_main=1`)
-        .bind(accountId),
-    );
-    if (!existing)
-      throw new AppError('not_found', 'this account main board has not been initialized.', 404);
-    return board(existing);
-  }
-
   async ensureMainBoard(accountId: string): Promise<Board> {
-    const existing = await this.first<BoardRow>(
+    const existing = await this.persistence.first<BoardRow>(
       this.db
         .prepare(`SELECT ${boardFields} FROM boards_boards WHERE account_id=? AND is_main=1`)
         .bind(accountId),
@@ -271,7 +91,7 @@ export class BoardService {
         true,
       );
     }
-    const created = await this.first<BoardRow>(
+    const created = await this.persistence.first<BoardRow>(
       this.db
         .prepare(`SELECT ${boardFields} FROM boards_boards WHERE account_id=? AND is_main=1`)
         .bind(accountId),
@@ -284,124 +104,6 @@ export class BoardService {
         true,
       );
     return board(created);
-  }
-
-  async getBoard(accountId: string, boardId: string): Promise<Board> {
-    const row = await this.first<BoardRow>(
-      this.db
-        .prepare(`SELECT ${boardFields} FROM boards_boards WHERE account_id=? AND id=?`)
-        .bind(accountId, boardId),
-    );
-    if (!row) throw new AppError('not_found', 'the board is not available in this account', 404);
-    return board(row);
-  }
-
-  async listBoards(accountId: string, input: BoardPageOptions = {}): Promise<Page<Board>> {
-    const options = parse(BoardPageOptionsSchema, input);
-    const cursor = decodeCursor(options.cursor, { kind: 'boards', accountId });
-    const rows = await this.rows<BoardRow>(
-      this.db
-        .prepare(
-          `SELECT ${boardFields} FROM boards_boards WHERE account_id=?
-      ${cursor ? 'AND (position>? OR (position=? AND id>?))' : ''} ORDER BY position,id LIMIT ?`,
-        )
-        .bind(
-          accountId,
-          ...(cursor ? [cursor.position, cursor.position, cursor.id] : []),
-          options.limit + 1,
-        ),
-    );
-    const selected = rows.slice(0, options.limit);
-    const last = selected[selected.length - 1];
-    return {
-      items: selected.map(board),
-      nextCursor:
-        rows.length > options.limit && last
-          ? encodeCursor({ kind: 'boards', accountId, position: last.position, id: last.id })
-          : null,
-      coverage: { ...localCoverage },
-    };
-  }
-
-  async getMembership(accountId: string, listId: string): Promise<BoardMembership> {
-    const row = await this.first<MembershipRow>(
-      this.db
-        .prepare(
-          `SELECT ${membershipFields} FROM boards_memberships WHERE account_id=? AND list_id=?`,
-        )
-        .bind(accountId, listId),
-    );
-    if (!row) throw new AppError('not_found', 'the list is not placed in this account', 404);
-    return membership(row);
-  }
-
-  async listBoardLists(
-    accountId: string,
-    boardId: string,
-    input: BoardPageOptions = {},
-  ): Promise<Page<BoardList>> {
-    await this.getBoard(accountId, boardId);
-    const options = parse(BoardPageOptionsSchema, input);
-    const cursor = decodeCursor(options.cursor, { kind: 'lists', accountId, boardId });
-    const rows = await this.rows<MembershipRow>(
-      this.db
-        .prepare(
-          `SELECT ${membershipFields} FROM boards_memberships
-      WHERE account_id=? AND board_id=? ${cursor ? 'AND (position>? OR (position=? AND list_id>?))' : ''}
-      ORDER BY position,list_id LIMIT ?`,
-        )
-        .bind(
-          accountId,
-          boardId,
-          ...(cursor ? [cursor.position, cursor.position, cursor.id] : []),
-          options.limit + 1,
-        ),
-    );
-    const selected = rows.slice(0, options.limit);
-    const taskLists = new Map(
-      (
-        await readActiveLists(
-          this.db,
-          accountId,
-          selected.map((row) => row.list_id),
-        )
-      ).map((list) => [list.id, list]),
-    );
-    const items = selected.flatMap((row): BoardList[] => {
-      const list = taskLists.get(row.list_id);
-      return list
-        ? [
-            {
-              ...list,
-              boardId: row.board_id,
-              color: row.color,
-              position: row.position,
-              membershipRevision: row.revision,
-            },
-          ]
-        : [];
-    });
-    const last = selected[selected.length - 1];
-    const inventory = await readListInventoryCoverage(this.db, accountId);
-    const missing = items.length !== selected.length;
-    return {
-      items,
-      nextCursor:
-        rows.length > options.limit && last
-          ? encodeCursor({
-              kind: 'lists',
-              accountId,
-              boardId,
-              position: last.position,
-              id: last.list_id,
-            })
-          : null,
-      coverage: {
-        complete: inventory.complete && !missing,
-        lastSyncedAt: inventory.lastSyncedAt,
-        stale: inventory.stale || missing,
-      },
-    };
   }
 
   /** Prepare an admitted local container step; its caller owns the atomic journal
@@ -436,6 +138,7 @@ export class BoardService {
       ],
     };
   }
+
   async createBoard(
     accountId: string,
     input: CreateBoardInput,
@@ -446,8 +149,8 @@ export class BoardService {
       input,
       admittedId ?? crypto.randomUUID(),
     );
-    await this.batch(prepared.writes, async () => {
-      const existing = await this.first<BoardRow>(
+    await this.persistence.batch(prepared.writes, async () => {
+      const existing = await this.persistence.first<BoardRow>(
         this.db
           .prepare(`SELECT ${boardFields} FROM boards_boards WHERE account_id=? AND id=?`)
           .bind(accountId, prepared.boardId),
@@ -455,7 +158,7 @@ export class BoardService {
       if (existing)
         throw new AppError('conflict', 'the admitted board identity is already in use', 409);
     });
-    return this.getBoard(accountId, prepared.boardId);
+    return this.queries.getBoard(accountId, prepared.boardId);
   }
 
   async updateBoard(
@@ -477,9 +180,9 @@ export class BoardService {
     const fields = (Object.keys(columns) as (keyof typeof columns)[]).filter(
       (field) => patch[field] !== undefined,
     );
-    await this.batch(
+    await this.persistence.batch(
       [
-        this.boardGuard(accountId, boardId, revision),
+        this.persistence.boardGuard(accountId, boardId, revision),
         this.db
           .prepare(
             `UPDATE boards_boards SET ${fields.map((field) => `${columns[field]}=?`).join(',')},revision=revision+1 WHERE account_id=? AND id=? AND revision=?`,
@@ -490,7 +193,7 @@ export class BoardService {
         await this.checkBoardRevision(accountId, boardId, revision);
       },
     );
-    return this.getBoard(accountId, boardId);
+    return this.queries.getBoard(accountId, boardId);
   }
 
   async renameBoard(
@@ -501,6 +204,7 @@ export class BoardService {
   ): Promise<Board> {
     return this.updateBoard(accountId, boardId, { title }, expectedRevision);
   }
+
   async updateAppearance(
     accountId: string,
     boardId: string,
@@ -526,9 +230,9 @@ export class BoardService {
     const index = parse(positionSchema, position);
     await this.options.assertLocalWritable(accountId);
     await this.checkBoardRevision(accountId, boardId, revision);
-    await this.batch(
+    await this.persistence.batch(
       [
-        this.boardGuard(accountId, boardId, revision),
+        this.persistence.boardGuard(accountId, boardId, revision),
         this.db
           .prepare(
             `WITH others AS MATERIALIZED (
@@ -548,7 +252,7 @@ export class BoardService {
         await this.checkBoardRevision(accountId, boardId, revision);
       },
     );
-    return this.getBoard(accountId, boardId);
+    return this.queries.getBoard(accountId, boardId);
   }
 
   async moveList(
@@ -563,7 +267,7 @@ export class BoardService {
     await this.options.assertLocalWritable(accountId);
     const list = await readActiveList(this.db, accountId, listId);
     if (!list) throw new AppError('not_found', 'the list is not available in this account', 404);
-    const target = await this.getBoard(accountId, targetBoardId);
+    const target = await this.queries.getBoard(accountId, targetBoardId);
     if (list.isDefault && !target.isMain)
       throw new AppError(
         'validation_failed',
@@ -573,9 +277,9 @@ export class BoardService {
         { boardId: 'choose the main board' },
       );
     await this.checkMembershipRevision(accountId, listId, revision);
-    await this.batch(
+    await this.persistence.batch(
       [
-        this.assertBatch(
+        this.persistence.assertBatch(
           `SELECT 1 FROM boards_memberships AS membership
         WHERE membership.account_id=? AND membership.list_id=? AND membership.revision=?
           AND EXISTS (SELECT 1 FROM boards_boards WHERE account_id=? AND id=?)`,
@@ -599,10 +303,10 @@ export class BoardService {
       ],
       async () => {
         await this.checkMembershipRevision(accountId, listId, revision);
-        await this.getBoard(accountId, targetBoardId);
+        await this.queries.getBoard(accountId, targetBoardId);
       },
     );
-    return this.getMembership(accountId, listId);
+    return this.queries.getMembership(accountId, listId);
   }
 
   async updateListAppearance(
@@ -617,9 +321,9 @@ export class BoardService {
     if (!(await readActiveList(this.db, accountId, listId)))
       throw new AppError('not_found', 'the list is not available in this account', 404);
     await this.checkMembershipRevision(accountId, listId, revision);
-    await this.batch(
+    await this.persistence.batch(
       [
-        this.assertBatch(
+        this.persistence.assertBatch(
           'SELECT 1 FROM boards_memberships WHERE account_id=? AND list_id=? AND revision=?',
           [accountId, listId, revision],
         ),
@@ -633,7 +337,7 @@ export class BoardService {
         await this.checkMembershipRevision(accountId, listId, revision);
       },
     );
-    return this.getMembership(accountId, listId);
+    return this.queries.getMembership(accountId, listId);
   }
 
   async deleteBoard(
@@ -647,9 +351,9 @@ export class BoardService {
     if (current.isMain)
       throw new AppError('validation_failed', 'the main board cannot be deleted', 422);
     const main = await this.ensureMainBoard(accountId);
-    const results = await this.batch(
+    const results = await this.persistence.batch(
       [
-        this.boardGuard(accountId, boardId, revision, true),
+        this.persistence.boardGuard(accountId, boardId, revision, true),
         this.db
           .prepare(
             `WITH destination AS MATERIALIZED (

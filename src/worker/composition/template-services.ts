@@ -45,12 +45,13 @@ export function createTemplateOwners(
     boards: dependencies.boards,
     commands: dependencies.commands,
     operations: dependencies.operations,
+    boardQueries: dependencies.boards.queries,
   });
   schedules = new TemplateScheduleService(db, {
     applications,
-    boards: dependencies.boards,
     ownerSubjectFor: dependencies.ownerSubjectFor,
     commitWrites,
+    boardQueries: dependencies.boards.queries,
   });
   return { snapshots, listTemplates, boardTemplates, applications, schedules };
 }

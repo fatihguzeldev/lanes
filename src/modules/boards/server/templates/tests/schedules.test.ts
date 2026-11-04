@@ -1,17 +1,16 @@
-import { createOperationStore } from '../../../../../../tests/support/operation-store';
 import { afterEach, describe, expect, it } from 'vitest';
+import { createOperationStore } from '../../../../../../tests/support/operation-store';
 import { seedAccount, testDatabase } from '../../../../../../tests/support/sqlite-d1';
 import { assertLocalWritable } from '../../../../accounts/server/connections/access';
 import { HistoryService } from '../../../../history/server/events/event-store';
-import { ListSnapshotStore } from '../../../../tasks/server/templates/snapshots';
-import { ListTemplateService } from '../../../../tasks/server/templates/definitions';
-import { TaskMetadataService } from '../../../../tasks/server/metadata/tasks';
 import { TaskCommandService } from '../../../../tasks/server/commands/service';
+import { TaskMetadataService } from '../../../../tasks/server/metadata/tasks';
 import { TaskProjectionStore } from '../../../../tasks/server/projection/store';
 import { GoogleTasksClient } from '../../../../tasks/server/provider/google-tasks';
-import { OperationStore } from '../../../../operations/server/journal/store';
-import { BoardService } from '../../boards/service';
+import { ListSnapshotStore } from '../../../../tasks/server/templates/snapshots';
+import { ListTemplateService } from '../../../../tasks/server/templates/definitions';
 import { BoardProjection } from '../../boards/projection';
+import { BoardService } from '../../boards/service';
 import { BoardTemplateService, readTemplateListAppearance } from '../definitions';
 import { TemplateApplicationService } from '../runs';
 import { TemplateScheduleService } from '../schedules';
@@ -108,7 +107,7 @@ async function fixture() {
     clientFor: async () => client,
     now: () => tick,
     validateBoardTarget: async (account, boardId, revision) => {
-      const board = await boards.getBoard(account, boardId);
+      const board = await boards.queries.getBoard(account, boardId);
       if (revision !== undefined && board.revision !== revision) throw new Error('revision');
     },
     boardTargetGuard: boardProjection.targetGuard.bind(boardProjection),
@@ -119,13 +118,14 @@ async function fixture() {
       listTemplates,
       boardTemplates,
       boards,
+      boardQueries: boards.queries,
       commands,
       operations,
       now: () => tick,
     }),
     schedules = new TemplateScheduleService(db, {
       applications,
-      boards,
+      boardQueries: boards.queries,
       ownerSubjectFor: async () => 'owner',
       commitWrites: (writes) => db.batch(writes),
       now: () => tick,

@@ -109,7 +109,7 @@ export function createServices(env: Env, config: Configuration, providerRequestL
     validateBoardTarget: async (accountId, boardId, revision, operationId) => {
       let board;
       try {
-        board = await boards.getBoard(accountId, boardId);
+        board = await boards.queries.getBoard(accountId, boardId);
       } catch (error) {
         if (error instanceof AppError && error.code === 'not_found' && operationId)
           return templates.applications.validatePendingBoardTarget(

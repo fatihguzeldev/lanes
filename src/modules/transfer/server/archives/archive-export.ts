@@ -32,7 +32,7 @@ import { MAX_IMPORT_FILE_BYTES } from '../../contracts/parsing';
 
 export interface ArchiveExportOptions {
   identity: AccountsPortability['identity'];
-  boards: Pick<BoardService, 'getBoard' | 'listBoards' | 'listBoardLists'>;
+  boards: Pick<BoardService, 'queries'>;
   queries: Pick<TaskQueries, 'exportPage' | 'labels'>;
   references: Pick<TaskSnapshotReader, 'providerReferences'>;
   graphRevision(accountId: string): Promise<number>;
@@ -222,7 +222,7 @@ export class ArchiveExportService {
     await assertLocalWritable(this.db, selection.accountId);
     const source = await this.options.identity(selection.accountId);
     if (selection.boardId)
-      await this.options.boards.getBoard(selection.accountId, selection.boardId);
+      await this.options.boards.queries.getBoard(selection.accountId, selection.boardId);
     const keySource = { id: selection.id, account_id: selection.accountId };
     const header = ArchiveHeaderSchema.parse({
       format: 'lanes-workspace',
@@ -739,10 +739,10 @@ export class ArchiveExportService {
       if (run.phase === 'boards') {
         const page = selection.boardId
           ? {
-              items: [await this.options.boards.getBoard(accountId, selection.boardId)],
+              items: [await this.options.boards.queries.getBoard(accountId, selection.boardId)],
               nextCursor: null,
             }
-          : await this.options.boards.listBoards(accountId, {
+          : await this.options.boards.queries.listBoards(accountId, {
               limit: 5,
               ...(run.cursor ? { cursor: run.cursor } : {}),
             });
@@ -781,7 +781,7 @@ export class ArchiveExportService {
             cursor: null,
           });
         else {
-          const page = await this.options.boards.listBoardLists(accountId, job.source_id, {
+          const page = await this.options.boards.queries.listBoardLists(accountId, job.source_id, {
             limit: 5,
             ...(job.cursor ? { cursor: job.cursor } : {}),
           });

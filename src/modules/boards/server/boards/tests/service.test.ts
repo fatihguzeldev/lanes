@@ -1,10 +1,10 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types';
-import { testDatabase, seedAccount } from '../../../../../../tests/support/sqlite-d1';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { seedAccount, testDatabase } from '../../../../../../tests/support/sqlite-d1';
 import { AppError } from '../../../../../shared/contracts/errors';
+import { readActiveList } from '../../../../tasks/server/queries/lists';
 import { BoardAppearanceSchema, CreateBoardSchema } from '../../../contracts/board';
 import { BoardService } from '../service';
-import { readActiveList } from '../../../../tasks/server/queries/lists';
 
 let database: ReturnType<typeof testDatabase>;
 let db: D1Database;
@@ -53,7 +53,7 @@ function taskData() {
   };
 }
 async function listIds(boardId: string) {
-  return (await boards.listBoardLists(accountId, boardId)).items.map((item) => item.id);
+  return (await boards.queries.listBoardLists(accountId, boardId)).items.map((item) => item.id);
 }
 
 beforeEach(async () => {
@@ -116,18 +116,18 @@ describe('main board and empty boards', () => {
     ]);
     expect(one.id).toBe(two.id);
     expect(one).toMatchObject({ title: 'everyday', isMain: true, accountId });
-    expect((await boards.listBoards(accountId)).items).toHaveLength(1);
+    expect((await boards.queries.listBoards(accountId)).items).toHaveLength(1);
     expect(taskData()).toEqual(before);
   });
   it('binds pagination cursors to their account and collection', async () => {
     await boards.createBoard(accountId, { title: 'one' });
-    const page = await boards.listBoards(accountId, { limit: 1 });
+    const page = await boards.queries.listBoards(accountId, { limit: 1 });
     await expect(
-      boards.listBoards('account-b', { cursor: page.nextCursor! }),
+      boards.queries.listBoards('account-b', { cursor: page.nextCursor! }),
     ).rejects.toMatchObject({ code: 'validation_failed' });
     const main = await boards.ensureMainBoard(accountId);
     await expect(
-      boards.listBoardLists(accountId, main.id, { cursor: page.nextCursor! }),
+      boards.queries.listBoardLists(accountId, main.id, { cursor: page.nextCursor! }),
     ).rejects.toMatchObject({ code: 'validation_failed' });
   });
   it('keeps a renamed main board and creates a separate main board per account', async () => {
@@ -142,23 +142,25 @@ describe('main board and empty boards', () => {
     const before = taskData();
     const created = await boards.createBoard(accountId, { title: '  another corner  ' });
     expect(created).toMatchObject({ title: 'another corner', isMain: false, revision: 0 });
-    expect((await boards.listBoardLists(accountId, created.id)).items).toEqual([]);
+    expect((await boards.queries.listBoardLists(accountId, created.id)).items).toEqual([]);
     expect(taskData()).toEqual(before);
   });
   it('paginates board metadata with a stable cursor and rejects invalid limits/cursors', async () => {
     for (let index = 0; index < 55; index++)
       await boards.createBoard(accountId, { title: `board ${index}` });
-    const first = await boards.listBoards(accountId);
+    const first = await boards.queries.listBoards(accountId);
     expect(first.items).toHaveLength(50);
     expect(first.nextCursor).not.toBeNull();
-    const second = await boards.listBoards(accountId, { cursor: first.nextCursor! });
+    const second = await boards.queries.listBoards(accountId, { cursor: first.nextCursor! });
     expect(second.items).toHaveLength(6);
     expect(new Set([...first.items, ...second.items].map((board) => board.id)).size).toBe(56);
     expect(second.nextCursor).toBeNull();
-    await expect(boards.listBoards(accountId, { limit: 101 })).rejects.toMatchObject({
+    await expect(boards.queries.listBoards(accountId, { limit: 101 })).rejects.toMatchObject({
       code: 'validation_failed',
     });
-    await expect(boards.listBoards(accountId, { cursor: 'not-a-cursor' })).rejects.toMatchObject({
+    await expect(
+      boards.queries.listBoards(accountId, { cursor: 'not-a-cursor' }),
+    ).rejects.toMatchObject({
       code: 'validation_failed',
     });
   });
@@ -189,7 +191,7 @@ describe('board edits and order', () => {
     await expect(
       boards.renameBoard(accountId, original.id, 'stale', original.revision),
     ).rejects.toMatchObject({ code: 'conflict' });
-    expect((await boards.getBoard(accountId, original.id)).title).toBe('renamed');
+    expect((await boards.queries.getBoard(accountId, original.id)).title).toBe('renamed');
   });
   it('distinguishes omitted appearance fields from explicit clearing', async () => {
     const original = await boards.createBoard(accountId, {
@@ -222,7 +224,7 @@ describe('board edits and order', () => {
     const before = taskData();
     const moved = await boards.reorderBoard(accountId, gamma.id, gamma.revision, 1);
     expect(moved.position).toBe(1);
-    expect((await boards.listBoards(accountId)).items.map((board) => board.id)).toEqual([
+    expect((await boards.queries.listBoards(accountId)).items.map((board) => board.id)).toEqual([
       main.id,
       gamma.id,
       alpha.id,
@@ -243,7 +245,7 @@ describe('list placement', () => {
     await seedList('x', target.id, { position: 0 });
     await seedList('y', target.id, { position: 1 });
     const before = taskData();
-    const membership = await boards.getMembership(accountId, 'a');
+    const membership = await boards.queries.getMembership(accountId, 'a');
     const moved = await boards.moveList(accountId, 'a', target.id, membership.revision, 1);
     expect(moved).toMatchObject({
       boardId: target.id,
@@ -259,8 +261,10 @@ describe('list placement', () => {
     const main = await boards.ensureMainBoard(accountId);
     for (let index = 0; index < 60; index++)
       await seedList('list-' + String(index).padStart(2, '0'), main.id, { position: index });
-    const first = await boards.listBoardLists(accountId, main.id);
-    const second = await boards.listBoardLists(accountId, main.id, { cursor: first.nextCursor! });
+    const first = await boards.queries.listBoardLists(accountId, main.id);
+    const second = await boards.queries.listBoardLists(accountId, main.id, {
+      cursor: first.nextCursor!,
+    });
     expect(first.items).toHaveLength(50);
     expect(second.items).toHaveLength(10);
     expect(new Set([...first.items, ...second.items].map((list) => list.id)).size).toBe(60);
@@ -294,7 +298,7 @@ describe('list placement', () => {
     await expect(mover.moveList(accountId, 'a', target.id, 0)).rejects.toMatchObject({
       code: 'not_found',
     });
-    expect((await boards.getMembership(accountId, 'a')).boardId).toBe(main.id);
+    expect((await boards.queries.getMembership(accountId, 'a')).boardId).toBe(main.id);
   });
   it('permits only one of two concurrent moves of the same membership', async () => {
     const main = await boards.ensureMainBoard(accountId);
@@ -336,7 +340,7 @@ describe('list placement', () => {
     await expect(boards.moveList('account-b', 'a', foreign.id, 0)).rejects.toMatchObject({
       code: 'not_found',
     });
-    expect((await boards.getMembership(accountId, 'a')).boardId).toBe(main.id);
+    expect((await boards.queries.getMembership(accountId, 'a')).boardId).toBe(main.id);
   });
   it('does not call an uninitialized or stale provider projection fresh', async () => {
     const main = await boards.ensureMainBoard(accountId);
@@ -345,7 +349,7 @@ describe('list placement', () => {
       .prepare('UPDATE tasks_account_state SET inventory_complete_at=NULL WHERE account_id=?')
       .bind(accountId)
       .run();
-    expect((await boards.listBoardLists(accountId, main.id)).coverage).toEqual({
+    expect((await boards.queries.listBoardLists(accountId, main.id)).coverage).toEqual({
       complete: false,
       lastSyncedAt: null,
       stale: true,
@@ -354,7 +358,7 @@ describe('list placement', () => {
       .prepare('UPDATE tasks_account_state SET inventory_complete_at=? WHERE account_id=?')
       .bind(Date.now() - 120_000, accountId)
       .run();
-    expect((await boards.listBoardLists(accountId, main.id)).coverage).toMatchObject({
+    expect((await boards.queries.listBoardLists(accountId, main.id)).coverage).toMatchObject({
       complete: true,
       stale: true,
     });
@@ -362,7 +366,7 @@ describe('list placement', () => {
       .prepare('UPDATE tasks_lists SET deleted_at=? WHERE account_id=? AND id=?')
       .bind(Date.now(), accountId, 'a')
       .run();
-    const missing = await boards.listBoardLists(accountId, main.id);
+    const missing = await boards.queries.listBoardLists(accountId, main.id);
     expect(missing.items).toEqual([]);
     expect(missing.coverage).toMatchObject({ complete: false, stale: true });
     await expect(boards.updateListAppearance(accountId, 'a', '#abcdef', 0)).rejects.toMatchObject({
@@ -397,7 +401,7 @@ describe('board deletion', () => {
       movedListCount: 2,
     });
     expect(await listIds(main.id)).toEqual(['existing', 'one', 'two']);
-    await expect(boards.getBoard(accountId, custom.id)).rejects.toMatchObject({
+    await expect(boards.queries.getBoard(accountId, custom.id)).rejects.toMatchObject({
       code: 'not_found',
     });
     expect(taskData()).toEqual(before);
@@ -441,8 +445,8 @@ describe('board deletion', () => {
     await expect(withHook.deleteBoard(accountId, custom.id, custom.revision)).rejects.toMatchObject(
       { code: 'storage_unavailable' },
     );
-    expect((await boards.getMembership(accountId, 'a')).boardId).toBe(custom.id);
-    expect((await boards.getBoard(accountId, custom.id)).revision).toBe(custom.revision);
+    expect((await boards.queries.getMembership(accountId, 'a')).boardId).toBe(custom.id);
+    expect((await boards.queries.getBoard(accountId, custom.id)).revision).toBe(custom.revision);
     expect(await listIds(main.id)).toEqual([]);
   });
   it('aborts hooks when a competing edit commits between the pre-read and the batch', async () => {
@@ -472,8 +476,8 @@ describe('board deletion', () => {
     await expect(withHook.deleteBoard(accountId, custom.id, custom.revision)).rejects.toMatchObject(
       { code: 'conflict' },
     );
-    expect((await boards.getBoard(accountId, custom.id)).title).toBe('changed elsewhere');
-    expect((await boards.getMembership(accountId, 'a')).boardId).toBe(custom.id);
+    expect((await boards.queries.getBoard(accountId, custom.id)).title).toBe('changed elsewhere');
+    expect((await boards.queries.getMembership(accountId, 'a')).boardId).toBe(custom.id);
     expect(database.sqlite.prepare('SELECT * FROM hook_effects').all()).toEqual([]);
     expect(database.sqlite.prepare('SELECT * FROM boards_write_guards').all()).toEqual([]);
   });
@@ -491,7 +495,7 @@ describe('board deletion', () => {
     await expect(withHook.deleteBoard(accountId, custom.id, custom.revision)).rejects.toMatchObject(
       { code: 'conflict' },
     );
-    expect((await boards.getMembership(accountId, 'a')).boardId).toBe(custom.id);
+    expect((await boards.queries.getMembership(accountId, 'a')).boardId).toBe(custom.id);
     expect(database.sqlite.prepare('SELECT * FROM hook_effects').all()).toEqual([]);
   });
 });
@@ -512,7 +516,7 @@ describe('local account write boundary', () => {
       code: 'forbidden',
     });
     await expect(boards.ensureMainBoard('account-b')).rejects.toMatchObject({ code: 'forbidden' });
-    expect((await boards.getMembership(accountId, 'a')).boardId).toBe(main.id);
+    expect((await boards.queries.getMembership(accountId, 'a')).boardId).toBe(main.id);
   });
   it('allows local edits while google needs reconnect and keeps reads available when disconnected', async () => {
     const custom = await boards.createBoard(accountId, { title: 'custom' });
@@ -531,7 +535,7 @@ describe('local account write boundary', () => {
       .prepare("UPDATE accounts_connections SET state='disconnected' WHERE id=?")
       .bind(accountId)
       .run();
-    expect((await boards.listBoards(accountId)).items.length).toBeGreaterThan(0);
+    expect((await boards.queries.listBoards(accountId)).items.length).toBeGreaterThan(0);
     await expect(
       boards.renameBoard(accountId, custom.id, 'forbidden', renamed.revision),
     ).rejects.toMatchObject({ code: 'forbidden' });
@@ -584,8 +588,10 @@ describe('operation commit integration', () => {
     await expect(
       admitted.renameBoard(accountId, original.id, 'must roll back', original.revision),
     ).rejects.toMatchObject({ code: 'storage_unavailable' });
-    expect((await boards.getBoard(accountId, original.id)).title).toBe('original');
-    expect((await boards.getBoard(accountId, original.id)).revision).toBe(original.revision);
+    expect((await boards.queries.getBoard(accountId, original.id)).title).toBe('original');
+    expect((await boards.queries.getBoard(accountId, original.id)).revision).toBe(
+      original.revision,
+    );
   });
   it('passes every user mutation through the journal executor and preserves its typed refusal', async () => {
     const main = await boards.ensureMainBoard(accountId);

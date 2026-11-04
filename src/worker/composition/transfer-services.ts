@@ -49,7 +49,7 @@ export function createTransferOwners(db: D1Database, dependencies: Dependencies)
   const accountTransfers = new AccountTransferService(db, {
     snapshots: snapshotReader,
     imports,
-    destinationMainBoard: (account) => dependencies.boards.getMainBoard(account),
+    destinationMainBoard: (account) => dependencies.boards.queries.getMainBoard(account),
     labelsByNames: (account, names) =>
       dependencies.queries.labels.readLabelsByNames(account, names),
   });

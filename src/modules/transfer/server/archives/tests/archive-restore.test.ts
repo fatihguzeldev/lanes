@@ -392,7 +392,11 @@ it('previews exact provider matches without writes and preserves all conflicting
     notes: 'source notes',
   });
   expect(
-    (await new BoardService(f.db, { assertLocalWritable: async () => {} }).getMainBoard('a')).title,
+    (
+      await new BoardService(f.db, { assertLocalWritable: async () => {} }).queries.getMainBoard(
+        'a',
+      )
+    ).title,
   ).toBe('everyday');
 });
 it('applies explicitly selected local fields through the common task journal and never changes provider content', async () => {
