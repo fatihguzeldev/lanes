@@ -1,0 +1,6 @@
+.skeleton {
+  display: block;
+  height: 10px;
+  border-radius: 3px;
+  background: var(--line);
+}

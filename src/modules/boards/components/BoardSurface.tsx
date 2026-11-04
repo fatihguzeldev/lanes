@@ -8,9 +8,11 @@ import {
 } from 'react';
 import type { Coverage } from '../../../contracts/http';
 import { Icon, type IconName } from '../../../ui/Icon';
+import { Skeleton } from '../../../ui/Skeleton';
 import type { Label, Task, TaskList, TaskSort } from '../../tasks/contracts';
 import { countOpenTasks, getBlockingStates, sortTasks } from '../../tasks/model';
 import { TaskCard } from '../../tasks/components/TaskCard';
+import { BoardSkeleton, ColumnSkeleton } from './BoardSkeleton';
 import './BoardSurface.css';
 import type { SubtaskSummary } from '../../tasks/query-contract';
 
@@ -110,16 +112,6 @@ function readDrag(data: string): DraggedTask | null {
   } catch {
     return null;
   }
-}
-
-function ColumnSkeleton() {
-  return (
-    <div className="board-column__skeleton" aria-hidden="true">
-      <i />
-      <i />
-      <i />
-    </div>
-  );
 }
 
 interface ColumnProps {
@@ -236,14 +228,17 @@ function ListColumn({
           <Icon name={column.icon ?? 'list'} size={16} />
         </span>
         <h2 id={headingId}>{title(list)}</h2>
-        {options.showCounts !== false && column.coverage.complete && column.nextCursor === null && (
-          <span
-            className="board-column__count"
-            title={`${openCount} ${options.filtered ? 'matching ' : ''}open tasks, including subtasks`}
-          >
-            {openCount}
-          </span>
-        )}
+        {options.showCounts !== false &&
+          (column.coverage.complete && column.nextCursor === null ? (
+            <span
+              className="board-column__count"
+              title={`${openCount} ${options.filtered ? 'matching ' : ''}open tasks, including subtasks`}
+            >
+              {openCount}
+            </span>
+          ) : (
+            <Skeleton className="board-skeleton__count" />
+          ))}
         <button
           className="board-column__menu"
           type="button"
@@ -280,8 +275,10 @@ function ListColumn({
         aria-label={openCards.length ? `open tasks in ${title(list)}` : undefined}
       >
         {openCards.map((task) => renderCard(task))}
-        {entries.length === 0 && column.status === 'loading' && <ColumnSkeleton />}
-        {openCards.length === 0 && column.status === 'ready' && column.coverage.complete && (
+        {entries.length === 0 && column.status === 'loading' && !column.coverage.complete && (
+          <ColumnSkeleton />
+        )}
+        {openCards.length === 0 && column.status !== 'error' && column.coverage.complete && (
           <p className="board-column__empty">
             {options.filtered ? 'no matching tasks.' : 'no tasks.'}
           </p>
@@ -312,8 +309,10 @@ function ListColumn({
             >
               <Icon name={completedExpanded ? 'down' : 'right'} size={12} />
               completed
-              {completedCoverage.complete && column.completedNextCursor == null && (
+              {completedCoverage.complete && column.completedNextCursor == null ? (
                 <span>{completed.length}</span>
+              ) : (
+                <Skeleton className="board-skeleton__count" />
               )}
             </button>
             <div id={completedId} hidden={!completedExpanded}>
@@ -507,15 +506,7 @@ export function BoardSurface(options: BoardSurfaceProps) {
       )}
       <div className="board-surface__scroll">
         {columns.length === 0 && status === 'loading' ? (
-          <div className="board-surface__grid" role="status">
-            <span className="board-surface__sr-only">loading your lists…</span>
-            {[0, 1, 2, 3].map((id) => (
-              <div className="board-column board-column--skeleton" key={id}>
-                <div className="board-column__skeleton-header" />
-                <ColumnSkeleton />
-              </div>
-            ))}
-          </div>
+          <BoardSkeleton />
         ) : columns.length === 0 && status === 'ready' ? (
           <div className="board-surface__empty">
             <Icon name="board" size={28} />

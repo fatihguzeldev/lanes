@@ -59,8 +59,20 @@ describe('board list presentation', () => {
   it('does not publish loaded-page counts as an exact total', () => {
     const markup = render({ coverage: { ...complete, complete: false }, nextCursor: 'next' });
     expect(markup).not.toContain('board-column__count');
+    expect(markup).toContain('board-skeleton__count');
     expect(markup).not.toContain('partially loaded');
     expect(markup).not.toContain('refresh needed');
+  });
+
+  it('retains a confirmed count when its cached tasks are refreshing', () => {
+    const markup = render({ status: 'loading' });
+    expect(markup).toContain('class="board-column__count"');
+    expect(markup).not.toContain('board-skeleton__count');
+    expect(markup).not.toContain('board-column__skeleton-row');
+    expect(markup).toContain('no tasks.');
+    expect(
+      render({ coverage: { ...complete, complete: false } }, { showCounts: false }),
+    ).not.toContain('board-skeleton__count');
   });
 
   it('keeps the completed section discoverable when a completed task is known', () => {
