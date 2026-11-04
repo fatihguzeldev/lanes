@@ -59,9 +59,39 @@ describe('board list presentation', () => {
   it('does not publish loaded-page counts as an exact total', () => {
     const markup = render({ coverage: { ...complete, complete: false }, nextCursor: 'next' });
     expect(markup).not.toContain('board-column__count');
-    expect(markup).toContain('board-skeleton__count');
+    expect(markup).not.toContain('board-skeleton__count');
+    expect(markup).toContain('load more tasks');
     expect(markup).not.toContain('partially loaded');
     expect(markup).not.toContain('refresh needed');
+  });
+
+  it.each(['ready', 'error'] as const)(
+    'does not leave the count loading after an incomplete query is %s',
+    (status) => {
+      const markup = render({ status, coverage: { ...complete, complete: false } });
+      expect(markup).not.toContain('board-column__count');
+      expect(markup).not.toContain('board-skeleton__count');
+    },
+  );
+
+  it('shows an unknown count as loading while its query is running', () => {
+    const markup = render({
+      status: 'loading',
+      countLoading: true,
+      coverage: { ...complete, complete: false },
+    });
+    expect(markup).not.toContain('board-column__count');
+    expect(markup).toContain('board-skeleton__count');
+  });
+
+  it('does not restart a settled incomplete count during a background refresh', () => {
+    const markup = render({
+      status: 'loading',
+      countLoading: false,
+      coverage: { ...complete, complete: false },
+    });
+    expect(markup).not.toContain('board-column__count');
+    expect(markup).not.toContain('board-skeleton__count');
   });
 
   it('retains a confirmed count when its cached tasks are refreshing', () => {
@@ -123,6 +153,15 @@ describe('board list presentation', () => {
     });
     expect(render({ tasks: [task], completedCoverage: complete })).toContain(
       'board-column__completed',
+    );
+    const partial = { tasks: [task], completedCoverage: { ...complete, complete: false } };
+    expect(render(partial)).not.toContain('board-skeleton__count');
+    expect(render({ ...partial, completedCountLoading: true })).toContain('board-skeleton__count');
+    expect(
+      render({ ...partial, completedLoading: true, completedCountLoading: false }),
+    ).not.toContain('board-skeleton__count');
+    expect(render({ ...partial, completedError: 'could not load completed tasks' })).not.toContain(
+      'board-skeleton__count',
     );
   });
 });

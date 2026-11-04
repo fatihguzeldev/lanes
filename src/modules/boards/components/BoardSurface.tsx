@@ -21,6 +21,7 @@ export interface BoardColumn {
   tasks: readonly Task[];
   coverage: Coverage;
   status: 'loading' | 'ready' | 'error';
+  countLoading?: boolean | undefined;
   nextCursor: string | null;
   subtaskSummaries?: Record<string, SubtaskSummary> | undefined;
   matchedTaskIds?: readonly string[] | undefined;
@@ -28,6 +29,7 @@ export interface BoardColumn {
   completedCoverage?: Coverage | undefined;
   completedNextCursor?: string | null | undefined;
   completedLoading?: boolean | undefined;
+  completedCountLoading?: boolean | undefined;
   completedError?: string | undefined;
   icon?: IconName | undefined;
   color?: string | undefined;
@@ -236,9 +238,9 @@ function ListColumn({
             >
               {openCount}
             </span>
-          ) : (
+          ) : column.countLoading ? (
             <Skeleton className="board-skeleton__count" />
-          ))}
+          ) : null)}
         <button
           className="board-column__menu"
           type="button"
@@ -311,9 +313,9 @@ function ListColumn({
               completed
               {completedCoverage.complete && column.completedNextCursor == null ? (
                 <span>{completed.length}</span>
-              ) : (
+              ) : column.completedCountLoading ? (
                 <Skeleton className="board-skeleton__count" />
-              )}
+              ) : null}
             </button>
             <div id={completedId} hidden={!completedExpanded}>
               {completedExpanded && (

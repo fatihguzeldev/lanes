@@ -60,6 +60,7 @@ function ColumnData({
       tasks: [...open.page.items, ...completed.page.items],
       coverage: open.page.coverage,
       status: open.status,
+      countLoading: open.status === 'loading' && !open.loaded,
       nextCursor: open.page.nextCursor,
       errorMessage: open.error,
       completedCoverage:
@@ -70,6 +71,10 @@ function ColumnData({
             : unknownCoverage,
       completedNextCursor: completion !== 'open' ? open.page.nextCursor : completed.page.nextCursor,
       completedLoading: (discoverCompleted || completedRequested) && completed.status === 'loading',
+      completedCountLoading:
+        completion !== 'open'
+          ? open.status === 'loading' && !open.loaded
+          : completed.status === 'loading' && !completed.loaded,
       completedError: completed.error,
       color: list.color,
       subtaskSummaries: { ...open.page.subtaskSummaries, ...completed.page.subtaskSummaries },
@@ -79,6 +84,7 @@ function ColumnData({
       list,
       open.page,
       open.status,
+      open.loaded,
       open.error,
       completed.page,
       completed.status,
@@ -174,6 +180,7 @@ export function BoardWorkspace({
         tasks: [],
         coverage: unknownCoverage,
         status: 'loading' as const,
+        countLoading: true,
         nextCursor: null,
       },
   );
