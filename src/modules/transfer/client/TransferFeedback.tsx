@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
-import { checkServerConnection } from '../../../client/http';
-import { useServerConnection } from '../../../client/useServerConnection';
-import { Icon } from '../../../ui/Icon';
+import { checkServerConnection } from '../../../shared/browser/http/http';
+import { useServerConnection } from '../../../shared/browser/connectivity/useServerConnection';
+import { Icon } from '../../../shared/ui/icon/Icon';
 import { useTransferAction } from './useTransferAction';
 export function TransferConnection() {
   const connection = useServerConnection(),

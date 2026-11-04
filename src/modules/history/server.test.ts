@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { D1Database } from '@cloudflare/workers-types';
 import { testDatabase, seedAccount } from '../../../tests/sqlite-d1';
-import { AppError } from '../../contracts/errors';
+import { AppError } from '../../shared/contracts/errors';
 import { HistoryEventSchema, type HistoryEventInput } from './contracts';
 import { HistoryService, type BoardListSelection } from './server';
 

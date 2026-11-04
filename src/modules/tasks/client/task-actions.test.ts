@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { ConfirmationChoice } from '../../../client/Confirmation';
-import { request } from '../../../client/http';
+import type { ConfirmationChoice } from '../../operations/browser/submission/Confirmation';
+import { request } from '../../../shared/browser/http/http';
 import { TaskSchema, TaskListSchema, type Task } from '../contracts';
 import { TaskConsequencesSchema, ListConsequencesSchema } from '../consequence-contract';
 import { OperationSummarySchema } from '../operation-contract';

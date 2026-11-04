@@ -1,5 +1,5 @@
 import type { D1Database } from '@cloudflare/workers-types';
-import { AppError } from '../../../contracts/errors';
+import { AppError } from '../../../shared/contracts/errors';
 import type { HistoryService } from '../../history/server';
 import { TaskMetadataService } from './metadata';
 

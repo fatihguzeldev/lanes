@@ -1,16 +1,16 @@
 import { useState } from 'react';
 import { z } from 'zod';
-import { Dialog } from '../../../ui/Dialog';
-import { Icon } from '../../../ui/Icon';
+import { Dialog } from '../../../shared/ui/dialog/Dialog';
+import { Icon } from '../../../shared/ui/icon/Icon';
 import type { ConnectionSummary } from '../../accounts/contracts';
 import { LabelSchema, type Label } from '../contracts';
 import { LabelPageSchema, TaskCoverageSchema } from '../query-contract';
 import { LabelDeletionJobSchema } from '../metadata-command-contract';
-import { Confirmation, type ConfirmationChoice } from '../../../client/Confirmation';
-import { checkServerConnection, request } from '../../../client/http';
-import { useServerConnection } from '../../../client/useServerConnection';
-import { usePagedResource } from '../../../client/usePagedResource';
-import { newOperationId } from '../../../client/operation-identity';
+import { Confirmation, type ConfirmationChoice } from '../../operations/browser/submission/Confirmation';
+import { checkServerConnection, request } from '../../../shared/browser/http/http';
+import { useServerConnection } from '../../../shared/browser/connectivity/useServerConnection';
+import { usePagedResource } from '../../../shared/browser/resources/usePagedResource';
+import { newOperationId } from '../../operations/browser/submission/operation-identity';
 import { useCommands } from './useCommands';
 import './LabelManager.css';
 

@@ -1,5 +1,5 @@
 import type { D1Database } from '@cloudflare/workers-types';
-import { AppError } from '../../../contracts/errors';
+import { AppError } from '../../../shared/contracts/errors';
 import { assertDisconnecting, disconnectWorkGuard } from '../../accounts/access';
 import { accountRemovalGuard, type LifecycleOwner } from '../../accounts/lifecycle';
 import type { ListSnapshotStore } from '../../tasks/server/list-templates';

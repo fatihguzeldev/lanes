@@ -1,5 +1,5 @@
 import type { D1Database } from '@cloudflare/workers-types';
-import { AppError } from '../../../contracts/errors';
+import { AppError } from '../../../shared/contracts/errors';
 import { localWriteGuard } from '../../accounts/access';
 import { CapturedGraphValidator } from './captured-graph';
 import { canonicalJson, transferDigest } from './content-hash';

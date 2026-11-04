@@ -1,8 +1,8 @@
 import type { OperationSummary } from '../operation-contract';
 import { changeLabel } from './change-status';
 import type { SyncStatus } from '../sync-contract';
-import { Icon } from '../../../ui/Icon';
-import { Popover } from '../../../ui/Popover';
+import { Icon } from '../../../shared/ui/icon/Icon';
+import { Popover } from '../../../shared/ui/popover/Popover';
 import { syncPresentation } from './sync-presentation';
 
 import './SyncControl.css';

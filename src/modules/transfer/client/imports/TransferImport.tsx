@@ -10,8 +10,8 @@ import {
   type ImportTable,
 } from '../../parse-contract';
 import { SpreadsheetMetadataSchema, type SpreadsheetMetadata } from '../../sheets-contract';
-import { request } from '../../../../client/http';
-import { newOperationId } from '../../../../client/operation-identity';
+import { request } from '../../../../shared/browser/http/http';
+import { newOperationId } from '../../../operations/browser/submission/operation-identity';
 import { parseExcludedRows } from '../import-input';
 import { clearSheetsDraft, readSheetsDraft, writeSheetsDraft } from '../sheets/source-draft';
 import { parseTransferInWorker } from '../parsing/preview-parser';
@@ -26,7 +26,7 @@ import { TransferConnection, TransferError } from '../TransferFeedback';
 import { useTransferAction } from '../useTransferAction';
 import { useTransferDirty } from '../useTransferDirty';
 import { TransferImportRun } from './TransferImportRun';
-import { Select } from '../../../../ui/Select';
+import { Select } from '../../../../shared/ui/select/Select';
 type Source = 'file' | 'sheets';
 interface MappingDraft {
   sheet: string;

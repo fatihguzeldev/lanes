@@ -1,4 +1,4 @@
-import type { Coverage } from '../../../contracts/http';
+import type { Coverage } from '../../../shared/contracts/http';
 import type { TaskList, TaskMoveIntent } from '../contracts';
 
 export interface TaskMoveList {

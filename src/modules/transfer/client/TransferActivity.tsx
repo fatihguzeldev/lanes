@@ -8,10 +8,10 @@ import {
   transferPage,
   type ImportSummary,
 } from './response-contracts';
-import { request } from '../../../client/http';
-import { usePagedResource } from '../../../client/usePagedResource';
-import { Dialog } from '../../../ui/Dialog';
-import { Icon } from '../../../ui/Icon';
+import { request } from '../../../shared/browser/http/http';
+import { usePagedResource } from '../../../shared/browser/resources/usePagedResource';
+import { Dialog } from '../../../shared/ui/dialog/Dialog';
+import { Icon } from '../../../shared/ui/icon/Icon';
 import { TransferImportRun } from './imports/TransferImportRun';
 import { ArchiveImport } from './archives/ArchiveImport';
 import { ArchiveRestorePanel } from './archives/ArchiveRestorePanel';
@@ -19,7 +19,7 @@ import { TransferSheetsExport } from './sheets/TransferSheetsExport';
 import { pageQuery, transferBase, type TransferProps } from './transfer-context';
 import { TransferPages } from './TransferFeedback';
 import type { z } from 'zod';
-import { Select } from '../../../ui/Select';
+import { Select } from '../../../shared/ui/select/Select';
 export function TransferActivity(props: TransferProps) {
   const [dirty, setDirty] = useState(false),
     [confirmBack, setConfirmBack] = useState(false);

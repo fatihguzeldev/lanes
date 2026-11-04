@@ -1,6 +1,6 @@
 import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types';
-import { AppError } from '../../../../contracts/errors';
-import type { ErrorCode } from '../../../../contracts/http';
+import { AppError } from '../../../../shared/contracts/errors';
+import type { ErrorCode } from '../../../../shared/contracts/http';
 import {
   assertLocalWritable,
   assertProviderWritable,

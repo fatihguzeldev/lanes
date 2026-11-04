@@ -13,7 +13,7 @@ import {
 } from './lifecycle';
 import { OperationStore } from '../tasks/server/operations';
 import { TasksLifecycle } from '../tasks/server/lifecycle';
-import { AppError } from '../../contracts/errors';
+import { AppError } from '../../shared/contracts/errors';
 import { HistoryService } from '../history/server';
 import { TaskProjectionStore } from '../tasks/server/projection';
 import { TaskCommandService } from '../tasks/server/commands/provider-commands';

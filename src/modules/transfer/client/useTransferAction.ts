@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { serverConnection } from '../../../client/connectivity';
+import { serverConnection } from '../../../shared/browser/connectivity/connectivity';
 import { message } from './transfer-context';
 export function useTransferAction(scope: string) {
   const [busy, setBusy] = useState(false),

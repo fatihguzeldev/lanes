@@ -1,6 +1,6 @@
 import type { D1Database } from '@cloudflare/workers-types';
 import { z } from 'zod';
-import { AppError } from '../../../contracts/errors';
+import { AppError } from '../../../shared/contracts/errors';
 import { assertProviderWritable } from '../../accounts/access';
 import { ResourceIdSchema, type Label } from '../../tasks/contracts';
 import { OperationIdSchema } from '../../tasks/operation-contract';

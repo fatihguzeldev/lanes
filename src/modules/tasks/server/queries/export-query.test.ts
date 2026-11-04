@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { seedAccount, testDatabase } from '../../../../../tests/sqlite-d1';
-import { AppError } from '../../../../contracts/errors';
+import { AppError } from '../../../../shared/contracts/errors';
 import { normalizeTaskSearchText } from '../../model';
 import { TaskQueries } from './tasks';
 

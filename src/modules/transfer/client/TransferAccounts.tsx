@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import type { BoardList } from '../../boards/contracts';
-import { request } from '../../../client/http';
-import { newOperationId } from '../../../client/operation-identity';
+import { request } from '../../../shared/browser/http/http';
+import { newOperationId } from '../../operations/browser/submission/operation-identity';
 import { AccountChoice, ListSelection } from './TransferSelection';
 import { escaped, providerReady, transferBase, type TransferProps } from './transfer-context';
 import { TransferConnection, TransferError } from './TransferFeedback';

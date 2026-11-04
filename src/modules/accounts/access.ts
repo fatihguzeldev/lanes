@@ -1,5 +1,5 @@
 import type { D1Database } from '@cloudflare/workers-types';
-import { AppError } from '../../contracts/errors';
+import { AppError } from '../../shared/contracts/errors';
 
 export async function assertLocalWritable(db: D1Database, accountId: string): Promise<void> {
   const account = await db

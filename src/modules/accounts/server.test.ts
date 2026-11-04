@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 import { testDatabase } from '../../../tests/sqlite-d1';
-import { AppError } from '../../contracts/errors';
+import { AppError } from '../../shared/contracts/errors';
 import { decryptToken, encryptToken, hashToken } from './crypto';
 import { GOOGLE_TASKS_SCOPE } from './google';
 import type {

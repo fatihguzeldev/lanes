@@ -1,4 +1,4 @@
-import { AppError } from '../contracts/errors';
+import { AppError } from '../shared/contracts/errors';
 
 /** One invocation shares this counter across OAuth, Tasks, and Sheets requests. */
 export function googleTransport(maxRequests = 4, transport: typeof fetch = fetch) {

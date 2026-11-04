@@ -1,5 +1,5 @@
 import { useEffect, useId, useState, type CSSProperties, type DragEventHandler } from 'react';
-import { Icon } from '../../../ui/Icon';
+import { Icon } from '../../../shared/ui/icon/Icon';
 import type { BlockingState, Label, Task } from '../contracts';
 import { countOpenTasks, getBlockingState } from '../model';
 import { addCalendarDays } from '../planning';

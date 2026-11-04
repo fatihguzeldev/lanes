@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { z } from 'zod';
 import type { TaskList } from '../contracts';
-import { Icon } from '../../../ui/Icon';
+import { Icon } from '../../../shared/ui/icon/Icon';
 import {
   captureInlineTask,
   inlineCreateWasRejected,
   type InlineTaskAttempt,
 } from './inline-task-create';
-import { newOperationId } from '../../../client/operation-identity';
+import { newOperationId } from '../../operations/browser/submission/operation-identity';
 import { useCommands } from './useCommands';
 import './InlineTaskCreate.css';
 

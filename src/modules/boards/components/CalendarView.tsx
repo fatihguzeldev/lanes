@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState, type DragEvent } from 'react';
-import type { Coverage } from '../../../contracts/http';
-import { Icon } from '../../../ui/Icon';
+import type { Coverage } from '../../../shared/contracts/http';
+import { Icon } from '../../../shared/ui/icon/Icon';
 import type { Task, TaskList } from '../../tasks/contracts';
 import {
   calendarGrid,
@@ -14,7 +14,7 @@ import {
   type CalendarRange,
   type CalendarScope,
 } from './calendar-model';
-import { Select } from '../../../ui/Select';
+import { Select } from '../../../shared/ui/select/Select';
 import './CalendarView.css';
 
 export type { CalendarMode, CalendarScope } from './calendar-model';

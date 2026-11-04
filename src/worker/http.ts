@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { AppError } from '../contracts/errors';
-import type { ErrorEnvelope } from '../contracts/http';
+import { AppError } from '../shared/contracts/errors';
+import type { ErrorEnvelope } from '../shared/contracts/http';
 import { GoogleTasksError } from '../modules/tasks/server/provider';
 import { GoogleSheetsError } from '../modules/transfer/server/sheets';
 

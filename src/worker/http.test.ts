@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
-import { AppError } from '../contracts/errors';
+import { AppError } from '../shared/contracts/errors';
 import { errorResponse, readJson, requireSameOrigin } from './http';
 
 describe('private request boundary', () => {

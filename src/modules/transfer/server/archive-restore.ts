@@ -1,6 +1,6 @@
 import type { D1Database, D1PreparedStatement, D1Result } from '@cloudflare/workers-types';
 import { z } from 'zod';
-import { AppError } from '../../../contracts/errors';
+import { AppError } from '../../../shared/contracts/errors';
 import { assertLocalWritable, localWriteGuard } from '../../accounts/access';
 import type { AccountsPortability } from '../../accounts/portability';
 import type { BoardService } from '../../boards/server';

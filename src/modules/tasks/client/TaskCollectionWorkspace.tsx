@@ -11,11 +11,11 @@ import {
 } from '../contracts';
 import { TaskCard } from '../components/TaskCard';
 import { countOpenTasks, getBlockingStates } from '../model';
-import { Icon } from '../../../ui/Icon';
-import { request } from '../../../client/http';
+import { Icon } from '../../../shared/ui/icon/Icon';
+import { request } from '../../../shared/browser/http/http';
 import { useTaskQuery } from './useTaskQuery';
 import './TaskCollectionWorkspace.css';
-import type { InitialViewReadiness } from '../../../client/readiness';
+import type { InitialViewReadiness } from '../../../shared/browser/resources/readiness';
 
 const contextsSchema = z
   .object({

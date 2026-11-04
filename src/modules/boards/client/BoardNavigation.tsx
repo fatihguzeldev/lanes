@@ -1,8 +1,8 @@
 import { useState, type CSSProperties } from 'react';
 import type { Board } from '../contracts';
 import type { BoardCommand } from '../command-contract';
-import { Icon } from '../../../ui/Icon';
-import { Skeleton } from '../../../ui/Skeleton';
+import { Icon } from '../../../shared/ui/icon/Icon';
+import { Skeleton } from '../../../shared/ui/skeleton/Skeleton';
 import './BoardNavigation.css';
 
 interface Props {

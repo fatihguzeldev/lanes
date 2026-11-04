@@ -8,13 +8,13 @@ import {
 } from '../../template-contract';
 import { TemplateApplicationOptionsSchema } from '../../../tasks/template-contract';
 import { accountToday } from '../../../tasks/planning';
-import { Dialog } from '../../../../ui/Dialog';
-import { Icon } from '../../../../ui/Icon';
-import { request } from '../../../../client/http';
-import { usePagedResource } from '../../../../client/usePagedResource';
-import { newOperationId } from '../../../../client/operation-identity';
-import { useServerConnection } from '../../../../client/useServerConnection';
-import { Select } from '../../../../ui/Select';
+import { Dialog } from '../../../../shared/ui/dialog/Dialog';
+import { Icon } from '../../../../shared/ui/icon/Icon';
+import { request } from '../../../../shared/browser/http/http';
+import { usePagedResource } from '../../../../shared/browser/resources/usePagedResource';
+import { newOperationId } from '../../../operations/browser/submission/operation-identity';
+import { useServerConnection } from '../../../../shared/browser/connectivity/useServerConnection';
+import { Select } from '../../../../shared/ui/select/Select';
 import {
   type PersonalTemplate,
   type InputIdentity,

@@ -8,9 +8,9 @@ import {
   type DragEvent,
   type ReactNode,
 } from 'react';
-import type { Coverage } from '../../../contracts/http';
-import { Icon, type IconName } from '../../../ui/Icon';
-import { Skeleton } from '../../../ui/Skeleton';
+import type { Coverage } from '../../../shared/contracts/http';
+import { Icon, type IconName } from '../../../shared/ui/icon/Icon';
+import { Skeleton } from '../../../shared/ui/skeleton/Skeleton';
 import type { Label, Task, TaskList, TaskSort } from '../../tasks/contracts';
 import { countOpenTasks, getBlockingStates, sortTasks } from '../../tasks/model';
 import { TaskCard } from '../../tasks/components/TaskCard';

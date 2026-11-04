@@ -1,7 +1,7 @@
 import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types';
 import { z } from 'zod';
-import { AppError } from '../../../contracts/errors';
-import type { Page } from '../../../contracts/http';
+import { AppError } from '../../../shared/contracts/errors';
+import type { Page } from '../../../shared/contracts/http';
 import { assertLocalWritable, localWriteGuard } from '../../accounts/access';
 import type { HistoryService } from '../../history/server';
 import type { HistoryEventInput } from '../../history/contracts';

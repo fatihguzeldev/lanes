@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { AppError } from '../../contracts/errors';
+import { AppError } from '../../shared/contracts/errors';
 import {
   BeginCompletedDeletionSchema,
   ConfirmCompletedDeletionSchema,

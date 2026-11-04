@@ -1,5 +1,5 @@
 import type { TaskDependant } from '../query-contract';
-import { Icon } from '../../../ui/Icon';
+import { Icon } from '../../../shared/ui/icon/Icon';
 
 export interface TaskDependantsProps {
   accountId: string;

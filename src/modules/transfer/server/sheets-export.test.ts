@@ -9,7 +9,7 @@ import {
   MAX_SHEETS_EXPORT_TASKS,
   SheetsExportService,
 } from './sheets-export';
-import { AppError } from '../../../contracts/errors';
+import { AppError } from '../../../shared/contracts/errors';
 import { SheetsExportSummarySchema } from '../export-contract';
 
 const initial = Date.parse('2026-11-02T12:00:00Z');

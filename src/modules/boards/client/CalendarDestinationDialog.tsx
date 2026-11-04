@@ -5,13 +5,13 @@ import {
   type CalendarCreateIntent,
   type CalendarScope,
 } from '../components/calendar-model';
-import { Dialog } from '../../../ui/Dialog';
-import { Icon } from '../../../ui/Icon';
-import { request } from '../../../client/http';
+import { Dialog } from '../../../shared/ui/dialog/Dialog';
+import { Icon } from '../../../shared/ui/icon/Icon';
+import { request } from '../../../shared/browser/http/http';
 import { BoardListPageSchema, BoardPageSchema } from '../query-contract';
-import { usePagedResource } from '../../../client/usePagedResource';
-import { useServerConnection } from '../../../client/useServerConnection';
-import { Select } from '../../../ui/Select';
+import { usePagedResource } from '../../../shared/browser/resources/usePagedResource';
+import { useServerConnection } from '../../../shared/browser/connectivity/useServerConnection';
+import { Select } from '../../../shared/ui/select/Select';
 import './CalendarDestinationDialog.css';
 
 export function CalendarDestinationDialog({

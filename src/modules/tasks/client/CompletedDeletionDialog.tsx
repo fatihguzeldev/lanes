@@ -12,12 +12,12 @@ import {
   CompletedDeletionSummarySchema,
   type CompletedDeletionSummary,
 } from '../completed-deletion-contract';
-import { Dialog } from '../../../ui/Dialog';
-import { Icon } from '../../../ui/Icon';
-import { request, RequestError } from '../../../client/http';
-import { newOperationId } from '../../../client/operation-identity';
-import { usePagedResource } from '../../../client/usePagedResource';
-import { useServerConnection } from '../../../client/useServerConnection';
+import { Dialog } from '../../../shared/ui/dialog/Dialog';
+import { Icon } from '../../../shared/ui/icon/Icon';
+import { request, RequestError } from '../../../shared/browser/http/http';
+import { newOperationId } from '../../operations/browser/submission/operation-identity';
+import { usePagedResource } from '../../../shared/browser/resources/usePagedResource';
+import { useServerConnection } from '../../../shared/browser/connectivity/useServerConnection';
 import { CompletedDeletionConfirmation } from './CompletedDeletionConfirmation';
 import {
   completedDeletionAcknowledged,

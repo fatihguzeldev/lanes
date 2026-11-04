@@ -1,8 +1,8 @@
 import type { Board, BoardList } from '../contracts';
-import type { Prompt } from '../../../client/PromptDialog';
-import { Icon } from '../../../ui/Icon';
-import { AnchoredPopover } from '../../../ui/Popover';
-import { Select } from '../../../ui/Select';
+import type { Prompt } from '../../operations/browser/submission/PromptDialog';
+import { Icon } from '../../../shared/ui/icon/Icon';
+import { AnchoredPopover } from '../../../shared/ui/popover/Popover';
+import { Select } from '../../../shared/ui/select/Select';
 import './ListOptions.css';
 
 interface Props {

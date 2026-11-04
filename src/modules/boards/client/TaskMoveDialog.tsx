@@ -2,14 +2,14 @@ import { useEffect, useMemo, useState } from 'react';
 import type { ConnectionSummary } from '../../accounts/contracts';
 import { TaskConsequencesSchema } from '../../tasks/consequence-contract';
 import type { Task } from '../../tasks/contracts';
-import { Dialog } from '../../../ui/Dialog';
-import { request } from '../../../client/http';
+import { Dialog } from '../../../shared/ui/dialog/Dialog';
+import { request } from '../../../shared/browser/http/http';
 import { BoardPageSchema, BoardListPageSchema } from '../query-contract';
-import { usePagedResource } from '../../../client/usePagedResource';
+import { usePagedResource } from '../../../shared/browser/resources/usePagedResource';
 import { useTaskQuery } from '../../tasks/client/useTaskQuery';
-import { newOperationId } from '../../../client/operation-identity';
+import { newOperationId } from '../../operations/browser/submission/operation-identity';
 import { useCommands } from '../../tasks/client/useCommands';
-import { Select } from '../../../ui/Select';
+import { Select } from '../../../shared/ui/select/Select';
 
 interface Props {
   account: ConnectionSummary;

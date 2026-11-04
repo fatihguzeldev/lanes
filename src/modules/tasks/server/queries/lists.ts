@@ -1,7 +1,7 @@
 import type { D1Database } from '@cloudflare/workers-types';
 import { z } from 'zod';
-import { AppError } from '../../../../contracts/errors';
-import type { Coverage } from '../../../../contracts/http';
+import { AppError } from '../../../../shared/contracts/errors';
+import type { Coverage } from '../../../../shared/contracts/http';
 import { ResourceIdSchema, type TaskList } from '../../contracts';
 
 interface ListRow {

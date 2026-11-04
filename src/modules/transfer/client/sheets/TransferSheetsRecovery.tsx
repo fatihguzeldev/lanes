@@ -12,8 +12,8 @@ import {
   IssuedOperationStepSchema,
   type IssuedOperationStep,
 } from '../../../tasks/operation-contract';
-import { request } from '../../../../client/http';
-import { newOperationId } from '../../../../client/operation-identity';
+import { request } from '../../../../shared/browser/http/http';
+import { newOperationId } from '../../../operations/browser/submission/operation-identity';
 import { accountBase, escaped, transferBase } from '../transfer-context';
 import { TransferError } from '../TransferFeedback';
 import { useTransferAction } from '../useTransferAction';

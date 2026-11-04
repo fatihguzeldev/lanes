@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { AppError } from '../../../contracts/errors';
-import type { ErrorCode } from '../../../contracts/http';
+import { AppError } from '../../../shared/contracts/errors';
+import type { ErrorCode } from '../../../shared/contracts/http';
 import type { ImportCell, ImportIssue, ImportTable } from '../parse-contract';
 
 export const GOOGLE_SHEETS_IMPORT_SCOPE = 'https://www.googleapis.com/auth/spreadsheets.readonly';

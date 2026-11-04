@@ -1,7 +1,7 @@
 import type { ConnectionSummary } from '../../accounts/contracts';
 import type { BoardList } from '../../boards/contracts';
-import { Select } from '../../../ui/Select';
-import { Icon } from '../../../ui/Icon';
+import { Select } from '../../../shared/ui/select/Select';
+import { Icon } from '../../../shared/ui/icon/Icon';
 import { TransferPages } from './TransferFeedback';
 import type { BoardLists } from './useBoardLists';
 export function AccountChoice({

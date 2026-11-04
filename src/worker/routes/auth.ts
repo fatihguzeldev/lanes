@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { D1Database } from '@cloudflare/workers-types';
-import { AppError } from '../../contracts/errors';
+import { AppError } from '../../shared/contracts/errors';
 import { StartOAuthSchema } from '../../modules/accounts/contracts';
 import { initializeTaskWorkspace } from '../../modules/tasks/server/workspace';
 import type { Configuration } from '../env';

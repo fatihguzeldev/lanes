@@ -2,13 +2,13 @@ import { useRef, useState } from 'react';
 import type { ConnectionSummary } from '../../../accounts/contracts';
 import { type TemplateRunSummary, type TemplateScheduleSummary } from '../../template-contract';
 import { TemplateCommandSchema } from '../../template-command-contract';
-import { Icon } from '../../../../ui/Icon';
-import { checkServerConnection, request } from '../../../../client/http';
+import { Icon } from '../../../../shared/ui/icon/Icon';
+import { checkServerConnection, request } from '../../../../shared/browser/http/http';
 import { BoardPageSchema } from '../../query-contract';
-import { usePagedResource } from '../../../../client/usePagedResource';
-import { newOperationId } from '../../../../client/operation-identity';
+import { usePagedResource } from '../../../../shared/browser/resources/usePagedResource';
+import { newOperationId } from '../../../operations/browser/submission/operation-identity';
 import { useCommands } from '../../../tasks/client/useCommands';
-import { useServerConnection } from '../../../../client/useServerConnection';
+import { useServerConnection } from '../../../../shared/browser/connectivity/useServerConnection';
 import './TemplateWorkspace.css';
 import {
   type PersonalTemplate,

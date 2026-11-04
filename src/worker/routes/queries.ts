@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { AppError } from '../../contracts/errors';
+import { AppError } from '../../shared/contracts/errors';
 import type { Services } from '../services';
 import type { AccountRouteContext } from './context';
 import { jsonResponse, parseValue, readJson, pageOptions } from '../http';

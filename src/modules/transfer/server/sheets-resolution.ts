@@ -1,6 +1,6 @@
 import type { D1Database } from '@cloudflare/workers-types';
 import { z } from 'zod';
-import { AppError } from '../../../contracts/errors';
+import { AppError } from '../../../shared/contracts/errors';
 import type { OperationStep } from '../../tasks/server/operations';
 import type { ImportCell } from '../parse-contract';
 import {

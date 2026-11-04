@@ -4,12 +4,12 @@ import type { Board } from '../contracts';
 import { groupCompletedTasks, sevenDayCompletionSummary } from '../../history/completed';
 import type { CompletedGroupKey } from '../../history/contracts';
 import type { Task, TaskFilter, TaskList } from '../../tasks/contracts';
-import { Icon } from '../../../ui/Icon';
+import { Icon } from '../../../shared/ui/icon/Icon';
 import { useTaskQuery } from '../../tasks/client/useTaskQuery';
 import { usePlanningToday } from '../../tasks/client/usePlanningToday';
-import { Select } from '../../../ui/Select';
+import { Select } from '../../../shared/ui/select/Select';
 import './CompletedWorkspace.css';
-import type { InitialViewReadiness } from '../../../client/readiness';
+import type { InitialViewReadiness } from '../../../shared/browser/resources/readiness';
 
 export interface CompletedWorkspaceProps {
   account: ConnectionSummary;

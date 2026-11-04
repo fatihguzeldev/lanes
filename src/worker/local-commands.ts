@@ -1,6 +1,6 @@
 import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types';
 import { z } from 'zod';
-import { AppError } from '../contracts/errors';
+import { AppError } from '../shared/contracts/errors';
 import { assertLocalWritable } from '../modules/accounts/access';
 import { AccountPreferenceCommandSchema } from '../modules/accounts/preference-command-contract';
 import { AccountService } from '../modules/accounts/server';

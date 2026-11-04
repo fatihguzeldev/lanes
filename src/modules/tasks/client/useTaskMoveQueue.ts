@@ -4,7 +4,7 @@ import type { TaskMoveList } from './task-move-model';
 import { createTaskMoveQueue } from './task-move-queue';
 import { latestTasks, projectTaskMoves, type QueuedTaskMove } from './task-move-model';
 import { saveTaskMove } from './save-task-move';
-import { newOperationId } from '../../../client/operation-identity';
+import { newOperationId } from '../../operations/browser/submission/operation-identity';
 
 export function useTaskMoveQueue(
   accountId: string,

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Dialog } from '../../../../ui/Dialog';
+import { Dialog } from '../../../../shared/ui/dialog/Dialog';
 
 export function useDirty(dirty: boolean, onDirtyChange?: (dirty: boolean) => void) {
   const callback = useRef(onDirtyChange);

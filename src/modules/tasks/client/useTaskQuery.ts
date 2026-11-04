@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { request } from '../../../client/http';
-import { unknownCoverage } from '../../../client/usePagedResource';
+import { request } from '../../../shared/browser/http/http';
+import { unknownCoverage } from '../../../shared/browser/resources/usePagedResource';
 import { TaskPageSchema, type TaskPage, type TaskQueryInput } from '../query-contract';
 const empty = (): TaskPage => ({
   items: [],

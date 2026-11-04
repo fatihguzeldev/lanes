@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TaskMoveIntent } from '../contracts';
 import { TaskSchema } from '../contracts';
 import type { OperationSummary } from '../operation-contract';
-import { recordServerConnection } from '../../../client/connectivity';
+import { recordServerConnection } from '../../../shared/browser/connectivity/connectivity';
 import { saveTaskMove, TaskMoveError } from './save-task-move';
 
 const now = Date.parse('2026-11-04T17:00:00Z');

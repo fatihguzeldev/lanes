@@ -1,4 +1,4 @@
-import { AppError } from '../contracts/errors';
+import { AppError } from '../shared/contracts/errors';
 import { assertLocalWritable } from '../modules/accounts/access';
 import { AccountService } from '../modules/accounts/server';
 import { ProviderAccess } from '../modules/accounts/provider-access';

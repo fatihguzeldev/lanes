@@ -4,9 +4,9 @@ import { BoardTemplateSummarySchema } from '../../template-contract';
 import { TemplateCommandSchema } from '../../template-command-contract';
 import { ListTemplateSummarySchema } from '../../../tasks/template-contract';
 import { accountToday } from '../../../tasks/planning';
-import { Dialog } from '../../../../ui/Dialog';
-import { Icon } from '../../../../ui/Icon';
-import { request } from '../../../../client/http';
+import { Dialog } from '../../../../shared/ui/dialog/Dialog';
+import { Icon } from '../../../../shared/ui/icon/Icon';
+import { request } from '../../../../shared/browser/http/http';
 import {
   type PersonalTemplate,
   type Mutate,

@@ -1,8 +1,8 @@
-import { newOperationId } from '../../../client/operation-identity';
+import { newOperationId } from '../../operations/browser/submission/operation-identity';
 import { useEffect, useRef, useState } from 'react';
 import { OperationSummarySchema, type OperationSummary } from '../operation-contract';
-import { request, RequestError } from '../../../client/http';
-import { serverConnection } from '../../../client/connectivity';
+import { request, RequestError } from '../../../shared/browser/http/http';
+import { serverConnection } from '../../../shared/browser/connectivity/connectivity';
 
 const progressing = new Set(['accepted', 'running', 'partial']);
 export function commandNeedsRefresh(

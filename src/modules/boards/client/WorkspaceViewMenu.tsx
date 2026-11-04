@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import type { Label, TaskFilter, TaskList, TaskSort } from '../../tasks/contracts';
 import type { BoardViewPreferences } from './view-preferences';
-import { Icon } from '../../../ui/Icon';
-import { Popover } from '../../../ui/Popover';
-import { Select } from '../../../ui/Select';
+import { Icon } from '../../../shared/ui/icon/Icon';
+import { Popover } from '../../../shared/ui/popover/Popover';
+import { Select } from '../../../shared/ui/select/Select';
 import { TaskFiltersForm } from './TaskFiltersForm';
 
 import './WorkspaceViewMenu.css';

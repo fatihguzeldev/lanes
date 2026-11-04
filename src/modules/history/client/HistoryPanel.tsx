@@ -1,13 +1,13 @@
 import { useMemo, useState } from 'react';
 import { groupHistoryEventsByDay } from '../completed';
 import type { Task, TaskList } from '../../tasks/contracts';
-import { Dialog } from '../../../ui/Dialog';
-import { Icon } from '../../../ui/Icon';
-import { request } from '../../../client/http';
+import { Dialog } from '../../../shared/ui/dialog/Dialog';
+import { Icon } from '../../../shared/ui/icon/Icon';
+import { request } from '../../../shared/browser/http/http';
 import { HistoryPageSchema } from '../query-contract';
-import { usePagedResource } from '../../../client/usePagedResource';
+import { usePagedResource } from '../../../shared/browser/resources/usePagedResource';
 import { usePlanningToday } from '../../tasks/client/usePlanningToday';
-import { Select } from '../../../ui/Select';
+import { Select } from '../../../shared/ui/select/Select';
 import { describeHistoryEvent, dayLabel } from './history-presentation';
 import './HistoryPanel.css';
 

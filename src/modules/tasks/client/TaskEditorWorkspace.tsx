@@ -6,12 +6,12 @@ import { TaskSchema, type Label, type Task, type TaskList } from '../contracts';
 import { LabelDeletionJobSchema } from '../metadata-command-contract';
 import { TaskCoverageSchema, TaskDependantsPageSchema } from '../query-contract';
 import { RecurrenceStatusSchema, type RecurrenceStatus } from '../recurrence-contract';
-import { checkServerConnection, request } from '../../../client/http';
+import { checkServerConnection, request } from '../../../shared/browser/http/http';
 import { useTaskQuery } from './useTaskQuery';
-import { usePagedResource } from '../../../client/usePagedResource';
-import { newOperationId } from '../../../client/operation-identity';
+import { usePagedResource } from '../../../shared/browser/resources/usePagedResource';
+import { newOperationId } from '../../operations/browser/submission/operation-identity';
 import { useCommands } from './useCommands';
-import { useServerConnection } from '../../../client/useServerConnection';
+import { useServerConnection } from '../../../shared/browser/connectivity/useServerConnection';
 import { useRecurrenceWork } from './useRecurrenceWork';
 
 export interface EditorSelection {

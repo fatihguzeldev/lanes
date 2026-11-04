@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { request } from '../../../../client/http';
+import { request } from '../../../../shared/browser/http/http';
 import { escaped } from '../transfer-context';
 export function googleAuthorizationHref(value: string): string {
   const authorization = new URL(value);

@@ -4,11 +4,11 @@ import type { Board, BoardList } from '../contracts';
 import { BoardSurface, type BoardColumn, type BoardSurfaceProps } from '../components/BoardSurface';
 import type { TaskFilter, TaskSort } from '../../tasks/contracts';
 import { useTaskQuery } from '../../tasks/client/useTaskQuery';
-import { unknownCoverage } from '../../../client/usePagedResource';
+import { unknownCoverage } from '../../../shared/browser/resources/usePagedResource';
 import { InlineTaskCreate } from '../../tasks/client/InlineTaskCreate';
 import type { TaskMoveQueue } from '../../tasks/client/useTaskMoveQueue';
 import { projectTaskMoves } from '../../tasks/client/task-move-model';
-import type { InitialViewReadiness } from '../../../client/readiness';
+import type { InitialViewReadiness } from '../../../shared/browser/resources/readiness';
 
 type Actions = {
   open: () => Promise<void>;

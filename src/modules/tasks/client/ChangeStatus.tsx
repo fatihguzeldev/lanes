@@ -1,11 +1,11 @@
 import { useRef, useState } from 'react';
 import type { ConnectionSummary } from '../../accounts/contracts';
 import { OperationSummarySchema, OperationStepPageSchema } from '../operation-contract';
-import { request } from '../../../client/http';
+import { request } from '../../../shared/browser/http/http';
 import { newestChangeReceipt } from './change-status';
-import { useServerConnection } from '../../../client/useServerConnection';
+import { useServerConnection } from '../../../shared/browser/connectivity/useServerConnection';
 import { useCommands } from './useCommands';
-import { usePagedResource } from '../../../client/usePagedResource';
+import { usePagedResource } from '../../../shared/browser/resources/usePagedResource';
 
 import './ChangeStatus.css';
 

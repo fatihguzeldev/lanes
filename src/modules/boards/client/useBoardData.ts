@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { request, RequestError } from '../../../client/http';
-import { usePagedResource } from '../../../client/usePagedResource';
+import { request, RequestError } from '../../../shared/browser/http/http';
+import { usePagedResource } from '../../../shared/browser/resources/usePagedResource';
 import { BoardSchema, type Board } from '../contracts';
 import { BoardListPageSchema, BoardPageSchema } from '../query-contract';
 import { readStartBoard, saveStartBoard } from './view-preferences';

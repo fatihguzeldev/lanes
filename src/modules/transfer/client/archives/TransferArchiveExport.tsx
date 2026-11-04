@@ -5,7 +5,7 @@ import {
   type ArchiveExportSummary,
 } from '../../archive-export-contract';
 import { accountToday } from '../../../tasks/planning';
-import { request } from '../../../../client/http';
+import { request } from '../../../../shared/browser/http/http';
 import { downloadFile } from '../download-file';
 import { BoardChoice } from '../TransferSelection';
 import { escaped, transferBase, type TransferProps } from '../transfer-context';
@@ -13,7 +13,7 @@ import { TransferConnection, TransferError } from '../TransferFeedback';
 import { useBoardLists } from '../useBoardLists';
 import { useTransferAction } from '../useTransferAction';
 import { useTransferDirty } from '../useTransferDirty';
-import { Select } from '../../../../ui/Select';
+import { Select } from '../../../../shared/ui/select/Select';
 export function TransferArchiveExport(props: TransferProps & { retained?: ArchiveExportSummary }) {
   const [scope, setScope] = useState<'board' | 'account'>('board'),
     [snapshots, setSnapshots] = useState(true),

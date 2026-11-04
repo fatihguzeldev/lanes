@@ -1,5 +1,5 @@
 import type { ImportPreview } from '../../parse-contract';
-import { request } from '../../../../client/http';
+import { request } from '../../../../shared/browser/http/http';
 import { ImportSummarySchema, type ImportSummary } from '../response-contracts';
 import { boundedBatches } from '../import-input';
 import { escaped, transferBase } from '../transfer-context';

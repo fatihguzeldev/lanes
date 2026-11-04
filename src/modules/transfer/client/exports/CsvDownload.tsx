@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { type CsvExportRequest } from '../../export-contract';
 import { accountToday } from '../../../tasks/planning';
-import { request } from '../../../../client/http';
+import { request } from '../../../../shared/browser/http/http';
 import { downloadFile } from '../download-file';
 import { CsvPageSchema } from '../response-contracts';
 import { transferBase, type TransferProps } from '../transfer-context';

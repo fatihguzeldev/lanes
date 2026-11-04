@@ -5,7 +5,7 @@ import {
   type TaskFilter,
   type TaskList,
 } from '../../tasks/contracts';
-import { Select } from '../../../ui/Select';
+import { Select } from '../../../shared/ui/select/Select';
 import './TaskFiltersForm.css';
 
 interface Props {

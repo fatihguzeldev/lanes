@@ -3,17 +3,17 @@ import { LabelSchema, type TaskFilter } from '../../../tasks/contracts';
 import type { BoardList } from '../../../boards/contracts';
 import { CsvExportRequestSchema } from '../../export-contract';
 import { accountToday } from '../../../tasks/planning';
-import { request } from '../../../../client/http';
+import { request } from '../../../../shared/browser/http/http';
 import { transferPage } from '../response-contracts';
 import { accountBase, pageQuery, type TransferProps } from '../transfer-context';
 import { BoardChoice, ListSelection } from '../TransferSelection';
 import { TransferConnection, TransferPages } from '../TransferFeedback';
 import { useBoardLists } from '../useBoardLists';
-import { usePagedResource } from '../../../../client/usePagedResource';
+import { usePagedResource } from '../../../../shared/browser/resources/usePagedResource';
 import { TransferSheetsExport } from '../sheets/TransferSheetsExport';
-import { Dialog } from '../../../../ui/Dialog';
+import { Dialog } from '../../../../shared/ui/dialog/Dialog';
 import { describeSheetsScope, readSheetsExportDraft } from '../sheets/export-state';
-import { Select } from '../../../../ui/Select';
+import { Select } from '../../../../shared/ui/select/Select';
 import { CsvDownload } from './CsvDownload';
 export function TransferExport(props: TransferProps) {
   const returnedFromSheets =

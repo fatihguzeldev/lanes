@@ -1,5 +1,5 @@
-import { request } from '../../../client/http';
-import type { ConfirmationChoice } from '../../../client/Confirmation';
+import { request } from '../../../shared/browser/http/http';
+import type { ConfirmationChoice } from '../../operations/browser/submission/Confirmation';
 import { TaskSchema, type Task, type TaskList } from '../contracts';
 import { TaskConsequencesSchema, ListConsequencesSchema } from '../consequence-contract';
 import {

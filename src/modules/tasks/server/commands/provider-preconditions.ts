@@ -1,5 +1,5 @@
 import type { D1Database } from '@cloudflare/workers-types';
-import { AppError } from '../../../../contracts/errors';
+import { AppError } from '../../../../shared/contracts/errors';
 import type { CapturedStep } from './provider-command-state';
 import type { GoogleTaskDTO, GoogleTasksClient } from '../provider';
 import type { TaskQueries } from '../queries/tasks';

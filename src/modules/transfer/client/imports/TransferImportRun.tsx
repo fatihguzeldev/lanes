@@ -17,7 +17,7 @@ import {
 } from '../transfer-context';
 import { TransferConnection, TransferError } from '../TransferFeedback';
 import { useTransferAction } from '../useTransferAction';
-import { request } from '../../../../client/http';
+import { request } from '../../../../shared/browser/http/http';
 import {
   ImportOutputPageSchema,
   ImportRecordPageSchema,
@@ -25,7 +25,7 @@ import {
   ListCapacitySchema,
   type ImportSummary,
 } from '../response-contracts';
-import { Select } from '../../../../ui/Select';
+import { Select } from '../../../../shared/ui/select/Select';
 
 export function TransferImportRun({
   run: initial,

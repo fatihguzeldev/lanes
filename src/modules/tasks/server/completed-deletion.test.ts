@@ -7,7 +7,7 @@ import { TaskProjectionStore } from './projection';
 import { TaskCommandService } from './commands/provider-commands';
 import { TaskQueries } from './queries/tasks';
 import { CompletedTaskDeletionService } from './completed-deletion';
-import { AppError } from '../../../contracts/errors';
+import { AppError } from '../../../shared/contracts/errors';
 import { invocationDatabase } from '../../../../tests/d1-invocation';
 import type { D1Database } from '@cloudflare/workers-types';
 

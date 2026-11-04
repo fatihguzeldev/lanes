@@ -7,9 +7,9 @@ import {
   type SheetsExportRequest,
   type SheetsExportSummary,
 } from '../../export-contract';
-import { request } from '../../../../client/http';
-import { newOperationId } from '../../../../client/operation-identity';
-import { usePagedResource } from '../../../../client/usePagedResource';
+import { request } from '../../../../shared/browser/http/http';
+import { newOperationId } from '../../../operations/browser/submission/operation-identity';
+import { usePagedResource } from '../../../../shared/browser/resources/usePagedResource';
 import { transferPage } from '../response-contracts';
 import { escaped, pageQuery, transferBase, writable } from '../transfer-context';
 import { sheetsConsent } from './consent';

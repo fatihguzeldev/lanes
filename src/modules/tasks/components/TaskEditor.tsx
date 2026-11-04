@@ -7,9 +7,9 @@ import {
   type CSSProperties,
   type FormEvent,
 } from 'react';
-import type { Coverage } from '../../../contracts/http';
-import { Dialog } from '../../../ui/Dialog';
-import { Icon } from '../../../ui/Icon';
+import type { Coverage } from '../../../shared/contracts/http';
+import { Dialog } from '../../../shared/ui/dialog/Dialog';
+import { Icon } from '../../../shared/ui/icon/Icon';
 import type { CreateTask, Label, Task, TaskList, TaskPatch } from '../contracts';
 import {
   createEditorDraft,
@@ -22,8 +22,8 @@ import {
 import type { RecurrenceStatus } from '../recurrence-contract';
 import { TaskRecurrence } from './TaskRecurrence';
 import { TaskDependants, type TaskDependantsProps } from './TaskDependants';
-import { TimeZoneSelect } from '../../../ui/TimeZoneSelect';
-import { Select } from '../../../ui/Select';
+import { TimeZoneSelect } from '../../../shared/ui/time-zone/TimeZoneSelect';
+import { Select } from '../../../shared/ui/select/Select';
 import './TaskEditor.css';
 
 export interface TaskEditorSave {

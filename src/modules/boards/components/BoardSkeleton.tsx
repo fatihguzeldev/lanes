@@ -1,5 +1,5 @@
-import { Icon } from '../../../ui/Icon';
-import { Skeleton } from '../../../ui/Skeleton';
+import { Icon } from '../../../shared/ui/icon/Icon';
+import { Skeleton } from '../../../shared/ui/skeleton/Skeleton';
 import './BoardSurface.css';
 
 export function ColumnSkeleton() {

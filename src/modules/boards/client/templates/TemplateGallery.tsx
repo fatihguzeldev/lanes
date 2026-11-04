@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import type { ConnectionSummary } from '../../../accounts/contracts';
 import { TemplateCommandSchema } from '../../template-command-contract';
-import { Icon } from '../../../../ui/Icon';
-import { request } from '../../../../client/http';
+import { Icon } from '../../../../shared/ui/icon/Icon';
+import { request } from '../../../../shared/browser/http/http';
 import { type Mutate, type Kind, baseFor, errorMessage, localWritable } from './template-model';
 import { type Gallery, GallerySchema } from './template-client';
 

@@ -1,6 +1,6 @@
 import type { ConnectionSummary } from '../contracts';
-import { Popover } from '../../../ui/Popover';
-import { Icon } from '../../../ui/Icon';
+import { Popover } from '../../../shared/ui/popover/Popover';
+import { Icon } from '../../../shared/ui/icon/Icon';
 import './AccountMenu.css';
 
 interface Props {

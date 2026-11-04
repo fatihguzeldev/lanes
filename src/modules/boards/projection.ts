@@ -3,7 +3,7 @@ import type { TaskList } from '../tasks/contracts';
 import type { BoardService } from './server';
 import { z } from 'zod';
 import { ResourceIdSchema } from '../tasks/contracts';
-import { AppError } from '../../contracts/errors';
+import { AppError } from '../../shared/contracts/errors';
 import { BoardColorSchema } from './contracts';
 
 /** Only confirmed list identity/default changes enter through this seam. */

@@ -8,9 +8,9 @@ import {
   type DisconnectStatus,
   type RemovalStatus,
 } from '../lifecycle-contract';
-import { Dialog } from '../../../ui/Dialog';
-import { checkServerConnection, request } from '../../../client/http';
-import { useServerConnection } from '../../../client/useServerConnection';
+import { Dialog } from '../../../shared/ui/dialog/Dialog';
+import { checkServerConnection, request } from '../../../shared/browser/http/http';
+import { useServerConnection } from '../../../shared/browser/connectivity/useServerConnection';
 import './AccountLifecycleDialog.css';
 
 interface Props {

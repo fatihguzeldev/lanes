@@ -1,8 +1,8 @@
 import { useRef, useState } from 'react';
 import { z } from 'zod';
 import { type ArchiveDocument } from '../../archive-contract';
-import { request } from '../../../../client/http';
-import { newOperationId } from '../../../../client/operation-identity';
+import { request } from '../../../../shared/browser/http/http';
+import { newOperationId } from '../../../operations/browser/submission/operation-identity';
 import { boundedBatches } from '../import-input';
 import { parseTransferInWorker } from '../parsing/preview-parser';
 import { ArchiveSummarySchema } from '../response-contracts';
@@ -10,7 +10,7 @@ import { escaped, transferBase, writable, type TransferProps } from '../transfer
 import { TransferConnection, TransferError } from '../TransferFeedback';
 import { useTransferAction } from '../useTransferAction';
 import { useTransferDirty } from '../useTransferDirty';
-import { Select } from '../../../../ui/Select';
+import { Select } from '../../../../shared/ui/select/Select';
 import { ArchiveRestorePanel } from './ArchiveRestorePanel';
 export function ArchiveImport(
   props: TransferProps & { retained?: z.infer<typeof ArchiveSummarySchema> },

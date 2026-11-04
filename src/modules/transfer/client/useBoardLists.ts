@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { request } from '../../../client/http';
-import { usePagedResource } from '../../../client/usePagedResource';
+import { request } from '../../../shared/browser/http/http';
+import { usePagedResource } from '../../../shared/browser/resources/usePagedResource';
 import { BoardListPageSchema, BoardPageSchema } from '../../boards/query-contract';
 import { accountBase, pageQuery, escaped } from './transfer-context';
 export function useBoardLists(accountId: string, version = 0) {

@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { AppError } from '../../../contracts/errors';
-import type { ErrorCode } from '../../../contracts/http';
+import { AppError } from '../../../shared/contracts/errors';
+import type { ErrorCode } from '../../../shared/contracts/http';
 import { CalendarDateSchema } from '../planning-contract';
 
 const base = 'https://tasks.googleapis.com/tasks/v1';

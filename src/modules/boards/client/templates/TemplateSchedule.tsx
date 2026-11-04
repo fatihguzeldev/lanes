@@ -13,10 +13,10 @@ import {
   latestTemplateSlot,
   nextTemplateSlot,
 } from '../../../tasks/planning';
-import { Dialog } from '../../../../ui/Dialog';
-import { request } from '../../../../client/http';
-import { Select } from '../../../../ui/Select';
-import { TimeZoneSelect } from '../../../../ui/TimeZoneSelect';
+import { Dialog } from '../../../../shared/ui/dialog/Dialog';
+import { request } from '../../../../shared/browser/http/http';
+import { Select } from '../../../../shared/ui/select/Select';
+import { TimeZoneSelect } from '../../../../shared/ui/time-zone/TimeZoneSelect';
 import {
   type PersonalTemplate,
   type Mutate,

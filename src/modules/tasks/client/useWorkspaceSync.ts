@@ -5,7 +5,7 @@ import {
   type SyncAdvance,
   type SyncStatus,
 } from '../sync-contract';
-import { request } from '../../../client/http';
+import { request } from '../../../shared/browser/http/http';
 
 export function syncProgressNeedsRefresh(
   progress: Pick<SyncAdvance, 'phase' | 'errorCode'>,

@@ -1,6 +1,6 @@
 import type { D1Database } from '@cloudflare/workers-types';
 import { z } from 'zod';
-import { AppError } from '../../contracts/errors';
+import { AppError } from '../../shared/contracts/errors';
 import { decryptToken, encryptToken, randomToken, validateTokenKey } from './crypto';
 import {
   GOOGLE_TASKS_SCOPE,

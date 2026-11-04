@@ -1,8 +1,8 @@
 import type { D1Database, D1PreparedStatement, D1Result } from '@cloudflare/workers-types';
 import { z } from 'zod';
-import { AppError } from '../../contracts/errors';
+import { AppError } from '../../shared/contracts/errors';
 import { assertAccountLinkFresh, assertAccountNotRemoving } from './lifecycle';
-import type { Page } from '../../contracts/http';
+import type { Page } from '../../shared/contracts/http';
 import {
   AccountPreferencesSchema,
   ConnectionPageOptionsSchema,

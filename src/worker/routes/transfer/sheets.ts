@@ -2,7 +2,7 @@ import type { Services } from '../../services';
 import type { AccountRouteContext } from '../context';
 
 import { z } from 'zod';
-import { AppError } from '../../../contracts/errors';
+import { AppError } from '../../../shared/contracts/errors';
 import {
   GOOGLE_SHEETS_IMPORT_SCOPE,
   parseSheetRange,

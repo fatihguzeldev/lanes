@@ -13,12 +13,12 @@ import {
   TemplateTaskSchema,
   type SnapshotSummary,
 } from '../../../tasks/template-contract';
-import { Dialog } from '../../../../ui/Dialog';
-import { Icon } from '../../../../ui/Icon';
-import { request } from '../../../../client/http';
+import { Dialog } from '../../../../shared/ui/dialog/Dialog';
+import { Icon } from '../../../../shared/ui/icon/Icon';
+import { request } from '../../../../shared/browser/http/http';
 import { BoardListPageSchema } from '../../query-contract';
-import { usePagedResource } from '../../../../client/usePagedResource';
-import { Select } from '../../../../ui/Select';
+import { usePagedResource } from '../../../../shared/browser/resources/usePagedResource';
+import { Select } from '../../../../shared/ui/select/Select';
 import { PageState, ServerRecovery } from './TemplateFeedback';
 import { type SourcePreview, SourcePreviewSchema, page } from './template-client';
 import {

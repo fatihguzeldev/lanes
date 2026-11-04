@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { OperationSummary } from '../operation-contract';
-import { RequestError } from '../../../client/http';
+import { RequestError } from '../../../shared/browser/http/http';
 import { commandNeedsRefresh, commandRequestError } from './useCommands';
 
 const receipt = (patch: Partial<OperationSummary> = {}): OperationSummary => ({

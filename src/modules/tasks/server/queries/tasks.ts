@@ -1,7 +1,7 @@
 import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types';
 import { z } from 'zod';
-import { AppError } from '../../../../contracts/errors';
-import type { Coverage, Page } from '../../../../contracts/http';
+import { AppError } from '../../../../shared/contracts/errors';
+import type { Coverage, Page } from '../../../../shared/contracts/http';
 import {
   LabelInputSchema,
   LabelSchema,

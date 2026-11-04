@@ -1,5 +1,5 @@
 import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types';
-import { AppError } from '../../../../contracts/errors';
+import { AppError } from '../../../../shared/contracts/errors';
 import { assertProviderWritable } from '../../../accounts/access';
 import type {
   ResolutionCandidate,

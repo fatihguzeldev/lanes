@@ -28,13 +28,15 @@ const relative = (file) => path.relative(root, file).replaceAll(path.sep, '/');
 const owner = (file) => /^src\/modules\/([^/]+)\//.exec(relative(file))?.[1];
 const allowed = {
   accounts: [],
-  tasks: ['accounts', 'history'],
-  boards: ['accounts', 'tasks', 'history'],
+  operations: ['accounts'],
+  tasks: ['accounts', 'history', 'operations'],
+  boards: ['accounts', 'tasks', 'history', 'operations'],
   history: ['tasks'],
-  transfer: ['accounts', 'tasks', 'boards', 'history'],
+  transfer: ['accounts', 'tasks', 'boards', 'history', 'operations'],
 };
 // Explicit operations and query capabilities used by another owner. Their helpers stay private.
 const publicServerFiles = {
+  operations: ['server/journal/store.ts', 'server/queries/receipts.ts'],
   accounts: ['access.ts', 'lifecycle.ts', 'portability.ts'],
   tasks: [
     'server/queries/lists.ts',
@@ -63,7 +65,7 @@ const isServerFile = (file) => {
   );
 };
 const isBrowserFile = (file) =>
-  /^(?:src\/(?:web|client|ui)\/|src\/modules\/[^/]+\/(?:client|components)\/)/.test(
+  /^(?:src\/(?:app|web|client|ui)\/|src\/shared\/(?:browser|ui)\/|src\/modules\/[^/]+\/(?:browser|client|components)\/)/.test(
     relative(file),
   ) || file.endsWith('.tsx');
 const edges = new Map();
@@ -95,7 +97,7 @@ for (const file of files) {
     )
       target = node.arguments[0].text;
     if (target) {
-      const asset = target.startsWith('.') ? path.resolve(path.dirname(file), target) : undefined;
+      const asset = target.startsWith('./') ? path.resolve(path.dirname(file), target) : undefined;
       const resolved =
         ts.resolveModuleName(target, file, config.options, ts.sys).resolvedModule
           ?.resolvedFileName ?? (asset && ts.sys.fileExists(asset) ? asset : undefined);
@@ -128,25 +130,25 @@ for (const file of files) {
               `${relative(file)} must use an explicit public operation/query rather than ${relative(resolved)}`,
             );
         }
-        if (fromOwner && relative(resolved).startsWith('src/web/'))
+        if (fromOwner && /^src\/(app|web)\//.test(relative(resolved)))
           issues.push(
             `${relative(file)} cannot depend on the application shell ${relative(resolved)}`,
           );
         if (
-          relative(file).startsWith('src/client/') &&
-          (toOwner || relative(resolved).startsWith('src/web/'))
+          /^(src\/client\/|src\/shared\/browser\/)/.test(relative(file)) &&
+          (toOwner || /^src\/(app|web)\//.test(relative(resolved)))
         )
           issues.push(
             `${relative(file)} is browser infrastructure and cannot import ${relative(resolved)}`,
           );
         if (
-          relative(file).startsWith('src/ui/') &&
-          (toOwner || /^src\/(web|client|worker)\//.test(relative(resolved)))
+          /^(src\/ui\/|src\/shared\/ui\/)/.test(relative(file)) &&
+          (toOwner || /^src\/(app|web|client|worker|shared\/browser)\//.test(relative(resolved)))
         )
           issues.push(`${relative(file)} is shared ui and cannot import ${relative(resolved)}`);
         if (
-          relative(file).startsWith('src/contracts/') &&
-          /src\/(modules|web|client|worker|ui)\//.test(relative(resolved))
+          /^(src\/contracts\/|src\/shared\/contracts\/)/.test(relative(file)) &&
+          /src\/(modules|app|web|client|worker|ui|shared\/(browser|ui))\//.test(relative(resolved))
         )
           issues.push(`${relative(file)} must remain context independent`);
         if (

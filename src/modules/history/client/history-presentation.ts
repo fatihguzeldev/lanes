@@ -1,5 +1,5 @@
 import type { HistoryEvent } from '../contracts';
-import type { IconName } from '../../../ui/Icon';
+import type { IconName } from '../../../shared/ui/icon/Icon';
 import { addCalendarDays } from '../../tasks/planning';
 
 export function describeHistoryEvent(event: HistoryEvent): {

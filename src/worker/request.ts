@@ -1,4 +1,4 @@
-import { AppError } from '../contracts/errors';
+import { AppError } from '../shared/contracts/errors';
 import { parseConfiguration, type Env } from './env';
 import { createServices } from './services';
 import { errorResponse, jsonResponse, pageOptions, requireSameOrigin } from './http';

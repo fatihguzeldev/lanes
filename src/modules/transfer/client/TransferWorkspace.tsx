@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Dialog } from '../../../ui/Dialog';
+import { Dialog } from '../../../shared/ui/dialog/Dialog';
 import { TransferImport } from './imports/TransferImport';
 import { TransferExport } from './exports/TransferExport';
 import { TransferAccounts } from './TransferAccounts';

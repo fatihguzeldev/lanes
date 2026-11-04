@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { RecurrenceAdvanceSchema } from '../recurrence-contract';
 import { SyncAdvanceSchema } from '../sync-contract';
-import { request } from '../../../client/http';
+import { request } from '../../../shared/browser/http/http';
 
 /** Follows already admitted recurrence work while this account is on screen. Cron can continue it later. */
 export function useRecurrenceWork(accountId: string, enabled: boolean, onChanged: () => void) {

@@ -1,6 +1,6 @@
 import type { Task } from '../contracts';
-import { Icon } from '../../../ui/Icon';
-import { AnchoredPopover } from '../../../ui/Popover';
+import { Icon } from '../../../shared/ui/icon/Icon';
+import { AnchoredPopover } from '../../../shared/ui/popover/Popover';
 
 interface Props {
   task: Task;

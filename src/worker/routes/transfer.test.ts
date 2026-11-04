@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { AppError } from '../../contracts/errors';
+import { AppError } from '../../shared/contracts/errors';
 import type { ConnectionSummary } from '../../modules/accounts/contracts';
 import { GOOGLE_SHEETS_IMPORT_SCOPE } from '../../modules/transfer/server/sheets';
 import type { Services } from '../services';

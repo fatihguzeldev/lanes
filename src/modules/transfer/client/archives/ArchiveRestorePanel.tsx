@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { z } from 'zod';
 import { ArchiveChoiceChunkSchema, type ArchiveField } from '../../archive-contract';
-import { request } from '../../../../client/http';
-import { newOperationId } from '../../../../client/operation-identity';
+import { request } from '../../../../shared/browser/http/http';
+import { newOperationId } from '../../../operations/browser/submission/operation-identity';
 import {
   ArchivePreviewSchema,
   ArchiveRecordPageSchema,

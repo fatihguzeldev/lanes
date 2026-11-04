@@ -1,7 +1,7 @@
 import type { ConnectionSummary } from '../../../accounts/contracts';
 import type { ImportTable } from '../../parse-contract';
 import { MAX_IMPORT_EXPANDED_BYTES } from '../../parse-contract';
-import { request } from '../../../../client/http';
+import { request } from '../../../../shared/browser/http/http';
 import { ImportTableSchema } from '../response-contracts';
 import { sheetRangePages } from '../import-input';
 import { transferBase } from '../transfer-context';

@@ -1076,7 +1076,7 @@ it('deletes one provider subtree and retires blocking edges while preserving rec
 
 it('keeps a create uncertain when a received Google result could not be recorded as a receipt', async () => {
   const f = await fixture();
-  const { AppError } = await import('../../../../contracts/errors');
+  const { AppError } = await import('../../../../shared/contracts/errors');
   let fail = true;
   const operations = new Proxy(f.operations, {
     get(target, key, receiver) {

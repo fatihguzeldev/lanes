@@ -2,12 +2,12 @@ import { useState } from 'react';
 import type { ConnectionSummary } from '../../accounts/contracts';
 import { BoardPatchSchema, type Board } from '../contracts';
 import type { BoardViewPreferences } from './view-preferences';
-import { Icon } from '../../../ui/Icon';
-import { AnchoredPopover } from '../../../ui/Popover';
-import { Select } from '../../../ui/Select';
-import { newOperationId } from '../../../client/operation-identity';
+import { Icon } from '../../../shared/ui/icon/Icon';
+import { AnchoredPopover } from '../../../shared/ui/popover/Popover';
+import { Select } from '../../../shared/ui/select/Select';
+import { newOperationId } from '../../operations/browser/submission/operation-identity';
 import { useCommands } from '../../tasks/client/useCommands';
-import { useServerConnection } from '../../../client/useServerConnection';
+import { useServerConnection } from '../../../shared/browser/connectivity/useServerConnection';
 import './BoardOptions.css';
 
 interface Props {

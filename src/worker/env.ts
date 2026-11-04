@@ -1,6 +1,6 @@
 import type { D1Database } from '@cloudflare/workers-types';
 import { z } from 'zod';
-import { AppError } from '../contracts/errors';
+import { AppError } from '../shared/contracts/errors';
 import { validateTokenKey } from '../modules/accounts/crypto';
 import type { TokenKey } from '../modules/accounts/crypto';
 import type { GoogleOAuthConfig } from '../modules/accounts/google';
