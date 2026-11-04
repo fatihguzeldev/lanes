@@ -14,7 +14,7 @@ import {
 } from '../../contracts/completed-deletion';
 import type { TaskCommandService } from '../commands/service';
 import type { OperationStore } from '../../../operations/server/journal/store';
-import type { OperationRecord } from '../../../operations/server/journal/records';
+import { type OperationRecord } from '../../../operations/server/journal/context';
 
 interface Options {
   commands: TaskCommandService;

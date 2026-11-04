@@ -39,7 +39,8 @@ const publicServerFiles = {
   operations: [
     'server/journal/store.ts',
     'server/queries/receipts.ts',
-    'server/journal/records.ts',
+    'server/journal/context.ts',
+    'server/lifecycle/account-removal.ts',
     'server/journal/resources.ts',
   ],
   accounts: [
@@ -49,7 +50,7 @@ const publicServerFiles = {
     'server/lifecycle/removal.ts',
     'server/lifecycle/link-fence.ts',
     'server/lifecycle/write-guards.ts',
-    'server/lifecycle/coordinator.ts',
+    'server/lifecycle/context.ts',
     'portability.ts',
     'server/connections/portability.ts',
   ],

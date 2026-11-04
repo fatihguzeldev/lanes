@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { createOperationStore } from '../../../../../../tests/support/operation-store';
 import { seedAccount, testDatabase } from '../../../../../../tests/support/sqlite-d1';
 import { TasksLifecycle } from '../../../../tasks/server/lifecycle/account';
-import type { StopRecordedIntent } from '../records';
+import type { StopRecordedIntent } from '../context';
 
 const now = 1_793_641_000_000;
 const operationId = `${now}:${'s'.repeat(32)}`;

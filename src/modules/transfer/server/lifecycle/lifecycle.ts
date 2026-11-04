@@ -5,7 +5,7 @@ import {
   disconnectWorkGuard,
 } from '../../../accounts/server/connections/access';
 import { accountRemovalGuard } from '../../../accounts/server/lifecycle/write-guards';
-import { type LifecycleOwner } from '../../../accounts/server/lifecycle/coordinator';
+import { type LifecycleOwner } from '../../../accounts/server/lifecycle/context';
 import type { OperationStore } from '../../../operations/server/journal/store';
 import type { TaskSnapshotReader } from '../../../tasks/server/queries/snapshot-reader';
 import type { TemplateDocumentStore } from '../../../tasks/server/templates/documents';

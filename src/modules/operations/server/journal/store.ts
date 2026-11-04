@@ -1,3 +1,4 @@
+import { OperationAccountRemoval } from '../lifecycle/account-removal';
 import type {
   OperationResources,
   OperationListReservations,
@@ -5,6 +6,7 @@ import type {
 } from './resources';
 import { OperationQueries } from '../queries/receipts';
 import { record, stepRecord } from './records';
+import type { Row, StepRow } from './records';
 import type {
   OperationState,
   OperationRecord,
@@ -15,10 +17,8 @@ import type {
   ResolveUnknownResponse,
   StopRecordedIntent,
   StoppedIntent,
-  Row,
-  StepRow,
   StepRejection,
-} from './records';
+} from './context';
 import { failureMessage } from './failures';
 import type { D1Database, D1PreparedStatement, D1Result } from '@cloudflare/workers-types';
 import { AppError } from '../../../../shared/contracts/errors';
@@ -86,6 +86,7 @@ function checkFreshIdentity(id: string, now: number): void {
 
 /** Durable execution receipts. No method here sends a provider request. */
 export class OperationStore {
+  readonly removal: OperationAccountRemoval;
   readonly queries: OperationQueries;
   readonly lists: OperationListReservations;
   private readonly captures: OperationCaptureRetention;
@@ -93,9 +94,17 @@ export class OperationStore {
     private readonly db: D1Database,
     resources: OperationResources,
   ) {
+    this.removal = new OperationAccountRemoval(db);
     this.queries = new OperationQueries(db);
     this.lists = resources.lists;
     this.captures = resources.captures;
+  }
+
+  async touch(operationId: string, accountId: string, now = Date.now()): Promise<void> {
+    await this.db
+      .prepare('UPDATE tasks_operations SET updated_at=? WHERE id=? AND account_id=?')
+      .bind(now, operationId, accountId)
+      .run();
   }
 
   async hasUnresolvedProviderWork(accountId: string): Promise<boolean> {

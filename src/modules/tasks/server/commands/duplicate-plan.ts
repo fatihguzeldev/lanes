@@ -4,7 +4,7 @@ import { assertProviderWritable } from '../../../accounts/server/connections/acc
 import type { ProviderCommand, PrepareProviderCommand } from '../../contracts/provider-commands';
 import { CapturedCopyPlanner } from './copy-plan';
 import type { CopyEntry } from './copy-contract';
-import type { OperationRecord } from '../../../operations/server/journal/records';
+import { type OperationRecord } from '../../../operations/server/journal/context';
 import type { ListRef } from './state';
 import { TaskQueries } from '../queries/tasks';
 

@@ -11,7 +11,7 @@ import {
 import { ResourceIdSchema } from '../../../../shared/contracts/identity';
 import { OperationIdSchema } from '../../../operations/contracts/receipt';
 import type { OperationStore } from '../../../operations/server/journal/store';
-import type { ClaimedStep } from '../../../operations/server/journal/records';
+import { type ClaimedStep } from '../../../operations/server/journal/context';
 import {
   FreshSheetsAttemptSchema,
   SheetsExportRequestSchema,

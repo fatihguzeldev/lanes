@@ -1,7 +1,8 @@
+import type { OperationRemovalTarget } from '../../../operations/server/lifecycle/account-removal';
 import type { D1Database } from '@cloudflare/workers-types';
 import { AppError } from '../../../../shared/contracts/errors';
 import { accountRemovalGuard } from '../../../accounts/server/lifecycle/write-guards';
-import { type LifecycleOwner } from '../../../accounts/server/lifecycle/coordinator';
+import { type LifecycleOwner } from '../../../accounts/server/lifecycle/context';
 import {
   assertDisconnecting,
   disconnectWorkGuard,
@@ -10,7 +11,7 @@ import type { OperationStore } from '../../../operations/server/journal/store';
 import type { TaskCommandService } from '../commands/service';
 import type { CompletedTaskDeletionService } from '../completed-deletion/service';
 export interface TasksLifecycleOptions {
-  operations: Pick<OperationStore, 'drainDisconnect' | 'hasUnresolvedProviderWork'> & {
+  operations: Pick<OperationStore, 'drainDisconnect' | 'hasUnresolvedProviderWork' | 'removal'> & {
     deferDisconnectRepair?(operationId: string, accountId: string): Promise<void>;
   };
   commands: Pick<TaskCommandService, 'advance'>;
@@ -21,8 +22,14 @@ const never = Number.MAX_SAFE_INTEGER;
 interface CleanupTable {
   table: string;
   where: string;
+  operation?: OperationRemovalTarget;
 }
 const direct = (table: string): CleanupTable => ({ table, where: 'target.account_id=?' });
+const journal = (operation: OperationRemovalTarget): CleanupTable => ({
+  table: 'journal',
+  where: '',
+  operation,
+});
 const commandChild = (table: string): CleanupTable => ({
   table,
   where: 'target.operation_id IN(SELECT operation_id FROM tasks_command_plans WHERE account_id=?)',
@@ -65,15 +72,12 @@ const cleanup: readonly CleanupTable[] = [
   commandChild('tasks_command_steps'),
   commandChild('tasks_command_resources'),
   direct('tasks_command_locks'),
-  direct('tasks_operation_stops'),
-  direct('tasks_operation_resolutions'),
-  {
-    table: 'tasks_operation_steps',
-    where: 'target.operation_id IN(SELECT id FROM tasks_operations WHERE account_id=?)',
-  },
+  journal('stops'),
+  journal('resolutions'),
+  journal('steps'),
   direct('tasks_list_reservations'),
   direct('tasks_command_plans'),
-  direct('tasks_operations'),
+  journal('receipts'),
   direct('tasks_sync_checks'),
   direct('tasks_sync_list_work'),
   direct('tasks_sync_jobs'),
@@ -212,9 +216,11 @@ export class TasksLifecycle implements LifecycleOwner {
     if (deletion && (deletion.deleted || !deletion.done)) return deletion;
     const selectionSql = cleanup
       .map((entry, position) =>
-        entry.table === 'hierarchy'
-          ? `SELECT ${position} AS position WHERE EXISTS(SELECT 1 FROM tasks_tasks WHERE account_id=? AND (parent_id IS NOT NULL OR repeat_rule_json IS NOT NULL OR series_id IS NOT NULL OR occurrence_id IS NOT NULL) LIMIT 1)`
-          : `SELECT ${position} AS position WHERE EXISTS(SELECT 1 FROM ${entry.table} target WHERE ${entry.where} LIMIT 1)`,
+        entry.operation
+          ? this.options.operations.removal.selection(entry.operation, position)
+          : entry.table === 'hierarchy'
+            ? `SELECT ${position} AS position WHERE EXISTS(SELECT 1 FROM tasks_tasks WHERE account_id=? AND (parent_id IS NOT NULL OR repeat_rule_json IS NOT NULL OR series_id IS NOT NULL OR occurrence_id IS NOT NULL) LIMIT 1)`
+            : `SELECT ${position} AS position WHERE EXISTS(SELECT 1 FROM ${entry.table} target WHERE ${entry.where} LIMIT 1)`,
       )
       .join(' UNION ALL ');
     const selected = await this.db
@@ -223,6 +229,8 @@ export class TasksLifecycle implements LifecycleOwner {
       .first<{ position: number }>();
     if (!selected) return { done: true, deleted: 0 };
     const entry = cleanup[selected.position]!;
+    if (entry.operation)
+      return this.options.operations.removal.remove(entry.operation, accountId, limit);
     if (entry.table === 'hierarchy') {
       await this.db.batch([
         accountRemovalGuard(this.db, accountId),

@@ -1,11 +1,24 @@
 import type { D1Database } from '@cloudflare/workers-types';
 import { AppError } from '../../../../shared/contracts/errors';
+import type { ConnectionState } from '../../contracts/connection';
 
-export async function assertLocalWritable(db: D1Database, accountId: string): Promise<void> {
-  const account = await db
+/** Internal state read for owner scheduling; no credential or session fields are exposed. */
+export async function readConnectionState(
+  db: D1Database,
+  accountId: string,
+): Promise<{ state: ConnectionState } | null> {
+  return db
     .prepare('SELECT state FROM accounts_connections WHERE id=?')
     .bind(accountId)
-    .first<{ state: string }>();
+    .first<{ state: ConnectionState }>();
+}
+
+/** Trusted server-owned selection for bounded local work while grants are expired. */
+export const localWritableAccountsSql = `SELECT id FROM accounts_connections
+  WHERE state NOT IN('disconnecting','disconnected') AND disconnect_requested_at IS NULL`;
+
+export async function assertLocalWritable(db: D1Database, accountId: string): Promise<void> {
+  const account = await readConnectionState(db, accountId);
   if (!account)
     throw new AppError('not_found', 'this connected account is no longer available.', 404);
   if (account.state === 'disconnected')
@@ -24,10 +37,7 @@ export async function assertLocalWritable(db: D1Database, accountId: string): Pr
 
 export async function assertProviderWritable(db: D1Database, accountId: string): Promise<void> {
   await assertLocalWritable(db, accountId);
-  const account = await db
-    .prepare('SELECT state FROM accounts_connections WHERE id=?')
-    .bind(accountId)
-    .first<{ state: string }>();
+  const account = await readConnectionState(db, accountId);
   if (account?.state === 'reconnect_required')
     throw new AppError(
       'reconnect_required',
@@ -66,10 +76,7 @@ export function localWriteGuard(db: D1Database, accountId: string) {
 }
 
 export async function assertDisconnecting(db: D1Database, accountId: string): Promise<void> {
-  const account = await db
-    .prepare('SELECT state FROM accounts_connections WHERE id=?')
-    .bind(accountId)
-    .first<{ state: string }>();
+  const account = await readConnectionState(db, accountId);
   if (!account)
     throw new AppError('not_found', 'this connected account is no longer available.', 404);
   if (!['disconnecting', 'disconnected'].includes(account.state))

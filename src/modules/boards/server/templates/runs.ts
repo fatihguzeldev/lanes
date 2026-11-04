@@ -10,7 +10,7 @@ import {
 import { ResourceIdSchema } from '../../../../shared/contracts/identity';
 import { OperationIdSchema } from '../../../operations/contracts/receipt';
 import type { OperationStore } from '../../../operations/server/journal/store';
-import type { OperationRecord } from '../../../operations/server/journal/records';
+import { type OperationRecord } from '../../../operations/server/journal/context';
 import type { TaskCommandService } from '../../../tasks/server/commands/service';
 import type { BeginCapturedCopy } from '../../../tasks/server/commands/copy-contract';
 import {

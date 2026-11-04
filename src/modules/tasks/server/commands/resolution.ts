@@ -18,7 +18,10 @@ import {
   type GoogleTasksClient,
 } from '../provider/google-tasks';
 import type { OperationStore } from '../../../operations/server/journal/store';
-import type { OperationStep, ResolutionEvidence } from '../../../operations/server/journal/records';
+import {
+  type OperationStep,
+  type ResolutionEvidence,
+} from '../../../operations/server/journal/context';
 import type { TaskProjectionStore } from '../projection/store';
 import { normalizeTaskSearchText } from '../../model/task';
 interface Dependencies {

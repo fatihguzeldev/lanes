@@ -18,7 +18,7 @@ import {
 export type { RecurrenceAdvance } from '../../contracts/recurrence';
 import { copyTaskId, type TaskCommandService, type CopyEntry } from '../commands/service';
 import type { OperationStore } from '../../../operations/server/journal/store';
-import type { OperationRecord } from '../../../operations/server/journal/records';
+import { type OperationRecord } from '../../../operations/server/journal/context';
 import type { TaskRecurrenceSnapshot } from '../projection/store';
 export interface RecurrenceOptions {
   commands: TaskCommandService;

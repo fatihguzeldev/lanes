@@ -6,7 +6,8 @@ import type {
   OperationStepSummary,
   OperationSummary,
 } from '../../contracts/receipt';
-import type { OperationState, Row } from '../journal/records';
+import type { Row } from '../journal/records';
+import type { OperationState } from '../journal/context';
 import { failureMessage } from '../journal/failures';
 
 /** Public receipt projections exclude captured input and raw provider responses. */

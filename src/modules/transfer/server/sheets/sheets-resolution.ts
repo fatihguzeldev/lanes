@@ -1,7 +1,7 @@
 import type { D1Database } from '@cloudflare/workers-types';
 import { z } from 'zod';
 import { AppError } from '../../../../shared/contracts/errors';
-import type { OperationStep } from '../../../operations/server/journal/records';
+import { type OperationStep } from '../../../operations/server/journal/context';
 import type { ImportCell } from '../../contracts/parsing';
 import {
   AdoptSheetsVerificationSchema,

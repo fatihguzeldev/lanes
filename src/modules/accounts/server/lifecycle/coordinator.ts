@@ -1,6 +1,6 @@
 import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types';
 import { AppError } from '../../../../shared/contracts/errors';
-import type { ProviderAccess } from '../credentials/provider-access';
+import type { AccountLifecycleOptions } from './context';
 import {
   RemoveAccountSchema,
   type AccountLifecycleStatus,
@@ -10,20 +10,6 @@ import {
 } from '../../contracts/lifecycle';
 import { subjectHash } from './link-fence';
 import { assertAccountNotRemoving, accountRemovalGuard } from './write-guards';
-
-export interface LifecycleOwner {
-  name: string;
-  pause(accountId: string): Promise<{ done: boolean; pending: boolean }>;
-  remove(accountId: string, limit: number): Promise<{ done: boolean; deleted: number }>;
-  hasUnresolved(accountId: string): Promise<boolean>;
-}
-
-export interface AccountLifecycleOptions {
-  access: Pick<ProviderAccess, 'requestDisconnect' | 'finalizeDisconnect'>;
-  owners: readonly LifecycleOwner[];
-  now?: () => number;
-  id?: () => string;
-}
 
 export class AccountLifecycle {
   private readonly now: () => number;
