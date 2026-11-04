@@ -74,9 +74,10 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       }
       throw error;
     }
-    const services = createServices(env, config);
-    const { accounts, boards, queries, history, operations, sync } = services;
     const route = parts(url.pathname);
+    const syncRead = route[0] === 'api' && route[1] === 'accounts' && route[3] === 'sync';
+    const services = createServices(env, config, syncRead ? 10 : 4);
+    const { accounts, boards, queries, history, operations, sync } = services;
     if (request.method !== 'GET' && request.method !== 'HEAD') {
       requireSameOrigin(request, config.origin);
       if (request.headers.get('x-lanes-api') !== '1')
@@ -560,7 +561,7 @@ export default {
     } catch {
       return;
     }
-    const services = createServices(env, config);
+    const services = createServices(env, config, 10);
     const row = await env.DB.prepare(
       'UPDATE worker_scheduler SET turn=turn+1 WHERE singleton=1 RETURNING turn',
     ).first<{ turn: number }>();

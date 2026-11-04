@@ -49,7 +49,7 @@ describe('durable bounded provider reconciliation', () => {
       },
       listTasks: async (id, input = {}) => {
         calls.push('tasks:' + id);
-        expect(input.maxResults).toBe(5);
+        expect(input.maxResults).toBe(4);
         return taskPage(id, input);
       },
       getTask: async (listId, id) => {
@@ -96,7 +96,7 @@ describe('durable bounded provider reconciliation', () => {
     )?.id as string;
   }
 
-  it('resolves default identity explicitly and reads at most one provider resource per slice', async () => {
+  it('resolves default identity explicitly and reads at most one provider resource per ordinary slice', async () => {
     lists = [{ items: [{ id: 'first', title: 'inbox' }, defaultList], nextPageToken: null }];
     await sync.requestRefresh('a', { reason: 'entry' });
     for (let i = 0; i < 10; i++) {
@@ -516,6 +516,479 @@ describe('durable bounded provider reconciliation', () => {
       starred: true,
       provider: { id: 'new-provider-id', listId: 'destination' },
     });
+  });
+  it('keeps the lanes identity and metadata when a missing Google task appears in another list with the same provider id', async () => {
+    const destinationList = { id: 'destination', title: 'destination', etag: 'destination-v1' };
+    const providerTask = {
+      id: 'stable-id',
+      title: 'move this task',
+      notes: 'keep these notes',
+      due: '2026-11-03T00:00:00Z',
+      etag: 'before-move',
+    };
+    const companions = [
+      { id: 'blocker', title: 'a blocker', etag: 'blocker-v1' },
+      { id: 'dependent', title: 'a dependent', etag: 'dependent-v1' },
+    ];
+    lists = [{ items: [defaultList, destinationList], nextPageToken: null }];
+    taskPage = async (providerListId) => ({
+      items: providerListId === defaultList.id ? [providerTask, ...companions] : [],
+      nextPageToken: null,
+    });
+    await refresh();
+    const id = await taskId(providerTask.id);
+    const blockerId = await taskId('blocker');
+    const dependentId = await taskId('dependent');
+    const sourceId = await listId();
+    const destinationId = (
+      await one(
+        'SELECT id FROM tasks_lists WHERE account_id=? AND provider_id=?',
+        'a',
+        destinationList.id,
+      )
+    )?.id as string;
+    const rule = {
+      frequency: 'weekly',
+      interval: 1,
+      anchorDay: '2026-11-03',
+      zone: 'Europe/Istanbul',
+      weekStart: 1,
+      weekdays: [2],
+      end: { type: 'never' },
+    };
+    await db.batch([
+      db.prepare(
+        "INSERT INTO tasks_labels(id,account_id,name,name_key,color) VALUES ('label','a','keep','keep','#123456')",
+      ),
+      db
+        .prepare('INSERT INTO tasks_task_labels(account_id,task_id,label_id) VALUES (?,?,?)')
+        .bind('a', id, 'label'),
+      db
+        .prepare('INSERT INTO tasks_dependencies(account_id,task_id,blocker_id) VALUES (?,?,?)')
+        .bind('a', id, blockerId),
+      db
+        .prepare('INSERT INTO tasks_dependencies(account_id,task_id,blocker_id) VALUES (?,?,?)')
+        .bind('a', dependentId, id),
+      db
+        .prepare(
+          "UPDATE tasks_tasks SET priority='high',starred=1,scheduled_time='09:30',time_zone='Europe/Istanbul',repeat_rule_json=? WHERE id=?",
+        )
+        .bind(JSON.stringify(rule), id),
+      new HistoryService(db, { now: () => clock }).eventWrite({
+        id: 'before-move-history',
+        accountId: 'a',
+        taskId: id,
+        listId: sourceId,
+        kind: 'star_changed',
+        origin: 'observed',
+        dedupKey: 'before-move-star',
+        recordedAt: new Date(clock).toISOString(),
+        taskTitle: providerTask.title,
+        listTitle: defaultList.title,
+        summary: { before: false, after: true, providerVersion: 'before-move-star' },
+      }),
+    ]);
+    const moved = { ...providerTask, etag: 'after-move' };
+    getTask = async (providerListId, providerId) => {
+      if (providerId === providerTask.id && providerListId === defaultList.id)
+        throw new GoogleTasksError('not_found', { status: 404 });
+      if (providerId === providerTask.id && providerListId === destinationList.id) return moved;
+      return companions.find((task) => task.id === providerId)!;
+    };
+    await sync.requestTaskCheck('a', id);
+    await drain();
+    expect(
+      (await one('SELECT provider_missing_at FROM tasks_tasks WHERE id=?', id))
+        ?.provider_missing_at,
+    ).not.toBeNull();
+    clock += 61_000;
+    lists = [{ items: [defaultList, destinationList], nextPageToken: null }];
+    taskPage = async (providerListId) => ({
+      items: providerListId === destinationList.id ? [moved] : companions,
+      nextPageToken: null,
+    });
+    await refresh();
+    const addresses = await db
+      .prepare(
+        'SELECT id,list_id FROM tasks_tasks WHERE account_id=? AND provider_id=? AND deleted_at IS NULL',
+      )
+      .bind('a', providerTask.id)
+      .all();
+    expect(addresses.results).toEqual([{ id, list_id: destinationId }]);
+    const queries = new TaskQueries(db);
+    expect(await queries.getTask('a', id)).toMatchObject({
+      id,
+      listId: destinationId,
+      title: providerTask.title,
+      notes: providerTask.notes,
+      labelIds: ['label'],
+      priority: 'high',
+      starred: true,
+      blockedBy: [blockerId],
+      scheduledDay: '2026-11-03',
+      scheduledTime: '09:30',
+      timeZone: 'Europe/Istanbul',
+      repeatRule: rule,
+      provider: { id: providerTask.id, listId: destinationList.id },
+      capabilities: { canEdit: true, canMove: true },
+    });
+    expect((await queries.getTask('a', dependentId)).blockedBy).toEqual([id]);
+    expect(
+      await one('SELECT task_id,list_id FROM history_events WHERE id=?', 'before-move-history'),
+    ).toEqual({ task_id: id, list_id: sourceId });
+    for (const list of [sourceId, destinationId]) {
+      const page = await queries.listTasks(
+        'a',
+        { listIds: [list] },
+        { today: '2026-11-02', now: clock },
+      );
+      expect(page.providerCoverage.complete).toBe(true);
+    }
+    clock += 61_000;
+    lists = [{ items: [defaultList, destinationList], nextPageToken: null }];
+    await refresh();
+    expect(
+      (
+        await one(
+          'SELECT COUNT(*) AS n FROM tasks_tasks WHERE account_id=? AND provider_id=?',
+          'a',
+          providerTask.id,
+        )
+      )?.n,
+    ).toBe(1);
+    expect((await queries.getTask('a', id)).listId).toBe(destinationId);
+    expect(
+      (
+        await one(
+          "SELECT COUNT(*) AS n FROM history_events WHERE task_id=? AND kind='task_created'",
+          id,
+        )
+      )?.n,
+    ).toBe(0);
+    taskPage = async (providerListId) => ({
+      items: providerListId === destinationList.id ? [moved] : [providerTask, ...companions],
+      nextPageToken: null,
+    });
+    clock += 61_000;
+    lists = [{ items: [defaultList, destinationList], nextPageToken: null }];
+    await refresh();
+    expect((await queries.getTask('a', id)).listId).toBe(destinationId);
+    expect(
+      (
+        await one(
+          'SELECT COUNT(*) AS n FROM tasks_tasks WHERE account_id=? AND provider_id=?',
+          'a',
+          providerTask.id,
+        )
+      )?.n,
+    ).toBe(1);
+  });
+  it('preserves parent and child identities when an external move arrives on separate destination pages', async () => {
+    const destinationList = { id: 'destination', title: 'destination' };
+    const parent = { id: 'parent-id', title: 'parent', etag: 'parent-v1' };
+    const child = { id: 'child-id', parent: parent.id, title: 'child', etag: 'child-v1' };
+    lists = [{ items: [defaultList, destinationList], nextPageToken: null }];
+    taskPage = async (providerListId) => ({
+      items: providerListId === defaultList.id ? [parent, child] : [],
+      nextPageToken: null,
+    });
+    await refresh();
+    const parentId = await taskId(parent.id);
+    const childId = await taskId(child.id);
+    const sourceId = await listId();
+    const destinationId = (
+      await one(
+        'SELECT id FROM tasks_lists WHERE account_id=? AND provider_id=?',
+        'a',
+        destinationList.id,
+      )
+    )?.id as string;
+    await db
+      .prepare("UPDATE tasks_tasks SET priority='high',starred=1 WHERE id=?")
+      .bind(childId)
+      .run();
+    const movedParent = { ...parent, etag: 'parent-v2' };
+    const movedChild = { ...child, etag: 'child-v2' };
+    getTask = async (providerListId, providerId) => {
+      if (providerListId === defaultList.id)
+        throw new GoogleTasksError('not_found', { status: 404 });
+      return providerId === parent.id ? movedParent : movedChild;
+    };
+    taskPage = async (providerListId, input) =>
+      providerListId === defaultList.id
+        ? { items: [], nextPageToken: null }
+        : input.pageToken
+          ? { items: [movedChild], nextPageToken: null }
+          : { items: [movedParent], nextPageToken: 'child-page' };
+    clock += 61_000;
+    lists = [{ items: [defaultList, destinationList], nextPageToken: null }];
+    await sync.requestRefresh('a', { reason: 'entry', visibleListIds: [destinationId] });
+    await sync.advance('a');
+    await sync.advance('a');
+    await sync.advance('a');
+    const queries = new TaskQueries(db);
+    expect((await queries.getTask('a', parentId)).listId).toBe(destinationId);
+    expect(
+      await one(
+        'SELECT list_id,parent_id,provider_parent_id,deleted_at FROM tasks_tasks WHERE id=?',
+        childId,
+      ),
+    ).toEqual({
+      list_id: sourceId,
+      parent_id: null,
+      provider_parent_id: parent.id,
+      deleted_at: null,
+    });
+    expect(await queries.getTask('a', childId)).toMatchObject({
+      priority: 'high',
+      starred: true,
+      unsupportedHierarchy: true,
+      capabilities: { canEdit: false },
+    });
+    await sync.advance('a');
+    await drain();
+    expect(await queries.getTask('a', childId)).toMatchObject({
+      id: childId,
+      listId: destinationId,
+      parentId,
+      priority: 'high',
+      starred: true,
+      unsupportedHierarchy: false,
+      capabilities: { canEdit: true, canMove: true },
+      provider: { id: child.id, listId: destinationList.id },
+    });
+    expect(
+      (
+        await one(
+          'SELECT COUNT(*) AS n FROM tasks_tasks WHERE account_id=? AND provider_id IN (?,?)',
+          'a',
+          parent.id,
+          child.id,
+        )
+      )?.n,
+    ).toBe(2);
+    for (const list of [sourceId, destinationId]) {
+      const page = await queries.listTasks(
+        'a',
+        { listIds: [list] },
+        { today: '2026-11-02', now: clock },
+      );
+      expect(page.providerCoverage.complete).toBe(true);
+    }
+  });
+  it.each(['task revision', 'captured command'] as const)(
+    'does not adopt a cross-list identity after its source changes during verification: %s',
+    async (change) => {
+      const destinationList = { id: 'destination', title: 'destination' };
+      const task = { id: 'stable-id', title: 'task', etag: 'v1' };
+      lists = [{ items: [defaultList, destinationList], nextPageToken: null }];
+      taskPage = async (providerListId) => ({
+        items: providerListId === defaultList.id ? [task] : [],
+        nextPageToken: null,
+      });
+      await refresh();
+      const id = await taskId(task.id);
+      const sourceId = await listId();
+      const destinationId = (
+        await one(
+          'SELECT id FROM tasks_lists WHERE account_id=? AND provider_id=?',
+          'a',
+          destinationList.id,
+        )
+      )?.id as string;
+      let verified = false;
+      getTask = async (providerListId) => {
+        expect(providerListId).toBe(defaultList.id);
+        verified = true;
+        if (change === 'task revision') {
+          await db
+            .prepare("UPDATE tasks_tasks SET priority='high',revision=revision+1 WHERE id=?")
+            .bind(id)
+            .run();
+        } else {
+          await db.batch([
+            db
+              .prepare(
+                "INSERT INTO tasks_command_plans(operation_id,account_id,owner_subject,request_json,capture_nonce,resource_key,total_steps,created_at) VALUES('source-command','a','owner','{}','nonce','copy:source-command',1,?)",
+              )
+              .bind(clock),
+            db
+              .prepare(
+                "INSERT INTO tasks_operations(id,account_id,owner_subject,kind,resource_key,input_hash,input_json,state,created_at,updated_at) VALUES('source-command','a','owner','task.edit','copy:source-command','hash','{}','accepted',?,?)",
+              )
+              .bind(clock, clock),
+            db
+              .prepare('INSERT INTO tasks_command_resources(operation_id,list_id) VALUES(?,?)')
+              .bind('source-command', sourceId),
+          ]);
+        }
+        throw new GoogleTasksError('not_found', { status: 404 });
+      };
+      taskPage = async (providerListId) => ({
+        items: providerListId === destinationList.id ? [{ ...task, etag: 'v2' }] : [],
+        nextPageToken: null,
+      });
+      clock += 61_000;
+      lists = [{ items: [defaultList, destinationList], nextPageToken: null }];
+      await sync.requestRefresh('a', { reason: 'entry', visibleListIds: [destinationId] });
+      await sync.advance('a');
+      await sync.advance('a');
+      await expect(sync.advance('a')).rejects.toThrow();
+      expect(verified).toBe(true);
+      expect((await new TaskQueries(db).getTask('a', id)).listId).toBe(sourceId);
+      expect(
+        (
+          await one(
+            'SELECT COUNT(*) AS n FROM tasks_tasks WHERE account_id=? AND provider_id=?',
+            'a',
+            task.id,
+          )
+        )?.n,
+      ).toBe(1);
+      expect(
+        await one(
+          'SELECT page_token,scan_id FROM tasks_sync_list_work WHERE account_id=? AND list_id=?',
+          'a',
+          destinationId,
+        ),
+      ).toEqual({ page_token: null, scan_id: null });
+    },
+  );
+  it('does not merge equal titles when Google returns a different provider identity', async () => {
+    const destinationList = { id: 'destination', title: 'destination' };
+    const source = { id: 'source-id', title: 'same title', etag: 'source-v1' };
+    lists = [{ items: [defaultList, destinationList], nextPageToken: null }];
+    taskPage = async (providerListId) => ({
+      items: providerListId === defaultList.id ? [source] : [],
+      nextPageToken: null,
+    });
+    await refresh();
+    const originalId = await taskId(source.id);
+    await db
+      .prepare("UPDATE tasks_tasks SET priority='high',starred=1 WHERE id=?")
+      .bind(originalId)
+      .run();
+    getTask = async () => {
+      throw new GoogleTasksError('not_found', { status: 404 });
+    };
+    await sync.requestTaskCheck('a', originalId);
+    await drain();
+    clock += 61_000;
+    lists = [{ items: [defaultList, destinationList], nextPageToken: null }];
+    taskPage = async (providerListId) => ({
+      items: providerListId === destinationList.id ? [{ ...source, id: 'different-id' }] : [],
+      nextPageToken: null,
+    });
+    await refresh();
+    const queries = new TaskQueries(db);
+    expect(await queries.getTask('a', originalId)).toMatchObject({
+      priority: 'high',
+      starred: true,
+      provider: { id: 'source-id' },
+    });
+    const newId = await taskId('different-id');
+    expect(newId).not.toBe(originalId);
+    expect(await queries.getTask('a', newId)).toMatchObject({
+      title: source.title,
+      priority: 'none',
+      starred: false,
+    });
+  });
+  it('keeps identical Google task ids separate when both list addresses still return a live task', async () => {
+    const destinationList = { id: 'destination', title: 'destination' };
+    const source = { id: 'shared-id', title: 'same title', etag: 'source-v1' };
+    lists = [{ items: [defaultList, destinationList], nextPageToken: null }];
+    taskPage = async (providerListId) => ({
+      items: providerListId === defaultList.id ? [source] : [],
+      nextPageToken: null,
+    });
+    await refresh();
+    const originalId = await taskId(source.id);
+    const sourceId = await listId();
+    const destinationId = (
+      await one(
+        'SELECT id FROM tasks_lists WHERE account_id=? AND provider_id=?',
+        'a',
+        destinationList.id,
+      )
+    )?.id as string;
+    await db
+      .prepare("UPDATE tasks_tasks SET priority='high',starred=1 WHERE id=?")
+      .bind(originalId)
+      .run();
+    getTask = async () => source;
+    taskPage = async () => ({ items: [source], nextPageToken: null });
+    clock += 61_000;
+    lists = [{ items: [defaultList, destinationList], nextPageToken: null }];
+    await refresh();
+    const queries = new TaskQueries(db);
+    expect(await queries.getTask('a', originalId)).toMatchObject({
+      listId: sourceId,
+      priority: 'high',
+      starred: true,
+    });
+    const destination = await queries.listTasks(
+      'a',
+      { listIds: [destinationId] },
+      { today: '2026-11-02', now: clock },
+    );
+    expect(destination.items).toHaveLength(1);
+    expect(destination.items[0]).toMatchObject({
+      title: source.title,
+      priority: 'none',
+      starred: false,
+    });
+    expect(destination.items[0]?.id).not.toBe(originalId);
+    expect(
+      (
+        await one(
+          'SELECT COUNT(*) AS n FROM tasks_tasks WHERE account_id=? AND provider_id=?',
+          'a',
+          source.id,
+        )
+      )?.n,
+    ).toBe(2);
+  });
+  it('never adopts an exact Google task id from another account', async () => {
+    await seedAccount(db, 'b', now);
+    await db
+      .prepare(
+        "INSERT INTO tasks_lists(id,account_id,provider_id,title) VALUES ('foreign-list','b','foreign-provider-list','foreign')",
+      )
+      .run();
+    const projection = new TaskProjectionStore(db, {
+      history: new HistoryService(db, { now: () => clock }),
+      now: () => clock,
+    });
+    const foreign = await projection.prepareConfirmedWrites('b', 'foreign-list', [
+      { id: 'shared-id', title: 'foreign task', etag: 'foreign-v1' },
+    ]);
+    await db.batch(foreign.writes);
+    const foreignId = foreign.taskIds.get('shared-id')!;
+    await db
+      .prepare("UPDATE tasks_tasks SET priority='high',starred=1,provider_missing_at=? WHERE id=?")
+      .bind(clock, foreignId)
+      .run();
+    taskPage = async () => ({
+      items: [{ id: 'shared-id', title: 'this account task', etag: 'a-v1' }],
+      nextPageToken: null,
+    });
+    await refresh();
+    const localId = await taskId('shared-id');
+    expect(localId).not.toBe(foreignId);
+    const queries = new TaskQueries(db);
+    expect(await queries.getTask('a', localId)).toMatchObject({
+      title: 'this account task',
+      priority: 'none',
+      starred: false,
+    });
+    expect(await queries.getTask('b', foreignId)).toMatchObject({
+      title: 'foreign task',
+      priority: 'high',
+      starred: true,
+      listId: 'foreign-list',
+    });
+    expect(calls.some((call) => call.includes('foreign-provider-list'))).toBe(false);
   });
   it('rejects a known task mapping belonging to another account', async () => {
     await refresh();

@@ -49,6 +49,7 @@ interface ListRow {
 }
 interface OldTask {
   id: string;
+  list_id: string;
   provider_id: string;
   provider_parent_id: string | null;
   parent_id: string | null;
@@ -376,6 +377,22 @@ export class TaskProjectionStore {
     const events: D1PreparedStatement[] = [];
     const at = this.now();
     const scanId = options.scanId ?? this.id();
+    // Children may arrive on a later destination page. Keep their provider parent reference
+    // without leaving a cross-list foreign key or allowing edits to an unresolved hierarchy.
+    for (const old of oldByProvider.values())
+      if (
+        old.list_id !== listId &&
+        records.some((task) => task.id === old.provider_id && !task.deleted)
+      )
+        writes.push(
+          this.db
+            .prepare(
+              `UPDATE tasks_tasks SET parent_id=NULL,unsupported_hierarchy=1,
+          capabilities_json=json_set(capabilities_json,'$.canEdit',json('false'),'$.canEditNotes',json('false'),'$.canMove',json('false'),'$.canDelete',json('false'),'$.canHaveChildren',json('false'),'$.canNest',json('false'),'$.restriction','the provider hierarchy is being reconciled after its parent changed lists'),revision=revision+1
+          WHERE account_id=? AND parent_id=? AND list_id<>?`,
+            )
+            .bind(accountId, old.id, listId),
+        );
     if (options.observed) {
       const touched = [
         ...new Set(
@@ -595,7 +612,7 @@ export class TaskProjectionStore {
           time_zone=CASE WHEN excluded.scheduled_day IS NULL THEN NULL ELSE tasks_tasks.time_zone END,
           repeat_rule_json=CASE WHEN excluded.scheduled_day IS NULL OR excluded.provider_parent_id IS NOT NULL THEN NULL ELSE tasks_tasks.repeat_rule_json END,
           capabilities_json=excluded.capabilities_json,unsupported_hierarchy=excluded.unsupported_hierarchy,
-          revision=tasks_tasks.revision+CASE WHEN tasks_tasks.provider_etag IS NOT excluded.provider_etag OR tasks_tasks.provider_updated_at IS NOT excluded.provider_updated_at OR tasks_tasks.title IS NOT excluded.title OR tasks_tasks.notes IS NOT excluded.notes OR tasks_tasks.completed IS NOT excluded.completed OR tasks_tasks.completed_at IS NOT excluded.completed_at OR tasks_tasks.scheduled_day IS NOT excluded.scheduled_day OR tasks_tasks.parent_id IS NOT excluded.parent_id OR tasks_tasks.provider_position IS NOT excluded.provider_position OR tasks_tasks.capabilities_json IS NOT excluded.capabilities_json OR tasks_tasks.provider_missing_at IS NOT NULL THEN 1 ELSE 0 END,
+          revision=tasks_tasks.revision+CASE WHEN tasks_tasks.list_id IS NOT excluded.list_id OR tasks_tasks.provider_etag IS NOT excluded.provider_etag OR tasks_tasks.provider_updated_at IS NOT excluded.provider_updated_at OR tasks_tasks.title IS NOT excluded.title OR tasks_tasks.notes IS NOT excluded.notes OR tasks_tasks.completed IS NOT excluded.completed OR tasks_tasks.completed_at IS NOT excluded.completed_at OR tasks_tasks.scheduled_day IS NOT excluded.scheduled_day OR tasks_tasks.parent_id IS NOT excluded.parent_id OR tasks_tasks.provider_position IS NOT excluded.provider_position OR tasks_tasks.capabilities_json IS NOT excluded.capabilities_json OR tasks_tasks.provider_missing_at IS NOT NULL THEN 1 ELSE 0 END,
           last_seen_scan=COALESCE(excluded.last_seen_scan,tasks_tasks.last_seen_scan),provider_hidden=excluded.provider_hidden,provider_missing_at=NULL,deleted_at=NULL WHERE tasks_tasks.account_id=excluded.account_id`,
           )
           .bind(
@@ -635,9 +652,9 @@ export class TaskProjectionStore {
           );
         if (old.scheduled_day !== day)
           emit('scheduled_day_changed', { before: old.scheduled_day, after: day });
-        if (old.parent_id !== parentId)
+        if (old.list_id !== listId || old.parent_id !== parentId)
           emit('task_moved', {
-            from: { listId, parentId: old.parent_id },
+            from: { listId: old.list_id, parentId: old.parent_id },
             to: { listId, parentId },
           });
       }
@@ -1246,6 +1263,101 @@ export class TaskSyncService {
     );
     await this.commit(job, writes);
   }
+  private async resolveMovedTasks(
+    accountId: string,
+    reader: SyncReader,
+    list: ListRow,
+    records: GoogleTaskDTO[],
+  ): Promise<{
+    records: GoogleTaskDTO[];
+    knownTaskIds: Map<string, string>;
+    guards: D1PreparedStatement[];
+    sourceWrites: D1PreparedStatement[];
+  }> {
+    const knownTaskIds = new Map<string, string>();
+    const guards: D1PreparedStatement[] = [];
+    const sources = new Set<string>();
+    const retained: GoogleTaskDTO[] = [];
+    for (const task of records) {
+      const candidates = task.deleted
+        ? []
+        : (
+            await this.db
+              .prepare(
+                `SELECT t.id,t.list_id,t.revision,l.provider_id AS provider_list_id,l.projection_revision
+            FROM tasks_tasks t JOIN tasks_lists l ON l.account_id=t.account_id AND l.id=t.list_id
+            WHERE t.account_id=? AND t.provider_id=? AND t.deleted_at IS NULL AND t.list_id<>? AND l.deleted_at IS NULL
+            AND NOT EXISTS(SELECT 1 FROM tasks_tasks current WHERE current.account_id=t.account_id AND current.list_id=? AND current.provider_id=t.provider_id)
+            LIMIT 2`,
+              )
+              .bind(accountId, task.id, list.id, list.id)
+              .all<{
+                id: string;
+                list_id: string;
+                revision: number;
+                provider_list_id: string;
+                projection_revision: number;
+              }>()
+          ).results;
+      const old = candidates.length === 1 ? candidates[0] : undefined;
+      if (old) {
+        let missing = false;
+        try {
+          await reader.getTask(old.provider_list_id, task.id);
+        } catch (error) {
+          if (!(error instanceof GoogleTasksError) || error.code !== 'not_found') throw error;
+          missing = true;
+        }
+        if (!missing) {
+          // A stale list page must not recreate the task at its previous address.
+          try {
+            const current = await reader.getTask(list.provider_id, task.id);
+            if (current.deleted) continue;
+          } catch (error) {
+            if (!(error instanceof GoogleTasksError) || error.code !== 'not_found') throw error;
+            continue;
+          }
+        } else {
+          knownTaskIds.set(task.id, old.id);
+          sources.add(old.list_id);
+          guards.push(
+            this.db
+              .prepare(
+                `INSERT INTO tasks_write_guards(valid) SELECT 0 WHERE NOT EXISTS(
+              SELECT 1 FROM tasks_tasks t JOIN tasks_lists l ON l.account_id=t.account_id AND l.id=t.list_id
+              WHERE t.account_id=? AND t.id=? AND t.list_id=? AND t.provider_id=? AND t.revision=? AND t.deleted_at IS NULL
+              AND l.deleted_at IS NULL AND l.projection_revision=? AND ${noCapturedCommand('t.account_id', 't.list_id')} AND ${noCapturedCommand('t.account_id', '?')})`,
+              )
+              .bind(
+                accountId,
+                old.id,
+                old.list_id,
+                task.id,
+                old.revision,
+                old.projection_revision,
+                list.id,
+              ),
+          );
+        }
+      }
+      retained.push(task);
+    }
+    const sourceWrites = [...sources].flatMap((source) => [
+      this.db
+        .prepare(
+          'UPDATE tasks_lists SET projection_revision=projection_revision+1,tasks_complete_at=NULL,completed_complete_at=NULL WHERE account_id=? AND id=?',
+        )
+        .bind(accountId, source),
+      this.db
+        .prepare(
+          `INSERT INTO tasks_sync_list_work(account_id,list_id,priority,next_at,mode) VALUES (?,?,0,?,'full')
+        ON CONFLICT(account_id,list_id) DO UPDATE SET priority=0,next_at=MIN(next_at,excluded.next_at),
+        mode='full',page_token=NULL,scan_id=NULL,started_at=NULL,updated_min=NULL`,
+        )
+        .bind(accountId, source, this.now()),
+    ]);
+    return { records: retained, knownTaskIds, guards, sourceWrites };
+  }
   private async taskSlice(job: Job, reader: SyncReader, work: Work): Promise<void> {
     const list = await this.db
       .prepare(
@@ -1277,7 +1389,8 @@ export class TaskSyncService {
     let page;
     try {
       page = await reader.listTasks(list.provider_id, {
-        maxResults: 5,
+        // One page + at most two address checks per task + a token refresh fits ten requests.
+        maxResults: 4,
         ...(work.page_token ? { pageToken: work.page_token } : {}),
         ...(updatedMin ? { updatedMin } : {}),
       });
@@ -1304,13 +1417,19 @@ export class TaskSyncService {
       );
       return;
     }
+    const moved = await this.resolveMovedTasks(job.account_id, reader, list, page.items);
     const projection = await this.projection.prepareConfirmedWrites(
       job.account_id,
       list.id,
-      page.items,
-      { scanId, observed: true, baseline: list.tasks_complete_at === null },
+      moved.records,
+      {
+        scanId,
+        observed: true,
+        baseline: list.tasks_complete_at === null,
+        knownTaskIds: moved.knownTaskIds,
+      },
     );
-    const writes = [...projection.writes];
+    const writes = [...moved.guards, ...projection.writes, ...moved.sourceWrites];
     if (page.nextPageToken)
       writes.push(
         this.db

@@ -99,6 +99,121 @@ async function fixture() {
   return { ...database, env, call, main, requestQueries, scheduledFrom, scheduledQueries };
 }
 describe('authenticated workspace composition', () => {
+  it('finishes a four-candidate sync page with OAuth refresh and both live addresses within ten provider requests', async () => {
+    const f = await fixture();
+    const now = Date.now();
+    const scopes = ['https://www.googleapis.com/auth/tasks'];
+    const grant = await encryptToken(
+      JSON.stringify({
+        accessToken: 'expired-access',
+        refreshToken: 'fixture-refresh',
+        expiresAt: now - 1000,
+        scopes,
+        tokenType: 'Bearer',
+      }),
+      parseConfiguration(f.env).tokenKey,
+      accountGrantContext('account-a'),
+    );
+    await f.db
+      .prepare(
+        'UPDATE accounts_connections SET grant_ciphertext=?,scopes_json=?,access_expires_at=?,grant_expires_at=? WHERE id=?',
+      )
+      .bind(grant, JSON.stringify(scopes), now - 1000, now + 7 * 86400000, 'account-a')
+      .run();
+    for (const [id, providerId, isDefault] of [
+      ['source', 'google-source', 1],
+      ['destination', 'google-destination', 0],
+    ] as const) {
+      await f.db
+        .prepare(
+          'INSERT INTO tasks_lists(id,account_id,provider_id,title,is_default,tasks_complete_at,completed_complete_at,last_full_sync_at) VALUES (?,?,?,?,?,?,?,?)',
+        )
+        .bind(id, 'account-a', providerId, id, isDefault, now, now, now)
+        .run();
+    }
+    const records = Array.from({ length: 4 }, (_, index) => ({
+      id: `google-task-${index}`,
+      title: `task ${index}`,
+      etag: `version-${index}`,
+      status: 'needsAction',
+    }));
+    for (const [index, task] of records.entries())
+      await f.db
+        .prepare(
+          'INSERT INTO tasks_tasks(id,account_id,list_id,provider_id,title,provider_etag) VALUES (?,?,?,?,?,?)',
+        )
+        .bind(`source-task-${index}`, 'account-a', 'source', task.id, task.title, task.etag)
+        .run();
+    await f.db
+      .prepare(
+        'INSERT INTO tasks_sync_jobs(account_id,next_at,requested_at,default_pending,inventory_pending) VALUES (?,?,?,0,0)',
+      )
+      .bind('account-a', now, now)
+      .run();
+    await f.db
+      .prepare('INSERT INTO tasks_sync_list_work(account_id,list_id,next_at) VALUES (?,?,?)')
+      .bind('account-a', 'destination', now)
+      .run();
+    const requests: string[] = [];
+    const provider = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const url = new URL(String(input));
+      requests.push(url.href);
+      if (url.href === 'https://oauth2.googleapis.com/token') {
+        expect(new URLSearchParams(String(init?.body)).get('refresh_token')).toBe(
+          'fixture-refresh',
+        );
+        return Response.json({
+          access_token: 'fresh-access',
+          token_type: 'Bearer',
+          expires_in: 3600,
+          scope: scopes.join(' '),
+        });
+      }
+      expect(url.origin).toBe('https://tasks.googleapis.com');
+      expect(init?.method).toBe('GET');
+      expect(new Headers(init?.headers).get('authorization')).toBe('Bearer fresh-access');
+      if (url.pathname.endsWith('/lists/google-destination/tasks')) {
+        expect(url.searchParams.get('maxResults')).toBe('4');
+        return Response.json({ items: records });
+      }
+      const task = records.find((task) => url.pathname.endsWith('/tasks/' + task.id));
+      if (task && /\/lists\/google-(?:source|destination)\/tasks\//.test(url.pathname))
+        return Response.json(task);
+      throw new Error('unexpected sync provider request: ' + url.href);
+    });
+    try {
+      const response = await f.call('/api/accounts/account-a/sync/advance', {});
+      expect(response.status, await response.clone().text()).toBe(200);
+      expect(await response.json()).toMatchObject({
+        accountId: 'account-a',
+        phase: 'tasks',
+        continued: false,
+      });
+      expect(requests).toHaveLength(10);
+      expect(
+        requests.filter((url) => url.startsWith('https://oauth2.googleapis.com/')),
+      ).toHaveLength(1);
+      expect(requests.filter((url) => url.includes('/lists/google-source/tasks/'))).toHaveLength(4);
+      expect(
+        requests.filter((url) => url.includes('/lists/google-destination/tasks/')),
+      ).toHaveLength(4);
+      expect(
+        await f.db
+          .prepare(
+            "SELECT COUNT(*) AS n FROM tasks_tasks WHERE account_id='account-a' AND list_id='destination'",
+          )
+          .first('n'),
+      ).toBe(4);
+      expect(
+        await f.db
+          .prepare("SELECT COUNT(*) AS n FROM tasks_sync_jobs WHERE account_id='account-a'")
+          .first('n'),
+      ).toBe(0);
+      expect(f.requestQueries.at(-1)!.queries).toBeLessThanOrEqual(50);
+    } finally {
+      provider.mockRestore();
+    }
+  });
   it('validates a full 2000-task dependency-chain import through authenticated bounded HTTP checkpoints before its first provider write', async () => {
     const f = await fixture(),
       now = Date.now(),

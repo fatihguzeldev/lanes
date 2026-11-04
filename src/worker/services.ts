@@ -29,8 +29,8 @@ import { LabelDeletionWork } from '../modules/tasks/server/label-work';
 import { CompletedTaskDeletionService } from '../modules/tasks/server/completed-deletion';
 
 /** Invocation-local composition. Durable owners hold every execution claim. */
-export function createServices(env: Env, config: Configuration) {
-  const budget = googleTransport();
+export function createServices(env: Env, config: Configuration, providerRequestLimit: 4 | 10 = 4) {
+  const budget = googleTransport(providerRequestLimit);
   const accounts = new AccountService(env.DB, config, { fetch: budget.fetch });
   let templates: TemplateOwners;
   let completedDeletion: CompletedTaskDeletionService;

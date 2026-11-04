@@ -32,7 +32,11 @@ refresh full list inventory on account entry and list-changing operations when s
 
 google enumeration is not a snapshot across pages. before treating a missing resource as deleted, confirm its absence or a provider deletion signal at the correct address. a partial scan, denied request, or moved task at an old address is not sufficient. keep unresolved mappings visible as stale rather than retiring their metadata.
 
-externally moved tasks cannot always be matched to old lanes identities when google changes addresses without a stable mapping. do not infer identity from equal titles or notes. preserve an in-app move's known mapping; otherwise report the observed disappearance/new resource honestly and retain historical references.
+when a task appears in another list with the same google id and one prior identity in the connected account, confirm that its old address is no longer available before reusing that lanes identity. preserve its metadata and history, record the observed move, and reconcile the source list again. a stale list page must not recreate the task at its previous address. if both addresses still return live tasks, keep them distinct.
+
+parent and child observations may arrive on different pages. preserve each child's identity, metadata, and provider parent reference while its location is being reconciled; unresolved hierarchy remains read-only until the confirmed destination relationship is available.
+
+externally moved tasks cannot always be matched when google changes ids without a stable mapping. do not infer identity from equal titles or notes. preserve an in-app move's known mapping; otherwise report the observed disappearance/new resource honestly and retain historical references.
 
 the first successful import of an existing google account establishes a baseline. it does not generate a creation event for every old task or claim to reconstruct earlier history. see [history](../history/spec.md).
 
@@ -125,3 +129,4 @@ measure cpu on the deployed free plan; waiting on google is not the whole cost. 
 - `sync-08`: a partial batch resumes remaining items; cancelling leaves confirmed output intact.
 - `sync-09`: expired grants, rate limits, storage limits, outages, and uncertainty produce distinct states without continuous retry.
 - `sync-10`: stale coverage is visible, work remains bounded on the free plan, and old operation replay cannot create new content after receipt cleanup.
+- `sync-11`: an externally moved task with a verified unchanged provider id keeps its lanes identity, metadata, dependencies, and history across pages; stale source pages and live address collisions do not merge or recreate it.
