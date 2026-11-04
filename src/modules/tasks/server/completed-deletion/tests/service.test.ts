@@ -1,20 +1,19 @@
-import { createOperationStore } from '../../../../../../tests/support/operation-store';
+import type { D1Database } from '@cloudflare/workers-types';
 import { afterEach, expect, it } from 'vitest';
+import { invocationDatabase } from '../../../../../../tests/support/d1-invocation';
+import { createOperationStore } from '../../../../../../tests/support/operation-store';
 import { seedAccount, testDatabase } from '../../../../../../tests/support/sqlite-d1';
+import { AppError } from '../../../../../shared/contracts/errors';
 import { HistoryService } from '../../../../history/server/events/event-store';
+import { TaskCommandService } from '../../commands/service';
+import { TaskProjectionStore } from '../../projection/store';
 import {
   GoogleTasksClient,
   type GoogleTaskDTO,
   type GoogleTasksFetch,
 } from '../../provider/google-tasks';
-import { OperationStore } from '../../../../operations/server/journal/store';
-import { TaskProjectionStore } from '../../projection/store';
-import { TaskCommandService } from '../../commands/service';
 import { TaskQueries } from '../../queries/tasks';
 import { CompletedTaskDeletionService } from '../service';
-import { AppError } from '../../../../../shared/contracts/errors';
-import { invocationDatabase } from '../../../../../../tests/support/d1-invocation';
-import type { D1Database } from '@cloudflare/workers-types';
 
 const initial = Date.parse('2026-11-02T12:00:00Z'),
   id = `${initial}:completeddelete1`;

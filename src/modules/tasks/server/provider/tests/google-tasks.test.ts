@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { GoogleTasksClient, GoogleTasksError } from '../google-tasks';
 import type { GoogleTaskDTO, GoogleTasksFetch } from '../google-tasks';
+import { GoogleTasksClient, GoogleTasksError } from '../google-tasks';
 
 const task = (extra: Record<string, unknown> = {}) => ({
   kind: 'tasks#task',

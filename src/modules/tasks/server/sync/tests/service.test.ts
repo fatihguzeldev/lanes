@@ -1,16 +1,16 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types';
-import { testDatabase, seedAccount } from '../../../../../../tests/support/sqlite-d1';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { seedAccount, testDatabase } from '../../../../../../tests/support/sqlite-d1';
 import { HistoryService } from '../../../../history/server/events/event-store';
-import { TaskQueries } from '../../queries/tasks';
+import { TaskProjectionStore } from '../../projection/store';
 import {
   GoogleTasksError,
+  type GoogleProviderPage,
   type GoogleTaskDTO,
   type GoogleTaskListDTO,
-  type GoogleProviderPage,
   type GoogleTaskPageOptions,
 } from '../../provider/google-tasks';
-import { TaskProjectionStore } from '../../projection/store';
+import { TaskQueries } from '../../queries/tasks';
 import { TaskSyncService, type SyncReader } from '../service';
 
 const now = Date.parse('2026-11-02T12:00:00Z');
