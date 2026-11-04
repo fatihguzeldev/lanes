@@ -1,4 +1,11 @@
-import { useId, useMemo, useState, type CSSProperties, type DragEvent } from 'react';
+import {
+  useId,
+  useMemo,
+  useState,
+  type CSSProperties,
+  type DragEvent,
+  type ReactNode,
+} from 'react';
 import type { Coverage } from '../../../contracts/http';
 import { Icon, type IconName } from '../../../ui/Icon';
 import type { Label, Task, TaskList, TaskSort } from '../../tasks/contracts';
@@ -57,7 +64,8 @@ export interface BoardSurfaceProps {
   onOpenTask: (task: Task) => void;
   onToggleComplete: (task: Task, completed: boolean) => void;
   onTaskMenu: (task: Task, anchor: HTMLButtonElement) => void;
-  onAddTask: (list: TaskList) => void;
+  onAddTask?: ((list: TaskList) => void) | undefined;
+  renderTaskCreate?: ((list: TaskList) => ReactNode) | undefined;
   onListMenu: (list: TaskList, anchor: HTMLButtonElement) => void;
   onLoadMore: (list: TaskList, section: 'open' | 'completed') => void;
   onRetryList: (list: TaskList) => void;
@@ -111,32 +119,6 @@ function ColumnSkeleton() {
       <i />
     </div>
   );
-}
-
-function CoverageNotice({ column }: { column: BoardColumn }) {
-  if (!column.coverage.complete)
-    return (
-      <p className="board-column__coverage">
-        <Icon name="clock" size={12} />
-        {column.coverage.stale
-          ? 'partially loaded · refresh needed'
-          : 'partially loaded · counts may grow'}
-      </p>
-    );
-  if (column.coverage.stale) {
-    const timestamp = column.coverage.lastSyncedAt ? new Date(column.coverage.lastSyncedAt) : null;
-    const syncedAt =
-      timestamp && !Number.isNaN(timestamp.valueOf())
-        ? timestamp.toLocaleString()
-        : 'not yet refreshed';
-    return (
-      <p className="board-column__coverage" title={`last successful sync: ${syncedAt}`}>
-        <Icon name="clock" size={12} />
-        retained data · refresh needed
-      </p>
-    );
-  }
-  return null;
 }
 
 interface ColumnProps {
@@ -253,13 +235,12 @@ function ListColumn({
           <Icon name={column.icon ?? 'list'} size={16} />
         </span>
         <h2 id={headingId}>{title(list)}</h2>
-        {options.showCounts !== false && (
+        {options.showCounts !== false && column.coverage.complete && column.nextCursor === null && (
           <span
             className="board-column__count"
-            title={`${openCount} ${options.filtered ? 'matching ' : ''}open tasks, including subtasks${column.coverage.complete ? '' : '; not fully loaded'}`}
+            title={`${openCount} ${options.filtered ? 'matching ' : ''}open tasks, including subtasks`}
           >
             {openCount}
-            {column.coverage.complete ? '' : '+'}
           </span>
         )}
         <button
@@ -271,7 +252,6 @@ function ListColumn({
           <Icon name="more" size={16} />
         </button>
       </header>
-      <CoverageNotice column={column} />
       {column.status === 'error' && (
         <div className="board-column__error" role="alert">
           <p>{column.errorMessage ?? 'this list could not be refreshed.'}</p>
@@ -280,11 +260,19 @@ function ListColumn({
           </button>
         </div>
       )}
-      {column.status === 'loading' && entries.length > 0 && (
-        <p className="board-column__loading" role="status">
-          refreshing tasks…
-        </p>
-      )}
+      {options.renderTaskCreate
+        ? options.renderTaskCreate(list)
+        : options.onAddTask && (
+            <button
+              className="board-column__add"
+              type="button"
+              disabled={options.providerActionsEnabled === false}
+              onClick={() => options.onAddTask?.(list)}
+            >
+              <Icon name="plus" size={13} />
+              add a task
+            </button>
+          )}
       <div
         className="board-column__tasks"
         role={openCards.length ? 'list' : undefined}
@@ -292,13 +280,9 @@ function ListColumn({
       >
         {openCards.map((task) => renderCard(task))}
         {entries.length === 0 && column.status === 'loading' && <ColumnSkeleton />}
-        {openCards.length === 0 && column.status === 'ready' && (
+        {openCards.length === 0 && column.status === 'ready' && column.coverage.complete && (
           <p className="board-column__empty">
-            {options.filtered
-              ? 'no matching open tasks.'
-              : column.coverage.complete
-                ? 'no open tasks.'
-                : 'no open tasks loaded yet.'}
+            {options.filtered ? 'no matching tasks.' : 'no tasks.'}
           </p>
         )}
       </div>
@@ -313,85 +297,67 @@ function ListColumn({
           <Icon name="down" size={12} />
         </button>
       )}
-      <button
-        className="board-column__add"
-        type="button"
-        disabled={options.providerActionsEnabled === false}
-        onClick={() => options.onAddTask(list)}
-      >
-        <Icon name="plus" size={13} />
-        add a task
-      </button>
-      {options.showCompleted !== false && (
-        <div className="board-column__completed">
-          <button
-            className="board-column__completed-toggle"
-            type="button"
-            aria-expanded={completedExpanded}
-            aria-controls={completedId}
-            onClick={toggleCompleted}
-          >
-            <Icon name={completedExpanded ? 'down' : 'right'} size={12} />
-            completed
-            <span>
-              {completed.length}
-              {completedCoverage.complete ? '' : '+'}
-            </span>
-          </button>
-          <div id={completedId} hidden={!completedExpanded}>
-            {completedExpanded && (
-              <>
-                {column.completedLoading && (
-                  <p className="board-column__loading" role="status">
-                    loading completed tasks…
-                  </p>
-                )}
-                {column.completedError && (
-                  <div className="board-column__error" role="alert">
-                    <p>{column.completedError}</p>
-                    <button type="button" onClick={() => options.onLoadMore(list, 'completed')}>
-                      try again
-                    </button>
-                  </div>
-                )}
-                {!completedCoverage.complete && (
-                  <p className="board-column__coverage">
-                    completed tasks are partially loaded
-                    {completedCoverage.stale ? ' · refresh needed' : ''}.
-                  </p>
-                )}
-                {completedCoverage.complete && completedCoverage.stale && (
-                  <p className="board-column__coverage">
-                    retained completed tasks · refresh needed.
-                  </p>
-                )}
-                <div
-                  role={completed.length ? 'list' : undefined}
-                  aria-label={completed.length ? `completed tasks in ${title(list)}` : undefined}
-                >
-                  {completed.map((task) => renderCard(task, true))}
-                </div>
-                {completed.length === 0 &&
-                  completedCoverage.complete &&
-                  !column.completedLoading && (
-                    <p className="board-column__empty">no completed tasks.</p>
+      {options.showCompleted !== false &&
+        (completed.length > 0 ||
+          column.completedError ||
+          (completedExpanded && column.completedLoading)) && (
+          <div className="board-column__completed">
+            <button
+              className="board-column__completed-toggle"
+              type="button"
+              aria-expanded={completedExpanded}
+              aria-controls={completedId}
+              onClick={toggleCompleted}
+            >
+              <Icon name={completedExpanded ? 'down' : 'right'} size={12} />
+              completed
+              {completedCoverage.complete && column.completedNextCursor == null && (
+                <span>{completed.length}</span>
+              )}
+            </button>
+            <div id={completedId} hidden={!completedExpanded}>
+              {completedExpanded && (
+                <>
+                  {completed.length === 0 && column.completedLoading && (
+                    <p className="board-column__loading" role="status">
+                      loading completed tasks…
+                    </p>
                   )}
-                {(column.completedNextCursor != null || !completedCoverage.complete) && (
-                  <button
-                    className="board-column__load-more"
-                    type="button"
-                    disabled={column.completedLoading}
-                    onClick={() => options.onLoadMore(list, 'completed')}
+                  {column.completedError && (
+                    <div className="board-column__error" role="alert">
+                      <p>{column.completedError}</p>
+                      <button type="button" onClick={() => options.onLoadMore(list, 'completed')}>
+                        try again
+                      </button>
+                    </div>
+                  )}
+                  <div
+                    role={completed.length ? 'list' : undefined}
+                    aria-label={completed.length ? `completed tasks in ${title(list)}` : undefined}
                   >
-                    load more completed tasks
-                    <Icon name="down" size={12} />
-                  </button>
-                )}
-              </>
-            )}
+                    {completed.map((task) => renderCard(task, true))}
+                  </div>
+                  {completed.length === 0 &&
+                    completedCoverage.complete &&
+                    !column.completedLoading && (
+                      <p className="board-column__empty">no completed tasks.</p>
+                    )}
+                  {column.completedNextCursor != null && (
+                    <button
+                      className="board-column__load-more"
+                      type="button"
+                      disabled={column.completedLoading}
+                      onClick={() => options.onLoadMore(list, 'completed')}
+                    >
+                      show more
+                      <Icon name="down" size={12} />
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        )}
     </section>
   );
 }
@@ -528,13 +494,6 @@ export function BoardSurface(options: BoardSurfaceProps) {
       <div className="board-surface__sr-only" role="status" aria-live="polite">
         {announcement}
       </div>
-      {(options.filtered || (options.sort ?? 'manual') !== 'manual') && (
-        <p className="board-surface__reorder-note">
-          <Icon name="sort" size={13} />
-          to reorder, clear filters and choose manual order. task options can still move tasks
-          between lists.
-        </p>
-      )}
       {status === 'error' && (
         <div className="board-surface__error" role="alert">
           <span>{options.errorMessage ?? 'this board could not be loaded.'}</span>
@@ -589,6 +548,17 @@ export function BoardSurface(options: BoardSurfaceProps) {
                 dropOnColumn={dropOnColumn}
               />
             ))}
+            {options.onAddList && (
+              <button
+                className="board-surface__add-list"
+                type="button"
+                disabled={options.providerActionsEnabled === false}
+                onClick={options.onAddList}
+              >
+                <Icon name="plus" size={14} />
+                new list
+              </button>
+            )}
           </div>
         )}
       </div>

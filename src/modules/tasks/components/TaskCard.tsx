@@ -132,8 +132,8 @@ export function TaskCard({
   const openChildren = countOpenTasks(children, task.accountId);
   const childTotal = subtaskSummary?.total ?? children.length;
   const childOpen = subtaskSummary?.open ?? openChildren;
-  const partialChildren =
-    !!subtaskSummary && (!subtaskSummary.complete || childTotal > children.length);
+  const childCountsKnown = subtaskSummary?.complete ?? false;
+  const partialChildren = !childCountsKnown || childTotal > children.length;
   const blocking = blockingState ?? getBlockingState(task, relatedTasks);
   const taskLabels = labels.filter(
     (label) => label.accountId === task.accountId && task.labelIds.includes(label.id),
@@ -141,6 +141,12 @@ export function TaskCard({
   const restriction =
     task.capabilities.restriction ??
     (task.unsupportedHierarchy ? 'google returned a hierarchy lanes cannot safely edit' : null);
+  const restrictionText = [
+    restriction,
+    task.capabilities.assignmentSource ? `assigned in ${task.capabilities.assignmentSource}` : null,
+  ]
+    .filter(Boolean)
+    .join('. ');
   const excerpt = Array.from(task.notes).slice(0, 240).join('');
   const canComplete =
     providerActionsEnabled && task.capabilities.canEdit && !task.unsupportedHierarchy && !pending;
@@ -187,6 +193,16 @@ export function TaskCard({
                 {task.priority === 'high' ? '!!' : task.priority === 'medium' ? '!' : '↓'}
               </span>
               <span className="task-card__sr-only">{task.priority} priority</span>
+            </span>
+          )}
+          {restrictionText && (
+            <span
+              className="task-card__restriction-icon"
+              role="img"
+              aria-label={restrictionText}
+              title={restrictionText}
+            >
+              <Icon name={task.unsupportedHierarchy ? 'warning' : 'lock'} size={12} />
             </span>
           )}
           {onMenu && (
@@ -251,28 +267,21 @@ export function TaskCard({
                 type="button"
                 aria-expanded={partialChildren ? undefined : expanded}
                 aria-controls={partialChildren ? undefined : childrenId}
-                aria-label={`${partialChildren ? 'open checklist with' : expanded ? 'hide' : 'show'} ${childTotal} subtasks, ${childOpen} open${subtaskSummary?.complete === false ? '; partially synced' : ''}`}
+                aria-label={
+                  childCountsKnown
+                    ? `${partialChildren ? 'open checklist with' : expanded ? 'hide' : 'show'} ${childTotal} subtasks, ${childOpen} open`
+                    : 'open checklist'
+                }
                 onClick={() => (partialChildren ? onOpen(task) : setExpanded((value) => !value))}
               >
                 <Icon name="subtasks" size={12} />
                 <span>
-                  {childTotal - childOpen}/{childTotal}
-                  {subtaskSummary?.complete === false ? '+' : ''}
+                  {childCountsKnown ? `${childTotal - childOpen}/${childTotal}` : 'checklist'}
                 </span>
                 <Icon name={expanded && !partialChildren ? 'down' : 'right'} size={11} />
               </button>
             )}
           </div>
-        )}
-        {(restriction || task.capabilities.assignmentSource) && (
-          <p className="task-card__restriction" title={restriction ?? undefined}>
-            <Icon name={task.unsupportedHierarchy ? 'warning' : 'lock'} size={12} />
-            {task.unsupportedHierarchy
-              ? 'unsupported hierarchy'
-              : task.capabilities.assignmentSource
-                ? `assigned in ${task.capabilities.assignmentSource}`
-                : 'google restriction'}
-          </p>
         )}
         {pending && (
           <span className="task-card__pending-label" role="status">
