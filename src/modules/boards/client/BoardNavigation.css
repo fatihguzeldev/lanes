@@ -1,0 +1,97 @@
+.board-navigation__boards > button,
+.board-navigation__label button {
+  border: 0;
+  background: none;
+  text-align: left;
+  color: var(--secondary);
+}
+.board-navigation__boards > button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 5px;
+  font-size: 13px;
+}
+.board-navigation__boards > button:hover,
+.board-navigation__label button:hover {
+  color: var(--ink);
+  background: var(--paper-hover);
+}
+.board-navigation__boards > button.active {
+  color: var(--ink);
+  background: var(--paper);
+}
+.board-navigation__label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 10px 8px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.board-navigation__label button {
+  display: grid;
+  place-items: center;
+  padding: 3px;
+  border-radius: 4px;
+}
+.board-navigation__boards {
+  min-height: 0;
+  overflow: auto;
+}
+.board-navigation__boards > button {
+  margin-bottom: 2px;
+}
+.board-navigation__boards > button > span:nth-child(2) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.board-navigation__boards > button[draggable='true']:active {
+  cursor: grabbing;
+}
+.board-navigation__symbol {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  flex: none;
+  color: color-mix(in srgb, var(--board-color, var(--secondary)) 45%, var(--secondary));
+}
+.board-navigation__note {
+  padding: 10px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.board-navigation__loading {
+  display: grid;
+  gap: 2px;
+}
+.board-navigation__placeholder {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  height: 34px;
+  padding-inline: 10px;
+  color: var(--secondary);
+  font-size: 13px;
+}
+.board-navigation__placeholder-symbol {
+  width: 15px;
+  height: 15px;
+  flex: none;
+}
+.board-navigation__placeholder-line {
+  width: 72px;
+  height: 8px;
+}
+.board-navigation__label--skeleton {
+  height: 20px;
+}
+.board-navigation__new-placeholder {
+  display: grid;
+  place-items: center;
+  padding: 3px;
+}

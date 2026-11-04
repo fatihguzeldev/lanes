@@ -1,0 +1,10 @@
+.list-options__destination {
+  display: grid;
+  gap: 6px;
+  padding: 8px 10px;
+  font-size: 12px;
+  color: var(--secondary);
+}
+.list-options__destination .select__trigger {
+  width: 100%;
+}

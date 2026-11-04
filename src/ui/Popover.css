@@ -77,3 +77,13 @@
     min-height: 44px;
   }
 }
+
+.popover__panel .dialog__actions {
+  padding: 0;
+  gap: 2px;
+  min-width: 210px;
+}
+.popover__panel .dialog__actions > button {
+  padding: 8px 10px;
+  gap: 9px;
+}

@@ -1,29 +1,19 @@
-import {
-  lazy,
-  Suspense,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type CSSProperties,
-} from 'react';
+import { ListOptions } from '../modules/boards/client/ListOptions';
+import { BoardNavigation } from '../modules/boards/client/BoardNavigation';
+import { TaskOptions } from '../modules/tasks/client/TaskOptions';
+import { createTaskActions } from '../modules/tasks/client/task-actions';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { z } from 'zod';
 import { Skeleton } from '../ui/Skeleton';
 import { Brand } from '../ui/Brand';
 import { BoardSkeleton } from '../modules/boards/components/BoardSkeleton';
 import { WorkspaceSkeleton } from './WorkspaceSkeleton';
-import { type InitialViewReadiness } from '../client/readiness';
 import { initialWorkspaceReady } from './workspace-startup';
+import type { InitialViewReadiness } from '../client/readiness';
 import { Icon } from '../ui/Icon';
 import { Dialog } from '../ui/Dialog';
 import type { ConnectionSummary } from '../modules/accounts/contracts';
-import {
-  BoardMembershipSchema,
-  BoardSchema,
-  type Board,
-  type BoardList,
-} from '../modules/boards/contracts';
+import { BoardMembershipSchema, type Board, type BoardList } from '../modules/boards/contracts';
 import {
   TaskSchema,
   TaskListSchema,
@@ -34,11 +24,10 @@ import {
 } from '../modules/tasks/contracts';
 import { LabelPageSchema } from '../modules/tasks/query-contract';
 import { accountToday } from '../modules/tasks/planning';
-import { checkServerConnection, request, RequestError } from '../client/http';
+import { checkServerConnection, request } from '../client/http';
 import { useServerConnection } from '../client/useServerConnection';
-import { BoardPageSchema, BoardListPageSchema } from '../modules/boards/query-contract';
 import { usePagedResource } from '../client/usePagedResource';
-import { newOperationId } from '../client/operation-identity';
+import { PromptDialog, type Prompt } from '../client/PromptDialog';
 import { useCommands } from '../modules/tasks/client/useCommands';
 import { useWorkspaceSync } from '../modules/tasks/client/useWorkspaceSync';
 import { BoardWorkspace } from '../modules/boards/client/BoardWorkspace';
@@ -47,10 +36,6 @@ import { CompletedWorkspace } from '../modules/boards/client/CompletedWorkspace'
 import { HistoryPanel } from '../modules/history/client/HistoryPanel';
 import { TaskEditorWorkspace } from '../modules/tasks/client/TaskEditorWorkspace';
 import { Confirmation, type ConfirmationChoice } from '../client/Confirmation';
-import {
-  TaskConsequencesSchema,
-  ListConsequencesSchema,
-} from '../modules/tasks/consequence-contract';
 import { LabelManager } from '../modules/tasks/client/LabelManager';
 import { TaskCollectionWorkspace } from '../modules/tasks/client/TaskCollectionWorkspace';
 import { useRecurrenceWork } from '../modules/tasks/client/useRecurrenceWork';
@@ -65,7 +50,6 @@ import { WorkspaceSettings } from './WorkspaceSettings';
 import { WorkspaceViewMenu } from '../modules/boards/client/WorkspaceViewMenu';
 import { SyncControl } from '../modules/tasks/client/SyncControl';
 import { Select } from '../ui/Select';
-import { AnchoredPopover } from '../ui/Popover';
 import { ChangeStatus } from '../modules/tasks/client/ChangeStatus';
 import { TaskMoveError } from '../modules/tasks/client/save-task-move';
 import { useTaskMoveQueue } from '../modules/tasks/client/useTaskMoveQueue';
@@ -75,21 +59,11 @@ import { AccountLifecycleDialog } from '../modules/accounts/client/AccountLifecy
 import { portabilityLanding } from './landing';
 import { usePlanningToday } from '../modules/tasks/client/usePlanningToday';
 import { useMobileNavigation } from './useMobileNavigation';
-import {
-  RecurrenceAdvanceSchema,
-  RecurrenceStatusSchema,
-  ReopenPreviewSchema,
-  type ReopenPreview,
-} from '../modules/tasks/recurrence-contract';
+import type { ReopenPreview } from '../modules/tasks/recurrence-contract';
 import type { ResolvedTheme } from './theme';
-import {
-  defaultBoardView,
-  readBoardView,
-  readStartBoard,
-  saveBoardView,
-  saveStartBoard,
-  type BoardViewPreferences,
-} from '../modules/boards/client/view-preferences';
+import type { BoardViewPreferences } from '../modules/boards/client/view-preferences';
+import { useBoardData } from '../modules/boards/client/useBoardData';
+import { useBoardViewPreferences } from '../modules/boards/client/useBoardViewPreferences';
 import './Workspace.css';
 import './WorkspaceSkeleton.css';
 
@@ -104,14 +78,7 @@ export interface WorkspaceProps {
   onAccountsChanged: () => void;
   onSignOut: () => void;
 }
-type Prompt = {
-  title: string;
-  label: string;
-  initial: string;
-  description?: string;
-  destructive?: boolean;
-  submit: (value: string, identity: string) => Promise<boolean>;
-};
+
 type Editor = {
   task: Task | null;
   list: TaskList;
@@ -130,74 +97,6 @@ const TransferWorkspace = lazy(() =>
   })),
 );
 
-function PromptDialog({
-  prompt,
-  onClose,
-  clockOffset,
-}: {
-  prompt: Prompt;
-  onClose: () => void;
-  clockOffset: number;
-}) {
-  const [value, setValue] = useState(prompt.initial),
-    [pending, setPending] = useState(false),
-    [error, setError] = useState('');
-  const [identity] = useState(() => newOperationId(clockOffset));
-  return (
-    <Dialog title={prompt.title} onClose={onClose} pending={pending}>
-      <form
-        className="dialog__body"
-        onSubmit={(event) => {
-          event.preventDefault();
-          setPending(true);
-          setError('');
-          void prompt
-            .submit(value, identity)
-            .then((done) => {
-              if (done) onClose();
-              else setError('the save is not confirmed yet. check its status before trying again.');
-            })
-            .catch((error) =>
-              setError(
-                error instanceof Error ? error.message : 'this change could not be submitted.',
-              ),
-            )
-            .finally(() => setPending(false));
-        }}
-      >
-        {prompt.description && <p>{prompt.description}</p>}
-        <label>
-          {prompt.label}
-          <input
-            value={value}
-            onChange={(event) => setValue(event.target.value)}
-            required
-            maxLength={1024}
-            autoFocus
-          />
-        </label>
-        {error && (
-          <p className="error" role="alert">
-            {error}
-          </p>
-        )}
-        <footer>
-          <button type="button" onClick={onClose} disabled={pending}>
-            cancel
-          </button>
-          <button
-            type="submit"
-            className={`primary${prompt.destructive ? ' danger' : ''}`}
-            disabled={pending}
-          >
-            {pending ? 'saving…' : prompt.destructive ? 'delete' : 'save'}
-          </button>
-        </footer>
-      </form>
-    </Dialog>
-  );
-}
-
 export function Workspace({
   account,
   accounts,
@@ -210,14 +109,8 @@ export function Workspace({
   onSignOut,
 }: WorkspaceProps) {
   const connection = useServerConnection();
-  const [version, setVersion] = useState(0),
-    [boardId, setBoardId] = useState<string | null>(() => readStartBoard(account.id));
-  const [storedView, setStoredView] = useState<{
-      boardId: string;
-      value: BoardViewPreferences;
-    } | null>(null),
-    [quick, setQuick] = useState<'all' | 'today' | 'starred'>('all');
-  const [startBoardId, setStartBoardId] = useState<string | null>(() => readStartBoard(account.id));
+  const [version, setVersion] = useState(0);
+  const [quick, setQuick] = useState<'all' | 'today' | 'starred'>('all');
   const [templatesOpen, setTemplatesOpen] = useState(false),
     [templateDirty, setTemplateDirty] = useState(false);
   const [inspectedOperation, setInspectedOperation] = useState<string | null>(null),
@@ -242,7 +135,6 @@ export function Workspace({
     null,
   );
   const [resetInlineDrafts, setResetInlineDrafts] = useState(0);
-  const [draggingBoard, setDraggingBoard] = useState<string | null>(null);
   const [taskMenuAnchor, setTaskMenuAnchor] = useState<HTMLElement | null>(null);
   const [listMenuAnchor, setListMenuAnchor] = useState<HTMLElement | null>(null);
   const [boardMenuAnchor, setBoardMenuAnchor] = useState<HTMLElement | null>(null);
@@ -265,8 +157,6 @@ export function Workspace({
     { kind: 'list'; list: BoardList } | { kind: 'task'; task: Task; boardId: string } | null
   >(null);
   const [completedDeletionList, setCompletedDeletionList] = useState<TaskList | null>(null);
-  const [resolvedBoard, setResolvedBoard] = useState<Board | null>(null);
-  const [failedBoardLookup, setFailedBoardLookup] = useState<string | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const changed = useCallback(() => setVersion((value) => value + 1), []);
   const moveQueue = useTaskMoveQueue(account.id, {
@@ -300,78 +190,20 @@ export function Workspace({
   }, [changed, repeatWork.run]);
   const sync = useWorkspaceSync(account.id, syncChanged);
   const base = `/api/accounts/${encodeURIComponent(account.id)}`;
-  const boards = usePagedResource(
-    `${account.id}:boards`,
-    (cursor, signal) =>
-      request(
-        `${base}/boards${cursor ? '?cursor=' + encodeURIComponent(cursor) : ''}`,
-        BoardPageSchema,
-        { signal },
-      ),
-    (board) => board.id,
+  const boardData = useBoardData({
+    accountId: account.id,
     version,
+    retainedBoard: draftContext?.board ?? null,
+    onNotice: setNotice,
+  });
+  const { boards, board, lists, boardId, startBoardId, failedBoardLookup } = boardData;
+  const { preferences: viewPreferences, update: updateBoardView } = useBoardViewPreferences(
+    account.id,
+    board?.id ?? null,
   );
-  const board = boardId
-    ? (boards.items.find((item) => item.id === boardId) ??
-      (resolvedBoard?.id === boardId ? resolvedBoard : null) ??
-      (draftContext?.board.id === boardId ? draftContext.board : null))
-    : (boards.items.find((item) => item.isMain) ??
-      (draftContext?.board.isMain ? draftContext.board : null));
-  const viewPreferences = board
-    ? storedView?.boardId === board.id
-      ? storedView.value
-      : readBoardView(account.id, board.id)
-    : defaultBoardView;
   const view = viewPreferences.view;
-  const updateBoardView = (patch: Partial<BoardViewPreferences>) => {
-    if (!board) return;
-    const next = { ...viewPreferences, ...patch };
-    setStoredView({ boardId: board.id, value: next });
-    saveBoardView(account.id, board.id, next);
-  };
   const setView = (next: BoardViewPreferences['view']) =>
     guard(() => updateBoardView({ view: next }));
-  useEffect(() => {
-    if (!boardId) {
-      setResolvedBoard(null);
-      return;
-    }
-    const loaded = boards.items.find((item) => item.id === boardId);
-    if (loaded) {
-      setResolvedBoard(loaded);
-      return;
-    }
-    const controller = new AbortController();
-    setFailedBoardLookup(null);
-    void request(`${base}/boards/${encodeURIComponent(boardId)}`, BoardSchema, {
-      signal: controller.signal,
-    })
-      .then(setResolvedBoard)
-      .catch((error) => {
-        if (controller.signal.aborted) return;
-        setFailedBoardLookup(boardId);
-        if (error instanceof RequestError && error.code === 'not_found') {
-          setBoardId(null);
-          if (startBoardId === boardId) {
-            saveStartBoard(account.id, null);
-            setStartBoardId(null);
-          }
-          setNotice('that board is no longer available. opening the main board.');
-        } else setNotice(error instanceof Error ? error.message : 'this board could not load.');
-      });
-    return () => controller.abort();
-  }, [base, boardId, boards.items, version, startBoardId, account.id]);
-  const lists = usePagedResource(
-    board ? `${account.id}:${board.id}:lists` : null,
-    (cursor, signal) =>
-      request(
-        `${base}/boards/${encodeURIComponent(board!.id)}/lists${cursor ? '?cursor=' + encodeURIComponent(cursor) : ''}`,
-        BoardListPageSchema,
-        { signal },
-      ),
-    (list) => list.id,
-    version,
-  );
   const visibleLists =
     inlineDirty && draftContext && draftContext.board.id === board?.id
       ? [
@@ -511,207 +343,21 @@ export function Workspace({
           );
       });
   };
-  const toggleComplete = async (task: Task, completed: boolean) => {
-    if (!completed) {
-      if (task.repeatRule || task.seriesId) {
-        try {
-          const status = await request(
-            `${base}/tasks/${encodeURIComponent(task.id)}/recurrence`,
-            RecurrenceStatusSchema.nullable(),
-          );
-          if (!status?.occurrenceId) {
-            await submit(
-              { kind: 'task.reopen', taskId: task.id, revision: task.revision },
-              'provider',
-            );
-            return;
-          }
-          await request(
-            `${base}/tasks/${encodeURIComponent(task.id)}/recurrence/advance`,
-            RecurrenceAdvanceSchema,
-            { method: 'POST', body: {} },
-          );
-          const preview = await request(
-            `${base}/tasks/${encodeURIComponent(task.id)}/recurrence/reopen-preview`,
-            ReopenPreviewSchema,
-          );
-          setReopen({ task, preview });
-        } catch (error) {
-          setNotice(
-            error instanceof Error ? error.message : 'the repeat occurrence could not be checked.',
-          );
-        }
-      } else
-        await submit({ kind: 'task.reopen', taskId: task.id, revision: task.revision }, 'provider');
-      return;
-    }
-    try {
-      const preview = await request(
-        `${base}/tasks/${encodeURIComponent(task.id)}/consequences`,
-        TaskConsequencesSchema,
-      );
-      if (preview.revision !== task.revision) {
-        setNotice('this task changed. review its current values before completing it.');
-        changed();
-        return;
-      }
-      if (!preview.coverageComplete) {
-        setNotice('refresh the complete list before completing this task and its checklist.');
-        return;
-      }
-      const command = {
-        kind: 'task.complete',
-        taskId: task.id,
-        revision: preview.revision,
-        ...(preview.openBlockerCount || preview.openBlockedSubtaskCount
-          ? { confirmBlocked: true }
-          : {}),
-        confirmOpenSubtaskCount: preview.openSubtaskCount,
-      };
-      if (
-        preview.openSubtaskCount ||
-        preview.openBlockerCount ||
-        preview.openBlockedSubtaskCount ||
-        preview.unknownBlockerCount
-      ) {
-        setConfirmation({
-          title: `complete ${preview.title || 'this task'}?`,
-          message: [
-            preview.openSubtaskCount
-              ? `${preview.openSubtaskCount} open subtasks will also complete.`
-              : '',
-            preview.openBlockerCount
-              ? `this task has ${preview.openBlockerCount} open blockers.`
-              : '',
-            preview.openBlockedSubtaskCount
-              ? `${preview.openBlockedSubtaskCount} open subtasks are blocked.`
-              : '',
-            preview.unknownBlockerCount
-              ? `${preview.unknownBlockerCount} blockers have an unresolved identity.`
-              : '',
-          ]
-            .filter(Boolean)
-            .join(' '),
-          confirmLabel: 'complete',
-          onConfirm: async (identity) => {
-            const done = await submit(command, 'provider', identity);
-            if (done) void repeatWork.run();
-            return done;
-          },
-        });
-      } else if (await submit(command, 'provider')) void repeatWork.run();
-    } catch (error) {
-      setNotice(error instanceof Error ? error.message : 'completion could not be checked.');
-    }
-  };
-  const deleteTask = async (task: Task) => {
-    try {
-      const preview = await request(
-        `${base}/tasks/${encodeURIComponent(task.id)}/consequences`,
-        TaskConsequencesSchema,
-      );
-      if (preview.revision !== task.revision || !preview.coverageComplete) {
-        setNotice('refresh this task and its complete checklist before deleting it.');
-        changed();
-        return;
-      }
-      setConfirmation({
-        title: `delete ${preview.title || 'this task'}?`,
-        message: `this removes the task${preview.subtaskCount ? ` and ${preview.subtaskCount} subtasks` : ''} from google tasks.${preview.assignmentSource ? ' its source assignment will also be removed.' : ''} this cannot be undone in lanes.`,
-        confirmLabel: 'delete task',
-        onConfirm: async (identity) => {
-          const done = await submit(
-            {
-              kind: 'task.delete',
-              taskId: task.id,
-              revision: preview.revision,
-              confirm: true,
-              confirmSubtaskCount: preview.subtaskCount,
-              ...(preview.assignmentSource ? { confirmAssignment: true } : {}),
-            },
-            'provider',
-            identity,
-          );
-          if (done) {
-            setEditor(null);
-            setEditorDirty(false);
-            setTaskMenu(null);
-          }
-          return done;
-        },
-      });
-    } catch (error) {
-      setNotice(error instanceof Error ? error.message : 'deletion could not be checked.');
-    }
-  };
-  const deleteList = async (list: BoardList) => {
-    try {
-      const preview = await request(
-        `${base}/lists/${encodeURIComponent(list.id)}/consequences`,
-        ListConsequencesSchema,
-      );
-      if (preview.isDefault || preview.revision !== list.revision || !preview.coverageComplete) {
-        setNotice(
-          'the default list stays. other lists need a complete fresh inventory before deletion.',
-        );
-        return;
-      }
-      setListMenu(null);
-      setConfirmation({
-        title: `delete ${preview.title || 'this list'}?`,
-        message: `this removes the google tasks list and ${preview.taskCount} tasks.${preview.assignedTaskCount ? ` ${preview.assignedTaskCount} source assignments will also be removed.` : ''} its google content cannot be restored through lanes.`,
-        confirmLabel: 'delete list',
-        onConfirm: (identity) =>
-          submit(
-            {
-              kind: 'list.delete',
-              listId: list.id,
-              revision: preview.revision,
-              confirm: true,
-              confirmTaskCount: preview.taskCount,
-              ...(preview.assignedTaskCount ? { confirmAssignments: true } : {}),
-            },
-            'provider',
-            identity,
-          ),
-      });
-    } catch (error) {
-      setNotice(error instanceof Error ? error.message : 'deletion could not be checked.');
-    }
-  };
-  const reschedule = async (intent: {
-    accountId: string;
-    taskId: string;
-    revision: number;
-    scheduledDay: string | null;
-  }) => {
-    if (intent.accountId !== account.id) return;
-    try {
-      const task = await request(`${base}/tasks/${encodeURIComponent(intent.taskId)}`, TaskSchema);
-      if (task.revision !== intent.revision) {
-        setNotice('this task changed. review its current date before moving it.');
-        changed();
-        return;
-      }
-      const command = {
-        kind: 'task.edit',
-        taskId: task.id,
-        revision: task.revision,
-        patch: { scheduledDay: intent.scheduledDay },
-      };
-      if (intent.scheduledDay === null && (task.scheduledTime || task.repeatRule))
-        setConfirmation({
-          title: `remove the date from ${task.title || 'this task'}?`,
-          message:
-            'its local time and repeat rule will also be removed. an unscheduled task cannot keep either.',
-          confirmLabel: 'remove date',
-          onConfirm: (identity) => submit(command, 'provider', identity),
-        });
-      else await submit(command, 'provider');
-    } catch (error) {
-      setNotice(error instanceof Error ? error.message : 'the task could not be rescheduled.');
-    }
-  };
+  const { toggleComplete, deleteTask, deleteList, reschedule } = createTaskActions({
+    accountId: account.id,
+    submit,
+    confirm: setConfirmation,
+    onNotice: setNotice,
+    onChanged: changed,
+    onRepeat: repeatWork.run,
+    onReopen: setReopen,
+    onTaskDeleted: () => {
+      setEditor(null);
+      setEditorDirty(false);
+      setTaskMenu(null);
+    },
+    onListDeleteReady: () => setListMenu(null),
+  });
   function newBoard() {
     setPrompt({
       title: 'new board',
@@ -827,92 +473,30 @@ export function Workspace({
             starred
           </button>
         </nav>
-        <div className="workspace__section-label">
-          <span>your boards</span>
-          <button
-            aria-label="new board"
-            disabled={!localWritable}
-            onClick={() => {
+        <BoardNavigation
+          resource={boards}
+          selectedBoardId={
+            quick === 'all' && !(searchScope === 'account' && search) ? (board?.id ?? null) : null
+          }
+          writable={localWritable}
+          onCreate={() => {
+            setNavOpen(false);
+            newBoard();
+          }}
+          onSelect={(item) =>
+            guard(() => {
+              boardData.selectBoard(item);
+              setQuick('all');
+              setSearchScope('board');
+              setSearch('');
+              setQuery('');
               setNavOpen(false);
-              newBoard();
-            }}
-          >
-            <Icon name="plus" size={14} />
-          </button>
-        </div>
-        <nav className="workspace__boards" aria-label="boards">
-          {boards.items.map((item) => (
-            <button
-              key={item.id}
-              className={
-                board?.id === item.id && quick === 'all' && !(searchScope === 'account' && search)
-                  ? 'active'
-                  : ''
-              }
-              draggable={localWritable}
-              onDragStart={(event) => {
-                setDraggingBoard(item.id);
-                event.dataTransfer.effectAllowed = 'move';
-                event.dataTransfer.setData('text/plain', item.id);
-              }}
-              onDragEnd={() => setDraggingBoard(null)}
-              onDragOver={(event) => {
-                if (draggingBoard && draggingBoard !== item.id) event.preventDefault();
-              }}
-              onDrop={(event) => {
-                event.preventDefault();
-                const source = boards.items.find((value) => value.id === draggingBoard);
-                setDraggingBoard(null);
-                if (!source || source.id === item.id || !localWritable) return;
-                void submit(
-                  {
-                    kind: 'board.reorder',
-                    boardId: source.id,
-                    revision: source.revision,
-                    position: boards.items.findIndex((value) => value.id === item.id),
-                  },
-                  'local',
-                );
-              }}
-              onClick={() =>
-                guard(() => {
-                  setBoardId(item.id);
-                  setResolvedBoard(item);
-                  setQuick('all');
-                  setSearchScope('board');
-                  setSearch('');
-                  setQuery('');
-                  setNavOpen(false);
-                })
-              }
-            >
-              <span
-                className="workspace__board-symbol"
-                style={{ '--board-color': item.color } as CSSProperties}
-              >
-                {item.emoji ?? <Icon name="board" size={15} />}
-              </span>
-              <span>{item.title || 'untitled board'}</span>
-            </button>
-          ))}
-          {boards.status === 'loading' && !boards.items.length && (
-            <div className="workspace-skeleton__boards" role="status" aria-label="loading boards">
-              {[0, 1, 2].map((key) => (
-                <div key={key} className="workspace-skeleton__board-name">
-                  <Skeleton className="workspace-skeleton__board-symbol" />
-                  <Skeleton className="workspace-skeleton__line" />
-                </div>
-              ))}
-            </div>
-          )}
-          {boards.error && <button onClick={() => void boards.reload()}>retry boards</button>}
-          {boards.nextCursor && (
-            <button className="workspace__nav-note" onClick={() => void boards.loadMore()}>
-              more boards
-              <Icon name="down" size={12} />
-            </button>
-          )}
-        </nav>
+            })
+          }
+          onReorder={(command) => {
+            void submit(command, 'local');
+          }}
+        />
       </aside>
       {navOpen && (
         <button
@@ -1226,7 +810,7 @@ export function Workspace({
               }}
               onOpenBoard={(id) =>
                 guard(() => {
-                  setBoardId(id);
+                  boardData.selectBoardId(id);
                   setQuick('all');
                   setSearchScope('board');
                   setSearch('');
@@ -1622,10 +1206,7 @@ export function Workspace({
           preferences={viewPreferences}
           startBoardId={startBoardId}
           onPreferences={updateBoardView}
-          onStartBoard={(id) => {
-            saveStartBoard(account.id, id);
-            setStartBoardId(id);
-          }}
+          onStartBoard={boardData.setStartBoard}
           onChanged={changed}
           onClose={() => setBoardMenu(false)}
           onDelete={() =>
@@ -1657,238 +1238,54 @@ export function Workspace({
         />
       )}
       {listMenu && listMenuAnchor && (
-        <AnchoredPopover
+        <ListOptions
+          list={listMenu}
           anchor={listMenuAnchor}
-          label={listMenu.title || 'list options'}
+          boards={boards.items}
+          lists={visibleLists}
+          loadedListCount={lists.items.length}
+          writable={writable}
+          localWritable={localWritable}
+          submit={submit}
+          guard={guard}
+          onPrompt={setPrompt}
           onClose={() => setListMenu(null)}
-        >
-          <div className="dialog__actions">
-            <button
-              disabled={!writable}
-              onClick={() => {
-                const list = listMenu;
-                setListMenu(null);
-                setPrompt({
-                  title: 'rename list',
-                  label: 'list name',
-                  initial: list.title,
-                  submit: (value, identity) =>
-                    submit(
-                      {
-                        kind: 'list.rename',
-                        listId: list.id,
-                        revision: list.revision,
-                        title: value,
-                      },
-                      'provider',
-                      identity,
-                    ),
-                });
-              }}
-            >
-              <Icon name="pen" size={16} />
-              rename
-            </button>
-            <button
-              disabled={!localWritable}
-              onClick={() => {
-                const list = listMenu;
-                setListMenu(null);
-                setPrompt({
-                  title: 'list color',
-                  label: 'hex color',
-                  initial: list.color,
-                  submit: (value, identity) =>
-                    submit(
-                      {
-                        kind: 'list.appearance',
-                        listId: list.id,
-                        revision: list.membershipRevision,
-                        color: value,
-                      },
-                      'local',
-                      identity,
-                    ),
-                });
-              }}
-            >
-              <Icon name="leaf" size={16} />
-              color
-            </button>
-            <label className="workspace__move-list">
-              move to board
-              <Select
-                aria-label="move to board"
-                value={listMenu.boardId}
-                disabled={!localWritable || listMenu.isDefault}
-                onChange={(value) =>
-                  guard(() => {
-                    void submit({
-                      kind: 'list.placement',
-                      listId: listMenu.id,
-                      boardId: value,
-                      revision: listMenu.membershipRevision,
-                    }).then((done) => {
-                      if (done) setListMenu(null);
-                    });
-                  })
-                }
-                options={boards.items.map((item) => ({ value: item.id, label: item.title }))}
-              />
-            </label>
-            <button
-              disabled={
-                !localWritable || visibleLists.findIndex((list) => list.id === listMenu.id) <= 0
-              }
-              onClick={() => {
-                const list = listMenu;
-                const index = visibleLists.findIndex((item) => item.id === list.id);
-                void submit({
-                  kind: 'list.placement',
-                  listId: list.id,
-                  boardId: list.boardId,
-                  revision: list.membershipRevision,
-                  position: index - 1,
-                }).then((done) => {
-                  if (done) setListMenu(null);
-                });
-              }}
-            >
-              move column left
-            </button>
-            <button
-              disabled={
-                !localWritable ||
-                visibleLists.findIndex((list) => list.id === listMenu.id) === lists.items.length - 1
-              }
-              onClick={() => {
-                const list = listMenu;
-                const index = visibleLists.findIndex((item) => item.id === list.id);
-                void submit({
-                  kind: 'list.placement',
-                  listId: list.id,
-                  boardId: list.boardId,
-                  revision: list.membershipRevision,
-                  position: index + 1,
-                }).then((done) => {
-                  if (done) setListMenu(null);
-                });
-              }}
-            >
-              move column right
-            </button>
-            <button
-              disabled={!writable}
-              onClick={() => {
-                setCopying({ kind: 'list', list: listMenu });
-                setListMenu(null);
-              }}
-            >
-              <Icon name="copy" size={16} />
-              duplicate
-            </button>
-            <button
-              className="danger"
-              onClick={() => {
-                setCompletedDeletionList(listMenu);
-                setListMenu(null);
-              }}
-            >
-              <Icon name="trash" size={16} />
-              delete completed tasks
-            </button>
-            <button
-              className="danger"
-              disabled={!writable || listMenu.isDefault}
-              onClick={() => guard(() => void deleteList(listMenu))}
-            >
-              <Icon name="trash" size={16} />
-              delete list
-            </button>
-          </div>
-        </AnchoredPopover>
+          onDuplicate={(list) => setCopying({ kind: 'list', list })}
+          onDeleteCompleted={setCompletedDeletionList}
+          onDelete={deleteList}
+        />
       )}
       {taskMenu && taskMenuAnchor && (
-        <AnchoredPopover
+        <TaskOptions
+          task={taskMenu}
           anchor={taskMenuAnchor}
-          label={taskMenu.title || 'task options'}
+          writable={writable}
+          localWritable={localWritable}
+          submit={submit}
           onClose={() => setTaskMenu(null)}
-        >
-          <div className="dialog__actions">
-            <button
-              onClick={() => {
-                setHistoryTask(taskMenu);
-                setTaskMenu(null);
-                setHistory(true);
-              }}
-            >
-              <Icon name="history" size={16} /> history
-            </button>
-            <button
-              onClick={() => {
-                openTask(taskMenu);
-                setTaskMenu(null);
-              }}
-            >
-              <Icon name="pen" size={16} />
-              open task
-            </button>
-            <button
-              disabled={!localWritable}
-              onClick={() => {
-                void submit({
-                  kind: 'task.patch',
-                  taskId: taskMenu.id,
-                  expectedRevision: taskMenu.revision,
-                  patch: { starred: !taskMenu.starred },
-                }).then((done) => {
-                  if (done) setTaskMenu(null);
-                });
-              }}
-            >
-              <Icon name="star" size={16} />
-              {taskMenu.starred ? 'remove star' : 'star task'}
-            </button>
-            <button
-              disabled={!writable}
-              onClick={() => {
-                setCopying({ kind: 'task', task: taskMenu, boardId: board?.id ?? '' });
-                setTaskMenu(null);
-              }}
-            >
-              <Icon name="copy" size={16} />
-              duplicate task
-            </button>
-            <button
-              disabled={!writable || !taskMenu.capabilities.canMove}
-              onClick={() => {
-                setMovingTask(taskMenu);
-                setTaskMenu(null);
-              }}
-            >
-              <Icon name="arrow" size={16} />
-              move task
-            </button>
-            <button
-              disabled={!writable}
-              onClick={() => {
-                void toggleComplete(taskMenu, !taskMenu.completed);
-                setTaskMenu(null);
-              }}
-            >
-              <Icon name="check" size={16} />
-              {taskMenu.completed ? 'reopen' : 'complete'}
-            </button>
-            <button
-              className="danger"
-              disabled={!writable || !taskMenu.capabilities.canDelete}
-              onClick={() => void deleteTask(taskMenu)}
-            >
-              <Icon name="trash" size={16} />
-              delete task
-            </button>
-          </div>
-        </AnchoredPopover>
+          onHistory={(task) => {
+            setHistoryTask(task);
+            setTaskMenu(null);
+            setHistory(true);
+          }}
+          onOpen={(task) => {
+            openTask(task);
+            setTaskMenu(null);
+          }}
+          onDuplicate={(task) => {
+            setCopying({ kind: 'task', task, boardId: board?.id ?? '' });
+            setTaskMenu(null);
+          }}
+          onMove={(task) => {
+            setMovingTask(task);
+            setTaskMenu(null);
+          }}
+          onToggleComplete={(task) => {
+            void toggleComplete(task, !task.completed);
+            setTaskMenu(null);
+          }}
+          onDelete={(task) => void deleteTask(task)}
+        />
       )}
       {accountLifecycleOpen && (
         <AccountLifecycleDialog
@@ -1936,7 +1333,7 @@ export function Workspace({
               )
                 .then((placement) =>
                   guard(() => {
-                    setBoardId(placement.boardId);
+                    boardData.selectBoardId(placement.boardId);
                     setQuick('all');
                     setActivity(false);
                   }),
