@@ -39,7 +39,7 @@ function call(path: string, services: unknown, input?: unknown) {
 describe('account-scoped transfer HTTP protocols', () => {
   it('retains bounded archive pagination and the authenticated account scope', async () => {
     const list = vi.fn().mockResolvedValue({ items: [], nextCursor: null });
-    const services = { transfer: { archiveExports: { list } } };
+    const services = { transfer: { archiveExports: { queries: { list } } } };
     await expect(call('archives/exports?limit=11', services)).rejects.toMatchObject({
       code: 'validation_failed',
       status: 400,

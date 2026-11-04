@@ -12,9 +12,9 @@ import {
   type ArchiveImportMode,
   type ArchiveRecord,
 } from '../../contracts/archive';
-import { MAX_IMPORT_FILE_BYTES, TransferParseError } from '../../contracts/parsing';
-import { ArchiveValidator } from './archive-validation';
+import { MAX_IMPORT_FILE_BYTES } from '../../contracts/parsing';
 import { canonicalJson, transferDigest } from '../identity/content-hash';
+import { ArchiveValidator } from './archive-validation';
 const identity = z.string().min(1).max(1024);
 const beginSchema = z
   .object({

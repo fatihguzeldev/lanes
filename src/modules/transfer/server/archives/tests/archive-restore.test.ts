@@ -1,19 +1,18 @@
-import { createOperationStore } from '../../../../../../tests/support/operation-store';
 import { afterEach, expect, it, vi } from 'vitest';
-import { testDatabase, seedAccount } from '../../../../../../tests/support/sqlite-d1';
+import { createOperationStore } from '../../../../../../tests/support/operation-store';
+import { seedAccount, testDatabase } from '../../../../../../tests/support/sqlite-d1';
+import { createTemplateOwners } from '../../../../../worker/composition/template-services';
 import { AccountsPortability } from '../../../../accounts/server/connections/portability';
 import { BoardService } from '../../../../boards/server/boards/service';
 import { HistoryService } from '../../../../history/server/events/event-store';
-import { TaskQueries } from '../../../../tasks/server/queries/tasks';
-import { TaskMetadataService } from '../../../../tasks/server/metadata/tasks';
-import { TaskSnapshotReader } from '../../../../tasks/server/queries/snapshot-reader';
-import { TaskProjectionStore } from '../../../../tasks/server/projection/store';
 import { TaskCommandService } from '../../../../tasks/server/commands/service';
-import { OperationStore } from '../../../../operations/server/journal/store';
-import { WorkspaceArchiveStore } from '../archive-store';
-import { ArchiveRestoreService } from '../archive-restore';
-import { createTemplateOwners } from '../../../../../worker/composition/template-services';
+import { TaskMetadataService } from '../../../../tasks/server/metadata/tasks';
+import { TaskProjectionStore } from '../../../../tasks/server/projection/store';
+import { TaskSnapshotReader } from '../../../../tasks/server/queries/snapshot-reader';
+import { TaskQueries } from '../../../../tasks/server/queries/tasks';
 import { TemplateDocumentStore } from '../../../../tasks/server/templates/documents';
+import { ArchiveRestoreService } from '../archive-restore';
+import { WorkspaceArchiveStore } from '../archive-store';
 const now = Date.parse('2026-11-02T12:00:00Z'),
   id = `${now}:abcdefghijklmnop`;
 const databases: ReturnType<typeof testDatabase>[] = [];
@@ -80,10 +79,10 @@ const records = [
 it('rolls back a failed local restore commit and retries its same unfinished action after backoff and payload cleanup', async () => {
   let clock = now;
   const f = await fixture(records, () => clock);
-  for (let n = 0; n < records.length; n++) await f.service.previewNext(id, 'a');
-  await f.service.choose(id, 'a', [{ key: 'b1', fields: ['appearance'] }]);
-  const preview = await f.service.preview(id, 'a');
-  await f.service.confirm(id, 'a', {
+  for (let n = 0; n < records.length; n++) await f.service.selection.previewNext(id, 'a');
+  await f.service.selection.choose(id, 'a', [{ key: 'b1', fields: ['appearance'] }]);
+  const preview = await f.service.selection.preview(id, 'a');
+  await f.service.selection.confirm(id, 'a', {
     previewHash: preview.archive.previewHash!,
     revision: preview.archive.revision,
   });
@@ -160,10 +159,10 @@ it('rolls back a failed local restore commit and retries its same unfinished act
 });
 it('keeps a definitive local revision conflict terminal without replacing newer board values', async () => {
   const f = await fixture();
-  for (let n = 0; n < records.length; n++) await f.service.previewNext(id, 'a');
-  await f.service.choose(id, 'a', [{ key: 'b1', fields: ['appearance'] }]);
-  const preview = await f.service.preview(id, 'a');
-  await f.service.confirm(id, 'a', {
+  for (let n = 0; n < records.length; n++) await f.service.selection.previewNext(id, 'a');
+  await f.service.selection.choose(id, 'a', [{ key: 'b1', fields: ['appearance'] }]);
+  const preview = await f.service.selection.preview(id, 'a');
+  await f.service.selection.confirm(id, 'a', {
     previewHash: preview.archive.previewHash!,
     revision: preview.archive.revision,
   });
@@ -376,12 +375,12 @@ it('keeps unresolved issued actions pending when a cancelled restore is drained 
 });
 it('previews exact provider matches without writes and preserves all conflicting current values by default', async () => {
   const f = await fixture();
-  for (let n = 0; n < records.length; n++) await f.service.previewNext(id, 'a');
-  const preview = await f.service.preview(id, 'a');
+  for (let n = 0; n < records.length; n++) await f.service.selection.previewNext(id, 'a');
+  const preview = await f.service.selection.preview(id, 'a');
   expect(preview.pendingMatches).toBe(0);
   expect(preview.conflicts).toBeGreaterThan(0);
   expect(await f.db.prepare('SELECT COUNT(*) AS n FROM tasks_operations').first('n')).toBe(0);
-  await f.service.confirm(id, 'a', {
+  await f.service.selection.confirm(id, 'a', {
     previewHash: preview.archive.previewHash!,
     revision: preview.archive.revision,
   });
@@ -401,10 +400,10 @@ it('previews exact provider matches without writes and preserves all conflicting
 });
 it('applies explicitly selected local fields through the common task journal and never changes provider content', async () => {
   const f = await fixture();
-  for (let n = 0; n < records.length; n++) await f.service.previewNext(id, 'a');
-  await f.service.choose(id, 'a', [{ key: 't1', fields: ['priority', 'starred'] }]);
-  const preview = await f.service.preview(id, 'a');
-  await f.service.confirm(id, 'a', {
+  for (let n = 0; n < records.length; n++) await f.service.selection.previewNext(id, 'a');
+  await f.service.selection.choose(id, 'a', [{ key: 't1', fields: ['priority', 'starred'] }]);
+  const preview = await f.service.selection.preview(id, 'a');
+  await f.service.selection.confirm(id, 'a', {
     previewHash: preview.archive.previewHash!,
     revision: preview.archive.revision,
   });
@@ -424,10 +423,10 @@ it('applies explicitly selected local fields through the common task journal and
 });
 it('shows unmatched equal titles and rejects a stale selected metadata revision', async () => {
   const f = await fixture();
-  for (let n = 0; n < records.length; n++) await f.service.previewNext(id, 'a');
-  await f.service.choose(id, 'a', [{ key: 't1', fields: ['priority'] }]);
-  const preview = await f.service.preview(id, 'a');
-  await f.service.confirm(id, 'a', {
+  for (let n = 0; n < records.length; n++) await f.service.selection.previewNext(id, 'a');
+  await f.service.selection.choose(id, 'a', [{ key: 't1', fields: ['priority'] }]);
+  const preview = await f.service.selection.preview(id, 'a');
+  await f.service.selection.confirm(id, 'a', {
     previewHash: preview.archive.previewHash!,
     revision: preview.archive.revision,
   });
@@ -463,9 +462,9 @@ it('preserves restored history identity/time while applying normal retention and
       event('expired', '2026-01-01T00:00:00Z'),
     ],
     f = await fixture(source);
-  for (let n = 0; n < source.length; n++) await f.service.previewNext(id, 'a');
-  const preview = await f.service.preview(id, 'a');
-  await f.service.confirm(id, 'a', {
+  for (let n = 0; n < source.length; n++) await f.service.selection.previewNext(id, 'a');
+  const preview = await f.service.selection.preview(id, 'a');
+  await f.service.selection.confirm(id, 'a', {
     previewHash: preview.archive.previewHash!,
     revision: preview.archive.revision,
   });
@@ -555,9 +554,9 @@ it('restores declarative template bodies and schedule definitions through their 
     },
   ];
   const f = await fixture(source);
-  for (let n = 0; n < source.length; n++) await f.service.previewNext(id, 'a');
-  const preview = await f.service.preview(id, 'a');
-  await f.service.confirm(id, 'a', {
+  for (let n = 0; n < source.length; n++) await f.service.selection.previewNext(id, 'a');
+  const preview = await f.service.selection.preview(id, 'a');
+  await f.service.selection.confirm(id, 'a', {
     previewHash: preview.archive.previewHash!,
     revision: preview.archive.revision,
   });
@@ -634,9 +633,9 @@ it('keeps a large template prepared across dependency checkpoints and installs o
     })),
   ];
   const f = await fixture(source);
-  for (let n = 0; n < source.length; n++) await f.service.previewNext(id, 'a');
-  const preview = await f.service.preview(id, 'a');
-  await f.service.confirm(id, 'a', {
+  for (let n = 0; n < source.length; n++) await f.service.selection.previewNext(id, 'a');
+  const preview = await f.service.selection.preview(id, 'a');
+  await f.service.selection.confirm(id, 'a', {
     previewHash: preview.archive.previewHash!,
     revision: preview.archive.revision,
   });

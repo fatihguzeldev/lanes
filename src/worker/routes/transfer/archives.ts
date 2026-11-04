@@ -33,7 +33,9 @@ export async function archiveTransferRoute(
   if (route[4] === 'archives') {
     if (route[5] === 'exports') {
       if (route.length === 6 && method === 'GET')
-        return jsonResponse(await transfer.archiveExports.list(accountId, transferPage(url)));
+        return jsonResponse(
+          await transfer.archiveExports.queries.list(accountId, transferPage(url)),
+        );
       if (route.length === 6 && method === 'POST') {
         const input = await readJson(
           request,
@@ -43,10 +45,14 @@ export async function archiveTransferRoute(
       }
       const exportId = route[6];
       if (exportId && route.length === 7 && method === 'GET')
-        return jsonResponse(await transfer.archiveExports.get(accountId, exportId));
+        return jsonResponse(await transfer.archiveExports.queries.get(accountId, exportId));
       if (exportId && route.length === 8 && route[7] === 'download' && method === 'GET')
         return jsonResponse(
-          await transfer.archiveExports.downloadPage(accountId, exportId, transferPage(url)),
+          await transfer.archiveExports.queries.downloadPage(
+            accountId,
+            exportId,
+            transferPage(url),
+          ),
         );
       if (
         exportId &&
@@ -89,7 +95,7 @@ export async function archiveTransferRoute(
       if (route[6] === 'records')
         return jsonResponse(await transfer.archives.page(archiveId, accountId, recordPage(url)));
       if (route[6] === 'preview')
-        return jsonResponse(await transfer.restore.preview(archiveId, accountId));
+        return jsonResponse(await transfer.restore.selection.preview(archiveId, accountId));
     }
     if (archiveId && route.length === 7 && method === 'POST') {
       if (route[6] === 'chunks')
@@ -102,7 +108,7 @@ export async function archiveTransferRoute(
         );
       if (route[6] === 'choices')
         return jsonResponse(
-          await transfer.restore.choose(
+          await transfer.restore.selection.choose(
             archiveId,
             accountId,
             await readJson(request, ArchiveChoiceChunkSchema),
@@ -111,7 +117,7 @@ export async function archiveTransferRoute(
       if (route[6] === 'preferences') {
         const input = await readJson(request, z.object({ selected: z.boolean() }).strict());
         return jsonResponse(
-          await transfer.restore.choosePreferences(archiveId, accountId, input.selected),
+          await transfer.restore.selection.choosePreferences(archiveId, accountId, input.selected),
         );
       }
       if (route[6] === 'confirm') {
@@ -119,7 +125,10 @@ export async function archiveTransferRoute(
           request,
           z.object({ previewHash: z.string().regex(/^[a-f0-9]{64}$/), revision }).strict(),
         );
-        return jsonResponse(await transfer.restore.confirm(archiveId, accountId, input), 202);
+        return jsonResponse(
+          await transfer.restore.selection.confirm(archiveId, accountId, input),
+          202,
+        );
       }
       if (route[6] === 'copy') {
         const input = await readJson(
@@ -136,7 +145,7 @@ export async function archiveTransferRoute(
         if (route[6] === 'seal')
           return jsonResponse(await transfer.archives.seal(archiveId, accountId));
         if (route[6] === 'preview-next')
-          return jsonResponse(await transfer.restore.previewNext(archiveId, accountId));
+          return jsonResponse(await transfer.restore.selection.previewNext(archiveId, accountId));
         if (route[6] === 'advance')
           return jsonResponse(await transfer.restore.advance(archiveId, accountId));
         if (route[6] === 'resume')

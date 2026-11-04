@@ -1,5 +1,4 @@
 import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types';
-import { AppError } from '../../shared/contracts/errors';
 import type { BoardService } from '../../modules/boards/server/boards/service';
 import {
   BoardTemplateService,
@@ -7,10 +6,11 @@ import {
 } from '../../modules/boards/server/templates/definitions';
 import { TemplateApplicationService } from '../../modules/boards/server/templates/runs';
 import { TemplateScheduleService } from '../../modules/boards/server/templates/schedules';
+import type { OperationStore } from '../../modules/operations/server/journal/store';
+import type { TaskCommandService } from '../../modules/tasks/server/commands/service';
 import { ListSnapshotStore } from '../../modules/tasks/server/templates/snapshots';
 import { ListTemplateService } from '../../modules/tasks/server/templates/definitions';
-import type { TaskCommandService } from '../../modules/tasks/server/commands/service';
-import type { OperationStore } from '../../modules/operations/server/journal/store';
+import { AppError } from '../../shared/contracts/errors';
 export type CommitTemplateWrites = (writes: D1PreparedStatement[]) => Promise<unknown>;
 interface Dependencies {
   boards: BoardService;
@@ -43,15 +43,15 @@ export function createTemplateOwners(
     listTemplates,
     boardTemplates,
     boards: dependencies.boards,
+    boardQueries: dependencies.boards.queries,
     commands: dependencies.commands,
     operations: dependencies.operations,
-    boardQueries: dependencies.boards.queries,
   });
   schedules = new TemplateScheduleService(db, {
     applications,
+    boardQueries: dependencies.boards.queries,
     ownerSubjectFor: dependencies.ownerSubjectFor,
     commitWrites,
-    boardQueries: dependencies.boards.queries,
   });
   return { snapshots, listTemplates, boardTemplates, applications, schedules };
 }

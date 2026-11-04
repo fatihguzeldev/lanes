@@ -1,22 +1,21 @@
 import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types';
-import { z } from 'zod';
 import { AppError } from '../../../../shared/contracts/errors';
-import type { Coverage, Page } from '../../../../shared/contracts/http';
+import type { Coverage } from '../../../../shared/contracts/http';
 import {
   assertDisconnecting,
   assertLocalWritable,
   localWriteGuard,
 } from '../../../accounts/server/connections/access';
 import type { AccountsPortability } from '../../../accounts/server/connections/portability';
-import type { BoardService } from '../../../boards/server/boards/service';
+import type { TemplateScheduleSummary } from '../../../boards/contracts/template';
+import type { BoardQueries } from '../../../boards/server/boards/queries';
 import type { BoardTemplateService } from '../../../boards/server/templates/definitions';
 import type { TemplateScheduleService } from '../../../boards/server/templates/schedules';
-import type { TemplateScheduleSummary } from '../../../boards/contracts/template';
 import type { HistoryEvent } from '../../../history/contracts/events';
 import type { HistoryService } from '../../../history/server/events/event-store';
 import type { Task } from '../../../tasks/contracts/task';
-import type { TaskQueries } from '../../../tasks/server/queries/tasks';
 import type { TaskSnapshotReader } from '../../../tasks/server/queries/snapshot-reader';
+import type { TaskQueries } from '../../../tasks/server/queries/tasks';
 import type { ListSnapshotStore } from '../../../tasks/server/templates/snapshots';
 import type { ListTemplateService } from '../../../tasks/server/templates/definitions';
 import {
@@ -25,14 +24,23 @@ import {
   ArchiveRecordSchema,
   type ArchiveExportSelection,
   type ArchiveHeader,
-  type ArchiveRecord,
 } from '../../contracts/archive';
-import type { ArchiveDownloadPage, ArchiveExportSummary } from '../../contracts/archive-export';
+import type { ArchiveExportSummary } from '../../contracts/archive-export';
 import { MAX_IMPORT_FILE_BYTES } from '../../contracts/parsing';
+import { canonical, hash, size } from './export-integrity';
+import { ArchiveExportQueries } from './export-queries';
+import {
+  conflict,
+  type Captured,
+  type Job,
+  type NewJob,
+  type Progress,
+  type Run,
+} from './export-state';
 
 export interface ArchiveExportOptions {
   identity: AccountsPortability['identity'];
-  boards: Pick<BoardService, 'queries'>;
+  boardQueries: Pick<BoardQueries, 'getBoard' | 'listBoards' | 'listBoardLists'>;
   queries: Pick<TaskQueries, 'exportPage' | 'labels'>;
   references: Pick<TaskSnapshotReader, 'providerReferences'>;
   graphRevision(accountId: string): Promise<number>;
@@ -43,107 +51,7 @@ export interface ArchiveExportOptions {
   history: Pick<HistoryService, 'query'>;
   now?: () => number;
 }
-interface Run {
-  id: string;
-  account_id: string;
-  request_json: string;
-  request_hash: string;
-  header_json: string;
-  state: ArchiveExportSummary['state'];
-  phase: ArchiveExportSummary['phase'];
-  cursor: string | null;
-  revision: number;
-  record_count: number;
-  bytes: number;
-  task_count: number;
-  list_count: number;
-  unmatched_schedules: number;
-  graph_revision: number | null;
-  freshness_json: string | null;
-  capture_hash: string;
-  error_code: string | null;
-  payload_pruned_at: number | null;
-  created_at: number;
-  updated_at: number;
-  finished_at: number | null;
-}
-interface SavedRecord {
-  item_key: string;
-  position: number;
-  kind: ArchiveRecord['kind'];
-  source_id: string;
-  input_json: string;
-  input_hash: string;
-  byte_count: number;
-}
-interface Job {
-  item_key: string;
-  kind: 'board_lists' | 'template' | 'schedule';
-  source_id: string;
-  source_kind: 'list' | 'board' | null;
-  source_version: number | null;
-  state: string;
-  cursor: string | null;
-  payload_json: string;
-  snapshot_id: string | null;
-  pin_owner: string | null;
-  required: number;
-}
-interface NewJob {
-  key: string;
-  kind: Job['kind'];
-  sourceId: string;
-  sourceKind?: 'list' | 'board';
-  version?: number;
-  payload?: unknown;
-  required?: boolean;
-}
-interface Captured {
-  record: ArchiveRecord;
-  sourceId: string;
-}
-interface Progress {
-  phase?: Run['phase'];
-  cursor?: string | null;
-  graphRevision?: number;
-  freshness?: Coverage;
-  jobs?: NewJob[];
-  job?: {
-    key: string;
-    state: string;
-    cursor?: string | null;
-    payload?: unknown;
-    snapshotId?: string | null;
-    pinOwner?: string | null;
-  };
-  extra?: D1PreparedStatement[];
-  unmatched?: number;
-}
-const conflict = (
-  message = 'the archive source changed while being captured; start a new export',
-) => new AppError('conflict', message, 409);
-const size = (value: string) => new TextEncoder().encode(value).byteLength;
-function canonical(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(canonical);
-  if (value && typeof value === 'object')
-    return Object.fromEntries(
-      Object.entries(value)
-        .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-        .map(([key, item]) => [key, canonical(item)]),
-    );
-  return value;
-}
-async function hash(value: unknown): Promise<string> {
-  return Array.from(
-    new Uint8Array(
-      await crypto.subtle.digest(
-        'SHA-256',
-        new TextEncoder().encode(JSON.stringify(canonical(value))),
-      ),
-    ),
-    (byte) => byte.toString(16).padStart(2, '0'),
-  ).join('');
-}
+
 const groups = <T>(values: readonly T[]): T[][] => {
   const parts: T[][] = [];
   for (let index = 0; index < values.length; index += 100)
@@ -153,26 +61,17 @@ const groups = <T>(values: readonly T[]): T[][] => {
 
 /** Captures owner pages first; a ready download contains only validated declarative records. */
 export class ArchiveExportService {
+  readonly queries: ArchiveExportQueries;
   constructor(
     private readonly db: D1Database,
     private readonly options: ArchiveExportOptions,
-  ) {}
+  ) {
+    this.queries = new ArchiveExportQueries(db, options);
+  }
   private now(): number {
     return this.options.now?.() ?? Date.now();
   }
-  private async run(accountId: string, id: string): Promise<Run> {
-    const row = await this.db
-      .prepare('SELECT * FROM transfer_archive_exports WHERE id=? AND account_id=?')
-      .bind(id, accountId)
-      .first<Run>();
-    if (!row)
-      throw new AppError(
-        'not_found',
-        'this archive export is not available in the selected account',
-        404,
-      );
-    return row;
-  }
+
   private async key(
     run: Pick<Run, 'id' | 'account_id'>,
     kind: string,
@@ -217,12 +116,12 @@ export class ArchiveExportService {
     if (existing) {
       if (existing.account_id !== selection.accountId || existing.request_hash !== requestHash)
         throw conflict('this archive identity belongs to another selection');
-      return this.get(selection.accountId, selection.id);
+      return this.queries.get(selection.accountId, selection.id);
     }
     await assertLocalWritable(this.db, selection.accountId);
     const source = await this.options.identity(selection.accountId);
     if (selection.boardId)
-      await this.options.boards.queries.getBoard(selection.accountId, selection.boardId);
+      await this.options.boardQueries.getBoard(selection.accountId, selection.boardId);
     const keySource = { id: selection.id, account_id: selection.accountId };
     const header = ArchiveHeaderSchema.parse({
       format: 'lanes-workspace',
@@ -262,43 +161,11 @@ export class ArchiveExportService {
           this.now(),
         ),
     ]);
-    if ((await this.run(selection.accountId, selection.id)).request_hash !== requestHash)
+    if (
+      (await this.queries.readRun(selection.accountId, selection.id)).request_hash !== requestHash
+    )
       throw conflict();
-    return this.get(selection.accountId, selection.id);
-  }
-
-  async get(accountId: string, id: string): Promise<ArchiveExportSummary> {
-    const run = await this.run(accountId, id);
-    return {
-      id,
-      accountId,
-      header: ArchiveHeaderSchema.parse(JSON.parse(run.header_json)),
-      state: run.state,
-      phase: run.phase,
-      recordCount: run.record_count,
-      bytes: run.bytes,
-      taskCount: run.task_count,
-      listCount: run.list_count,
-      unmatchedSchedules: run.unmatched_schedules,
-      captureHash: run.state === 'ready' ? run.capture_hash : null,
-      downloadAvailable:
-        run.state === 'ready' &&
-        run.payload_pruned_at === null &&
-        run.finished_at !== null &&
-        this.now() < run.finished_at + 86400000,
-      payloadExpiresAt:
-        run.finished_at === null ? null : new Date(run.finished_at + 86400000).toISOString(),
-      freshness: run.freshness_json ? (JSON.parse(run.freshness_json) as Coverage) : null,
-      error: run.error_code
-        ? {
-            code: run.error_code,
-            message:
-              run.error_code === 'validation_failed'
-                ? 'this archive exceeds a supported size, shape, or reference bound. select a narrower scope.'
-                : 'the source could not be captured completely. start a new export when it is available.',
-          }
-        : null,
-    };
+    return this.queries.get(selection.accountId, selection.id);
   }
 
   private async stage(run: Run, input: Captured[], progress: Progress = {}): Promise<void> {
@@ -471,7 +338,7 @@ export class ArchiveExportService {
     try {
       await this.db.batch(writes);
     } catch (error) {
-      if ((await this.run(run.account_id, run.id)).revision !== run.revision) return;
+      if ((await this.queries.readRun(run.account_id, run.id)).revision !== run.revision) return;
       if (error instanceof AppError) throw error;
       throw conflict();
     }
@@ -731,18 +598,18 @@ export class ArchiveExportService {
   }
 
   async captureNext(accountId: string, id: string): Promise<ArchiveExportSummary> {
-    const run = await this.run(accountId, id);
-    if (run.state !== 'capturing') return this.get(accountId, id);
+    const run = await this.queries.readRun(accountId, id);
+    if (run.state !== 'capturing') return this.queries.get(accountId, id);
     await assertLocalWritable(this.db, accountId);
     const selection = ArchiveExportSelectionSchema.parse(JSON.parse(run.request_json));
     try {
       if (run.phase === 'boards') {
         const page = selection.boardId
           ? {
-              items: [await this.options.boards.queries.getBoard(accountId, selection.boardId)],
+              items: [await this.options.boardQueries.getBoard(accountId, selection.boardId)],
               nextCursor: null,
             }
-          : await this.options.boards.queries.listBoards(accountId, {
+          : await this.options.boardQueries.listBoards(accountId, {
               limit: 5,
               ...(run.cursor ? { cursor: run.cursor } : {}),
             });
@@ -781,7 +648,7 @@ export class ArchiveExportService {
             cursor: null,
           });
         else {
-          const page = await this.options.boards.queries.listBoardLists(accountId, job.source_id, {
+          const page = await this.options.boardQueries.listBoardLists(accountId, job.source_id, {
             limit: 5,
             ...(job.cursor ? { cursor: job.cursor } : {}),
           });
@@ -1018,7 +885,7 @@ export class ArchiveExportService {
         true,
       );
     }
-    return this.get(accountId, id);
+    return this.queries.get(accountId, id);
   }
 
   private async seal(run: Run): Promise<void> {
@@ -1055,150 +922,6 @@ export class ArchiveExportService {
       )
       .bind(this.now(), this.now(), run.id, run.revision)
       .run();
-  }
-
-  async downloadPage(
-    accountId: string,
-    id: string,
-    input: { limit?: number; cursor?: string } = {},
-  ): Promise<ArchiveDownloadPage> {
-    const run = await this.run(accountId, id);
-    if (run.state !== 'ready')
-      throw conflict('finish capturing this complete archive before downloading it');
-    if (
-      run.payload_pruned_at !== null ||
-      run.finished_at === null ||
-      this.now() >= run.finished_at + 86400000
-    )
-      throw conflict(
-        'this archive payload expired after24 hours; generate a new export to download it',
-      );
-    const limit = input.limit ?? 10;
-    if (!Number.isInteger(limit) || limit < 1 || limit > 10)
-      throw new AppError('validation_failed', 'download at most10 archive records per page', 422);
-    let after = -1;
-    if (input.cursor) {
-      try {
-        const cursor = z
-          .object({
-            id: z.string(),
-            accountId: z.string(),
-            hash: z.string(),
-            position: z.number().int().min(-1),
-          })
-          .strict()
-          .parse(JSON.parse(atob(input.cursor)));
-        if (cursor.id !== id || cursor.accountId !== accountId || cursor.hash !== run.capture_hash)
-          throw new Error();
-        after = cursor.position;
-      } catch {
-        throw new AppError(
-          'validation_failed',
-          'this archive download cursor belongs to another capture',
-          422,
-        );
-      }
-    }
-    const candidates = (
-      await this.db
-        .prepare(
-          'SELECT position,byte_count FROM transfer_archive_export_records WHERE export_id=? AND position>? ORDER BY position LIMIT ?',
-        )
-        .bind(id, after, limit + 1)
-        .all<{ position: number; byte_count: number }>()
-    ).results;
-    let chunk = input.cursor ? '' : '{"header":' + run.header_json + ',"records":[',
-      bytes = size(chunk);
-    const positions: number[] = [];
-    for (const row of candidates.slice(0, limit)) {
-      if (bytes + row.byte_count + 3 > 65536) break;
-      positions.push(row.position);
-      bytes += row.byte_count + 1;
-    }
-    const records = positions.length
-      ? (
-          await this.db
-            .prepare(
-              'SELECT item_key,position,kind,source_id,input_json,input_hash,byte_count FROM transfer_archive_export_records WHERE export_id=? AND position IN(SELECT value FROM json_each(?)) ORDER BY position',
-            )
-            .bind(id, JSON.stringify(positions))
-            .all<SavedRecord>()
-        ).results
-      : [];
-    for (const record of records) {
-      const parsed = ArchiveRecordSchema.safeParse(JSON.parse(record.input_json));
-      if (!parsed.success || (await hash(parsed.data)) !== record.input_hash)
-        throw new AppError(
-          'storage_unavailable',
-          'a frozen archive record could not be read safely',
-          503,
-        );
-      chunk += (after >= 0 ? ',' : '') + record.input_json;
-      after = record.position;
-    }
-    const more = candidates.some((row) => row.position > after);
-    if (!more) chunk += ']}';
-    if (more && !records.length)
-      throw new AppError(
-        'validation_failed',
-        'one captured archive record exceeds its download bound',
-        422,
-      );
-    return {
-      chunk,
-      nextCursor: more
-        ? btoa(JSON.stringify({ id, accountId, hash: run.capture_hash, position: after }))
-        : null,
-      generatedAt: (JSON.parse(run.header_json) as ArchiveHeader).generatedAt,
-      totalBytes: run.bytes,
-      recordCount: run.record_count,
-    };
-  }
-  async list(
-    accountId: string,
-    input: { limit?: number; cursor?: string } = {},
-  ): Promise<Page<ArchiveExportSummary>> {
-    const limit = input.limit ?? 10;
-    if (!Number.isInteger(limit) || limit < 1 || limit > 10)
-      throw new AppError('validation_failed', 'read at most10 archive exports at once', 422);
-    let anchor: { id: string; createdAt: number } | null = null;
-    if (input.cursor) {
-      try {
-        const value = z
-          .object({ accountId: z.string(), id: z.string(), createdAt: z.number().int() })
-          .strict()
-          .parse(JSON.parse(atob(input.cursor)));
-        if (value.accountId !== accountId) throw new Error();
-        anchor = value;
-      } catch {
-        throw new AppError(
-          'validation_failed',
-          'this archive list cursor belongs to another account',
-          422,
-        );
-      }
-    }
-    const rows = (
-        await this.db
-          .prepare(
-            `SELECT id,created_at FROM transfer_archive_exports WHERE account_id=? ${anchor ? 'AND(created_at,id)<(?,?)' : ''} ORDER BY created_at DESC,id DESC LIMIT ?`,
-          )
-          .bind(accountId, ...(anchor ? [anchor.createdAt, anchor.id] : []), limit + 1)
-          .all<{ id: string; created_at: number }>()
-      ).results,
-      selected = rows.slice(0, limit),
-      last = selected.at(-1);
-    const items = await Promise.all(selected.map((row) => this.get(accountId, row.id)));
-    if (size(JSON.stringify(items)) > 65536)
-      throw new AppError('validation_failed', 'read fewer archive summaries at once', 422);
-    return {
-      items,
-      nextCursor:
-        last && rows.length > selected.length
-          ? btoa(JSON.stringify({ accountId, id: last.id, createdAt: last.created_at }))
-          : null,
-      coverage: { complete: true, stale: false, lastSyncedAt: null },
-    };
   }
 
   async advanceNext(): Promise<ArchiveExportSummary | null> {
@@ -1258,7 +981,7 @@ export class ArchiveExportService {
     ).meta.changes;
   }
   async cancel(accountId: string, id: string): Promise<ArchiveExportSummary> {
-    await this.run(accountId, id);
+    await this.queries.readRun(accountId, id);
     await this.db
       .prepare(
         "UPDATE transfer_archive_exports SET state='cancelled',finished_at=?,updated_at=? WHERE id=? AND account_id=? AND state='capturing'",
@@ -1266,7 +989,7 @@ export class ArchiveExportService {
       .bind(this.now(), this.now(), id, accountId)
       .run();
     await this.releasePins(accountId, id);
-    return this.get(accountId, id);
+    return this.queries.get(accountId, id);
   }
   async pauseAccount(accountId: string, limit = 100): Promise<{ done: boolean; pending: false }> {
     if (!Number.isInteger(limit) || limit < 1 || limit > 100)

@@ -1,19 +1,19 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { seedAccount, testDatabase } from '../../../../../../tests/support/sqlite-d1';
-import { AccountsPortability } from '../../../../accounts/server/connections/portability';
 import { assertLocalWritable } from '../../../../accounts/server/connections/access';
+import { AccountsPortability } from '../../../../accounts/server/connections/portability';
+import type { TemplateScheduleSummary } from '../../../../boards/contracts/template';
 import { BoardService } from '../../../../boards/server/boards/service';
-import { TaskQueries } from '../../../../tasks/server/queries/tasks';
-import { TaskSnapshotReader } from '../../../../tasks/server/queries/snapshot-reader';
-import { TaskMetadataService } from '../../../../tasks/server/metadata/tasks';
-import { ListSnapshotStore } from '../../../../tasks/server/templates/snapshots';
-import { ListTemplateService } from '../../../../tasks/server/templates/definitions';
 import { BoardTemplateService } from '../../../../boards/server/templates/definitions';
 import { HistoryService } from '../../../../history/server/events/event-store';
-import { parseWorkspaceArchive } from '../../../formats/archive';
+import { TaskMetadataService } from '../../../../tasks/server/metadata/tasks';
+import { TaskSnapshotReader } from '../../../../tasks/server/queries/snapshot-reader';
+import { TaskQueries } from '../../../../tasks/server/queries/tasks';
+import { ListSnapshotStore } from '../../../../tasks/server/templates/snapshots';
+import { ListTemplateService } from '../../../../tasks/server/templates/definitions';
 import { ArchiveExportSummarySchema } from '../../../contracts/archive-export';
+import { parseWorkspaceArchive } from '../../../formats/archive';
 import { ArchiveExportService } from '../archive-export';
-import type { TemplateScheduleSummary } from '../../../../boards/contracts/template';
 
 const now = Date.parse('2026-11-02T12:00:00Z');
 const databases: ReturnType<typeof testDatabase>[] = [];
@@ -88,7 +88,7 @@ async function fixture() {
   let scheduleItems: TemplateScheduleSummary[] = [];
   const options = {
     identity: accounts.identity.bind(accounts),
-    boards,
+    boardQueries: boards.queries,
     queries,
     references,
     graphRevision: metadata.getGraphRevision.bind(metadata),
@@ -125,7 +125,10 @@ async function fixture() {
     let cursor: string | undefined,
       json = '';
     do {
-      const page = await target.downloadPage('a', id, { limit: 2, ...(cursor ? { cursor } : {}) });
+      const page = await target.queries.downloadPage('a', id, {
+        limit: 2,
+        ...(cursor ? { cursor } : {}),
+      });
       expect(new TextEncoder().encode(page.chunk).byteLength).toBeLessThanOrEqual(65536);
       json += page.chunk;
       cursor = page.nextCursor ?? undefined;
@@ -218,7 +221,7 @@ describe('bounded workspace archive generation', () => {
     const f = await fixture();
     await f.task('one', 'list-a', null, 'private note');
     await f.service.begin({ ...selection, includeTaskSnapshots: false });
-    await expect(f.service.downloadPage('a', selection.id)).rejects.toMatchObject({
+    await expect(f.service.queries.downloadPage('a', selection.id)).rejects.toMatchObject({
       code: 'conflict',
     });
     await f.ready(f.service, { ...selection, includeTaskSnapshots: false });
@@ -232,15 +235,15 @@ describe('bounded workspace archive generation', () => {
     await expect(f.service.begin({ ...selection, boardId: 'custom' })).rejects.toMatchObject({
       code: 'conflict',
     });
-    const first = await f.service.downloadPage('a', selection.id, { limit: 1 });
+    const first = await f.service.queries.downloadPage('a', selection.id, { limit: 1 });
     expect(first.nextCursor).toBeTruthy();
     await expect(
-      f.service.downloadPage('b', selection.id, { cursor: first.nextCursor! }),
+      f.service.queries.downloadPage('b', selection.id, { cursor: first.nextCursor! }),
     ).rejects.toMatchObject({ code: 'not_found' });
     await expect(
-      f.service.downloadPage('a', selection.id, { cursor: 'invalid' }),
+      f.service.queries.downloadPage('a', selection.id, { cursor: 'invalid' }),
     ).rejects.toMatchObject({ code: 'validation_failed' });
-    expect((await f.service.list('a', { limit: 1 })).items[0]?.id).toBe(selection.id);
+    expect((await f.service.queries.list('a', { limit: 1 })).items[0]?.id).toBe(selection.id);
   });
   it('exports immutable template content and pinned schedule versions without merging equal names', async () => {
     const f = await fixture();
@@ -385,7 +388,7 @@ describe('bounded workspace archive generation', () => {
     await f.task('one');
     await f.task('two');
     await f.service.begin(selection);
-    while ((await f.service.get('a', selection.id)).phase !== 'tasks')
+    while ((await f.service.queries.get('a', selection.id)).phase !== 'tasks')
       await f.service.captureNext('a', selection.id);
     await f.service.captureNext('a', selection.id); // captures the graph revision before task pages.
     await f.metadata.patchTask(
@@ -405,8 +408,8 @@ describe('bounded workspace archive generation', () => {
     await expect(f.service.captureNext('a', selection.id)).rejects.toMatchObject({
       code: 'conflict',
     });
-    expect((await f.service.get('a', selection.id)).state).toBe('failed');
-    await expect(f.service.downloadPage('a', selection.id)).rejects.toMatchObject({
+    expect((await f.service.queries.get('a', selection.id)).state).toBe('failed');
+    await expect(f.service.queries.downloadPage('a', selection.id)).rejects.toMatchObject({
       code: 'conflict',
     });
   });
@@ -420,8 +423,8 @@ describe('bounded workspace archive generation', () => {
     await expect(f.service.captureNext('a', selection.id)).rejects.toMatchObject({
       code: 'validation_failed',
     });
-    expect((await f.service.get('a', selection.id)).state).toBe('failed');
-    await expect(f.service.downloadPage('a', selection.id)).rejects.toMatchObject({
+    expect((await f.service.queries.get('a', selection.id)).state).toBe('failed');
+    await expect(f.service.queries.downloadPage('a', selection.id)).rejects.toMatchObject({
       code: 'conflict',
     });
   });
@@ -430,8 +433,8 @@ describe('bounded workspace archive generation', () => {
     await f.task('one', 'list-a', null, 'archive payload');
     await f.ready();
     expect(await f.service.cleanup(1, now + 2 * 86400000)).toBe(1);
-    expect((await f.service.get('a', selection.id)).downloadAvailable).toBe(false);
-    await expect(f.service.downloadPage('a', selection.id)).rejects.toMatchObject({
+    expect((await f.service.queries.get('a', selection.id)).downloadAvailable).toBe(false);
+    await expect(f.service.queries.downloadPage('a', selection.id)).rejects.toMatchObject({
       code: 'conflict',
     });
     await f.db.prepare("UPDATE accounts_connections SET state='disconnected' WHERE id='a'").run();
@@ -464,7 +467,7 @@ describe('bounded workspace archive generation', () => {
       )
       .run();
     await f.service.begin(selection);
-    while ((await f.service.get('a', selection.id)).phase !== 'tasks')
+    while ((await f.service.queries.get('a', selection.id)).phase !== 'tasks')
       await f.service.captureNext('a', selection.id);
     await f.service.captureNext('a', selection.id);
     await f.service.captureNext('a', selection.id);
@@ -476,7 +479,7 @@ describe('bounded workspace archive generation', () => {
     let caught: unknown;
     for (
       let index = 0;
-      index < 100 && (await f.service.get('a', selection.id)).state === 'capturing';
+      index < 100 && (await f.service.queries.get('a', selection.id)).state === 'capturing';
       index++
     ) {
       try {
@@ -487,7 +490,7 @@ describe('bounded workspace archive generation', () => {
       }
     }
     expect(caught).toMatchObject({ code: 'conflict' });
-    expect((await f.service.get('a', selection.id)).state).toBe('failed');
+    expect((await f.service.queries.get('a', selection.id)).state).toBe('failed');
   });
   it('makes progress with a one-row removal budget while a snapshot pin is active', async () => {
     const f = await fixture();
@@ -568,7 +571,7 @@ describe('bounded workspace archive generation', () => {
     let failure: unknown;
     for (
       let index = 0;
-      index < 100 && (await f.service.get('a', snapshotId)).state === 'capturing';
+      index < 100 && (await f.service.queries.get('a', snapshotId)).state === 'capturing';
       index++
     ) {
       try {
@@ -579,8 +582,8 @@ describe('bounded workspace archive generation', () => {
       }
     }
     expect(failure).toMatchObject({ code: 'validation_failed' });
-    expect((await f.service.get('a', snapshotId)).state).toBe('failed');
-    await expect(f.service.downloadPage('a', snapshotId)).rejects.toMatchObject({
+    expect((await f.service.queries.get('a', snapshotId)).state).toBe('failed');
+    await expect(f.service.queries.downloadPage('a', snapshotId)).rejects.toMatchObject({
       code: 'conflict',
     });
   });

@@ -1,9 +1,9 @@
 import { z } from 'zod';
+import { ReopenRequestSchema } from '../../modules/tasks/contracts/recurrence';
 import { AppError } from '../../shared/contracts/errors';
 import type { Services } from '../composition/services';
-import type { AccountRouteContext } from './context';
 import { jsonResponse, readJson } from '../protocol/http';
-import { ReopenRequestSchema } from '../../modules/tasks/contracts/recurrence';
+import type { AccountRouteContext } from './context';
 
 export async function recurrenceRoute(
   context: AccountRouteContext,

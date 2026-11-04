@@ -1,6 +1,6 @@
 import type { D1Database } from '@cloudflare/workers-types';
 import { AppError } from '../../../../shared/contracts/errors';
-import type { OperationStore } from '../../../operations/server/journal/store';
+import type { OperationQueries } from '../../../operations/server/queries/receipts';
 import type { TaskSnapshotReader } from '../../../tasks/server/queries/snapshot-reader';
 import type { TemplateDocumentStore } from '../../../tasks/server/templates/documents';
 import type { SheetsExportService } from '../sheets/sheets-export';
@@ -9,7 +9,7 @@ import { transferDigest } from '../identity/content-hash';
 import type { ArchiveHeader } from '../../contracts/archive';
 
 export interface TransferRetentionOptions {
-  operations?: Pick<OperationStore, 'queries'>;
+  operationQueries?: Pick<OperationQueries, 'summary'>;
   snapshots: Pick<TaskSnapshotReader, 'removeSnapshotSlice'>;
   documents?: Pick<TemplateDocumentStore, 'releaseCapturePins'>;
   sheets?: Pick<SheetsExportService, 'cleanup'>;
@@ -60,8 +60,8 @@ export class TransferRetention {
     now: number,
   ): Promise<boolean> {
     if (!id) return true;
-    if (!this.options.operations) return false;
-    const operation = await this.options.operations.queries.summary(id, accountId);
+    if (!this.options.operationQueries) return false;
+    const operation = await this.options.operationQueries.summary(id, accountId);
     if (operation) return operation.finished && operation.state !== 'uncertain';
     return this.admissionExpired(id, now);
   }
@@ -163,8 +163,8 @@ export class TransferRetention {
         )
         .bind(row.id)
         .first<{ item_key: string; phase: string; operation_id: string }>();
-      if (action && this.options.operations) {
-        const operation = await this.options.operations.queries.summary(
+      if (action && this.options.operationQueries) {
+        const operation = await this.options.operationQueries.summary(
           action.operation_id,
           row.account_id,
         );

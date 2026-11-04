@@ -106,7 +106,7 @@ async function fixture() {
     now: () => initial,
   });
   const retention = new TransferRetention(db, {
-    operations,
+    operationQueries: operations.queries,
     snapshots,
     documents,
     now: () => initial + 2 * day,
@@ -562,7 +562,7 @@ describe('transfer retention budget and receipts', () => {
         ).meta.changes,
     });
     const retention = new TransferRetention(f.db, {
-      operations: f.operations,
+      operationQueries: f.operations.queries,
       snapshots: f.snapshots,
       sheets: delegate('sheets'),
       archiveExports: delegate('archives'),

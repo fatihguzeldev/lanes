@@ -1,26 +1,26 @@
 import type { D1Database, D1PreparedStatement, D1Result } from '@cloudflare/workers-types';
-import { AppError } from '../../shared/contracts/errors';
 import { assertLocalWritable } from '../../modules/accounts/server/connections/access';
 import { AccountsPortability } from '../../modules/accounts/server/connections/portability';
 import { BoardService } from '../../modules/boards/server/boards/service';
 import { HistoryService } from '../../modules/history/server/events/event-store';
-import { TaskMetadataService } from '../../modules/tasks/server/metadata/tasks';
 import type { OperationStore } from '../../modules/operations/server/journal/store';
 import type { TaskCommandService } from '../../modules/tasks/server/commands/service';
-import type { TaskQueries } from '../../modules/tasks/server/queries/tasks';
+import { TaskMetadataService } from '../../modules/tasks/server/metadata/tasks';
 import { readActiveLists } from '../../modules/tasks/server/queries/lists';
 import { TaskSnapshotReader } from '../../modules/tasks/server/queries/snapshot-reader';
+import type { TaskQueries } from '../../modules/tasks/server/queries/tasks';
 import { TemplateDocumentStore } from '../../modules/tasks/server/templates/documents';
 import { AccountTransferService } from '../../modules/transfer/server/account-copy/account-transfer';
-import { TransferImportService } from '../../modules/transfer/server/imports/imports';
-import { TaskCsvExportService } from '../../modules/transfer/server/exports/csv-export';
-import { SheetsExportService } from '../../modules/transfer/server/sheets/sheets-export';
-import type { GoogleSheetsClient } from '../../modules/transfer/server/sheets/sheets';
-import { WorkspaceArchiveStore } from '../../modules/transfer/server/archives/archive-store';
-import { ArchiveRestoreService } from '../../modules/transfer/server/archives/archive-restore';
 import { ArchiveSnapshotCopyService } from '../../modules/transfer/server/archives/archive-copy';
 import { ArchiveExportService } from '../../modules/transfer/server/archives/archive-export';
+import { ArchiveRestoreService } from '../../modules/transfer/server/archives/archive-restore';
+import { WorkspaceArchiveStore } from '../../modules/transfer/server/archives/archive-store';
+import { TaskCsvExportService } from '../../modules/transfer/server/exports/csv-export';
+import { TransferImportService } from '../../modules/transfer/server/imports/imports';
 import { TransferRetention } from '../../modules/transfer/server/lifecycle/retention';
+import type { GoogleSheetsClient } from '../../modules/transfer/server/sheets/sheets';
+import { SheetsExportService } from '../../modules/transfer/server/sheets/sheets-export';
+import { AppError } from '../../shared/contracts/errors';
 import { createTemplateOwners, type TemplateOwners } from './template-services';
 interface Dependencies {
   boards: BoardService;
@@ -108,7 +108,7 @@ export function createTransferOwners(db: D1Database, dependencies: Dependencies)
   const archiveCopy = new ArchiveSnapshotCopyService(db, { store: archives, imports });
   const archiveExports = new ArchiveExportService(db, {
     identity: portableAccounts.identity.bind(portableAccounts),
-    boards: dependencies.boards,
+    boardQueries: dependencies.boards.queries,
     queries: dependencies.queries,
     references: snapshotReader,
     graphRevision: dependencies.graphRevision,
@@ -125,7 +125,7 @@ export function createTransferOwners(db: D1Database, dependencies: Dependencies)
     },
   });
   const retention = new TransferRetention(db, {
-    operations: dependencies.operations,
+    operationQueries: dependencies.operations.queries,
     snapshots: snapshotReader,
     documents,
     sheets: sheetsExports,
