@@ -10,7 +10,8 @@ import {
 
 import { ResourceIdSchema } from '../../../../shared/contracts/identity';
 import { OperationIdSchema } from '../../../operations/contracts/receipt';
-import type { ClaimedStep, OperationStore } from '../../../operations/server/journal/store';
+import type { OperationStore } from '../../../operations/server/journal/store';
+import type { ClaimedStep } from '../../../operations/server/journal/records';
 import {
   FreshSheetsAttemptSchema,
   SheetsExportRequestSchema,
@@ -250,7 +251,7 @@ export class SheetsExportService {
 
   async get(accountId: string, id: string): Promise<SheetsExportSummary> {
     const run = await this.run(accountId, id),
-      operation = await this.options.operations.summary(id, accountId);
+      operation = await this.options.operations.queries.summary(id, accountId);
     const previousAttempt = await this.db
       .prepare(
         'SELECT f.original_export_id,f.original_step_key,e.file_id,e.file_url FROM transfer_sheets_fresh_attempts f JOIN transfer_sheets_exports e ON e.id=f.original_export_id WHERE f.new_export_id=? AND f.account_id=?',
@@ -573,7 +574,7 @@ export class SheetsExportService {
   }
 
   private async reconcile(accountId: string, id: string): Promise<void> {
-    const operation = await this.options.operations.summary(id, accountId);
+    const operation = await this.options.operations.queries.summary(id, accountId);
     if (!operation) return;
     const state = operation.finished
       ? operation.state === 'succeeded'
@@ -1247,7 +1248,7 @@ export class SheetsExportService {
         step.state === 'dispatched'
       ) {
         if ((step.claimUntil ?? 0) > this.now()) return true;
-        const operation = await this.options.operations.summary(row.id, accountId);
+        const operation = await this.options.operations.queries.summary(row.id, accountId);
         if ((operation?.nextAttemptAt ?? 0) <= this.now()) await this.advance(accountId, row.id);
         const after = await this.options.operations.getStep(row.id, key);
         if (

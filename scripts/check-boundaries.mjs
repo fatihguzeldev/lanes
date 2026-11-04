@@ -36,7 +36,12 @@ const allowed = {
 };
 // Explicit operations and query capabilities used by another owner. Their helpers stay private.
 const publicServerFiles = {
-  operations: ['server/journal/store.ts', 'server/queries/receipts.ts'],
+  operations: [
+    'server/journal/store.ts',
+    'server/queries/receipts.ts',
+    'server/journal/records.ts',
+    'server/journal/resources.ts',
+  ],
   accounts: [
     'access.ts',
     'server/connections/access.ts',

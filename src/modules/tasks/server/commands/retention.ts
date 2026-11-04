@@ -26,6 +26,10 @@ const tables = [
 /** Finished command bodies are staging, not an indefinite title/note version store.
  * Minimal request/chunk hashes, identities and copy baselines survive for receipt replay. */
 export class CommandRetention {
+  readonly receiptJoin = 'LEFT JOIN tasks_command_plans p ON p.operation_id=o.id';
+  readonly payloadPrunable = '(p.operation_id IS NULL OR p.payload_pruned_at IS NOT NULL)';
+  readonly captureAbsent =
+    'NOT EXISTS(SELECT 1 FROM tasks_command_plans p WHERE p.operation_id=o.id)';
   constructor(private readonly db: D1Database) {}
   async cleanup(limit = 100, now = Date.now()): Promise<number> {
     if (!Number.isInteger(limit) || limit < 1 || limit > 100 || !Number.isSafeInteger(now))

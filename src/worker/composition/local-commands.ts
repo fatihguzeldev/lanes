@@ -1,3 +1,4 @@
+import { createOperationStore } from './operation-store';
 import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types';
 import { z } from 'zod';
 import { AppError } from '../../shared/contracts/errors';
@@ -42,7 +43,7 @@ export async function submitLocalCommand(
 ) {
   const submission = LocalSubmissionSchema.parse(input),
     command = submission.command;
-  const operations = new OperationStore(db);
+  const operations = createOperationStore(db);
   const resourceKey =
     'templateId' in command
       ? `template:${command.templateId}`
@@ -73,11 +74,11 @@ export async function submitLocalCommand(
     },
     now,
   );
-  if (operation.state === 'succeeded') return operations.summary(operation.id, accountId);
+  if (operation.state === 'succeeded') return operations.queries.summary(operation.id, accountId);
   await assertLocalWritable(db, accountId);
   const claimId = crypto.randomUUID();
   const step = await operations.claimNext(operation.id, claimId, now);
-  if (!step) return operations.summary(operation.id, accountId);
+  if (!step) return operations.queries.summary(operation.id, accountId);
   const commitWrites = (writes: D1PreparedStatement[]) =>
     operations.commitLocalStep(
       operation.id,
@@ -331,5 +332,5 @@ export async function submitLocalCommand(
     }
     throw error;
   }
-  return operations.summary(operation.id, accountId);
+  return operations.queries.summary(operation.id, accountId);
 }

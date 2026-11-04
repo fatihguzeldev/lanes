@@ -1,3 +1,4 @@
+import { createOperationStore } from '../../../../../../tests/support/operation-store';
 import { afterEach, describe, expect, it } from 'vitest';
 import { seedAccount, testDatabase } from '../../../../../../tests/support/sqlite-d1';
 import { assertLocalWritable } from '../../../../accounts/server/connections/access';
@@ -67,7 +68,7 @@ async function fixture() {
       { name: 'weekly', listId: 'source', listRevision: 1 },
       { ...context(), saveDay: '2026-11-02', zone: 'Europe/Istanbul' },
     );
-  const operations = new OperationStore(db),
+  const operations = createOperationStore(db),
     history = new HistoryService(db, { now: () => tick }),
     metadata = new TaskMetadataService(db, { history, commitWrites: (writes) => db.batch(writes) }),
     projection = new TaskProjectionStore(db, { history, now: () => tick });

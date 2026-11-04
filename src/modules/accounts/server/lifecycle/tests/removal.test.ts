@@ -1,3 +1,4 @@
+import { createOperationStore } from '../../../../../../tests/support/operation-store';
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import type { D1Database } from '@cloudflare/workers-types';
 import { testDatabase, seedAccount } from '../../../../../../tests/support/sqlite-d1';
@@ -242,7 +243,7 @@ describe('account lifecycle', () => {
         "WITH RECURSIVE n(x) AS(SELECT 1 UNION ALL SELECT x+1 FROM n WHERE x<2000) INSERT INTO tasks_tasks(id,account_id,list_id,parent_id,provider_id,title) SELECT 'child-'||x,'a','list-a','parent','gc-'||x,'child' FROM n",
       )
       .run();
-    const operations = new OperationStore(db);
+    const operations = createOperationStore(db);
     const tasks = new TasksLifecycle(db, {
       operations,
       commands: {
@@ -304,7 +305,7 @@ describe('account lifecycle', () => {
     expect(await resumed.advanceRemoval('a')).toMatchObject({ state: 'completed' });
   });
   it('pauses unissued operation input and claims without dispatching or discarding the captured plan', async () => {
-    const operations = new OperationStore(db);
+    const operations = createOperationStore(db);
     const id = now + ':unissuedabcdefghij';
     const admitted = await operations.admit(
       {
@@ -333,7 +334,7 @@ describe('account lifecycle', () => {
     expect(advance).not.toHaveBeenCalled();
   });
   it('retains a receipt needing provider verification as unresolved and still permits local revoke', async () => {
-    const operations = new OperationStore(db);
+    const operations = createOperationStore(db);
     const id = now + ':issuedabcdefghijkl';
     await operations.admit(
       {
@@ -365,7 +366,7 @@ describe('account lifecycle', () => {
     expect(await access.finalizeDisconnect('a')).toMatchObject({ state: 'disconnected' });
   });
   it('leaves another owner’s known receipt available to that owner during disconnect', async () => {
-    const operations = new OperationStore(db),
+    const operations = createOperationStore(db),
       id = now + ':sheetsabcdefghijklm';
     await operations.admit(
       {
@@ -402,7 +403,7 @@ describe('account lifecycle', () => {
     });
   });
   it('waits for an active sync reader and fences an expired reader before pausing its cursor', async () => {
-    const operations = new OperationStore(db);
+    const operations = createOperationStore(db);
     const tasks = new TasksLifecycle(db, {
       operations,
       commands: {
@@ -427,7 +428,7 @@ describe('account lifecycle', () => {
     ).toMatchObject({ claim_id: null, next_at: Number.MAX_SAFE_INTEGER });
   });
   it('retains paused repeat rules and resumes only an explicitly selected rule after relink', async () => {
-    const operations = new OperationStore(db);
+    const operations = createOperationStore(db);
     const tasks = new TasksLifecycle(db, {
       operations,
       commands: {
@@ -490,7 +491,7 @@ describe('account lifecycle', () => {
     ).toBe(rule);
   });
   it('empties journal and copy children before their parent rows within the same deletion budget', async () => {
-    const operations = new OperationStore(db);
+    const operations = createOperationStore(db);
     const id = now + ':largerecordsabcdef';
     await operations.admit(
       {

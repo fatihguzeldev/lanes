@@ -1,3 +1,4 @@
+import { createOperationStore } from '../../../../../../tests/support/operation-store';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { seedAccount, testDatabase } from '../../../../../../tests/support/sqlite-d1';
 import { HistoryService } from '../../../../history/server/events/event-store';
@@ -80,7 +81,7 @@ describe('admitted label deletion work', () => {
     const f = await fixture();
     await f.db.prepare("UPDATE accounts_connections SET state='disconnecting' WHERE id='a'").run();
     const lifecycle = new TasksLifecycle(f.db, {
-      operations: new OperationStore(f.db),
+      operations: createOperationStore(f.db),
       commands: {
         advance: async () => {
           throw new Error('no provider command');

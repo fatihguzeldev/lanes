@@ -1,3 +1,4 @@
+import { createOperationStore } from '../../../../../../tests/support/operation-store';
 import { afterEach, expect, it } from 'vitest';
 import { seedAccount, testDatabase } from '../../../../../../tests/support/sqlite-d1';
 import { TransferImportService } from '../imports';
@@ -136,7 +137,7 @@ it('executes admitted import parents, children and metadata via the ordinary jou
   const { OperationStore } = await import('../../../../operations/server/journal/store');
   const { TaskCommandService } = await import('../../../../tasks/server/commands/service');
   const { GoogleTasksClient } = await import('../../../../tasks/server/provider/google-tasks');
-  const operations = new OperationStore(db),
+  const operations = createOperationStore(db),
     history = new HistoryService(db, { now: () => now }),
     projection = new TaskProjectionStore(db, { history, now: () => now });
   const metadata = new TaskMetadataService(db, {
@@ -257,7 +258,7 @@ it('admits an aged recorded source under one fresh provider operation identity a
     { TaskCommandService } = await import('../../../../tasks/server/commands/service'),
     { TaskProjectionStore } = await import('../../../../tasks/server/projection/store'),
     { HistoryService } = await import('../../../../history/server/events/event-store');
-  const operations = new OperationStore(db),
+  const operations = createOperationStore(db),
     history = new HistoryService(db),
     commands = new TaskCommandService(db, {
       operations,

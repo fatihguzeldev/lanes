@@ -1,3 +1,4 @@
+import { createOperationStore } from '../../../../../../tests/support/operation-store';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { seedAccount, testDatabase } from '../../../../../../tests/support/sqlite-d1';
 import { HistoryService } from '../../../../history/server/events/event-store';
@@ -112,7 +113,7 @@ async function fixture() {
     }
     throw new Error('unexpected provider request');
   });
-  const operations = new OperationStore(f.db),
+  const operations = createOperationStore(f.db),
     queries = new TaskQueries(f.db);
   const client = new GoogleTasksClient({ accessToken: 'token', fetch: fetcher });
   const metadata = new TaskMetadataService(f.db, {

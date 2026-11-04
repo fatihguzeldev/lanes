@@ -17,7 +17,8 @@ import {
 } from '../../contracts/recurrence';
 export type { RecurrenceAdvance } from '../../contracts/recurrence';
 import { copyTaskId, type TaskCommandService, type CopyEntry } from '../commands/service';
-import type { OperationStore, OperationRecord } from '../../../operations/server/journal/store';
+import type { OperationStore } from '../../../operations/server/journal/store';
+import type { OperationRecord } from '../../../operations/server/journal/records';
 import type { TaskRecurrenceSnapshot } from '../projection/store';
 export interface RecurrenceOptions {
   commands: TaskCommandService;
@@ -774,7 +775,10 @@ export class RecurrenceService {
       operation.state === 'cancelled'
     ) {
       const state = operation.state === 'uncertain' ? 'uncertain' : 'paused';
-      const summary = await this.options.operations.summary(operation.id, occurrence.account_id);
+      const summary = await this.options.operations.queries.summary(
+        operation.id,
+        occurrence.account_id,
+      );
       await this.commit(occurrence, [
         this.db
           .prepare(
@@ -788,7 +792,10 @@ export class RecurrenceService {
           .bind(state, this.now(), occurrence.series_id),
       ]);
     } else {
-      const summary = await this.options.operations.summary(operation.id, occurrence.account_id);
+      const summary = await this.options.operations.queries.summary(
+        operation.id,
+        occurrence.account_id,
+      );
       if (summary?.nextAttemptAt && summary.nextAttemptAt > this.now())
         await this.commit(occurrence, [
           this.db

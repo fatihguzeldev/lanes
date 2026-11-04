@@ -1,3 +1,4 @@
+import { createOperationStore } from './operation-store';
 import { AppError } from '../../shared/contracts/errors';
 import { assertLocalWritable } from '../../modules/accounts/server/connections/access';
 import { AccountService } from '../../modules/accounts/server/oauth/account-service';
@@ -46,7 +47,7 @@ export function createServices(env: Env, config: Configuration, providerRequestL
   const boardListSelection = (accountId: string, boardId: string) =>
     boardProjection.listSelection(accountId, boardId);
   const history = new HistoryService(env.DB, { boardListSelection });
-  const operations = new OperationStore(env.DB);
+  const operations = createOperationStore(env.DB);
   let taskLifecycle: TasksLifecycle, transferLifecycle: TransferLifecycle;
   const access = new ProviderAccess(env.DB, config, {
     fetch: budget.fetch,

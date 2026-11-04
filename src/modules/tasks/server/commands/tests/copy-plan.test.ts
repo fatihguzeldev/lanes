@@ -1,3 +1,4 @@
+import { createOperationStore } from '../../../../../../tests/support/operation-store';
 import { afterEach, describe, expect, it } from 'vitest';
 import { seedAccount, testDatabase } from '../../../../../../tests/support/sqlite-d1';
 import { OperationStore } from '../../../../operations/server/journal/store';
@@ -25,7 +26,7 @@ async function fixture() {
       )
       .bind(`list-${account}`, account, `google-${account}`, account, now, now)
       .run();
-  const operations = new OperationStore(db);
+  const operations = createOperationStore(db);
   const planner = new CapturedCopyPlanner(db, {
     operations,
     now: () => now,
@@ -86,7 +87,7 @@ describe('checkpointed dependency validation', () => {
       while (!ready && slices++ < 250) {
         const invocation = invocationDatabase(f.db, 35);
         const planner = new CapturedCopyPlanner(invocation.db, {
-          operations: new OperationStore(invocation.db),
+          operations: createOperationStore(invocation.db),
           now: () => now,
         });
         const result = await planner.seal(operationId(), 'a');

@@ -23,7 +23,7 @@ import type {
   GoogleTasksClient,
 } from '../provider/google-tasks';
 import { OperationStore } from '../../../operations/server/journal/store';
-import type { ClaimedStep, OperationRecord } from '../../../operations/server/journal/store';
+import type { ClaimedStep, OperationRecord } from '../../../operations/server/journal/records';
 import { TaskQueries } from '../queries/tasks';
 import type { TaskMetadataService } from '../metadata/tasks';
 import type { TaskMetadataPatch } from '../../contracts/metadata-commands';

@@ -1,3 +1,4 @@
+import { createOperationStore } from '../../../../../../tests/support/operation-store';
 import { afterEach, expect, it } from 'vitest';
 import { seedAccount, testDatabase } from '../../../../../../tests/support/sqlite-d1';
 import { TaskSnapshotReader } from '../../../../tasks/server/queries/snapshot-reader';
@@ -47,7 +48,7 @@ async function fixture() {
         },
       })),
     });
-  const operations = new OperationStore(database.db),
+  const operations = createOperationStore(database.db),
     snapshots = new TaskSnapshotReader(database.db);
   const lifecycle = new TransferLifecycle(database.db, { operations, snapshots, now: () => now });
   return { ...database, imports, lifecycle, operations };

@@ -1,12 +1,29 @@
+import type {
+  OperationResources,
+  OperationListReservations,
+  OperationCaptureRetention,
+} from './resources';
+import { OperationQueries } from '../queries/receipts';
+import { record, stepRecord } from './records';
+import type {
+  OperationState,
+  OperationRecord,
+  OperationAdmission,
+  OperationStep,
+  ClaimedStep,
+  ResolutionEvidence,
+  ResolveUnknownResponse,
+  StopRecordedIntent,
+  StoppedIntent,
+  Row,
+  StepRow,
+  StepRejection,
+} from './records';
+import { failureMessage } from './failures';
 import type { D1Database, D1PreparedStatement, D1Result } from '@cloudflare/workers-types';
 import { AppError } from '../../../../shared/contracts/errors';
-import type { ErrorCode, Page } from '../../../../shared/contracts/http';
-import type {
-  IssuedOperationStep,
-  OperationProgress,
-  OperationStepSummary,
-  OperationSummary,
-} from '../../contracts/receipt';
+import type { ErrorCode } from '../../../../shared/contracts/http';
+import type { IssuedOperationStep } from '../../contracts/receipt';
 import {
   assertDisconnecting,
   assertLocalWritable,
@@ -15,187 +32,9 @@ import {
   localWriteGuard,
   providerWriteGuard,
 } from '../../../accounts/server/connections/access';
-
-export type OperationState =
-  | 'accepted'
-  | 'running'
-  | 'succeeded'
-  | 'partial'
-  | 'reconnect_required'
-  | 'blocked_by_limit'
-  | 'uncertain'
-  | 'failed'
-  | 'cancelled';
-export interface OperationRecord {
-  id: string;
-  accountId: string;
-  ownerSubject: string;
-  kind: string;
-  resourceKey: string;
-  inputHash: string;
-  input: unknown;
-  state: OperationState;
-  result: unknown;
-  createdAt: number;
-  updatedAt: number;
-  cancelRequested: boolean;
-  totalSteps: number;
-  confirmedSteps: number;
-  inputSealed: boolean;
-  finished: boolean;
-}
-export interface OperationAdmission {
-  id: string;
-  accountId: string;
-  ownerSubject: string;
-  kind: string;
-  resourceKey: string;
-  input: unknown;
-  steps: readonly { key: string; kind: string; input: unknown }[];
-  listSlots?: number;
-  totalSteps?: number;
-}
-export interface OperationStep {
-  operationId: string;
-  key: string;
-  kind: string;
-  input: unknown;
-  state: string;
-  claimId: string | null;
-  claimUntil: number | null;
-  response: unknown;
-  result: unknown;
-  listSlot: number;
-  position: number;
-}
-export interface ClaimedStep extends OperationStep {
-  mode: 'dispatch' | 'repair';
-}
-export interface ResolutionEvidence {
-  kind: 'owner_candidate' | 'provider_readback';
-  providerId: string;
-  etag?: string;
-  digest?: string;
-}
-export interface ResolveUnknownResponse {
-  operationId: string;
-  accountId: string;
-  stepKey: string;
-  expectedClaimId: string;
-  response: unknown;
-  evidence: ResolutionEvidence;
-}
-export interface StopRecordedIntent {
-  operationId: string;
-  accountId: string;
-  stepKey: string;
-  expectedClaimId: string | null;
-  expectedResponse: unknown | null;
-  evidence: ResolutionEvidence;
-  decision: 'keep_provider_current';
-}
-export interface StoppedIntent {
-  stepKey: string;
-  expectedClaimId: string | null;
-  expectedResponseHash: string | null;
-  evidence: ResolutionEvidence;
-  decision: 'keep_provider_current';
-  createdAt: number;
-}
-interface Row {
-  id: string;
-  account_id: string;
-  owner_subject: string;
-  kind: string;
-  resource_key: string;
-  input_hash: string;
-  input_json: string;
-  state: OperationState;
-  result_json: string | null;
-  created_at: number;
-  updated_at: number;
-  cancel_requested: number;
-  total_steps: number;
-  confirmed_steps: number;
-  input_sealed: number;
-  terminal_at: number | null;
-}
-interface StepRow {
-  operation_id: string;
-  item_key: string;
-  kind: string;
-  input_json: string;
-  state: string;
-  claim_id: string | null;
-  claim_until: number | null;
-  response_json: string | null;
-  result_json: string | null;
-  list_slot: number;
-  position: number;
-}
 const claimDuration = 30_000;
 const initialAdmissionLifetime = 86_400_000;
-const inventoryFreshness = 60_000;
 const maxInputBytes = 65_536;
-const parseJson = (value: string | null): unknown => (value === null ? null : JSON.parse(value));
-const record = (row: Row): OperationRecord => ({
-  id: row.id,
-  accountId: row.account_id,
-  ownerSubject: row.owner_subject,
-  kind: row.kind,
-  resourceKey: row.resource_key,
-  inputHash: row.input_hash,
-  input: parseJson(row.input_json),
-  state: row.state,
-  result: parseJson(row.result_json),
-  createdAt: row.created_at,
-  updatedAt: row.updated_at,
-  cancelRequested: !!row.cancel_requested,
-  totalSteps: row.total_steps,
-  confirmedSteps: row.confirmed_steps,
-  inputSealed: !!row.input_sealed,
-  finished: row.terminal_at !== null,
-});
-const stepRecord = (row: StepRow): OperationStep => ({
-  operationId: row.operation_id,
-  key: row.item_key,
-  kind: row.kind,
-  input: parseJson(row.input_json),
-  state: row.state,
-  claimId: row.claim_id,
-  claimUntil: row.claim_until,
-  response: parseJson(row.response_json),
-  result: parseJson(row.result_json),
-  listSlot: row.list_slot,
-  position: row.position,
-});
-const failureMessages: Partial<Record<ErrorCode, string>> = {
-  reconnect_required: 'reconnect this google account to continue.',
-  permission_required: 'this account needs the requested google permission.',
-  provider_rate_limited: 'google is limiting requests. this work will wait before retrying.',
-  list_limit_reached: 'this work needs available list capacity.',
-  storage_unavailable: 'this work could not be recorded. its confirmed output is retained.',
-  conflict: 'the resource changed. inspect its current values before continuing.',
-  outcome_uncertain:
-    'google may have accepted this change. inspect its result before repeating it.',
-  not_found: 'this resource could not be found at its recorded address.',
-  forbidden: 'this account is not allowed to make this change.',
-  validation_failed: 'check the submitted fields before continuing.',
-  destination_removed:
-    'the destination board was removed after dispatch. the confirmed list was preserved on the main board and unsent remaining work was stopped.',
-  owner_stopped:
-    'you kept the current google values and stopped applying this intent. its original provider outcome and receipt remain recorded.',
-};
-const failureMessage = (code: ErrorCode) =>
-  failureMessages[code] ?? 'this work could not finish. its confirmed output is retained.';
-
-export interface StepRejection {
-  code: ErrorCode;
-  /** Only a transport/provider classification can establish this; a timeout cannot. */
-  definitelyRejected: boolean;
-  operationState?: 'failed' | 'reconnect_required' | 'blocked_by_limit';
-  retryAt?: number;
-}
 
 function canonical(value: unknown, depth = 0): unknown {
   if (depth > 20)
@@ -247,30 +86,16 @@ function checkFreshIdentity(id: string, now: number): void {
 
 /** Durable execution receipts. No method here sends a provider request. */
 export class OperationStore {
-  constructor(private readonly db: D1Database) {}
-
-  async listCapacity(
-    accountId: string,
-    now = Date.now(),
-  ): Promise<{ known: number | null; reserved: number; available: number | null; stale: boolean }> {
-    const row = await this.db
-      .prepare(
-        `SELECT inventory_count,inventory_complete_at,
-      COALESCE((SELECT SUM(remaining) FROM tasks_list_reservations WHERE account_id=?),0) AS reserved
-      FROM tasks_account_state WHERE account_id=?`,
-      )
-      .bind(accountId, accountId)
-      .first<{ inventory_count: number; inventory_complete_at: number | null; reserved: number }>();
-    const known =
-      row?.inventory_complete_at === null || row?.inventory_complete_at === undefined
-        ? null
-        : row.inventory_count;
-    return {
-      known,
-      reserved: row?.reserved ?? 0,
-      available: known === null ? null : Math.max(0, 2000 - known - (row?.reserved ?? 0)),
-      stale: !row?.inventory_complete_at || row.inventory_complete_at < now - inventoryFreshness,
-    };
+  readonly queries: OperationQueries;
+  readonly lists: OperationListReservations;
+  private readonly captures: OperationCaptureRetention;
+  constructor(
+    private readonly db: D1Database,
+    resources: OperationResources,
+  ) {
+    this.queries = new OperationQueries(db);
+    this.lists = resources.lists;
+    this.captures = resources.captures;
   }
 
   async hasUnresolvedProviderWork(accountId: string): Promise<boolean> {
@@ -437,12 +262,7 @@ export class OperationStore {
         AND EXISTS(SELECT 1 FROM tasks_operations WHERE id=? AND account_id=? AND state='failed' AND input_sealed=0 AND confirmed_steps=0)`,
         )
         .bind(id, id, accountId),
-      this.db
-        .prepare(
-          `UPDATE tasks_list_reservations SET remaining=0 WHERE operation_id=?
-        AND EXISTS(SELECT 1 FROM tasks_operations WHERE id=? AND account_id=? AND state='failed' AND input_sealed=0 AND confirmed_steps=0)`,
-        )
-        .bind(id, id, accountId),
+      this.lists.releaseUnsealedWrite(id, accountId),
     ]);
     if (!results[0]?.meta.changes) {
       const existing = await this.get(id, accountId);
@@ -469,270 +289,6 @@ export class OperationStore {
       .bind(id, key)
       .first<StepRow>();
     return row ? stepRecord(row) : null;
-  }
-
-  async list(
-    accountId: string,
-    options: { limit?: number; cursor?: string; activeOnly?: boolean } = {},
-  ): Promise<Page<OperationSummary>> {
-    const limit = options.limit ?? 50;
-    if (!Number.isInteger(limit) || limit < 1 || limit > 100)
-      throw new AppError('validation_failed', 'choose a page size from 1 to 100.', 400);
-    let anchor: { createdAt: number; id: string } | null = null;
-    if (options.cursor) {
-      try {
-        const value: unknown = JSON.parse(atob(options.cursor));
-        if (!value || typeof value !== 'object') throw new Error();
-        const v = value as Record<string, unknown>;
-        if (
-          v.accountId !== accountId ||
-          v.activeOnly !== !!options.activeOnly ||
-          typeof v.id !== 'string' ||
-          typeof v.createdAt !== 'number' ||
-          !Number.isSafeInteger(v.createdAt)
-        )
-          throw new Error();
-        anchor = { id: v.id, createdAt: v.createdAt };
-      } catch {
-        throw new AppError(
-          'validation_failed',
-          'this operation cursor belongs to another selection.',
-          400,
-        );
-      }
-    }
-    const active = options.activeOnly ? ' AND terminal_at IS NULL' : '';
-    const after = anchor ? ' AND (created_at<? OR (created_at=? AND id<?))' : '';
-    const bindings: (string | number)[] = [accountId];
-    if (anchor) bindings.push(anchor.createdAt, anchor.createdAt, anchor.id);
-    bindings.push(limit + 1);
-    const rows = await this.db
-      .prepare(
-        `SELECT id,account_id,kind,state,created_at,updated_at,cancel_requested,total_steps,confirmed_steps,input_sealed,error_code,error_message,next_attempt_at,terminal_at
-      FROM tasks_operations WHERE account_id=?${active}${after} ORDER BY created_at DESC,id DESC LIMIT ?`,
-      )
-      .bind(...bindings)
-      .all<
-        Omit<
-          Row,
-          'owner_subject' | 'resource_key' | 'input_hash' | 'input_json' | 'result_json'
-        > & {
-          error_code: ErrorCode | null;
-          error_message: string | null;
-          next_attempt_at: number | null;
-          terminal_at: number | null;
-        }
-      >();
-    const shown = rows.results.slice(0, limit),
-      last = shown.at(-1);
-    return {
-      items: shown.map((row) => ({
-        id: row.id,
-        accountId: row.account_id,
-        kind: row.kind,
-        state: row.state,
-        createdAt: row.created_at,
-        updatedAt: row.updated_at,
-        cancelRequested: !!row.cancel_requested,
-        totalSteps: row.total_steps,
-        confirmedSteps: row.confirmed_steps,
-        inputSealed: !!row.input_sealed,
-        error: row.error_code
-          ? { code: row.error_code, message: failureMessage(row.error_code) }
-          : null,
-        nextAttemptAt: row.next_attempt_at,
-        finished: row.terminal_at !== null,
-      })),
-      nextCursor:
-        rows.results.length > limit && last
-          ? btoa(
-              JSON.stringify({
-                accountId,
-                activeOnly: !!options.activeOnly,
-                createdAt: last.created_at,
-                id: last.id,
-              }),
-            )
-          : null,
-      coverage: { complete: true, stale: false, lastSyncedAt: null },
-    };
-  }
-
-  async summary(id: string, accountId: string): Promise<OperationSummary | null> {
-    const row = await this.db
-      .prepare(
-        `SELECT id,account_id,kind,state,created_at,updated_at,cancel_requested,total_steps,confirmed_steps,input_sealed,error_code,next_attempt_at,terminal_at
-      FROM tasks_operations WHERE id=? AND account_id=?`,
-      )
-      .bind(id, accountId)
-      .first<{
-        id: string;
-        account_id: string;
-        kind: string;
-        state: OperationState;
-        created_at: number;
-        updated_at: number;
-        cancel_requested: number;
-        total_steps: number;
-        confirmed_steps: number;
-        input_sealed: number;
-        error_code: ErrorCode | null;
-        next_attempt_at: number | null;
-        terminal_at: number | null;
-      }>();
-    return row
-      ? {
-          id: row.id,
-          accountId: row.account_id,
-          kind: row.kind,
-          state: row.state,
-          createdAt: row.created_at,
-          updatedAt: row.updated_at,
-          cancelRequested: !!row.cancel_requested,
-          totalSteps: row.total_steps,
-          confirmedSteps: row.confirmed_steps,
-          inputSealed: !!row.input_sealed,
-          error: row.error_code
-            ? { code: row.error_code, message: failureMessage(row.error_code) }
-            : null,
-          nextAttemptAt: row.next_attempt_at,
-          finished: row.terminal_at !== null,
-        }
-      : null;
-  }
-
-  /** Result references only. Captured input and raw provider responses remain server-side. */
-  async steps(
-    id: string,
-    accountId: string,
-    options: { limit?: number; cursor?: string } = {},
-  ): Promise<Page<OperationStepSummary>> {
-    const summary = await this.summary(id, accountId);
-    if (!summary) throw new AppError('not_found', 'this operation was not found.', 404);
-    const limit = options.limit ?? 10;
-    if (!Number.isInteger(limit) || limit < 1 || limit > 10)
-      throw new AppError('validation_failed', 'read at most ten operation steps per page.', 400);
-    let after: { position: number; key: string } | null = null;
-    if (options.cursor) {
-      try {
-        const value = JSON.parse(
-          new TextDecoder().decode(
-            Uint8Array.from(atob(options.cursor), (char) => char.charCodeAt(0)),
-          ),
-        ) as Record<string, unknown>;
-        if (
-          value.accountId !== accountId ||
-          value.id !== id ||
-          !Number.isSafeInteger(value.position) ||
-          typeof value.key !== 'string'
-        )
-          throw new Error();
-        after = { position: value.position as number, key: value.key };
-      } catch {
-        throw new AppError(
-          'validation_failed',
-          'this step cursor belongs to another operation.',
-          400,
-        );
-      }
-    }
-    const reference = (key: string) =>
-      `CASE WHEN json_type(result_json,'$.${key}')='text' THEN json_extract(result_json,'$.${key}') ELSE NULL END`;
-    const rows = (
-      await this.db
-        .prepare(
-          `SELECT item_key,position,kind,state,error_code,${reference('taskId')} AS task_id,${reference('listId')} AS list_id,${reference('spreadsheetId')} AS spreadsheet_id,COALESCE(json_extract(result_json,'$.deleted'),0) AS deleted,
-      CASE WHEN owner_stopped_at IS NOT NULL THEN 'keep_provider_current' ELSE NULL END AS stop_decision
-      FROM tasks_operation_steps WHERE operation_id=? ${after ? 'AND(position>? OR(position=? AND item_key>?))' : ''} ORDER BY position,item_key LIMIT ?`,
-        )
-        .bind(id, ...(after ? [after.position, after.position, after.key] : []), limit + 1)
-        .all<{
-          item_key: string;
-          position: number;
-          kind: string;
-          state: OperationStepSummary['state'];
-          error_code: string | null;
-          task_id: string | null;
-          list_id: string | null;
-          spreadsheet_id: string | null;
-          deleted: number;
-          stop_decision: 'keep_provider_current' | null;
-        }>()
-    ).results;
-    const shown = rows.slice(0, limit),
-      last = shown.at(-1);
-    const nextCursor =
-      rows.length > limit && last
-        ? btoa(
-            String.fromCharCode(
-              ...new TextEncoder().encode(
-                JSON.stringify({ accountId, id, position: last.position, key: last.item_key }),
-              ),
-            ),
-          )
-        : null;
-    return {
-      items: shown.map((row) => ({
-        key: row.item_key,
-        position: row.position,
-        kind: row.kind,
-        state: row.state,
-        errorCode: row.error_code,
-        taskId: row.task_id,
-        listId: row.list_id,
-        spreadsheetId: row.spreadsheet_id,
-        deleted: !!row.deleted,
-        stopDecision: row.stop_decision,
-      })),
-      nextCursor,
-      coverage: { complete: summary.inputSealed, stale: false, lastSyncedAt: null },
-    };
-  }
-
-  async progress(id: string, accountId: string, now = Date.now()): Promise<OperationProgress> {
-    const summary = await this.summary(id, accountId);
-    if (!summary) throw new AppError('not_found', 'this operation was not found.', 404);
-    const rows = (
-      await this.db
-        .prepare(
-          "SELECT state,COUNT(*) AS count,SUM(kind='task.create') AS creates FROM tasks_operation_steps WHERE operation_id=? GROUP BY state",
-        )
-        .bind(id)
-        .all<{ state: string; count: number; creates: number }>()
-    ).results;
-    const steps = {
-        confirmed: summary.confirmedSteps,
-        failed: 0,
-        uncertain: 0,
-        cancelled: 0,
-        remaining: 0,
-      },
-      taskCreates = { confirmed: 0, failed: 0, uncertain: 0, cancelled: 0 };
-    for (const row of rows) {
-      if (
-        row.state === 'confirmed' ||
-        row.state === 'failed' ||
-        row.state === 'uncertain' ||
-        row.state === 'cancelled'
-      ) {
-        steps[row.state] = row.count;
-        taskCreates[row.state] = row.creates;
-      }
-    }
-    steps.remaining = Math.max(
-      0,
-      summary.totalSteps - steps.confirmed - steps.failed - steps.uncertain - steps.cancelled,
-    );
-    return {
-      operationId: id,
-      accountId,
-      inputSealed: summary.inputSealed,
-      finished: summary.finished,
-      totalSteps: summary.totalSteps,
-      steps,
-      taskCreates,
-      checkedAt: now,
-    };
   }
 
   async firstUnresolvedStep(
@@ -860,12 +416,7 @@ export class OperationStore {
           AND EXISTS(SELECT 1 FROM tasks_operations WHERE id=? AND state IN ('failed','cancelled'))`,
           )
           .bind(id, id),
-        this.db
-          .prepare(
-            `UPDATE tasks_list_reservations SET remaining=0 WHERE operation_id=?
-          AND EXISTS(SELECT 1 FROM tasks_operations WHERE id=? AND state IN ('failed','cancelled'))`,
-          )
-          .bind(id, id),
+        this.lists.releaseRejectedWrite(id),
       ]);
     } catch {
       throw new AppError(
@@ -901,12 +452,12 @@ export class OperationStore {
     if (!Number.isInteger(limit) || limit < 1 || limit > 100)
       throw new AppError('validation_failed', 'prune at most100 terminal payload rows.', 400);
     const cutoff = now - 86_400_000;
-    const allowed = `o.terminal_at<=? AND (p.operation_id IS NULL OR p.payload_pruned_at IS NOT NULL)`;
+    const allowed = `o.terminal_at<=? AND ${this.captures.payloadPrunable}`;
     const stepResult = await this.db
       .prepare(
         `UPDATE tasks_operation_steps SET input_json='null',response_json=NULL WHERE (operation_id,item_key) IN
       (SELECT s.operation_id,s.item_key FROM tasks_operation_steps s JOIN tasks_operations o ON o.id=s.operation_id
-       LEFT JOIN tasks_command_plans p ON p.operation_id=o.id WHERE ${allowed} AND (s.input_json<>'null' OR s.response_json IS NOT NULL)
+       ${this.captures.receiptJoin} WHERE ${allowed} AND (s.input_json<>'null' OR s.response_json IS NOT NULL)
        ORDER BY o.terminal_at,o.id,s.position LIMIT ?)`,
       )
       .bind(cutoff, limit)
@@ -916,7 +467,7 @@ export class OperationStore {
     const operationResult = await this.db
       .prepare(
         `UPDATE tasks_operations SET input_json='null' WHERE id IN
-      (SELECT o.id FROM tasks_operations o LEFT JOIN tasks_command_plans p ON p.operation_id=o.id
+      (SELECT o.id FROM tasks_operations o ${this.captures.receiptJoin}
        WHERE ${allowed} AND o.input_json<>'null' ORDER BY o.terminal_at,o.id LIMIT ?)`,
       )
       .bind(cutoff, limit - changed)
@@ -946,7 +497,7 @@ export class OperationStore {
         `DELETE FROM tasks_operation_steps WHERE (operation_id,item_key) IN
         (SELECT s.operation_id,s.item_key FROM tasks_operation_steps s JOIN tasks_operations o ON o.id=s.operation_id
          WHERE o.terminal_at<=? AND o.state IN ('succeeded','failed','cancelled','partial')
-         AND NOT EXISTS(SELECT 1 FROM tasks_command_plans p WHERE p.operation_id=o.id)
+         AND ${this.captures.captureAbsent}
          ORDER BY o.terminal_at,o.id,s.position LIMIT ?)`,
       )
       .bind(cutoff, remaining)
@@ -954,16 +505,7 @@ export class OperationStore {
     remaining -= steps.meta.changes;
     if (!remaining) return 0;
     // Remove this child explicitly: deleting its parent would hide a cascade from the budget.
-    const reservations = await this.db
-      .prepare(
-        `DELETE FROM tasks_list_reservations WHERE operation_id IN
-      (SELECT r.operation_id FROM tasks_list_reservations r JOIN tasks_operations o ON o.id=r.operation_id
-       WHERE o.terminal_at<=? AND NOT EXISTS(SELECT 1 FROM tasks_command_plans p WHERE p.operation_id=o.id)
-       AND NOT EXISTS(SELECT 1 FROM tasks_operation_steps s WHERE s.operation_id=o.id)
-       ORDER BY o.terminal_at,o.id LIMIT ?)`,
-      )
-      .bind(cutoff, remaining)
-      .run();
+    const reservations = await this.lists.cleanup(cutoff, remaining);
     remaining -= reservations.meta.changes;
     if (!remaining) return 0;
     const operations = await this.db
@@ -971,7 +513,7 @@ export class OperationStore {
         `DELETE FROM tasks_operations WHERE id IN
         (SELECT o.id FROM tasks_operations o WHERE o.terminal_at<=? AND o.state IN ('succeeded','failed','cancelled','partial')
          AND NOT EXISTS(SELECT 1 FROM tasks_operation_steps s WHERE s.operation_id=o.id)
-         AND NOT EXISTS(SELECT 1 FROM tasks_command_plans p WHERE p.operation_id=o.id)
+         AND ${this.captures.captureAbsent}
          AND NOT EXISTS(SELECT 1 FROM tasks_operation_resolutions r WHERE r.operation_id=o.id)
          AND NOT EXISTS(SELECT 1 FROM tasks_operation_stops stopped WHERE stopped.operation_id=o.id)
          ORDER BY o.terminal_at,o.id LIMIT ?)`,
@@ -1016,19 +558,7 @@ export class OperationStore {
     if (!Number.isInteger(totalSteps) || totalSteps < input.steps.length || totalSteps > 10000)
       throw new AppError('validation_failed', 'this captured plan has an invalid step count.', 400);
     const sealed = totalSteps === input.steps.length;
-    const capturedSlots = input.steps.filter((step) => step.kind === 'list.create').length;
-    if (capturedSlots > slots || (sealed && capturedSlots !== slots))
-      throw new AppError(
-        'validation_failed',
-        'the list reservation does not match the captured plan.',
-        400,
-      );
-    if (!Number.isInteger(slots) || slots < 0 || slots > 100)
-      throw new AppError(
-        'validation_failed',
-        'a creation plan can reserve at most 100 new lists.',
-        400,
-      );
+    this.lists.validate(input.steps, slots, sealed);
     const inputJson = boundedJson({
       accountId: input.accountId,
       ownerSubject: input.ownerSubject,
@@ -1047,14 +577,13 @@ export class OperationStore {
     if (existing) return this.assertReplay(existing, input, inputHash);
     checkFreshIdentity(input.id, now);
     const exists = `EXISTS(SELECT 1 FROM tasks_operations WHERE id=? AND account_id=? AND input_hash=?)`;
+    const admission = this.lists.admissionCondition(input.accountId, slots, now);
     const writes = [
       this.db
         .prepare(
           `INSERT INTO tasks_operations
       (id,account_id,owner_subject,kind,resource_key,input_hash,input_json,state,created_at,updated_at,total_steps,input_sealed)
-      SELECT ?,?,?,?,?,?,?,'accepted',?,?,?,? WHERE ?=0 OR EXISTS
-      (SELECT 1 FROM tasks_account_state s WHERE s.account_id=? AND s.inventory_complete_at>=?
-       AND s.inventory_count+COALESCE((SELECT SUM(r.remaining) FROM tasks_list_reservations r WHERE r.account_id=s.account_id),0)+?<=2000)
+      SELECT ?,?,?,?,?,?,?,'accepted',?,?,?,? WHERE ${admission.sql}
       ON CONFLICT(id) DO NOTHING`,
         )
         .bind(
@@ -1069,17 +598,9 @@ export class OperationStore {
           now,
           totalSteps,
           sealed ? 1 : 0,
-          slots,
-          input.accountId,
-          now - inventoryFreshness,
-          slots,
+          ...admission.bindings,
         ),
-      this.db
-        .prepare(
-          `INSERT INTO tasks_list_reservations(operation_id,account_id,slots,remaining,created_at)
-        SELECT ?,?,?,?,? WHERE ${exists} ON CONFLICT(operation_id) DO NOTHING`,
-        )
-        .bind(input.id, input.accountId, slots, slots, now, input.id, input.accountId, inputHash),
+      this.lists.reserveWrite(input, slots, now, inputHash),
       ...input.steps.map((step, position) =>
         this.db
           .prepare(
@@ -1093,7 +614,7 @@ export class OperationStore {
             position,
             step.kind,
             boundedJson(step.input),
-            step.kind === 'list.create' ? 1 : 0,
+            this.lists.slotFor(step.kind),
             input.id,
             input.accountId,
             inputHash,
@@ -1131,29 +652,7 @@ export class OperationStore {
       .bind(input.id)
       .first<Row>();
     if (admitted) return this.assertReplay(admitted, input, inputHash);
-    const inventory = await this.db
-      .prepare(
-        `SELECT inventory_count,inventory_complete_at,
-      COALESCE((SELECT SUM(remaining) FROM tasks_list_reservations WHERE account_id=?),0) AS reserved
-      FROM tasks_account_state WHERE account_id=?`,
-      )
-      .bind(input.accountId, input.accountId)
-      .first<{ inventory_count: number; inventory_complete_at: number | null; reserved: number }>();
-    if (
-      !inventory ||
-      inventory.inventory_complete_at === null ||
-      inventory.inventory_complete_at < now - inventoryFreshness
-    )
-      throw new AppError(
-        'conflict',
-        'refresh the complete google list inventory before reserving list capacity.',
-        409,
-      );
-    throw new AppError(
-      'list_limit_reached',
-      `this action needs ${slots} list slots; ${Math.max(0, 2000 - inventory.inventory_count - inventory.reserved)} are available.`,
-      409,
-    );
+    return this.lists.explainAdmissionFailure(input.accountId, slots, now);
   }
 
   async claimNext(id: string, claimId: string, now = Date.now()): Promise<ClaimedStep | null> {
@@ -1444,15 +943,7 @@ export class OperationStore {
           .bind(now, now, failureMessage('owner_stopped'), operationId),
         // A selected current list does not prove that no other create reached Google.
         // Invalidate capacity before releasing any uncertain or unsent reservation.
-        this.db
-          .prepare(
-            `UPDATE tasks_account_state SET inventory_complete_at=NULL,inventory_revision=inventory_revision+1
-          WHERE account_id=? AND EXISTS(SELECT 1 FROM tasks_list_reservations WHERE operation_id=? AND remaining>0)`,
-          )
-          .bind(accountId, operationId),
-        this.db
-          .prepare('UPDATE tasks_list_reservations SET remaining=0 WHERE operation_id=?')
-          .bind(operationId),
+        ...this.lists.stopWrites(accountId, operationId),
       ]);
     } catch (error) {
       if (matches(await this.getStoppedIntent(operationId, stepKey, accountId))) return;
@@ -1694,14 +1185,7 @@ export class OperationStore {
               `INSERT INTO tasks_operation_steps(operation_id,item_key,position,kind,input_json,state,list_slot)
             VALUES (?,?,?,?,?,'accepted',?) ON CONFLICT(operation_id,item_key) DO NOTHING`,
             )
-            .bind(
-              id,
-              step.key,
-              step.position,
-              step.kind,
-              step.json,
-              step.kind === 'list.create' ? 1 : 0,
-            ),
+            .bind(id, step.key, step.position, step.kind, step.json, this.lists.slotFor(step.kind)),
         ]),
       ]);
     } catch {
@@ -1713,15 +1197,16 @@ export class OperationStore {
     const operation = await this.get(id, accountId);
     if (!operation) throw new AppError('not_found', 'this operation is no longer available.', 404);
     if (operation.inputSealed) return;
+    const reservation = this.lists.sealCondition(id);
     const result = await this.db
       .prepare(
         `UPDATE tasks_operations SET input_sealed=1 WHERE id=? AND account_id=? AND input_sealed=0 AND cancel_requested=0 AND state='accepted'
       AND total_steps=(SELECT COUNT(*) FROM tasks_operation_steps WHERE operation_id=?)
       AND (SELECT MIN(position) FROM tasks_operation_steps WHERE operation_id=?)=0
       AND (SELECT MAX(position) FROM tasks_operation_steps WHERE operation_id=?)=total_steps-1
-      AND (SELECT COALESCE(SUM(list_slot),0) FROM tasks_operation_steps WHERE operation_id=?)=(SELECT slots FROM tasks_list_reservations WHERE operation_id=?)`,
+      AND ${reservation.sql}`,
       )
-      .bind(id, accountId, id, id, id, id, id)
+      .bind(id, accountId, id, id, id, ...reservation.bindings)
       .run();
     if (!result.meta.changes)
       throw new AppError(
@@ -1755,12 +1240,7 @@ export class OperationStore {
           (SELECT 1 FROM tasks_operation_steps WHERE operation_id=? AND state NOT IN ('confirmed','cancelled'))))`,
         )
         .bind(now, now, boundedJson(result), id, id),
-      this.db
-        .prepare(
-          `UPDATE tasks_list_reservations SET remaining=0 WHERE operation_id=?
-        AND EXISTS(SELECT 1 FROM tasks_operations WHERE id=? AND terminal_at IS NOT NULL)`,
-        )
-        .bind(id, id),
+      this.lists.releaseFinishedWrite(id),
     ];
   }
 
@@ -1821,33 +1301,7 @@ export class OperationStore {
   ): Promise<void> {
     const previous = await this.getStep(id, key);
     if (previous?.state === 'confirmed') return;
-    const capacityWrites = previous?.listSlot
-      ? [
-          this.db
-            .prepare(
-              `INSERT INTO tasks_write_guards(valid) SELECT 0 WHERE NOT EXISTS
-        (SELECT 1 FROM tasks_list_reservations r JOIN tasks_operation_steps s ON s.operation_id=r.operation_id
-         JOIN tasks_lists l ON l.account_id=r.account_id AND l.provider_id=json_extract(s.response_json,'$.id') AND l.deleted_at IS NULL
-         WHERE r.operation_id=? AND s.item_key=? AND r.remaining>=1)`,
-            )
-            .bind(id, key),
-          this.db
-            .prepare(
-              `UPDATE tasks_account_state SET inventory_count=inventory_count+CASE WHEN EXISTS
-        (SELECT 1 FROM tasks_operation_steps s JOIN tasks_lists l ON l.account_id=tasks_account_state.account_id
-         AND l.provider_id=json_extract(s.response_json,'$.id') WHERE s.operation_id=? AND s.item_key=?
-         AND l.last_seen_scan=tasks_account_state.last_complete_scan_id AND tasks_account_state.last_complete_scan_id IS NOT NULL)
-        THEN 0 ELSE 1 END,inventory_revision=inventory_revision+1
-        WHERE account_id=(SELECT account_id FROM tasks_operations WHERE id=?)`,
-            )
-            .bind(id, key, id),
-          this.db
-            .prepare(
-              'UPDATE tasks_list_reservations SET remaining=remaining-1 WHERE operation_id=?',
-            )
-            .bind(id),
-        ]
-      : [];
+    const capacityWrites = previous?.listSlot ? this.lists.confirmWrites(id, key) : [];
     try {
       await this.db.batch([
         this.db
@@ -1905,13 +1359,7 @@ export class OperationStore {
         AND NOT EXISTS(SELECT 1 FROM tasks_operation_steps WHERE operation_id=? AND state IN ('dispatched','uncertain'))`,
         )
         .bind(now, id, accountId, id),
-      this.db
-        .prepare(
-          `UPDATE tasks_list_reservations SET remaining=MIN(remaining,
-        (SELECT COALESCE(SUM(list_slot),0) FROM tasks_operation_steps WHERE operation_id=? AND state IN ('dispatched','uncertain')))
-        WHERE operation_id=?`,
-        )
-        .bind(id, id),
+      this.lists.cancelWrite(id),
     ]);
   }
 }

@@ -9,7 +9,7 @@ import { transferDigest } from '../identity/content-hash';
 import type { ArchiveHeader } from '../../contracts/archive';
 
 export interface TransferRetentionOptions {
-  operations?: Pick<OperationStore, 'summary'>;
+  operations?: Pick<OperationStore, 'queries'>;
   snapshots: Pick<TaskSnapshotReader, 'removeSnapshotSlice'>;
   documents?: Pick<TemplateDocumentStore, 'releaseCapturePins'>;
   sheets?: Pick<SheetsExportService, 'cleanup'>;
@@ -61,7 +61,7 @@ export class TransferRetention {
   ): Promise<boolean> {
     if (!id) return true;
     if (!this.options.operations) return false;
-    const operation = await this.options.operations.summary(id, accountId);
+    const operation = await this.options.operations.queries.summary(id, accountId);
     if (operation) return operation.finished && operation.state !== 'uncertain';
     return this.admissionExpired(id, now);
   }
@@ -164,7 +164,7 @@ export class TransferRetention {
         .bind(row.id)
         .first<{ item_key: string; phase: string; operation_id: string }>();
       if (action && this.options.operations) {
-        const operation = await this.options.operations.summary(
+        const operation = await this.options.operations.queries.summary(
           action.operation_id,
           row.account_id,
         );

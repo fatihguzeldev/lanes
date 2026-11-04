@@ -1,3 +1,4 @@
+import { createOperationStore } from '../../../../../../tests/support/operation-store';
 import { afterEach, expect, it, vi } from 'vitest';
 import { testDatabase, seedAccount } from '../../../../../../tests/support/sqlite-d1';
 import { AccountsPortability } from '../../../../accounts/server/connections/portability';
@@ -118,7 +119,7 @@ it('rolls back a failed local restore commit and retries its same unfinished act
     .prepare("SELECT operation_id,state FROM transfer_archive_actions WHERE phase='appearance'")
     .first<{ operation_id: string; state: string }>();
   expect(action?.state).toBe('pending');
-  expect(await f.operations.summary(action!.operation_id, 'a')).toMatchObject({
+  expect(await f.operations.queries.summary(action!.operation_id, 'a')).toMatchObject({
     state: 'partial',
     finished: false,
     confirmedSteps: 0,
@@ -144,7 +145,7 @@ it('rolls back a failed local restore commit and retries its same unfinished act
       .bind(f.main.id)
       .first(),
   ).toEqual({ color: '#abc', revision: f.main.revision + 1 });
-  expect(await f.operations.summary(action!.operation_id, 'a')).toMatchObject({
+  expect(await f.operations.queries.summary(action!.operation_id, 'a')).toMatchObject({
     state: 'succeeded',
     finished: true,
     confirmedSteps: 1,
@@ -215,7 +216,7 @@ async function fixture(sourceRecords: unknown[] = records, clock = () => now) {
       now: () => now,
     }),
     history = new HistoryService(db, { now: () => now }),
-    operations = new OperationStore(db),
+    operations = createOperationStore(db),
     queries = new TaskQueries(db),
     snapshotReader = new TaskSnapshotReader(db);
   const commands = new TaskCommandService(db, {
@@ -412,7 +413,9 @@ it('applies explicitly selected local fields through the common task journal and
     scheduledDay: '2026-11-03',
   });
   expect(
-    (await f.operations.list('a', {})).items.some((operation) => operation.state === 'succeeded'),
+    (await f.operations.queries.list('a', {})).items.some(
+      (operation) => operation.state === 'succeeded',
+    ),
   ).toBe(true);
 });
 it('shows unmatched equal titles and rejects a stale selected metadata revision', async () => {

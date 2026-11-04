@@ -1,3 +1,5 @@
+import { CommandRetention } from '../../../../tasks/server/commands/retention';
+import { createOperationStore } from '../../../../../../tests/support/operation-store';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { seedAccount, testDatabase } from '../../../../../../tests/support/sqlite-d1';
 import { TaskQueries } from '../../../../tasks/server/queries/tasks';
@@ -45,7 +47,7 @@ async function fixture() {
     .bind(now, now, now)
     .run();
   const queries = new TaskQueries(database.db),
-    operations = new OperationStore(database.db);
+    operations = createOperationStore(database.db);
   const creates: unknown[] = [],
     writes: { range: string; values: unknown[][] }[] = [];
   const providerRows = new Map<number, unknown[]>();
@@ -408,7 +410,10 @@ describe('captured sheets export', () => {
     }
     const service = new SheetsExportService(f.db, {
       ...f.options,
-      operations: new ResponseFailure(f.db),
+      operations: new ResponseFailure(f.db, {
+        lists: f.operations.lists,
+        captures: new CommandRetention(f.db),
+      }),
     });
     expect((await f.drain(service)).state).toBe('uncertain');
     f.tick(31000);

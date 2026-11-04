@@ -13,7 +13,8 @@ import {
   type CompletedDeletionSummary,
 } from '../../contracts/completed-deletion';
 import type { TaskCommandService } from '../commands/service';
-import type { OperationRecord, OperationStore } from '../../../operations/server/journal/store';
+import type { OperationStore } from '../../../operations/server/journal/store';
+import type { OperationRecord } from '../../../operations/server/journal/records';
 
 interface Options {
   commands: TaskCommandService;
@@ -608,7 +609,7 @@ export class CompletedTaskDeletionService {
         true,
       );
     const code =
-      (await this.options.operations.summary(operation.id, row.account_id))?.error?.code ??
+      (await this.options.operations.queries.summary(operation.id, row.account_id))?.error?.code ??
       'conflict';
     await this.db.batch([
       this.db

@@ -1,3 +1,4 @@
+import { createOperationStore } from '../../../../../../tests/support/operation-store';
 import { afterEach, expect, it } from 'vitest';
 import { seedAccount, testDatabase } from '../../../../../../tests/support/sqlite-d1';
 import { HistoryService } from '../../../../history/server/events/event-store';
@@ -114,7 +115,7 @@ async function fixture() {
     throw Error('unexpected mutation');
   };
   let service: CompletedTaskDeletionService;
-  const operations = new OperationStore(db),
+  const operations = createOperationStore(db),
     commands = new TaskCommandService(db, {
       operations,
       projection,
@@ -311,7 +312,7 @@ it('cancels a captured but unadmitted child journal without creating provider wo
   expect(result.finishedAt).not.toBe(null);
   expect(f.calls).toHaveLength(0);
   expect(
-    (await f.operations.list('a')).items.every(
+    (await f.operations.queries.list('a')).items.every(
       (item) => item.finished && item.state === 'cancelled',
     ),
   ).toBe(true);

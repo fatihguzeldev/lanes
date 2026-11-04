@@ -17,11 +17,8 @@ import {
   type GoogleTaskListDTO,
   type GoogleTasksClient,
 } from '../provider/google-tasks';
-import type {
-  OperationStep,
-  OperationStore,
-  ResolutionEvidence,
-} from '../../../operations/server/journal/store';
+import type { OperationStore } from '../../../operations/server/journal/store';
+import type { OperationStep, ResolutionEvidence } from '../../../operations/server/journal/records';
 import type { TaskProjectionStore } from '../projection/store';
 import { normalizeTaskSearchText } from '../../model/task';
 interface Dependencies {

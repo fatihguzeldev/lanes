@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest';
+import { createOperationStore } from '../../../../../../tests/support/operation-store';
 import { seedAccount, testDatabase } from '../../../../../../tests/support/sqlite-d1';
-import { OperationStore, type StopRecordedIntent } from '../store';
 import { TasksLifecycle } from '../../../../tasks/server/lifecycle/account';
+import type { StopRecordedIntent } from '../records';
 
 const now = 1_793_641_000_000;
 const operationId = `${now}:${'s'.repeat(32)}`;
@@ -14,7 +15,7 @@ async function fixture(list = false) {
   databases.push(database);
   await seedAccount(database.db, 'account-a', now);
   await seedAccount(database.db, 'account-b', now);
-  const store = new OperationStore(database.db);
+  const store = createOperationStore(database.db);
   await store.admit(
     {
       id: operationId,
@@ -57,7 +58,7 @@ describe('explicitly stopped recorded intent', () => {
       "UPDATE tasks_account_state SET graph_revision=graph_revision+1 WHERE account_id='account-a'",
     );
     await store.stopRecordedIntent(stop, [write], now + 31_000);
-    expect(await store.summary(operationId, 'account-a')).toMatchObject({
+    expect(await store.queries.summary(operationId, 'account-a')).toMatchObject({
       state: 'partial',
       finished: true,
       cancelRequested: true,
@@ -82,7 +83,7 @@ describe('explicitly stopped recorded intent', () => {
     expect(await store.hasUnresolvedProviderWork('account-a')).toBe(false);
     expect(await store.firstUnresolvedStep(operationId, 'account-a', now + 32_000)).toBeNull();
     expect(await store.claimNext(operationId, 'late', now + 32_000)).toBeNull();
-    expect(await store.summary(operationId, 'account-a')).toMatchObject({
+    expect(await store.queries.summary(operationId, 'account-a')).toMatchObject({
       state: 'partial',
       finished: true,
     });
@@ -111,7 +112,7 @@ describe('explicitly stopped recorded intent', () => {
         .prepare("SELECT graph_revision FROM tasks_account_state WHERE account_id='account-a'")
         .first('graph_revision'),
     ).toBe(1);
-    expect((await store.steps(operationId, 'account-a')).items[0]).toMatchObject({
+    expect((await store.queries.steps(operationId, 'account-a')).items[0]).toMatchObject({
       state: 'uncertain',
       stopDecision: 'keep_provider_current',
     });
@@ -138,7 +139,9 @@ describe('explicitly stopped recorded intent', () => {
       ),
     ).rejects.toMatchObject({ code: 'conflict' });
     expect(await store.findStoppedIntent(operationId, 'account-a')).toBeNull();
-    expect(await store.summary(operationId, 'account-a')).toMatchObject({ finished: false });
+    expect(await store.queries.summary(operationId, 'account-a')).toMatchObject({
+      finished: false,
+    });
     await store.stopRecordedIntent(stop, [], now + 31_000);
     await expect(
       store.stopRecordedIntent(
@@ -202,7 +205,7 @@ describe('explicitly stopped recorded intent', () => {
       `CREATE TRIGGER enforce_stale_inventory BEFORE UPDATE OF remaining ON tasks_list_reservations WHEN NEW.remaining<OLD.remaining BEGIN SELECT CASE WHEN EXISTS(SELECT 1 FROM tasks_account_state WHERE account_id=NEW.account_id AND inventory_complete_at IS NOT NULL) THEN RAISE(ABORT,'stale inventory required') END; END`,
     );
     await store.stopRecordedIntent(stop, [], now + 31_000);
-    expect(await store.listCapacity('account-a', now + 32_000)).toMatchObject({
+    expect(await store.lists.capacity('account-a', now + 32_000)).toMatchObject({
       known: null,
       reserved: 0,
       available: null,

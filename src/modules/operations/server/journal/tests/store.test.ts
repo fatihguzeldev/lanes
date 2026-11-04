@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
+import { createOperationStore } from '../../../../../../tests/support/operation-store';
 import { seedAccount, testDatabase } from '../../../../../../tests/support/sqlite-d1';
-import { OperationStore } from '../store';
 
 const databases: ReturnType<typeof testDatabase>[] = [];
 afterEach(() => {
@@ -12,7 +12,7 @@ async function fixture() {
   databases.push(database);
   await seedAccount(database.db, 'account-a', now);
   await seedAccount(database.db, 'account-b', now);
-  return { ...database, store: new OperationStore(database.db) };
+  return { ...database, store: createOperationStore(database.db) };
 }
 const id = (suffix = 'a') => `${now}:${suffix.repeat(32)}`;
 const input = (operationId = id()) => ({
@@ -68,17 +68,17 @@ describe('durable provider intent', () => {
       { code: 'outcome_uncertain', definitelyRejected: false },
       now,
     );
-    expect(await store.progress(id(), 'account-a', now)).toMatchObject({
+    expect(await store.queries.progress(id(), 'account-a', now)).toMatchObject({
       totalSteps: 3,
       steps: { confirmed: 1, failed: 0, uncertain: 1, cancelled: 0, remaining: 1 },
       taskCreates: { confirmed: 1, failed: 0, uncertain: 1, cancelled: 0 },
     });
     await store.cancel(id(), 'account-a', now);
-    expect(await store.progress(id(), 'account-a', now)).toMatchObject({
+    expect(await store.queries.progress(id(), 'account-a', now)).toMatchObject({
       steps: { confirmed: 1, uncertain: 1, cancelled: 1, remaining: 0 },
       taskCreates: { confirmed: 1, uncertain: 1, cancelled: 0 },
     });
-    await expect(store.progress(id(), 'account-b', now)).rejects.toMatchObject({
+    await expect(store.queries.progress(id(), 'account-b', now)).rejects.toMatchObject({
       code: 'not_found',
     });
   });
@@ -120,7 +120,7 @@ describe('durable provider intent', () => {
       [],
       now + 31_003,
     );
-    expect(await store.summary(id(), 'account-a')).toMatchObject({
+    expect(await store.queries.summary(id(), 'account-a')).toMatchObject({
       state: 'succeeded',
       finished: true,
     });
@@ -201,7 +201,7 @@ describe('durable provider intent', () => {
   it('admits only one claim across independent worker instances', async () => {
     const { store, db } = await fixture();
     await store.admit(input(), now);
-    const other = new OperationStore(db);
+    const other = createOperationStore(db);
     const claims = await Promise.all([
       store.claimNext(id(), 'worker-a', now),
       other.claimNext(id(), 'worker-b', now),
@@ -695,7 +695,7 @@ describe('definite rejection and retention', () => {
       now,
     );
     await store.failUnsealed(id(), 'account-a', { code: 'validation_failed' }, now + 1);
-    expect(await store.summary(id(), 'account-a')).toMatchObject({
+    expect(await store.queries.summary(id(), 'account-a')).toMatchObject({
       state: 'failed',
       finished: true,
     });
@@ -730,7 +730,7 @@ describe('definite rejection and retention', () => {
       store.prepareStopRemainingWrites(id(), { sql: '1=1', bindings: [] }),
       now + 2,
     );
-    const summary = await store.summary(id(), 'account-a');
+    const summary = await store.queries.summary(id(), 'account-a');
     expect(summary).toMatchObject({
       state: 'partial',
       finished: true,

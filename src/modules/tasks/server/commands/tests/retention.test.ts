@@ -1,3 +1,4 @@
+import { createOperationStore } from '../../../../../../tests/support/operation-store';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { seedAccount, testDatabase } from '../../../../../../tests/support/sqlite-d1';
 import { TaskCommandService } from '../service';
@@ -24,7 +25,7 @@ async function fixture() {
   const clock = () => now;
   const history = new HistoryService(database.db, { now: clock }),
     projection = new TaskProjectionStore(database.db, { history, now: clock }),
-    operations = new OperationStore(database.db),
+    operations = createOperationStore(database.db),
     clientFor = vi.fn(async () => {
       throw new Error('retention must not access google');
     });

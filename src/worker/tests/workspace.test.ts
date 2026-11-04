@@ -1,3 +1,4 @@
+import { createOperationStore } from '../../../tests/support/operation-store';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { seedAccount, testDatabase } from '../../../tests/support/sqlite-d1';
 import { invocationDatabase } from '../../../tests/support/d1-invocation';
@@ -764,7 +765,7 @@ describe('authenticated workspace composition', () => {
   });
   it('exposes only allowlisted confirmed result references from a paginated operation', async () => {
     const { call, db } = await fixture();
-    const operations = new OperationStore(db),
+    const operations = createOperationStore(db),
       now = Date.now(),
       id = `${now}:${'g'.repeat(32)}`;
     await operations.admit(

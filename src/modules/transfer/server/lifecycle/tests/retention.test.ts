@@ -1,3 +1,4 @@
+import { createOperationStore } from '../../../../../../tests/support/operation-store';
 import { afterEach, describe, expect, it } from 'vitest';
 import { seedAccount, testDatabase } from '../../../../../../tests/support/sqlite-d1';
 import { OperationStore } from '../../../../operations/server/journal/store';
@@ -92,7 +93,7 @@ async function fixture() {
   } as unknown as D1Database;
   await seedAccount(db, 'a', initial);
   await seedAccount(db, 'b', initial);
-  const operations = new OperationStore(db),
+  const operations = createOperationStore(db),
     snapshots = new TaskSnapshotReader(db, { now: () => initial }),
     listSnapshots = new ListSnapshotStore(db);
   const documents = new TemplateDocumentStore(db, {

@@ -65,7 +65,7 @@ export async function commandRoute(
       accountId,
       command: input.command,
     });
-    return jsonResponse(await operations.summary(input.operationId, accountId), 202);
+    return jsonResponse(await operations.queries.summary(input.operationId, accountId), 202);
   }
   if (
     route.length === 5 &&
@@ -76,7 +76,7 @@ export async function commandRoute(
     const input = await readJson(request, z.object({ command: ProviderCommandSchema }).strict());
     const [preview, capacity] = await Promise.all([
       services.commands.inspectDuplicate(accountId, input.command),
-      operations.listCapacity(accountId),
+      operations.lists.capacity(accountId),
     ]);
     return jsonResponse({ preview, capacity });
   }

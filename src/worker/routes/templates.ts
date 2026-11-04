@@ -99,7 +99,7 @@ export async function templateRoute(
       );
       const [preview, capacity] = await Promise.all([
         templates.applications.preview(accountId, value.template, value.options),
-        operations.listCapacity(accountId),
+        operations.lists.capacity(accountId),
       ]);
       return jsonResponse({ preview, capacity });
     }

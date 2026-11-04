@@ -20,7 +20,7 @@ export async function transferRoute(
   const context = { request, url, route, account, ownerSubject };
   const { transfer } = services;
   if (route.length === 5 && route[4] === 'capacity' && request.method === 'GET')
-    return jsonResponse(await services.operations.listCapacity(account.id));
+    return jsonResponse(await services.operations.lists.capacity(account.id));
   if (route[4] === 'imports' || route[4] === 'labels')
     return transferImportRoute(context, transfer.imports, services.queries);
   if (route[4] === 'accounts')

@@ -1,3 +1,4 @@
+import { createOperationStore } from '../../../../../../tests/support/operation-store';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { testDatabase, seedAccount } from '../../../../../../tests/support/sqlite-d1';
 import { HistoryService } from '../../../../history/server/events/event-store';
@@ -48,7 +49,7 @@ describe('completion-driven recurrence', () => {
       .run();
     const history = new HistoryService(db(), { now: () => clock });
     projection = new TaskProjectionStore(db(), { history, now: () => clock });
-    operations = new OperationStore(db());
+    operations = createOperationStore(db());
     let serial = 0;
     const client = new GoogleTasksClient({
       accessToken: 'test-token',

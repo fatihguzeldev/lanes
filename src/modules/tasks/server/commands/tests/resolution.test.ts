@@ -1,3 +1,4 @@
+import { createOperationStore } from '../../../../../../tests/support/operation-store';
 import { afterEach, expect, it } from 'vitest';
 import { seedAccount, testDatabase } from '../../../../../../tests/support/sqlite-d1';
 import { HistoryService } from '../../../../history/server/events/event-store';
@@ -140,7 +141,7 @@ async function fixture() {
       return response;
     },
   });
-  const operations = new OperationStore(db),
+  const operations = createOperationStore(db),
     queries = new TaskQueries(db);
   const metadata = new TaskMetadataService(db, {
     history,
@@ -647,7 +648,7 @@ it('keeps a retained list candidate and invalidates inventory before releasing i
       .prepare("SELECT id,title,revision FROM tasks_lists WHERE provider_id='created-list'")
       .first(),
   ).toMatchObject({ id: 'retained-list', title: 'created list title', revision: 5 });
-  expect(await f.operations.listCapacity('a', initial + 31_000)).toMatchObject({
+  expect(await f.operations.lists.capacity('a', initial + 31_000)).toMatchObject({
     known: null,
     reserved: 0,
     available: null,
@@ -905,7 +906,9 @@ for (const child of [false, true]) {
     const result = await f.service.advance('a', operationId);
     expect(result.operation).toMatchObject({ state: 'failed', finished: true });
     expect(f.calls.filter((call) => call.method === 'PATCH')).toHaveLength(0);
-    expect((await f.operations.summary(operationId, 'a'))?.error?.code).toBe('validation_failed');
+    expect((await f.operations.queries.summary(operationId, 'a'))?.error?.code).toBe(
+      'validation_failed',
+    );
     expect(await f.queries.getTask('a', 'task')).toMatchObject({
       completed: true,
       revision: 1,
