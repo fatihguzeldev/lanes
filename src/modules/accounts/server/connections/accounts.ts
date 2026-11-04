@@ -157,45 +157,6 @@ export class AccountConnections {
     return this.summary(row);
   }
 
-  /** Portability exposes identity and preferences, never authorization material. */
-  async getPortableIdentity(
-    request: Request,
-    accountId: string,
-  ): Promise<{
-    accountId: string;
-    googleSubject: string;
-    email: string;
-    planningZone: string;
-    weekStart: 1 | 7;
-    revision: number;
-  }> {
-    await this.sessions.requireSession(request);
-    if (!z.string().min(1).max(256).safeParse(accountId).success)
-      throw new AppError('validation_failed', 'choose a connected account.', 422);
-    const row = await this.db
-      .prepare(
-        'SELECT id,google_subject,email,planning_zone,week_start,revision FROM accounts_connections WHERE id=?',
-      )
-      .bind(accountId)
-      .first<{
-        id: string;
-        google_subject: string;
-        email: string;
-        planning_zone: string;
-        week_start: 1 | 7;
-        revision: number;
-      }>();
-    if (!row) throw new AppError('not_found', 'this connected account was not found.', 404);
-    return {
-      accountId: row.id,
-      googleSubject: row.google_subject,
-      email: row.email,
-      planningZone: row.planning_zone,
-      weekStart: row.week_start,
-      revision: row.revision,
-    };
-  }
-
   async updatePreferences(
     request: Request,
     accountId: string,

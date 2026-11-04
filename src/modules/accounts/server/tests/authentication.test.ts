@@ -883,24 +883,3 @@ describe('linked accounts', () => {
     ).rejects.toMatchObject({ code: 'conflict' });
   });
 });
-
-it('exports only account identity and preferences through the authenticated portability seam', async () => {
-  const cookie = await signIn(),
-    linked = await link(cookie);
-  const portable = await service.connections.getPortableIdentity(
-    request('/', cookie),
-    linked.connectedAccountId!,
-  );
-  expect(portable).toEqual({
-    accountId: linked.connectedAccountId,
-    googleSubject: 'secondary-subject',
-    email: 'secondary-subject@example.com',
-    planningZone: 'Europe/Istanbul',
-    weekStart: 1,
-    revision: 0,
-  });
-  expect(JSON.stringify(portable)).not.toMatch(/access-token|refresh-token|grant|cipher|session/i);
-  await expect(
-    service.connections.getPortableIdentity(request(), linked.connectedAccountId!),
-  ).rejects.toMatchObject({ code: 'unauthenticated' });
-});

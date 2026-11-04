@@ -36,3 +36,22 @@ it('joins only validated preference fields to a revision-fenced owner transactio
     database.db.batch(await owner.preparePreferencesRestore('a', { revision: 1, weekStart: 1 })),
   ).rejects.toThrow();
 });
+
+it('exposes only mapped identity and preferences to the authenticated archive composition', async () => {
+  const database = testDatabase();
+  databases.push(database);
+  await seedAccount(database.db, 'a');
+  await database.db
+    .prepare('UPDATE accounts_connections SET planning_zone=?,grant_ciphertext=? WHERE id=?')
+    .bind('Europe/Istanbul', 'private-access-token-refresh-token-ciphertext', 'a')
+    .run();
+  const portable = await new AccountsPortability(database.db).identity('a');
+  expect(portable).toEqual({
+    googleSubject: 'subject-a',
+    email: 'a@example.com',
+    planningZone: 'Europe/Istanbul',
+    weekStart: 1,
+    revision: 0,
+  });
+  expect(JSON.stringify(portable)).not.toMatch(/access-token|refresh-token|grant|cipher|session/i);
+});
