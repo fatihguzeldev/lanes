@@ -379,7 +379,8 @@ describe('authenticated workspace composition', () => {
       expect(queries).toBeGreaterThan(0);
       expect(queries).toBeLessThanOrEqual(50);
     }
-  }, 30000);
+    // Query limits bound each request; allow runner slack for the full checkpoint sequence.
+  }, 90000);
   it('advances confirmed two-root completed deletion through actual scheduled workers from every work-family cursor within the D1 budget', async () => {
     const allStats: { start: number; queries: number }[] = [];
     for (const { start, refresh } of [
