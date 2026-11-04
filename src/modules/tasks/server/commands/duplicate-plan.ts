@@ -1,14 +1,16 @@
+import type { OperationStore } from '../../../operations/server/journal/store';
 import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types';
 import { AppError } from '../../../../shared/contracts/errors';
 import { assertProviderWritable } from '../../../accounts/server/connections/access';
 import type { ProviderCommand, PrepareProviderCommand } from '../../contracts/provider-commands';
 import { CapturedCopyPlanner } from './copy-plan';
 import type { CopyEntry } from './copy-contract';
-import { type OperationRecord } from '../../../operations/server/journal/context';
+import type { OperationRecord } from '../../../operations/server/journal/context';
 import type { ListRef } from './state';
 import { TaskQueries } from '../queries/tasks';
 
 export interface DuplicatePlanOptions {
+  operations: Pick<OperationStore, 'touch'>;
   copies: CapturedCopyPlanner;
   now?: () => number;
   queries: TaskQueries;
@@ -274,10 +276,7 @@ export class TaskDuplicatePlanner {
     }
     if (entries.length) await this.options.copies.appendTasks(operationId, accountId, entries);
     else await this.options.copies.seal(operationId, accountId);
-    await this.db
-      .prepare('UPDATE tasks_operations SET updated_at=? WHERE id=? AND account_id=?')
-      .bind(this.options.now?.() ?? Date.now(), operationId, accountId)
-      .run();
+    await this.options.operations.touch(operationId, accountId, this.options.now?.() ?? Date.now());
     return await this.options.copies.admit(operationId, accountId);
   }
 }

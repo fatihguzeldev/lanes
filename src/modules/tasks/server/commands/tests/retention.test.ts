@@ -1,10 +1,9 @@
-import { createOperationStore } from '../../../../../../tests/support/operation-store';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { createOperationStore } from '../../../../../../tests/support/operation-store';
 import { seedAccount, testDatabase } from '../../../../../../tests/support/sqlite-d1';
-import { TaskCommandService } from '../service';
-import { TaskProjectionStore } from '../../projection/store';
-import { OperationStore } from '../../../../operations/server/journal/store';
 import { HistoryService } from '../../../../history/server/events/event-store';
+import { TaskProjectionStore } from '../../projection/store';
+import { TaskCommandService } from '../service';
 const initial = Date.parse('2026-11-02T12:00:00Z'),
   day = 86_400_000;
 const closes: (() => void)[] = [];
@@ -56,7 +55,7 @@ const command = {
   notes: 'private task note body',
 };
 async function prepare(f: Awaited<ReturnType<typeof fixture>>, id = operationId()) {
-  return f.commands.prepare({
+  return f.commands.capture.prepare({
     operationId: id,
     accountId: 'account',
     ownerSubject: 'owner',
@@ -91,7 +90,7 @@ describe('bounded command payload retention', () => {
     ).toBe(true);
     expect((await prepare(f)).state).toBe('cancelled');
     await expect(
-      f.commands.prepare({
+      f.commands.capture.prepare({
         operationId: operationId(),
         accountId: 'account',
         ownerSubject: 'owner',

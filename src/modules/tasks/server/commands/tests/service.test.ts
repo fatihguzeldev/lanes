@@ -1,14 +1,14 @@
-import { createOperationStore } from '../../../../../../tests/support/operation-store';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { createOperationStore } from '../../../../../../tests/support/operation-store';
 import { seedAccount, testDatabase } from '../../../../../../tests/support/sqlite-d1';
 import { HistoryService } from '../../../../history/server/events/event-store';
-import { GoogleTasksClient } from '../../provider/google-tasks';
-import type { GoogleTasksFetch } from '../../provider/google-tasks';
 import { OperationStore } from '../../../../operations/server/journal/store';
-import { TaskProjectionStore } from '../../projection/store';
-import { TaskSyncService } from '../../sync/service';
 import { TaskMetadataService } from '../../metadata/tasks';
+import { TaskProjectionStore } from '../../projection/store';
+import type { GoogleTasksFetch } from '../../provider/google-tasks';
+import { GoogleTasksClient } from '../../provider/google-tasks';
 import { TaskQueries } from '../../queries/tasks';
+import { TaskSyncService } from '../../sync/service';
 import { TaskCommandService } from '../service';
 const now = Date.parse('2026-11-02T12:00:00Z');
 const op = (suffix = 'abcdefghijklmnop') => now + ':' + suffix;
@@ -148,7 +148,7 @@ async function fixture() {
   };
 }
 const submit = (f: Awaited<ReturnType<typeof fixture>>, command: unknown, operationId = op()) =>
-  f.service.prepare({
+  f.service.capture.prepare({
     operationId,
     accountId: 'account-a',
     ownerSubject: 'owner',
@@ -170,7 +170,7 @@ describe('durable provider command foundation', () => {
           },
         }),
     });
-    await lost.prepare({
+    await lost.capture.prepare({
       operationId: op(),
       accountId: 'account-a',
       ownerSubject: 'owner',
@@ -231,7 +231,7 @@ describe('durable provider command foundation', () => {
           },
         }),
     });
-    await lost.prepare({
+    await lost.capture.prepare({
       operationId: op(),
       accountId: 'account-a',
       ownerSubject: 'owner',
@@ -381,7 +381,7 @@ describe('durable provider command foundation', () => {
           },
         }),
     });
-    await lost.prepare({
+    await lost.capture.prepare({
       operationId: op(),
       accountId: 'account-a',
       ownerSubject: 'owner',
@@ -411,7 +411,7 @@ describe('durable provider command foundation', () => {
       ...f.options,
       projection: wrapped as TaskProjectionStore,
     });
-    await api.prepare({
+    await api.capture.prepare({
       operationId: op(),
       accountId: 'account-a',
       ownerSubject: 'owner',
@@ -738,7 +738,7 @@ describe('provider boundaries and subtree verification', () => {
       ...f.options,
       clientFor: async () => remote.client,
     });
-    await api.prepare({
+    await api.capture.prepare({
       operationId: op(),
       accountId: 'account-a',
       ownerSubject: 'owner',
@@ -785,7 +785,7 @@ describe('provider boundaries and subtree verification', () => {
       clientFor: async () => remote.client,
       remainingProviderRequests: () => 2,
     });
-    await api.prepare({
+    await api.capture.prepare({
       operationId: op(),
       accountId: 'account-a',
       ownerSubject: 'owner',
@@ -820,7 +820,7 @@ describe('provider boundaries and subtree verification', () => {
       ...f.options,
       clientFor: async () => remote.client,
     });
-    await api.prepare({
+    await api.capture.prepare({
       operationId: op(),
       accountId: 'account-a',
       ownerSubject: 'owner',
@@ -899,7 +899,7 @@ describe('provider boundaries and subtree verification', () => {
               : f.fetcher(input, init),
         }),
     });
-    await api.prepare({
+    await api.capture.prepare({
       operationId: op(),
       accountId: 'account-a',
       ownerSubject: 'owner',
@@ -983,7 +983,7 @@ it('nests and promotes through real move calls without replacing task identity o
     },
   });
   const api = new TaskCommandService(f.db, { ...f.options, clientFor: async () => transport });
-  await api.prepare({
+  await api.capture.prepare({
     operationId: op(),
     accountId: 'account-a',
     ownerSubject: 'owner',
@@ -1001,7 +1001,7 @@ it('nests and promotes through real move calls without replacing task identity o
   const nested = await f.queries.getTask('account-a', 'task-a');
   expect(nested).toMatchObject({ id: 'task-a', parentId: 'parent-b', notes: 'keep this note' });
   const promotedOp = op('promoteidentity0');
-  await api.prepare({
+  await api.capture.prepare({
     operationId: promotedOp,
     accountId: 'account-a',
     ownerSubject: 'owner',
@@ -1094,7 +1094,7 @@ it('keeps a create uncertain when a received Google result could not be recorded
     },
   });
   const service = new TaskCommandService(f.db, { ...f.options, operations });
-  await service.prepare({
+  await service.capture.prepare({
     operationId: op(),
     accountId: 'account-a',
     ownerSubject: 'owner',
@@ -1160,7 +1160,7 @@ async function reorderingFixture() {
     providerOrderRefreshWrites: sync.providerOrderRefreshWrites.bind(sync),
   });
   const prepare = () =>
-    service.prepare({
+    service.capture.prepare({
       operationId: op(),
       accountId: 'account-a',
       ownerSubject: 'owner',
@@ -1235,7 +1235,7 @@ it('rebases a move after Google only resequenced siblings and refreshes their fu
     await f.db.prepare('SELECT default_pending,inventory_pending FROM tasks_sync_jobs').first(),
   ).toEqual({ default_pending: 0, inventory_pending: 0 });
   await expect(
-    f.service.prepare({
+    f.service.capture.prepare({
       operationId: op('second-order-intent'),
       accountId: 'account-a',
       ownerSubject: 'owner',
@@ -1318,7 +1318,7 @@ it('keeps list etag checks when preparing a rename', async () => {
     },
   });
   const service = new TaskCommandService(f.db, { ...f.options, clientFor: async () => client });
-  await service.prepare({
+  await service.capture.prepare({
     operationId: op(),
     accountId: 'account-a',
     ownerSubject: 'owner',

@@ -16,7 +16,8 @@ import {
   type RecurrenceAdvance,
 } from '../../contracts/recurrence';
 export type { RecurrenceAdvance } from '../../contracts/recurrence';
-import { copyTaskId, type TaskCommandService, type CopyEntry } from '../commands/service';
+import { copyTaskId, type CopyEntry } from '../commands/copy-contract';
+import { type TaskCommandService } from '../commands/service';
 import type { OperationStore } from '../../../operations/server/journal/store';
 import { type OperationRecord } from '../../../operations/server/journal/context';
 import type { TaskRecurrenceSnapshot } from '../projection/store';
@@ -1340,7 +1341,7 @@ export class RecurrenceService {
         const target = await this.task(occurrence.account_id, occurrence.target_task_id!);
         if (!target) throw new AppError('not_found', 'the successor is unavailable', 404);
         const children = occurrence.total_tasks - 1;
-        operation = await this.options.commands.prepare(
+        operation = await this.options.commands.capture.prepare(
           {
             accountId: occurrence.account_id,
             ownerSubject: occurrence.owner_subject,
@@ -1356,7 +1357,7 @@ export class RecurrenceService {
           [this.guard(occurrence), this.untouchedGuard(occurrence)],
         );
       } else if (occurrence.phase === 'undo_detach')
-        operation = await this.options.commands.prepare(
+        operation = await this.options.commands.capture.prepare(
           {
             accountId: occurrence.account_id,
             ownerSubject: occurrence.owner_subject,
@@ -1379,7 +1380,7 @@ export class RecurrenceService {
           ]);
           return;
         }
-        operation = await this.options.commands.prepare(
+        operation = await this.options.commands.capture.prepare(
           {
             accountId: occurrence.account_id,
             ownerSubject: occurrence.owner_subject,

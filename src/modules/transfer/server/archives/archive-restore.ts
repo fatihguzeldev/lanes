@@ -1259,7 +1259,7 @@ export class ArchiveRestoreService {
         },
       }));
     const input = JSON.parse(action.input_json) as { command: ProviderCommand };
-    await this.options.commands.prepare({
+    await this.options.commands.capture.prepare({
       operationId: action.operation_id,
       accountId: row.account_id,
       ownerSubject: row.owner_subject,

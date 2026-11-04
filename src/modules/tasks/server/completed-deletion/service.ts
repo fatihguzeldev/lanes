@@ -682,9 +682,9 @@ export class CompletedTaskDeletionService {
         if (
           !operation &&
           this.now() - Number(item.operation_id.slice(0, 13)) <= day &&
-          (await this.options.commands.hasCapturedCommand(account, item.operation_id))
+          (await this.options.commands.capture.hasCapturedCommand(account, item.operation_id))
         ) {
-          await this.options.commands.prepare({
+          await this.options.commands.capture.prepare({
             operationId: item.operation_id,
             accountId: account,
             ownerSubject: row.owner_subject,
@@ -749,7 +749,7 @@ export class CompletedTaskDeletionService {
           [account, id, item.task_id, row.list_id],
         ),
       ];
-      await this.options.commands.prepare(
+      await this.options.commands.capture.prepare(
         {
           operationId: saved,
           accountId: account,
@@ -852,9 +852,9 @@ export class CompletedTaskDeletionService {
         if (
           !operation &&
           this.now() - Number(item.operation_id.slice(0, 13)) <= day &&
-          (await this.options.commands.hasCapturedCommand(account, item.operation_id))
+          (await this.options.commands.capture.hasCapturedCommand(account, item.operation_id))
         ) {
-          await this.options.commands.prepare({
+          await this.options.commands.capture.prepare({
             operationId: item.operation_id,
             accountId: account,
             ownerSubject: row.owner_subject,

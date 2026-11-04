@@ -21,7 +21,7 @@ import {
 } from './copy-contract';
 import type { ListRef, TaskRef } from './state';
 import { OperationStore } from '../../../operations/server/journal/store';
-import { type OperationRecord } from '../../../operations/server/journal/context';
+import type { OperationRecord } from '../../../operations/server/journal/context';
 import { TaskQueries } from '../queries/tasks';
 import type { TaskMetadataService } from '../metadata/tasks';
 import { CopyDependencyValidator, type CopyValidationProgress } from './copy-validation';

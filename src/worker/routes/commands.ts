@@ -59,7 +59,7 @@ export async function commandRoute(
           409,
         );
     }
-    await services.commands.prepare({
+    await services.commands.capture.prepare({
       operationId: input.operationId,
       ownerSubject,
       accountId,

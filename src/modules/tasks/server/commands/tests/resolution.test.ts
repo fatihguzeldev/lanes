@@ -1,20 +1,19 @@
-import { createOperationStore } from '../../../../../../tests/support/operation-store';
 import { afterEach, expect, it } from 'vitest';
+import { createOperationStore } from '../../../../../../tests/support/operation-store';
 import { seedAccount, testDatabase } from '../../../../../../tests/support/sqlite-d1';
 import { HistoryService } from '../../../../history/server/events/event-store';
-import { OperationStore } from '../../../../operations/server/journal/store';
+import { RepeatRuleSchema } from '../../../contracts/planning';
+import type { ProviderCommandInput } from '../../../contracts/provider-commands';
+import { TaskMetadataService } from '../../metadata/tasks';
+import { TaskProjectionStore } from '../../projection/store';
 import {
   GoogleTasksClient,
   type GoogleTaskDTO,
   type GoogleTaskListDTO,
   type GoogleTasksFetch,
 } from '../../provider/google-tasks';
-import { TaskCommandService } from '../service';
-import { TaskMetadataService } from '../../metadata/tasks';
-import { TaskProjectionStore } from '../../projection/store';
 import { TaskQueries } from '../../queries/tasks';
-import type { ProviderCommandInput } from '../../../contracts/provider-commands';
-import { RepeatRuleSchema } from '../../../contracts/planning';
+import { TaskCommandService } from '../service';
 
 const initial = Date.parse('2026-11-02T12:00:00Z');
 const operationId = `${initial}:resolutiontest01`;
@@ -161,7 +160,7 @@ async function fixture() {
   const service = new TaskCommandService(db, options);
   const lost = new TaskCommandService(db, { ...options, clientFor: async () => lostClient });
   async function uncertain(command: ProviderCommandInput) {
-    await lost.prepare({ operationId, accountId: 'a', ownerSubject: 'owner', command });
+    await lost.capture.prepare({ operationId, accountId: 'a', ownerSubject: 'owner', command });
     expect((await lost.advance('a', operationId)).operation.state).toBe('uncertain');
     now += 31_000;
   }
@@ -500,7 +499,7 @@ it('clears a previous recurrence pause only when an explicit schedule edit is lo
     )
     .bind(initial)
     .run();
-  await f.service.prepare({
+  await f.service.capture.prepare({
     operationId,
     accountId: 'a',
     ownerSubject: 'owner',
@@ -519,7 +518,7 @@ it('clears a previous recurrence pause only when an explicit schedule edit is lo
   ).toBe(1);
   const current = await f.queries.getTask('a', 'task');
   const removeId = `${initial}:removeoldpause01`;
-  await f.service.prepare({
+  await f.service.capture.prepare({
     operationId: removeId,
     accountId: 'a',
     ownerSubject: 'owner',
@@ -677,7 +676,7 @@ it('permits ordinary historical reopening after assigning a rule but still requi
     due: '2026-11-02T00:00:00Z',
   });
   await expect(
-    f.service.prepare({
+    f.service.capture.prepare({
       operationId,
       accountId: 'a',
       ownerSubject: 'owner',
@@ -693,7 +692,7 @@ it('permits ordinary historical reopening after assigning a rule but still requi
     .bind(new Date(initial).toISOString())
     .run();
   await expect(
-    g.service.prepare({
+    g.service.capture.prepare({
       operationId,
       accountId: 'a',
       ownerSubject: 'owner',
@@ -738,11 +737,14 @@ it('requires parent recurrence policy for child reopening only when the complete
       command: { kind: 'task.reopen' as const, taskId: 'child', revision: 1 },
     };
     if (occurrenceId)
-      await expect(f.service.prepare(request)).rejects.toMatchObject({
+      await expect(f.service.capture.prepare(request)).rejects.toMatchObject({
         code: 'validation_failed',
         fields: { recurrence: 'preview_required', parentId: 'task' },
       });
-    else await expect(f.service.prepare(request)).resolves.toMatchObject({ state: 'accepted' });
+    else
+      await expect(f.service.capture.prepare(request)).resolves.toMatchObject({
+        state: 'accepted',
+      });
     expect(f.calls).toHaveLength(0);
   }
 });
@@ -883,7 +885,7 @@ for (const child of [false, true]) {
       },
     });
     const service = new TaskCommandService(db, f.options),
-      pending = service.prepare(f.request);
+      pending = service.capture.prepare(f.request);
     await started;
     await f.assignOccurrence();
     const rejected = expect(pending).rejects.toMatchObject({ code: 'conflict' });
@@ -899,7 +901,7 @@ for (const child of [false, true]) {
   });
   it(`fences occurrence admission during provider preflight before ordinary ${child ? 'parent and child' : 'task'} reopen dispatch`, async () => {
     const f = await completedReopenFixture(child);
-    await f.service.prepare(f.request);
+    await f.service.capture.prepare(f.request);
     f.beforeProviderRead(async () => {
       await f.assignOccurrence();
     });
