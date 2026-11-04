@@ -41,9 +41,9 @@ import { usePagedResource } from '../client/usePagedResource';
 import { newOperationId } from '../client/operation-identity';
 import { useCommands } from '../modules/tasks/client/useCommands';
 import { useWorkspaceSync } from '../modules/tasks/client/useWorkspaceSync';
-import { BoardWorkspace } from './BoardWorkspace';
-import { CalendarWorkspace } from './CalendarWorkspace';
-import { CompletedWorkspace } from './CompletedWorkspace';
+import { BoardWorkspace } from '../modules/boards/client/BoardWorkspace';
+import { CalendarWorkspace } from '../modules/boards/client/CalendarWorkspace';
+import { CompletedWorkspace } from '../modules/boards/client/CompletedWorkspace';
 import { HistoryPanel } from '../modules/history/client/HistoryPanel';
 import { TaskEditorWorkspace } from '../modules/tasks/client/TaskEditorWorkspace';
 import { Confirmation, type ConfirmationChoice } from '../client/Confirmation';
@@ -55,14 +55,14 @@ import { LabelManager } from '../modules/tasks/client/LabelManager';
 import { TaskCollectionWorkspace } from '../modules/tasks/client/TaskCollectionWorkspace';
 import { useRecurrenceWork } from '../modules/tasks/client/useRecurrenceWork';
 import { ReopenDialog } from '../modules/tasks/client/ReopenDialog';
-import { TaskMoveDialog } from './TaskMoveDialog';
-import { BoardOptions } from './BoardOptions';
-import { DuplicateDialog } from './DuplicateDialog';
+import { TaskMoveDialog } from '../modules/boards/client/TaskMoveDialog';
+import { BoardOptions } from '../modules/boards/client/BoardOptions';
+import { DuplicateDialog } from '../modules/boards/client/DuplicateDialog';
 import { CompletedDeletionDialog } from '../modules/tasks/client/CompletedDeletionDialog';
 import { AccountMenu } from '../modules/accounts/client/AccountMenu';
 import { ThemeToggle } from './ThemeToggle';
 import { WorkspaceSettings } from './WorkspaceSettings';
-import { WorkspaceViewMenu } from './WorkspaceViewMenu';
+import { WorkspaceViewMenu } from '../modules/boards/client/WorkspaceViewMenu';
 import { SyncControl } from '../modules/tasks/client/SyncControl';
 import { Select } from '../ui/Select';
 import { AnchoredPopover } from '../ui/Popover';
@@ -89,7 +89,7 @@ import {
   saveBoardView,
   saveStartBoard,
   type BoardViewPreferences,
-} from '../modules/boards/view-preferences';
+} from '../modules/boards/client/view-preferences';
 import './Workspace.css';
 import './WorkspaceSkeleton.css';
 

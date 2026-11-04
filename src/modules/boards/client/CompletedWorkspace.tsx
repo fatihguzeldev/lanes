@@ -1,15 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { ConnectionSummary } from '../modules/accounts/contracts';
-import type { Board } from '../modules/boards/contracts';
-import { groupCompletedTasks, sevenDayCompletionSummary } from '../modules/history/completed';
-import type { CompletedGroupKey } from '../modules/history/contracts';
-import type { Task, TaskFilter, TaskList } from '../modules/tasks/contracts';
-import { Icon } from '../ui/Icon';
-import { useTaskQuery } from '../modules/tasks/client/useTaskQuery';
-import { usePlanningToday } from '../modules/tasks/client/usePlanningToday';
-import { Select } from '../ui/Select';
+import type { ConnectionSummary } from '../../accounts/contracts';
+import type { Board } from '../contracts';
+import { groupCompletedTasks, sevenDayCompletionSummary } from '../../history/completed';
+import type { CompletedGroupKey } from '../../history/contracts';
+import type { Task, TaskFilter, TaskList } from '../../tasks/contracts';
+import { Icon } from '../../../ui/Icon';
+import { useTaskQuery } from '../../tasks/client/useTaskQuery';
+import { usePlanningToday } from '../../tasks/client/usePlanningToday';
+import { Select } from '../../../ui/Select';
 import './CompletedWorkspace.css';
-import type { InitialViewReadiness } from '../client/readiness';
+import type { InitialViewReadiness } from '../../../client/readiness';
 
 export interface CompletedWorkspaceProps {
   account: ConnectionSummary;

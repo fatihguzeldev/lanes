@@ -1,3 +1,4 @@
+import type { TaskMoveIntent } from '../../tasks/contracts';
 import {
   useId,
   useMemo,
@@ -45,16 +46,6 @@ export interface BoardColumn {
   completedError?: string | undefined;
   icon?: IconName | undefined;
   color?: string | undefined;
-}
-
-export interface TaskMoveIntent {
-  accountId: string;
-  taskId: string;
-  revision: number;
-  sourceListId: string;
-  destinationListId: string;
-  parentId: null;
-  previousTaskId: string | null;
 }
 
 export interface BoardSurfaceProps {

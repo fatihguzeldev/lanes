@@ -1,10 +1,12 @@
 import { useState } from 'react';
-import type { Label, TaskFilter, TaskList, TaskSort } from '../modules/tasks/contracts';
-import type { BoardViewPreferences } from '../modules/boards/view-preferences';
-import { Icon } from '../ui/Icon';
-import { Popover } from '../ui/Popover';
-import { Select } from '../ui/Select';
+import type { Label, TaskFilter, TaskList, TaskSort } from '../../tasks/contracts';
+import type { BoardViewPreferences } from './view-preferences';
+import { Icon } from '../../../ui/Icon';
+import { Popover } from '../../../ui/Popover';
+import { Select } from '../../../ui/Select';
 import { TaskFiltersForm } from './TaskFiltersForm';
+
+import './WorkspaceViewMenu.css';
 
 interface Props {
   allowLayout: boolean;
@@ -32,10 +34,12 @@ export function WorkspaceViewMenu(props: Props) {
       trigger={
         <>
           <Icon name="filter" size={16} />
-          <span className={Object.keys(props.filter).length ? 'workspace__filter-dot' : ''} />
+          <span
+            className={Object.keys(props.filter).length ? 'workspace-view-menu__filter-dot' : ''}
+          />
         </>
       }
-      triggerClassName="workspace__icon-button"
+      triggerClassName="workspace-view-menu__trigger"
       className="workspace-view-menu"
       align="end"
     >

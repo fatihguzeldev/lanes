@@ -1,18 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { ConnectionSummary } from '../modules/accounts/contracts';
-import type { Board, BoardList } from '../modules/boards/contracts';
-import {
-  BoardSurface,
-  type BoardColumn,
-  type BoardSurfaceProps,
-} from '../modules/boards/components/BoardSurface';
-import type { TaskFilter, TaskSort } from '../modules/tasks/contracts';
-import { useTaskQuery } from '../modules/tasks/client/useTaskQuery';
-import { unknownCoverage } from '../client/usePagedResource';
-import { InlineTaskCreate } from '../modules/tasks/client/InlineTaskCreate';
-import type { TaskMoveQueue } from '../modules/tasks/client/useTaskMoveQueue';
-import { projectTaskMoves } from '../modules/tasks/client/task-move-model';
-import type { InitialViewReadiness } from '../client/readiness';
+import type { ConnectionSummary } from '../../accounts/contracts';
+import type { Board, BoardList } from '../contracts';
+import { BoardSurface, type BoardColumn, type BoardSurfaceProps } from '../components/BoardSurface';
+import type { TaskFilter, TaskSort } from '../../tasks/contracts';
+import { useTaskQuery } from '../../tasks/client/useTaskQuery';
+import { unknownCoverage } from '../../../client/usePagedResource';
+import { InlineTaskCreate } from '../../tasks/client/InlineTaskCreate';
+import type { TaskMoveQueue } from '../../tasks/client/useTaskMoveQueue';
+import { projectTaskMoves } from '../../tasks/client/task-move-model';
+import type { InitialViewReadiness } from '../../../client/readiness';
 
 type Actions = {
   open: () => Promise<void>;

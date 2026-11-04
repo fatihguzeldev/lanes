@@ -1,0 +1,81 @@
+.workspace-view-menu__trigger,
+.popover__trigger.workspace-view-menu__trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  padding: 5px;
+  border: 0;
+  border-radius: 5px;
+  color: var(--secondary);
+  background: transparent;
+}
+.workspace-view-menu__trigger > .icon {
+  flex: none;
+}
+.workspace-view-menu__trigger:hover,
+.workspace-view-menu__trigger[aria-expanded='true'] {
+  color: var(--ink);
+  background: var(--paper-hover);
+}
+@media (pointer: coarse) {
+  .workspace-view-menu__trigger,
+  .popover__trigger.workspace-view-menu__trigger {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+.workspace-view-menu__trigger {
+  position: relative;
+}
+.workspace-view-menu {
+  width: 260px;
+}
+.workspace-view-menu__body {
+  display: grid;
+  gap: 15px;
+  padding: 10px;
+}
+.workspace-view-menu__body label {
+  display: grid;
+  gap: 6px;
+  color: var(--secondary);
+  font-size: 12px;
+}
+.workspace-view-menu__body label > .select {
+  width: 100%;
+}
+.workspace-view-menu__body > .popover__item {
+  margin: 0 -6px;
+  width: calc(100% + 12px);
+}
+.workspace-view-menu__body > .popover__item > .icon:last-child {
+  margin-left: auto;
+}
+.workspace-view-menu:has(.workspace-view-menu__filters) {
+  width: 330px;
+}
+.workspace-view-menu__filters .dialog__body {
+  padding: 0 10px 10px;
+}
+.workspace-view-menu__filters .dialog__body label {
+  margin-top: 12px;
+  gap: 6px;
+}
+.workspace-view-menu__filters .dialog__body fieldset {
+  margin-top: 12px;
+}
+.workspace-view-menu__filters .dialog__body footer {
+  margin-top: 18px;
+}
+.workspace-view-menu__filter-dot {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--green);
+}

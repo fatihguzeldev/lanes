@@ -1,15 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { ConnectionSummary } from '../modules/accounts/contracts';
-import { TaskConsequencesSchema } from '../modules/tasks/consequence-contract';
-import type { Task } from '../modules/tasks/contracts';
-import { Dialog } from '../ui/Dialog';
-import { request } from '../client/http';
-import { BoardPageSchema, BoardListPageSchema } from '../modules/boards/query-contract';
-import { usePagedResource } from '../client/usePagedResource';
-import { useTaskQuery } from '../modules/tasks/client/useTaskQuery';
-import { newOperationId } from '../client/operation-identity';
-import { useCommands } from '../modules/tasks/client/useCommands';
-import { Select } from '../ui/Select';
+import type { ConnectionSummary } from '../../accounts/contracts';
+import { TaskConsequencesSchema } from '../../tasks/consequence-contract';
+import type { Task } from '../../tasks/contracts';
+import { Dialog } from '../../../ui/Dialog';
+import { request } from '../../../client/http';
+import { BoardPageSchema, BoardListPageSchema } from '../query-contract';
+import { usePagedResource } from '../../../client/usePagedResource';
+import { useTaskQuery } from '../../tasks/client/useTaskQuery';
+import { newOperationId } from '../../../client/operation-identity';
+import { useCommands } from '../../tasks/client/useCommands';
+import { Select } from '../../../ui/Select';
 
 interface Props {
   account: ConnectionSummary;

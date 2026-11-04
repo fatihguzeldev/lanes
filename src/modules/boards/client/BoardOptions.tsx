@@ -1,13 +1,13 @@
 import { useState } from 'react';
-import type { ConnectionSummary } from '../modules/accounts/contracts';
-import { BoardPatchSchema, type Board } from '../modules/boards/contracts';
-import type { BoardViewPreferences } from '../modules/boards/view-preferences';
-import { Icon } from '../ui/Icon';
-import { AnchoredPopover } from '../ui/Popover';
-import { Select } from '../ui/Select';
-import { newOperationId } from '../client/operation-identity';
-import { useCommands } from '../modules/tasks/client/useCommands';
-import { useServerConnection } from '../client/useServerConnection';
+import type { ConnectionSummary } from '../../accounts/contracts';
+import { BoardPatchSchema, type Board } from '../contracts';
+import type { BoardViewPreferences } from './view-preferences';
+import { Icon } from '../../../ui/Icon';
+import { AnchoredPopover } from '../../../ui/Popover';
+import { Select } from '../../../ui/Select';
+import { newOperationId } from '../../../client/operation-identity';
+import { useCommands } from '../../tasks/client/useCommands';
+import { useServerConnection } from '../../../client/useServerConnection';
 import './BoardOptions.css';
 
 interface Props {

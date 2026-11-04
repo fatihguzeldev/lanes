@@ -4,8 +4,10 @@ import {
   type Label,
   type TaskFilter,
   type TaskList,
-} from '../modules/tasks/contracts';
-import { Select } from '../ui/Select';
+} from '../../tasks/contracts';
+import { Select } from '../../../ui/Select';
+import './TaskFiltersForm.css';
+
 interface Props {
   filter: TaskFilter;
   lists: readonly TaskList[];

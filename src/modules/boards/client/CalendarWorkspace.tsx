@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { ConnectionSummary } from '../modules/accounts/contracts';
-import type { Board } from '../modules/boards/contracts';
+import type { ConnectionSummary } from '../../accounts/contracts';
+import type { Board } from '../contracts';
 import {
   CalendarView,
   type CalendarRangeRequest,
@@ -9,15 +9,15 @@ import {
   type CalendarScope,
   type CalendarCreateIntent,
   type CalendarDaySelection,
-} from '../modules/boards/components/CalendarView';
-import { calendarRange, type CalendarRange } from '../modules/boards/components/calendar-model';
-import type { TaskFilter, TaskList, TaskSort } from '../modules/tasks/contracts';
-import type { TaskQueryInput } from '../modules/tasks/query-contract';
-import { addCalendarDays } from '../modules/tasks/planning';
-import { useTaskQuery } from '../modules/tasks/client/useTaskQuery';
+} from '../components/CalendarView';
+import { calendarRange, type CalendarRange } from '../components/calendar-model';
+import type { TaskFilter, TaskList, TaskSort } from '../../tasks/contracts';
+import type { TaskQueryInput } from '../../tasks/query-contract';
+import { addCalendarDays } from '../../tasks/planning';
+import { useTaskQuery } from '../../tasks/client/useTaskQuery';
 import { CalendarDestinationDialog } from './CalendarDestinationDialog';
 import './CalendarWorkspace.css';
-import type { InitialViewReadiness } from '../client/readiness';
+import type { InitialViewReadiness } from '../../../client/readiness';
 
 interface CalendarQueryOptions {
   accountId: string;

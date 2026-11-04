@@ -1,17 +1,17 @@
 import { useState } from 'react';
-import type { Board } from '../modules/boards/contracts';
+import type { Board } from '../contracts';
 import {
   calendarCreateIntent,
   type CalendarCreateIntent,
   type CalendarScope,
-} from '../modules/boards/components/calendar-model';
-import { Dialog } from '../ui/Dialog';
-import { Icon } from '../ui/Icon';
-import { request } from '../client/http';
-import { BoardListPageSchema, BoardPageSchema } from '../modules/boards/query-contract';
-import { usePagedResource } from '../client/usePagedResource';
-import { useServerConnection } from '../client/useServerConnection';
-import { Select } from '../ui/Select';
+} from '../components/calendar-model';
+import { Dialog } from '../../../ui/Dialog';
+import { Icon } from '../../../ui/Icon';
+import { request } from '../../../client/http';
+import { BoardListPageSchema, BoardPageSchema } from '../query-contract';
+import { usePagedResource } from '../../../client/usePagedResource';
+import { useServerConnection } from '../../../client/useServerConnection';
+import { Select } from '../../../ui/Select';
 import './CalendarDestinationDialog.css';
 
 export function CalendarDestinationDialog({

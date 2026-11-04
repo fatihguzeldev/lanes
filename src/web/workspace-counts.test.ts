@@ -7,7 +7,7 @@ import { CalendarView, type CalendarViewProps } from '../modules/boards/componen
 import { TaskCard } from '../modules/tasks/components/TaskCard';
 import { TaskSchema, type TaskList } from '../modules/tasks/contracts';
 import type { TaskPage } from '../modules/tasks/query-contract';
-import { CompletedWorkspace } from './CompletedWorkspace';
+import { CompletedWorkspace } from '../modules/boards/client/CompletedWorkspace';
 import { TaskCollectionWorkspace } from '../modules/tasks/client/TaskCollectionWorkspace';
 
 vi.mock('../modules/tasks/client/useTaskQuery', () => ({ useTaskQuery: () => queryState }));
