@@ -50,6 +50,10 @@ this deliberately differs from tasksboard, whose [board deletion](https://suppor
 
 ## appearance and views
 
+task and list menus open beside their trigger. changing a view, filtering, and sorting preserve the current account and make their scope explicit. keep account controls and synchronization separate from board actions; adding a list belongs beside the board's columns.
+
+show exact task counts only when the query and provider coverage establish the total. omit an unknown count instead of displaying a lower bound with `+`. hide empty completed sections; a section that has not been queried is not evidence that no completed tasks exist.
+
 support board colors, an optional emoji, and an optional background image from bundled assets or a user-supplied https image url. keep list colors and names readable in light and dark themes. image loading failure falls back to the chosen color. file uploads, an image hosting service, and an image search integration are not required.
 
 validate image urls and render them only as images in the browser. do not server-fetch arbitrary urls or treat them as executable styles. selecting a remote image causes the browser to contact that host; do not describe it as privately hosted by the instance.

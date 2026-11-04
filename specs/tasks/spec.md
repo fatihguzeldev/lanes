@@ -17,6 +17,8 @@ lanes metadata is stored separately from task notes. do not insert hidden syntax
 
 ## create and edit
 
+create ordinary tasks inline in their destination list. a title and enter are sufficient; successful creation leaves the input ready for another task. escape closes the input without silently discarding an unsent draft. additional fields belong to task details. there is no global create action that silently chooses a list.
+
 - require a nonblank title, at most 1,024 characters. trim outer whitespace when the owner submits it. notes allow up to 8,192 characters and preserve line breaks.
 - create an open task in a selected list, at the end of the manual sibling order unless an insertion position was explicitly chosen.
 - notes are plain text. changing a title or note does not reset other fields or replace unrelated provider values.

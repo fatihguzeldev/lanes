@@ -2,6 +2,8 @@
 
 one person owns an instance. that person can connect several google accounts without mixing their tasks, credentials, or organization.
 
+use one visible account control to identify and switch the selected google account. preferences provide valid time-zone choices and show save failures beside the affected controls; an arbitrary text field is not the time-zone selector.
+
 ## ownership and dependencies
 
 accounts owns the owner identity, sessions, oauth flows, connected-account identities, token storage, refresh, and connection state. other owners request authorized provider access through accounts. they do not read tokens or implement refresh themselves.

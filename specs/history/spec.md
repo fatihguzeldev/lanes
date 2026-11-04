@@ -48,6 +48,8 @@ deduplicate operation events by operation/step and observed transitions by resou
 
 provide board activity, optional list filtering, and a task's own history. sort newest first with stable event-id tie breaking, group by day in the account zone, and paginate within the retention window. show an empty state distinct from loading and failure.
 
+open history from the relevant board or task menu. board-wide completed-task browsing is also a board action; neither view needs a permanent sidebar or footer entry.
+
 board activity follows the lists currently on that board. moving a list carries access to its history. historical entries retain their old list/title context rather than being rewritten when names change. deleted-list events remain available through account activity until retention expires; board deletion does not erase them.
 
 task history uses stable lanes identity and survives an in-app cross-list move. a deleted task can have a read-only history entry without being an active editable task. never offer a save action that recreates it accidentally.

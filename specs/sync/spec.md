@@ -16,6 +16,8 @@ refresh the selected account on initial workspace entry, explicit refresh, and r
 
 prioritize list inventory and the visible board's tasks. return cached projections promptly with their freshness and coverage. fetching another page must not hide already loaded content. after a confirmed mutation, update the affected projection and invalidate relevant queries rather than resyncing every account.
 
+retain the visible workspace while a refresh advances. show ordinary synchronization progress in one account-level control rather than repeated loading messages in every list. incomplete or failed refreshes must not report success. actionable failures remain available from that control or the affected action.
+
 do not continuously poll idle accounts. background reads serve tracked repeat occurrences and admitted work; they are bounded and fair across eligible accounts. there is no full-workspace real-time synchronization promise.
 
 ## reading provider state
@@ -92,6 +94,8 @@ persist batch progress by stable item identity. resume remaining items in the sa
 do not roll back a partial import or template by deleting created google content automatically. offer the owner enough references to inspect or delete confirmed output through ordinary explicit actions.
 
 ## browser/server contract
+
+keep progress and recovery with the action that started the work. an import, copy, or template can reopen its saved progress; a task edit reports its own result. durable operation records do not require a permanent operations navigation item or expose internal step names as ordinary product copy.
 
 return a consistent error envelope with a stable lowercase code, readable message, request/operation reference, retryability, and field details where useful. no tokens, raw provider response bodies, or stack traces in browser errors.
 
