@@ -26,6 +26,9 @@ export function useWorkspaceSync(accountId: string, onChanged: () => void) {
   const [status, setStatus] = useState<SyncStatus | null>(null),
     [busy, setBusy] = useState(false),
     [error, setError] = useState('');
+  const [initialTopologyReady, setInitialTopologyReady] = useState(false),
+    [initialForegroundSettled, setInitialForegroundSettled] = useState(false);
+  const topologySeen = useRef(false);
   const callback = useRef(onChanged);
   callback.current = onChanged;
   const generation = useRef(0),
@@ -54,6 +57,12 @@ export function useWorkspaceSync(accountId: string, onChanged: () => void) {
           const next = await request(base, SyncStatusSchema, { signal: controller.signal });
           if (controller.signal.aborted || generation.current !== epoch) return;
           setStatus(next);
+          if (!topologySeen.current && ['inventory', 'tasks'].includes(progress.phase)) {
+            topologySeen.current = true;
+            setInitialTopologyReady(true);
+            lastInvalidatedAt = Date.now();
+            callback.current();
+          }
           if (
             next.pending &&
             next.nextAttemptAt !== null &&
@@ -63,7 +72,10 @@ export function useWorkspaceSync(accountId: string, onChanged: () => void) {
             // Long backoff is visible; a future return/manual refresh can resume it.
             if (wait <= 30_000) {
               const now = Date.now();
-              if (syncProgressNeedsRefresh(progress, lastInvalidatedAt, firstTaskPage, now)) {
+              if (
+                topologySeen.current &&
+                syncProgressNeedsRefresh(progress, lastInvalidatedAt, firstTaskPage, now)
+              ) {
                 lastInvalidatedAt = now;
                 callback.current();
               }
@@ -72,12 +84,18 @@ export function useWorkspaceSync(accountId: string, onChanged: () => void) {
               return;
             }
           }
+          topologySeen.current = true;
+          setInitialTopologyReady(true);
+          setInitialForegroundSettled(true);
           callback.current();
           setBusy(false);
           flight.current = null;
         } catch (error) {
           if (!controller.signal.aborted && generation.current === epoch) {
             setError(error instanceof Error ? error.message : 'this account could not refresh.');
+            topologySeen.current = true;
+            setInitialTopologyReady(true);
+            setInitialForegroundSettled(true);
             callback.current();
             setBusy(false);
             flight.current = null;
@@ -102,5 +120,5 @@ export function useWorkspaceSync(accountId: string, onChanged: () => void) {
       document.removeEventListener('visibilitychange', visible);
     };
   }, [refresh]);
-  return { status, busy, error, refresh };
+  return { status, busy, error, refresh, initialTopologyReady, initialForegroundSettled };
 }

@@ -10,6 +10,7 @@ import type { TaskFilter, TaskSort } from '../modules/tasks/contracts';
 import { useTaskQuery } from './useTaskQuery';
 import { unknownCoverage } from './usePagedResource';
 import { InlineTaskCreate } from './InlineTaskCreate';
+import type { InitialViewReadiness } from './workspace-startup';
 
 type Actions = {
   open: () => Promise<void>;
@@ -27,6 +28,7 @@ interface ColumnDataProps {
   discoverCompleted: boolean;
   onData: (id: string, data: BoardColumn) => void;
   onActions: (id: string, actions: Actions) => void;
+  onReady: (id: string, state: InitialViewReadiness) => void;
 }
 function ColumnData({
   accountId,
@@ -39,6 +41,7 @@ function ColumnData({
   discoverCompleted,
   onData,
   onActions,
+  onReady,
 }: ColumnDataProps) {
   const completion = filter.completion ?? 'open';
   const input = useMemo(
@@ -96,6 +99,27 @@ function ColumnData({
     ],
   );
   useEffect(() => onData(list.id, data), [list.id, data, onData]);
+  useEffect(() => {
+    onReady(list.id, {
+      version,
+      settled: open.settled && (!completedInput || completed.settled),
+      baselineComplete:
+        open.page.providerCoverage.complete &&
+        (!completedInput || completed.page.providerCoverage.complete),
+      failed: open.status === 'error' || Boolean(completedInput && completed.status === 'error'),
+    });
+  }, [
+    list.id,
+    version,
+    open.settled,
+    completed.settled,
+    completedInput,
+    open.page.providerCoverage.complete,
+    completed.page.providerCoverage.complete,
+    open.status,
+    completed.status,
+    onReady,
+  ]);
   const latest = useRef({ open, completed });
   latest.current = { open, completed };
   useEffect(
@@ -139,6 +163,7 @@ export interface BoardWorkspaceProps extends Omit<
   onTaskCreated?: () => void;
   onDraftChange?: (dirty: boolean) => void;
   onInspectCreate?: (identity: string) => void;
+  onInitialReady?: (state: InitialViewReadiness) => void;
 }
 export function BoardWorkspace({
   account,
@@ -155,12 +180,36 @@ export function BoardWorkspace({
   onTaskCreated,
   onDraftChange,
   onInspectCreate,
+  onInitialReady,
   ...props
 }: BoardWorkspaceProps) {
   const [data, setData] = useState<Record<string, BoardColumn>>({}),
     [completed, setCompleted] = useState<Set<string>>(() => new Set()),
     [localVersion, setLocalVersion] = useState(0);
   const dirtyLists = useRef(new Set<string>());
+  const [readiness, setReadiness] = useState<Record<string, InitialViewReadiness>>({});
+  const onReady = useCallback((id: string, next: InitialViewReadiness) => {
+    setReadiness((previous) => {
+      const old = previous[id];
+      return old?.version === next.version &&
+        old.settled === next.settled &&
+        old.baselineComplete === next.baselineComplete &&
+        old.failed === next.failed
+        ? previous
+        : { ...previous, [id]: next };
+    });
+  }, []);
+  useEffect(() => {
+    const current = lists.map((list) => readiness[list.id]);
+    onInitialReady?.({
+      version,
+      settled: current.every((state) => state?.version === version && state.settled),
+      baselineComplete: current.every(
+        (state) => state?.version === version && state.baselineComplete,
+      ),
+      failed: current.some((state) => state?.version === version && state.failed),
+    });
+  }, [lists, readiness, version, onInitialReady]);
   const created = useCallback(() => {
     if (onTaskCreated) onTaskCreated();
     else setLocalVersion((value) => value + 1);
@@ -199,6 +248,7 @@ export function BoardWorkspace({
           discoverCompleted={props.showCompleted !== false}
           onData={onData}
           onActions={onActions}
+          onReady={onReady}
         />
       ))}
       <BoardSurface

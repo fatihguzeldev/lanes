@@ -27,6 +27,17 @@
 .workspace-skeleton {
   pointer-events: none;
 }
+.workspace--loading > :not(.workspace-skeleton),
+.workspace--loading > dialog::backdrop {
+  visibility: hidden;
+}
+.workspace--loading > .workspace-skeleton {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  visibility: visible;
+  background: var(--canvas);
+}
 .workspace-skeleton__new-board {
   display: grid;
   place-items: center;

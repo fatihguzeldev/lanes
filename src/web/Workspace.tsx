@@ -12,6 +12,8 @@ import { z } from 'zod';
 import { Skeleton } from '../ui/Skeleton';
 import { Brand } from '../ui/Brand';
 import { BoardSkeleton } from '../modules/boards/components/BoardSkeleton';
+import { WorkspaceSkeleton } from './WorkspaceSkeleton';
+import { initialWorkspaceReady, type InitialViewReadiness } from './workspace-startup';
 import { Icon } from '../ui/Icon';
 import { Dialog } from '../ui/Dialog';
 import type { ConnectionSummary } from '../modules/accounts/contracts';
@@ -745,8 +747,56 @@ export function Workspace({
     (boards.status === 'loading' ||
       (boardId !== null && failedBoardLookup !== boardId) ||
       (sync.busy && !sync.status?.initialized));
+  const initialViewKey = JSON.stringify([
+    board?.id,
+    view,
+    quick,
+    searchScope,
+    search,
+    visibleLists.map((list) => list.id),
+  ]);
+  const [initialView, setInitialView] = useState<{
+    key: string;
+    state: InitialViewReadiness;
+  } | null>(null);
+  const onInitialReady = useCallback(
+    (state: InitialViewReadiness) => {
+      setInitialView((previous) =>
+        previous?.key === initialViewKey &&
+        previous.state.version === state.version &&
+        previous.state.settled === state.settled &&
+        previous.state.baselineComplete === state.baselineComplete &&
+        previous.state.failed === state.failed
+          ? previous
+          : { key: initialViewKey, state },
+      );
+    },
+    [initialViewKey],
+  );
+  const [revealed, setRevealed] = useState(false);
+  const initialReady = initialWorkspaceReady({
+    topologyReady: sync.initialTopologyReady,
+    foregroundSettled: sync.initialForegroundSettled,
+    metadataSettled:
+      boards.settled &&
+      (board
+        ? lists.settled && labels.settled
+        : Boolean(boards.error || failedBoardLookup) || !awaitingBoard),
+    metadataFailed: Boolean(boards.error || lists.error || labels.error || failedBoardLookup),
+    viewRequired: Boolean(board) && lists.status !== 'error',
+    version,
+    view: initialView?.key === initialViewKey ? initialView.state : null,
+  });
+  useEffect(() => {
+    if (initialReady) setRevealed(true);
+  }, [initialReady]);
   return (
-    <div className={`workspace${navOpen ? ' workspace--nav-open' : ''}`}>
+    <div
+      className={`workspace${navOpen ? ' workspace--nav-open' : ''}${!revealed ? ' workspace--loading' : ''}`}
+      inert={!revealed}
+      aria-busy={!revealed || undefined}
+    >
+      {!revealed && <WorkspaceSkeleton theme={theme} />}
       <aside
         ref={navigation.drawer}
         className="workspace__sidebar"
@@ -1116,6 +1166,7 @@ export function Workspace({
               query={search}
               sort={sort}
               version={version}
+              onInitialReady={onInitialReady}
               layout={view === 'list' ? 'stacked' : 'kanban'}
               showCounts={viewPreferences.showCounts}
               showCompleted={
@@ -1167,6 +1218,7 @@ export function Workspace({
               filter={activeFilter}
               sort={sort}
               version={version}
+              onInitialReady={onInitialReady}
               onOpenTask={openTask}
               onToggleComplete={(task, completed) => void toggleComplete(task, completed)}
               onTaskMenu={(task, anchor) => {
@@ -1195,6 +1247,7 @@ export function Workspace({
             query={search}
             sort={sort}
             version={version}
+            onInitialReady={onInitialReady}
             providerActionsEnabled={writable}
             onOpenTask={openTask}
             onTaskMenu={(task, anchor) => {
@@ -1253,6 +1306,7 @@ export function Workspace({
             query={search}
             filter={activeFilter}
             version={version}
+            onInitialReady={onInitialReady}
             onOpenTask={openTask}
             onTaskMenu={(task, anchor) => {
               setTaskMenuAnchor(anchor);

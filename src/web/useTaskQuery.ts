@@ -26,6 +26,7 @@ export function useTaskQuery(accountId: string, input: TaskQueryInput | null, in
     error: '',
     loaded: false,
     scope: null as string | null,
+    settledInvalidation: null as number | null,
   });
   const stateRef = useRef(state);
   stateRef.current = state;
@@ -84,6 +85,7 @@ export function useTaskQuery(accountId: string, input: TaskQueryInput | null, in
             error: '',
             loaded: true,
             scope,
+            settledInvalidation: invalidation,
           };
         });
       } catch (error) {
@@ -92,6 +94,7 @@ export function useTaskQuery(accountId: string, input: TaskQueryInput | null, in
             ...previous,
             status: 'error',
             error: error instanceof Error ? error.message : 'tasks could not be loaded.',
+            settledInvalidation: invalidation,
           }));
       } finally {
         if (generation.current === epoch) flight.current = null;
@@ -101,7 +104,14 @@ export function useTaskQuery(accountId: string, input: TaskQueryInput | null, in
   );
   useEffect(() => {
     if (priorScope.current !== scope) {
-      setState({ page: empty(), status: 'loading', error: '', loaded: false, scope });
+      setState({
+        page: empty(),
+        status: 'loading',
+        error: '',
+        loaded: false,
+        scope,
+        settledInvalidation: null,
+      });
       priorScope.current = scope;
     }
     if (key !== null) void load();
@@ -114,6 +124,18 @@ export function useTaskQuery(accountId: string, input: TaskQueryInput | null, in
   const visible =
     state.scope === scope
       ? state
-      : { page: empty(), status: 'loading' as const, error: '', loaded: false, scope };
-  return { ...visible, reload: () => load(), loadMore: () => load(true) };
+      : {
+          page: empty(),
+          status: 'loading' as const,
+          error: '',
+          loaded: false,
+          scope,
+          settledInvalidation: null,
+        };
+  return {
+    ...visible,
+    settled: visible.settledInvalidation === invalidation && visible.status !== 'loading',
+    reload: () => load(),
+    loadMore: () => load(true),
+  };
 }

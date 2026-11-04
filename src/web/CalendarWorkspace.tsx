@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ConnectionSummary } from '../modules/accounts/contracts';
 import type { Board } from '../modules/boards/contracts';
 import {
@@ -17,6 +17,7 @@ import { addCalendarDays } from '../modules/tasks/planning';
 import { useTaskQuery } from './useTaskQuery';
 import { CalendarDestinationDialog } from './CalendarDestinationDialog';
 import './CalendarWorkspace.css';
+import type { InitialViewReadiness } from './workspace-startup';
 
 interface CalendarQueryOptions {
   accountId: string;
@@ -84,6 +85,7 @@ export interface CalendarWorkspaceProps extends Pick<
   query: string;
   sort: TaskSort;
   version: number;
+  onInitialReady?: (state: InitialViewReadiness) => void;
 }
 const emptySelectionCoverage = { complete: true, lastSyncedAt: null, stale: false };
 export function CalendarWorkspace({
@@ -96,6 +98,7 @@ export function CalendarWorkspace({
   sort,
   version,
   onCreateTask,
+  onInitialReady,
   ...actions
 }: CalendarWorkspaceProps) {
   const [mode, setMode] = useState<CalendarMode>('month');
@@ -130,6 +133,32 @@ export function CalendarWorkspace({
   }, [validAccount, activeRange, account.id, board.id, scope, range, today, filter, query, sort]);
   const dated = useTaskQuery(account.id, inputs.dated, version);
   const undated = useTaskQuery(account.id, inputs.unscheduled, version);
+  useEffect(() => {
+    onInitialReady?.({
+      version,
+      settled:
+        activeRange && (!inputs.dated || dated.settled) && (!inputs.unscheduled || undated.settled),
+      baselineComplete:
+        (!inputs.dated || dated.page.providerCoverage.complete) &&
+        (!inputs.unscheduled || undated.page.providerCoverage.complete),
+      failed: Boolean(
+        (inputs.dated && dated.status === 'error') ||
+        (inputs.unscheduled && undated.status === 'error'),
+      ),
+    });
+  }, [
+    version,
+    activeRange,
+    inputs.dated,
+    inputs.unscheduled,
+    dated.settled,
+    undated.settled,
+    dated.page.providerCoverage.complete,
+    undated.page.providerCoverage.complete,
+    dated.status,
+    undated.status,
+    onInitialReady,
+  ]);
   const onRangeChange = useCallback(
     (next: CalendarRangeRequest) => {
       if (next.accountId !== account.id || next.boardId !== board.id) return;

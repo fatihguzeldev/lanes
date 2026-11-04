@@ -15,6 +15,7 @@ import { Icon } from '../ui/Icon';
 import { request } from './http';
 import { useTaskQuery } from './useTaskQuery';
 import './TaskCollectionWorkspace.css';
+import type { InitialViewReadiness } from './workspace-startup';
 
 const contextsSchema = z
   .object({
@@ -36,6 +37,7 @@ interface Props {
   onToggleComplete: (task: Task, completed: boolean) => void;
   onTaskMenu: (task: Task, anchor: HTMLButtonElement) => void;
   onOpenBoard: (id: string) => void;
+  onInitialReady?: (state: InitialViewReadiness) => void;
 }
 export function TaskCollectionWorkspace({
   account,
@@ -49,6 +51,7 @@ export function TaskCollectionWorkspace({
   onToggleComplete,
   onTaskMenu,
   onOpenBoard,
+  onInitialReady,
 }: Props) {
   const input = useMemo(() => ({ query, filter, sort }), [query, filter, sort]);
   const tasks = useTaskQuery(account.id, input, version);
@@ -60,11 +63,35 @@ export function TaskCollectionWorkspace({
     contexts: { listId: string; boardId: string; boardTitle: string }[];
   }>({ key: '', items: [], contexts: [] });
   const [contextError, setContextError] = useState('');
+  const [contextSettledVersion, setContextSettledVersion] = useState<number | null>(null);
+  const [contextSettledKey, setContextSettledKey] = useState<string | null>(null);
+  useEffect(() => {
+    onInitialReady?.({
+      version,
+      settled:
+        tasks.settled &&
+        (!ids.length || (contextSettledKey === key && contextSettledVersion === version)),
+      baselineComplete: tasks.page.providerCoverage.complete,
+      failed: tasks.status === 'error' || Boolean(contextError),
+    });
+  }, [
+    version,
+    tasks.settled,
+    ids.length,
+    contextSettledVersion,
+    contextSettledKey,
+    key,
+    contextError,
+    tasks.page.providerCoverage.complete,
+    tasks.status,
+    onInitialReady,
+  ]);
   useEffect(() => {
     const [, ...listIds] = JSON.parse(key) as string[];
     if (!listIds.length) return;
     const abort = new AbortController();
     setContextError('');
+    setContextSettledVersion(null);
     void (async () => {
       const items: TaskList[] = [],
         contexts: { listId: string; boardId: string; boardTitle: string }[] = [];
@@ -81,10 +108,17 @@ export function TaskCollectionWorkspace({
         items.push(...page.items);
         contexts.push(...page.contexts);
       }
-      if (!abort.signal.aborted) setContext({ key, items, contexts });
+      if (!abort.signal.aborted) {
+        setContext({ key, items, contexts });
+        setContextSettledVersion(version);
+        setContextSettledKey(key);
+      }
     })().catch((error) => {
-      if (!abort.signal.aborted)
+      if (!abort.signal.aborted) {
         setContextError(error instanceof Error ? error.message : 'list context could not load.');
+        setContextSettledVersion(version);
+        setContextSettledKey(key);
+      }
     });
     return () => abort.abort();
   }, [key, account.id, version]);

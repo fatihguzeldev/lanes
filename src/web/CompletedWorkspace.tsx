@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { ConnectionSummary } from '../modules/accounts/contracts';
 import type { Board } from '../modules/boards/contracts';
 import { groupCompletedTasks, sevenDayCompletionSummary } from '../modules/history/completed';
@@ -9,6 +9,7 @@ import { useTaskQuery } from './useTaskQuery';
 import { usePlanningToday } from './usePlanningToday';
 import { Select } from '../ui/Select';
 import './CompletedWorkspace.css';
+import type { InitialViewReadiness } from './workspace-startup';
 
 export interface CompletedWorkspaceProps {
   account: ConnectionSummary;
@@ -20,6 +21,7 @@ export interface CompletedWorkspaceProps {
   clockOffset: number;
   onOpenTask: (task: Task) => void;
   onTaskMenu?: (task: Task, anchor: HTMLButtonElement) => void;
+  onInitialReady?: (state: InitialViewReadiness) => void;
 }
 const groupNames: Record<CompletedGroupKey, string> = {
   today: 'today',
@@ -39,6 +41,7 @@ export function CompletedWorkspace({
   clockOffset,
   onOpenTask,
   onTaskMenu,
+  onInitialReady,
 }: CompletedWorkspaceProps) {
   const today = usePlanningToday(account.planningZone, clockOffset);
   const now = useMemo(() => new Date(Date.now() + clockOffset).toISOString(), [today, clockOffset]);
@@ -61,6 +64,21 @@ export function CompletedWorkspace({
     [valid, scope, board?.id, query, listId, filter],
   );
   const tasks = useTaskQuery(account.id, input, version);
+  useEffect(() => {
+    onInitialReady?.({
+      version,
+      settled: !input || tasks.settled,
+      baselineComplete: !input || tasks.page.providerCoverage.complete,
+      failed: tasks.status === 'error',
+    });
+  }, [
+    version,
+    input,
+    tasks.settled,
+    tasks.page.providerCoverage.complete,
+    tasks.status,
+    onInitialReady,
+  ]);
   const matched = useMemo(() => new Set(tasks.page.matchedTaskIds), [tasks.page.matchedTaskIds]);
   const rows = useMemo(
     () => tasks.page.items.filter((task) => task.accountId === account.id),

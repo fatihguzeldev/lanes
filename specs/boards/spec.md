@@ -60,6 +60,16 @@ validate image urls and render them only as images in the browser. do not server
 
 support kanban, stacked-list, and calendar views over the same tasks. remember view choice per board and browser. changing a view does not create records or change task ordering. allow showing task counts and completed sections without altering their contents.
 
+## initial reveal
+
+show one workspace skeleton while the session, selected board, loaded list page, and first task queries are being resolved. keep known navigation and action labels in place. board names, columns, counts, and task content appear together; independent responses must not reveal fragments of the workspace.
+
+keep the required queries mounted behind the skeleton. readiness belongs to the current account, view, loaded lists, and refresh generation; an older successful response does not satisfy a newer read. include completed-task queries when the view shows them, without requiring every result page to be downloaded.
+
+a complete cached baseline for the loaded lists can reveal while other provider work continues. a cold visible baseline waits for those lists to reconcile or for the initial foreground run to settle, pause, or fail. do not require every account list or every list page before showing the selected view. failed reads and paused authorization expose their recovery controls instead of keeping the skeleton indefinitely.
+
+after the first reveal, retain the workspace during background refresh. further pages and provider changes update the existing content without replacing the page with the startup skeleton.
+
 ## search
 
 search defaults to the current board. allow an explicit all-boards search within the selected account; never merge other accounts implicitly. search title, notes, label names, list title, and parent title for subtask context. use case-insensitive text matching, preserve unicode, and do not interpret text as a command or require an undocumented query language.
@@ -98,3 +108,5 @@ read/write conflicts, missing destinations, and local storage failures keep conf
 - `boards-08`: filter combinations, date boundaries, completed inclusion, and filtered reorder behavior are deterministic.
 - `boards-09`: the due-today view edits original tasks and uses no list slots.
 - `boards-10`: board operations remain usable with an expired google grant while provider-backed edits show reconnect.
+- `boards-11`: delayed initial reads reveal the selected workspace together; stale readiness from an earlier account, list set, or refresh generation cannot reveal it early.
+- `boards-12`: a paused or failed initial refresh exposes recovery; later background refreshes retain the revealed workspace and do not require unloaded list pages.

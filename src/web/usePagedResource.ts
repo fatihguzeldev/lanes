@@ -10,7 +10,8 @@ export interface PagedResource<T> {
   loaded: boolean;
   scope: string | null;
 }
-const empty = <T>(scope: string | null = null): PagedResource<T> => ({
+type ResourceState<T> = PagedResource<T> & { settledInvalidation: number | null };
+const empty = <T>(scope: string | null = null): ResourceState<T> => ({
   items: [],
   nextCursor: null,
   coverage: unknownCoverage,
@@ -18,6 +19,7 @@ const empty = <T>(scope: string | null = null): PagedResource<T> => ({
   error: '',
   loaded: false,
   scope,
+  settledInvalidation: null,
 });
 
 /** A scope change aborts old reads and cannot append a late page into a new account. */
@@ -27,7 +29,7 @@ export function usePagedResource<T>(
   identity: (item: T) => string,
   invalidation = 0,
 ) {
-  const [state, setState] = useState<PagedResource<T>>(() => empty());
+  const [state, setState] = useState<ResourceState<T>>(() => empty());
   const epoch = useRef(0),
     flight = useRef<AbortController | null>(null),
     stateRef = useRef(state);
@@ -68,6 +70,7 @@ export function usePagedResource<T>(
             error: '',
             loaded: true,
             scope,
+            settledInvalidation: invalidation,
           };
         });
       } catch (error) {
@@ -76,6 +79,7 @@ export function usePagedResource<T>(
             ...previous,
             status: 'error',
             error: error instanceof Error ? error.message : 'this page could not be loaded.',
+            settledInvalidation: invalidation,
           }));
       } finally {
         if (epoch.current === generation) flight.current = null;
@@ -97,6 +101,10 @@ export function usePagedResource<T>(
   }, [scope, load]);
   return {
     ...(state.scope === scope ? state : empty<T>(scope)),
+    settled:
+      state.scope === scope &&
+      state.settledInvalidation === invalidation &&
+      state.status !== 'loading',
     reload: () => load(),
     loadMore: () => load(true),
   };
