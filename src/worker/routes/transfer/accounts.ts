@@ -29,7 +29,7 @@ export async function accountTransferRoute(
           })
           .strict(),
       );
-      await accounts.getConnectionSummary(request, input.sourceAccountId);
+      await accounts.connections.getConnectionSummary(request, input.sourceAccountId);
       return jsonResponse(
         await accountTransfers.begin({
           ...input,

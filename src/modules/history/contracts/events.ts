@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { PrioritySchema, type Task, type TaskList } from '../../tasks/contracts/task';
+import { PrioritySchema } from '../../tasks/contracts/task';
 import { ResourceIdSchema } from '../../../shared/contracts/identity';
 import {
   CalendarDateSchema,
@@ -214,47 +214,3 @@ export const HistoryEventSchema = z
   });
 export type HistoryEvent = z.output<typeof HistoryEventSchema>;
 export type HistoryEventInput = z.input<typeof HistoryEventSchema>;
-
-export const HistoryQuerySchema = z
-  .object({
-    boardId: ResourceIdSchema.optional(),
-    listId: ResourceIdSchema.optional(),
-    taskId: ResourceIdSchema.optional(),
-    limit: z.number().int().min(1).max(100).default(50),
-    cursor: z.string().min(1).max(4_096).optional(),
-  })
-  .strict();
-export type HistoryQuery = z.input<typeof HistoryQuerySchema>;
-
-export type CompletedGroupKey =
-  'today' | 'yesterday' | 'this_week' | 'earlier' | 'unknown_time' | 'future';
-export interface CompletedOptions {
-  accountId: string;
-  zone: string;
-  weekStart: 1 | 7;
-  now: string;
-  listIds?: readonly string[] | undefined;
-  query?: string | undefined;
-  lists?: readonly TaskList[] | undefined;
-}
-export interface CompletedTaskItem {
-  task: Task;
-  parent: Task | null;
-  list: TaskList | null;
-  completedDay: string | null;
-}
-export interface CompletedGroup {
-  key: CompletedGroupKey;
-  items: CompletedTaskItem[];
-}
-export interface CompletionSummary {
-  days: { day: string; count: number; lists: { listId: string; count: number }[] }[];
-  total: number;
-  unknownTimeCount: number;
-  outsideWindowCount: number;
-  countingRule: 'current_completed_tasks_including_subtasks';
-}
-export interface HistoryDayGroup {
-  day: string;
-  events: HistoryEvent[];
-}

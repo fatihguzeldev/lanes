@@ -28,7 +28,7 @@ export async function accountRoute(
     const response = await lifecycleRoute(request, route, services.accounts, services.lifecycle);
     if (response) return response;
   }
-  const account = await services.accounts.getConnectionSummary(request, accountId);
+  const account = await services.accounts.connections.getConnectionSummary(request, accountId);
   if (route.length === 3 && request.method === 'GET') return jsonResponse(account);
   const context = { request, url, route, account, ownerSubject };
   if (route[3] === 'lists' && route[5] === 'completed-deletions') {

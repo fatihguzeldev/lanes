@@ -4,10 +4,8 @@ import {
   assertDisconnecting,
   disconnectWorkGuard,
 } from '../../../accounts/server/connections/access';
-import {
-  accountRemovalGuard,
-  type LifecycleOwner,
-} from '../../../accounts/server/lifecycle/removal';
+import { accountRemovalGuard } from '../../../accounts/server/lifecycle/write-guards';
+import { type LifecycleOwner } from '../../../accounts/server/lifecycle/coordinator';
 import type { ListSnapshotStore } from '../../../tasks/server/templates/lists';
 
 /** Board/template metadata settles before task-list removal; neither path deletes google content. */

@@ -10,8 +10,8 @@ import {
   revokeGoogleGrant,
 } from '../oauth/google';
 import type { GoogleFetch, GoogleGrant } from '../oauth/google';
-import { accountGrantContext } from '../oauth/account-service';
-import type { AccountConfig } from '../oauth/account-service';
+import { accountGrantContext } from './grant-context';
+import { type AccountConfig } from '../configuration';
 import type { ConnectionState } from '../../contracts/connection';
 
 export interface ProviderAccessOptions {

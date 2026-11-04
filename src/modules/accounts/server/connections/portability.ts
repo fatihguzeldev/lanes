@@ -1,6 +1,6 @@
 import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types';
 import { AppError } from '../../../../shared/contracts/errors';
-import { AccountPreferencesSchema } from '../../contracts/connection';
+import { AccountPreferencesSchema } from '../../contracts/preferences';
 import { localWriteGuard } from './access';
 export interface PortableAccountIdentity {
   googleSubject: string;

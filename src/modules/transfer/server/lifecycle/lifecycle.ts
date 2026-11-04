@@ -4,10 +4,8 @@ import {
   assertDisconnecting,
   disconnectWorkGuard,
 } from '../../../accounts/server/connections/access';
-import {
-  accountRemovalGuard,
-  type LifecycleOwner,
-} from '../../../accounts/server/lifecycle/removal';
+import { accountRemovalGuard } from '../../../accounts/server/lifecycle/write-guards';
+import { type LifecycleOwner } from '../../../accounts/server/lifecycle/coordinator';
 import type { OperationStore } from '../../../operations/server/journal/store';
 import type { TaskSnapshotReader } from '../../../tasks/server/queries/snapshot-reader';
 import type { TemplateDocumentStore } from '../../../tasks/server/templates/documents';

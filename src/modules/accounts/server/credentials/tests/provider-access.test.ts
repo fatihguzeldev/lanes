@@ -3,8 +3,8 @@ import { testDatabase } from '../../../../../../tests/support/sqlite-d1';
 import { decryptToken, encryptToken } from '../crypto';
 import { GOOGLE_TASKS_SCOPE, GoogleOAuthError } from '../../oauth/google';
 import type { GoogleGrant } from '../../oauth/google';
-import { accountGrantContext } from '../../oauth/account-service';
-import type { AccountConfig } from '../../oauth/account-service';
+import { accountGrantContext } from '../grant-context';
+import { type AccountConfig } from '../../configuration';
 import { ProviderAccess } from '../provider-access';
 
 const initialNow = Date.parse('2026-11-02T12:00:00Z');

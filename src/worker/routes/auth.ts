@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { D1Database } from '@cloudflare/workers-types';
 import { AppError } from '../../shared/contracts/errors';
-import { StartOAuthSchema } from '../../modules/accounts/contracts/connection';
+import { StartOAuthSchema } from '../../modules/accounts/contracts/authorization';
 import { initializeTaskWorkspace } from '../../modules/tasks/server/lifecycle/workspace';
 import type { Configuration } from '../configuration/env';
 import type { Services } from '../composition/services';
@@ -25,14 +25,17 @@ export async function authenticationRoute(
 ): Promise<Response | null> {
   const { accounts, boards, sync } = services;
   if (url.pathname === '/auth/google/start' && request.method === 'POST') {
-    const result = await accounts.startOAuth(request, await readJson(request, StartOAuthSchema));
+    const result = await accounts.oauth.startOAuth(
+      request,
+      await readJson(request, StartOAuthSchema),
+    );
     return jsonResponse({ authorizationUrl: result.authorizationUrl }, 200, {
       'set-cookie': result.cookie,
     });
   }
   if (url.pathname === '/auth/google/callback' && request.method === 'GET') {
     try {
-      const result = await accounts.finishOAuth(request);
+      const result = await accounts.oauth.finishOAuth(request);
       if (result.connectedAccountId) {
         try {
           await initializeTaskWorkspace(db, result.connectedAccountId);
@@ -50,12 +53,12 @@ export async function authenticationRoute(
     }
   }
   if (url.pathname === '/api/session' && request.method === 'GET') {
-    const session = await accounts.getSession(request);
+    const session = await accounts.sessions.getSession(request);
     return jsonResponse({
       configured: true,
       authenticated: !!session,
       serverTime: Date.now(),
-      ...(session ? { accounts: await accounts.listConnectionSummaries(request) } : {}),
+      ...(session ? { accounts: await accounts.connections.listConnectionSummaries(request) } : {}),
     });
   }
   return null;
@@ -69,7 +72,7 @@ export async function signOutRoute(
 ): Promise<Response | null> {
   if (url.pathname === '/auth/signout' && request.method === 'POST') {
     await readJson(request, z.object({}).strict());
-    const result = await accounts.signOut(request);
+    const result = await accounts.sessions.signOut(request);
     const headers = new Headers();
     for (const cookie of result.cookies) headers.append('set-cookie', cookie);
     return jsonResponse({ signedOut: true }, 200, headers);

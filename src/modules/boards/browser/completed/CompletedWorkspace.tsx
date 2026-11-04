@@ -5,7 +5,7 @@ import {
   groupCompletedTasks,
   sevenDayCompletionSummary,
 } from '../../../history/model/completion/completed';
-import type { CompletedGroupKey } from '../../../history/contracts/events';
+import { type CompletedGroupKey } from '../../../history/model/completion/types';
 import type { Task, TaskFilter, TaskList } from '../../../tasks/contracts/task';
 import { Icon } from '../../../../shared/ui/icon/Icon';
 import { useTaskQuery } from '../../../tasks/browser/queries/useTaskQuery';

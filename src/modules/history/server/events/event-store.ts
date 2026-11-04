@@ -5,11 +5,10 @@ import type { Page } from '../../../../shared/contracts/http';
 import {
   HISTORY_RETENTION_MS,
   HistoryEventSchema,
-  HistoryQuerySchema,
   type HistoryEvent,
   type HistoryEventInput,
-  type HistoryQuery,
 } from '../../contracts/events';
+import { HistoryQuerySchema, type HistoryQuery } from '../../contracts/query';
 
 /** This SQL comes from a composition owner, never from an HTTP request. */
 export type BoardListSelection = (

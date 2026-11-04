@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { AppError } from '../../shared/contracts/errors';
 import { assertLocalWritable } from '../../modules/accounts/server/connections/access';
 import { AccountPreferenceCommandSchema } from '../../modules/accounts/contracts/preferences';
-import { AccountService } from '../../modules/accounts/server/oauth/account-service';
+import { createAccountServices } from '../../modules/accounts/server/create-services';
 import type { Configuration } from '../configuration/env';
 import { BoardCommandSchema } from '../../modules/boards/contracts/commands';
 import { BoardService } from '../../modules/boards/server/boards/service';
@@ -109,7 +109,10 @@ export async function submitLocalCommand(
           'template commands are not wired to their receipt owner.',
           503,
         );
-      const account = await new AccountService(db, config).getConnectionSummary(request, accountId);
+      const account = await createAccountServices(db, config).connections.getConnectionSummary(
+        request,
+        accountId,
+      );
       const templateContext = {
         ...context,
         saveDay: accountToday(account.planningZone, new Date(now).toISOString()),
@@ -271,10 +274,10 @@ export async function submitLocalCommand(
         );
         break;
       case 'account.preferences':
-        await new AccountService(db, config, {
+        await createAccountServices(db, config, {
           now: () => now,
           commitPreferences: commitWrites,
-        }).updatePreferences(request, accountId, command.input);
+        }).connections.updatePreferences(request, accountId, command.input);
         break;
       case 'task.patch':
         await metadata.patchTask(

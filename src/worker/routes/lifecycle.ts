@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import type { AccountService } from '../../modules/accounts/server/oauth/account-service';
-import type { AccountLifecycle } from '../../modules/accounts/server/lifecycle/removal';
+import { type AccountServices } from '../../modules/accounts/server/create-services';
+import { type AccountLifecycle } from '../../modules/accounts/server/lifecycle/coordinator';
 import { RemoveAccountSchema } from '../../modules/accounts/contracts/lifecycle';
 import { jsonResponse, readJson } from '../protocol/http';
 
@@ -8,7 +8,7 @@ import { jsonResponse, readJson } from '../protocol/http';
 export async function lifecycleRoute(
   request: Request,
   route: string[],
-  accounts: AccountService,
+  accounts: AccountServices,
   lifecycle: AccountLifecycle,
 ): Promise<Response | null> {
   const accountId = route[2];
@@ -16,18 +16,18 @@ export async function lifecycleRoute(
   if (route.length === 4 && request.method === 'GET') {
     const status = await lifecycle.status(accountId);
     if (!status.disconnect && !status.removal)
-      await accounts.getConnectionSummary(request, accountId);
+      await accounts.connections.getConnectionSummary(request, accountId);
     return jsonResponse(status);
   }
   if (request.method !== 'POST') return null;
   if (route.length === 5 && route[4] === 'disconnect') {
     await readJson(request, z.object({ confirm: z.literal(true) }).strict());
-    await accounts.getConnectionSummary(request, accountId);
+    await accounts.connections.getConnectionSummary(request, accountId);
     return jsonResponse(await lifecycle.startDisconnect(accountId), 202);
   }
   if (route.length === 5 && route[4] === 'remove') {
     const input = await readJson(request, RemoveAccountSchema);
-    await accounts.getConnectionSummary(request, accountId);
+    await accounts.connections.getConnectionSummary(request, accountId);
     return jsonResponse(await lifecycle.startRemoval(accountId, input), 202);
   }
   if (

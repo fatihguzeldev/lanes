@@ -44,11 +44,13 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
     }
     const authentication = await authenticationRoute(request, url, env.DB, config, services);
     if (authentication) return authentication;
-    const owner = await accounts.requireSession(request);
+    const owner = await accounts.sessions.requireSession(request);
     const signOut = await signOutRoute(request, url, accounts);
     if (signOut) return signOut;
     if (url.pathname === '/api/accounts' && request.method === 'GET')
-      return jsonResponse(await accounts.listConnectionSummaries(request, pageOptions(url)));
+      return jsonResponse(
+        await accounts.connections.listConnectionSummaries(request, pageOptions(url)),
+      );
     const response = await accountRoute(
       request,
       url,

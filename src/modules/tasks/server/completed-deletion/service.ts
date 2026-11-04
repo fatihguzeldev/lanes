@@ -4,7 +4,7 @@ import {
   assertProviderWritable,
   providerWriteGuard,
 } from '../../../accounts/server/connections/access';
-import { accountRemovalGuard } from '../../../accounts/server/lifecycle/removal';
+import { accountRemovalGuard } from '../../../accounts/server/lifecycle/write-guards';
 import {
   BeginCompletedDeletionSchema,
   ConfirmCompletedDeletionSchema,

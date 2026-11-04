@@ -9,7 +9,7 @@ import { type Label, type Task } from '../../contracts/task';
 import { ResourceIdSchema } from '../../../../shared/contracts/identity';
 import { TaskQueries } from './tasks';
 import { readActiveLists } from './lists';
-import { accountRemovalGuard } from '../../../accounts/server/lifecycle/removal';
+import { accountRemovalGuard } from '../../../accounts/server/lifecycle/write-guards';
 
 const identity = ResourceIdSchema.max(1024);
 const selectionSchema = z

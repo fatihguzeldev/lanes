@@ -4,7 +4,7 @@ import type { Services } from '../composition/services';
 import type { AccountRouteContext } from './context';
 import { jsonResponse, parseValue, readJson, pageOptions } from '../protocol/http';
 import { TaskQuerySchema, LabelQuerySchema } from '../../modules/tasks/contracts/query';
-import { HistoryQuerySchema } from '../../modules/history/contracts/events';
+import { HistoryQuerySchema } from '../../modules/history/contracts/query';
 import { accountToday } from '../../modules/tasks/model/planning';
 import { readActiveList, readActiveLists } from '../../modules/tasks/server/queries/lists';
 import type { D1Database } from '@cloudflare/workers-types';

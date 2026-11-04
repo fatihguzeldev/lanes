@@ -10,9 +10,11 @@ import type {
   exchangeGoogleCode,
   verifyGoogleIdToken,
 } from '../oauth/google';
-import { AccountService, accountGrantContext } from '../oauth/account-service';
-import type { AccountConfig } from '../oauth/account-service';
-import { AccountLifecycle, accountRelinkFence } from '../lifecycle/removal';
+import { createAccountServices, type AccountServices } from '../create-services';
+import { accountGrantContext } from '../credentials/grant-context';
+import { type AccountConfig } from '../configuration';
+import { AccountLifecycle } from '../lifecycle/coordinator';
+import { accountRelinkFence } from '../lifecycle/link-fence';
 import { ProviderAccess } from '../credentials/provider-access';
 
 const initialNow = Date.parse('2026-11-02T12:00:00Z');
@@ -29,7 +31,7 @@ const config: AccountConfig = {
   },
 };
 let database: ReturnType<typeof testDatabase>;
-let service: AccountService;
+let service: AccountServices;
 let now: number;
 let identity: GoogleIdentity;
 let grant: GoogleCodeGrant;
@@ -50,7 +52,7 @@ async function start(
   session = '',
   accountId?: string,
 ) {
-  return service.startOAuth(request('/auth/google/start', session, 'POST'), {
+  return service.oauth.startOAuth(request('/auth/google/start', session, 'POST'), {
     purpose,
     ...(accountId ? { accountId } : {}),
     planningZone: 'Europe/Istanbul',
@@ -63,7 +65,7 @@ async function callback(
 ) {
   const state = new URL(started.authorizationUrl).searchParams.get('state');
   const cookie = [session, pair(started.cookie)].filter(Boolean).join('; ');
-  return service.finishOAuth(
+  return service.oauth.finishOAuth(
     request('/auth/google/callback?state=' + state + '&code=' + code, cookie),
   );
 }
@@ -93,7 +95,7 @@ beforeEach(() => {
   };
   verify = vi.fn<typeof verifyGoogleIdToken>(async () => identity);
   exchange = vi.fn<typeof exchangeGoogleCode>(async () => grant);
-  service = new AccountService(database.db, config, { now: () => now, verify, exchange });
+  service = createAccountServices(database.db, config, { now: () => now, verify, exchange });
 });
 afterEach(() => database.close());
 
@@ -116,7 +118,7 @@ describe('owner sign-in with the first task connection', () => {
         return original.batch(statements);
       },
     } as typeof original;
-    service = new AccountService(wrapped, config, { now: () => now, verify, exchange });
+    service = createAccountServices(wrapped, config, { now: () => now, verify, exchange });
   }
 
   async function legacyState(started: Awaited<ReturnType<typeof start>>) {
@@ -168,14 +170,14 @@ describe('owner sign-in with the first task connection', () => {
     });
     expect(savedGrant.idToken).toBeUndefined();
     await expect(
-      service.requireSession(request('/', allPairs(finished.cookies))),
+      service.sessions.requireSession(request('/', allPairs(finished.cookies))),
     ).resolves.toMatchObject({
       subject: 'owner-subject',
     });
   });
 
   it('connects an already-bound owner when the legacy installation has no task accounts', async () => {
-    await service.getSession(request());
+    await service.sessions.getSession(request());
     database.sqlite.prepare("UPDATE accounts_installation SET owner_subject='owner-subject'").run();
     const started = await start('signin');
     expect(new URL(started.authorizationUrl).searchParams.get('scope')).toContain(
@@ -231,7 +233,7 @@ describe('owner sign-in with the first task connection', () => {
       code: 'permission_required',
     });
     expect(snapshot()).toEqual(before);
-    await expect(service.requireSession(request('/', oldCookie))).resolves.toMatchObject({
+    await expect(service.sessions.requireSession(request('/', oldCookie))).resolves.toMatchObject({
       subject: 'owner-subject',
     });
     grant = offlineGrant;
@@ -240,9 +242,9 @@ describe('owner sign-in with the first task connection', () => {
     expect(snapshot().owner).toBe(before.owner);
     expect(snapshot().connections).toHaveLength(1);
     expect(snapshot().sessions).toHaveLength(1);
-    expect(await service.getSession(request('/', oldCookie))).toBeNull();
+    expect(await service.sessions.getSession(request('/', oldCookie))).toBeNull();
     await expect(
-      service.requireSession(request('/', allPairs(finished.cookies))),
+      service.sessions.requireSession(request('/', allPairs(finished.cookies))),
     ).resolves.toMatchObject({ subject: 'owner-subject' });
   });
 
@@ -250,7 +252,7 @@ describe('owner sign-in with the first task connection', () => {
     const started = await start('signin');
     const state = new URL(started.authorizationUrl).searchParams.get('state');
     await expect(
-      service.finishOAuth(
+      service.oauth.finishOAuth(
         request(
           '/auth/google/callback?state=' + state + '&error=access_denied',
           pair(started.cookie),
@@ -265,7 +267,7 @@ describe('owner sign-in with the first task connection', () => {
   it('rolls back ownership and the grant if the final session transaction fails', async () => {
     const started = await start('signin');
     const original = database.db;
-    service = new AccountService(
+    service = createAccountServices(
       {
         ...original,
         batch: (statements) =>
@@ -437,7 +439,7 @@ describe('local account removal and OAuth callback freshness', () => {
         return wrap(statement);
       },
     } as typeof original;
-    service = new AccountService(wrapped, config, { now: () => now, verify, exchange });
+    service = createAccountServices(wrapped, config, { now: () => now, verify, exchange });
     await expect(callback(started, session)).rejects.toMatchObject({ code: 'conflict' });
     expect(
       database.sqlite
@@ -452,7 +454,7 @@ describe('local account removal and OAuth callback freshness', () => {
 describe('owner access and sessions', () => {
   it('binds the intended owner subject and stores only a hash of the opaque session', async () => {
     const cookie = await signIn();
-    const session = await service.requireSession(request('/', cookie));
+    const session = await service.sessions.requireSession(request('/', cookie));
     expect(session.subject).toBe('owner-subject');
     expect(session.expiresAt).toBe(now + 7 * day);
     const installation = database.sqlite.prepare('SELECT * FROM accounts_installation').get();
@@ -483,35 +485,35 @@ describe('owner access and sessions', () => {
   it('expires a session after seven days without silently renewing it', async () => {
     const cookie = await signIn();
     now += 7 * day;
-    expect(await service.getSession(request('/', cookie))).toBeNull();
-    await expect(service.requireSession(request('/', cookie))).rejects.toMatchObject({
+    expect(await service.sessions.getSession(request('/', cookie))).toBeNull();
+    await expect(service.sessions.requireSession(request('/', cookie))).rejects.toMatchObject({
       code: 'unauthenticated',
     });
   });
 
   it('rejects altered cookies and fails closed after the installation generation changes', async () => {
     const cookie = await signIn();
-    expect(await service.getSession(request('/', cookie + 'x'))).toBeNull();
+    expect(await service.sessions.getSession(request('/', cookie + 'x'))).toBeNull();
     database.sqlite
       .prepare("UPDATE accounts_installation SET owner_generation='new-generation'")
       .run();
-    expect(await service.getSession(request('/', cookie))).toBeNull();
+    expect(await service.sessions.getSession(request('/', cookie))).toBeNull();
   });
 
   it('fails closed when the configured owner or token key id differs from the installation', async () => {
     const cookie = await signIn();
-    const changedOwner = new AccountService(database.db, {
+    const changedOwner = createAccountServices(database.db, {
       ...config,
       ownerEmail: 'new-owner@example.com',
     });
-    await expect(changedOwner.getSession(request('/', cookie))).rejects.toMatchObject({
+    await expect(changedOwner.sessions.getSession(request('/', cookie))).rejects.toMatchObject({
       code: 'installation_unavailable',
     });
-    const changedKey = new AccountService(database.db, {
+    const changedKey = createAccountServices(database.db, {
       ...config,
       tokenKey: { ...config.tokenKey, id: 'new-key' },
     });
-    await expect(changedKey.getSession(request('/', cookie))).rejects.toMatchObject({
+    await expect(changedKey.sessions.getSession(request('/', cookie))).rejects.toMatchObject({
       code: 'installation_unavailable',
     });
   });
@@ -529,12 +531,12 @@ describe('owner access and sessions', () => {
     };
     const localDb = testDatabase();
     try {
-      const local = new AccountService(localDb.db, localConfig, {
+      const local = createAccountServices(localDb.db, localConfig, {
         verify,
         exchange,
         now: () => now,
       });
-      const started = await local.startOAuth(
+      const started = await local.oauth.startOAuth(
         new Request(localConfig.origin + '/auth/google/start', {
           method: 'POST',
           headers: { origin: localConfig.origin },
@@ -546,8 +548,8 @@ describe('owner access and sessions', () => {
     } finally {
       localDb.close();
     }
-    expect(
-      () => new AccountService(database.db, { ...config, origin: 'http://not-local.example' }),
+    expect(() =>
+      createAccountServices(database.db, { ...config, origin: 'http://not-local.example' }),
     ).toThrow(AppError);
   });
 
@@ -559,23 +561,25 @@ describe('owner access and sessions', () => {
       return grant;
     });
     await expect(callback(started, session)).rejects.toBeInstanceOf(AppError);
-    expect(await service.getSession(request('/', session))).not.toBeNull();
+    expect(await service.sessions.getSession(request('/', session))).not.toBeNull();
   });
 
   it('signs out only the current session and leaves the connected account intact', async () => {
     const session = await signIn();
     const linked = await link(session);
     const otherBrowser = await signIn();
-    const result = await service.signOut(request('/auth/signout', session, 'POST'));
+    const result = await service.sessions.signOut(request('/auth/signout', session, 'POST'));
     expect(result.cookies.every((cookie) => cookie.includes('Max-Age=0'))).toBe(true);
-    expect(await service.getSession(request('/', session))).toBeNull();
-    expect(await service.getSession(request('/', otherBrowser))).not.toBeNull();
+    expect(await service.sessions.getSession(request('/', session))).toBeNull();
+    expect(await service.sessions.getSession(request('/', otherBrowser))).not.toBeNull();
     expect(
       database.sqlite
         .prepare('SELECT id FROM accounts_connections WHERE id=?')
         .get(linked.connectedAccountId!)?.id,
     ).toBe(linked.connectedAccountId);
-    await expect(service.listConnectionSummaries(request('/', session))).rejects.toMatchObject({
+    await expect(
+      service.connections.listConnectionSummaries(request('/', session)),
+    ).rejects.toMatchObject({
       code: 'unauthenticated',
     });
   });
@@ -586,7 +590,7 @@ describe('one-use oauth authorization', () => {
     const started = await start('signin');
     const state = new URL(started.authorizationUrl).searchParams.get('state');
     await expect(
-      service.finishOAuth(request('/auth/google/callback?state=' + state + '&code=code')),
+      service.oauth.finishOAuth(request('/auth/google/callback?state=' + state + '&code=code')),
     ).rejects.toMatchObject({ code: 'forbidden' });
     expect(exchange).not.toHaveBeenCalled();
     await callback(started);
@@ -605,7 +609,7 @@ describe('one-use oauth authorization', () => {
       '/auth/google/callback',
     ]) {
       await expect(
-        service.startOAuth(request('/auth/google/start', '', 'POST'), {
+        service.oauth.startOAuth(request('/auth/google/start', '', 'POST'), {
           purpose: 'signin',
           returnPath,
         }),
@@ -616,12 +620,17 @@ describe('one-use oauth authorization', () => {
   it('requires an owner session for data grants and the exact origin for state-changing requests', async () => {
     await expect(start('link')).rejects.toMatchObject({ code: 'unauthenticated' });
     await expect(
-      service.startOAuth(request('/auth/google/start', '', 'POST', 'https://attacker.example'), {
-        purpose: 'signin',
-      }),
+      service.oauth.startOAuth(
+        request('/auth/google/start', '', 'POST', 'https://attacker.example'),
+        {
+          purpose: 'signin',
+        },
+      ),
     ).rejects.toMatchObject({ code: 'forbidden' });
     await expect(
-      service.startOAuth(request('/auth/google/start', '', 'POST', null), { purpose: 'signin' }),
+      service.oauth.startOAuth(request('/auth/google/start', '', 'POST', null), {
+        purpose: 'signin',
+      }),
     ).rejects.toMatchObject({ code: 'forbidden' });
   });
 
@@ -675,7 +684,7 @@ describe('one-use oauth authorization', () => {
       const req = request('/auth/google/start', '', 'POST');
       req.headers.set('CF-Connecting-IP', ip);
       req.headers.set('X-Forwarded-For', randomForwarded++ + '.example');
-      return service.startOAuth(req, { purpose: 'signin' });
+      return service.oauth.startOAuth(req, { purpose: 'signin' });
     };
     let randomForwarded = 0;
     const results = await Promise.allSettled(Array.from({ length: 21 }, () => send()));
@@ -718,7 +727,8 @@ describe('linked accounts', () => {
     const first = await link(session);
     const second = await link(session);
     expect(second.connectedAccountId).toBe(first.connectedAccountId);
-    const accounts = (await service.listConnectionSummaries(request('/', session))).items;
+    const accounts = (await service.connections.listConnectionSummaries(request('/', session)))
+      .items;
     expect(accounts).toHaveLength(2);
     const linked = accounts.find((account) => account.id === first.connectedAccountId);
     expect(linked).toMatchObject({
@@ -795,8 +805,9 @@ describe('linked accounts', () => {
     now += 6 * day;
     const replacementSession = await signIn();
     now += day + 1;
-    const accounts = (await service.listConnectionSummaries(request('/', replacementSession)))
-      .items;
+    const accounts = (
+      await service.connections.listConnectionSummaries(request('/', replacementSession))
+    ).items;
     expect(accounts.find((account) => account.id === linked.connectedAccountId)).toMatchObject({
       id: linked.connectedAccountId,
       state: 'reconnect_required',
@@ -829,38 +840,42 @@ describe('linked accounts', () => {
         .bind(id, 'subject-' + id, id + '@example.com', id, createdAt, createdAt)
         .run();
     }
-    const first = await service.listConnectionSummaries(request('/', session), { limit: 2 });
+    const first = await service.connections.listConnectionSummaries(request('/', session), {
+      limit: 2,
+    });
     expect(first.items.map((account) => account.id)).toEqual([ownerId, 'a']);
     expect(first.nextCursor).toBeTypeOf('string');
-    const second = await service.listConnectionSummaries(request('/', session), {
+    const second = await service.connections.listConnectionSummaries(request('/', session), {
       cursor: first.nextCursor!,
       limit: 2,
     });
     expect(second.items.map((account) => account.id)).toEqual(['b', 'c']);
     expect(second.nextCursor).toBeNull();
     expect(JSON.stringify(first)).not.toContain('sensitive-ciphertext');
-    await expect(service.getConnectionSummary(request('/', session), 'c')).resolves.toMatchObject({
+    await expect(
+      service.connections.getConnectionSummary(request('/', session), 'c'),
+    ).resolves.toMatchObject({
       id: 'c',
     });
     await expect(
-      service.listConnectionSummaries(request('/', session), { limit: 101 }),
+      service.connections.listConnectionSummaries(request('/', session), { limit: 101 }),
     ).rejects.toMatchObject({ code: 'validation_failed' });
     await expect(
-      service.listConnectionSummaries(request('/', session), { cursor: 'bad-cursor' }),
+      service.connections.listConnectionSummaries(request('/', session), { cursor: 'bad-cursor' }),
     ).rejects.toMatchObject({ code: 'validation_failed' });
   });
 
   it('updates planning preferences with a revision compare-and-set', async () => {
     const session = await signIn();
     const linked = await link(session);
-    const updated = await service.updatePreferences(
+    const updated = await service.connections.updatePreferences(
       request('/api/preferences', session, 'PATCH'),
       linked.connectedAccountId!,
       { revision: 0, planningZone: 'America/New_York', weekStart: 7 },
     );
     expect(updated).toMatchObject({ planningZone: 'America/New_York', weekStart: 7, revision: 1 });
     await expect(
-      service.updatePreferences(
+      service.connections.updatePreferences(
         request('/api/preferences', session, 'PATCH'),
         linked.connectedAccountId!,
         { revision: 0, planningZone: 'UTC' },
@@ -872,7 +887,7 @@ describe('linked accounts', () => {
 it('exports only account identity and preferences through the authenticated portability seam', async () => {
   const cookie = await signIn(),
     linked = await link(cookie);
-  const portable = await service.getPortableIdentity(
+  const portable = await service.connections.getPortableIdentity(
     request('/', cookie),
     linked.connectedAccountId!,
   );
@@ -886,6 +901,6 @@ it('exports only account identity and preferences through the authenticated port
   });
   expect(JSON.stringify(portable)).not.toMatch(/access-token|refresh-token|grant|cipher|session/i);
   await expect(
-    service.getPortableIdentity(request(), linked.connectedAccountId!),
+    service.connections.getPortableIdentity(request(), linked.connectedAccountId!),
   ).rejects.toMatchObject({ code: 'unauthenticated' });
 });

@@ -1,6 +1,6 @@
 import type { D1Database } from '@cloudflare/workers-types';
 import { maintainAccounts } from '../../modules/accounts/server/session/maintenance';
-import { maintainAccountLifecycle } from '../../modules/accounts/server/lifecycle/removal';
+import { maintainAccountLifecycle } from '../../modules/accounts/server/lifecycle/link-fence';
 import type { createServices } from '../composition/services';
 /** Each invocation cleans one owner/payload family, keeping expensive cleanup out of a single tick. */
 export async function runMaintenance(

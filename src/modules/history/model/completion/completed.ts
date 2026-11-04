@@ -1,15 +1,15 @@
 import { Temporal } from '@js-temporal/polyfill';
 import type { Task } from '../../../tasks/contracts/task';
 import { accountToday } from '../../../tasks/model/planning';
-import type {
-  CompletedGroup,
-  CompletedGroupKey,
-  CompletedOptions,
-  CompletedTaskItem,
-  CompletionSummary,
-  HistoryDayGroup,
-  HistoryEvent,
-} from '../../contracts/events';
+import {
+  type CompletedGroup,
+  type CompletedGroupKey,
+  type CompletedOptions,
+  type CompletedTaskItem,
+  type CompletionSummary,
+  type HistoryDayGroup,
+} from './types';
+import { type HistoryEvent } from '../../contracts/events';
 
 const identity = (accountId: string, id: string): string => JSON.stringify([accountId, id]);
 const text = (value: string): string => value.normalize('NFC').toLowerCase();

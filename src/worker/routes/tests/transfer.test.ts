@@ -73,7 +73,7 @@ describe('account-scoped transfer HTTP protocols', () => {
       .mockRejectedValue(new AppError('forbidden', 'this source is not available.', 403));
     const begin = vi.fn();
     const services = {
-      accounts: { getConnectionSummary },
+      accounts: { connections: { getConnectionSummary } },
       transfer: { accountTransfers: { begin } },
     };
     const input = {

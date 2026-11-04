@@ -1,7 +1,7 @@
 import { createOperationStore } from './operation-store';
 import { AppError } from '../../shared/contracts/errors';
 import { assertLocalWritable } from '../../modules/accounts/server/connections/access';
-import { AccountService } from '../../modules/accounts/server/oauth/account-service';
+import { createAccountServices } from '../../modules/accounts/server/create-services';
 import { ProviderAccess } from '../../modules/accounts/server/credentials/provider-access';
 import { BoardService } from '../../modules/boards/server/boards/service';
 import { BoardProjection } from '../../modules/boards/server/boards/projection';
@@ -26,7 +26,7 @@ import {
   GOOGLE_SHEETS_EXPORT_SCOPE,
   GoogleSheetsClient,
 } from '../../modules/transfer/server/sheets/sheets';
-import { AccountLifecycle } from '../../modules/accounts/server/lifecycle/removal';
+import { AccountLifecycle } from '../../modules/accounts/server/lifecycle/coordinator';
 import { TasksLifecycle } from '../../modules/tasks/server/lifecycle/account';
 import { BoardLifecycle } from '../../modules/boards/server/lifecycle/account';
 import { TransferLifecycle } from '../../modules/transfer/server/lifecycle/lifecycle';
@@ -36,7 +36,7 @@ import { CompletedTaskDeletionService } from '../../modules/tasks/server/complet
 /** Invocation-local composition. Durable owners hold every execution claim. */
 export function createServices(env: Env, config: Configuration, providerRequestLimit: 4 | 10 = 4) {
   const budget = googleTransport(providerRequestLimit);
-  const accounts = new AccountService(env.DB, config, { fetch: budget.fetch });
+  const accounts = createAccountServices(env.DB, config, { fetch: budget.fetch });
   let templates: TemplateOwners;
   let completedDeletion: CompletedTaskDeletionService;
   const boards = new BoardService(env.DB, {
@@ -151,7 +151,7 @@ export function createServices(env: Env, config: Configuration, providerRequestL
         boards,
         commands,
         operations,
-        ownerSubjectFor: () => accounts.requireInstallationOwnerSubject(),
+        ownerSubjectFor: () => accounts.sessions.requireInstallationOwnerSubject(),
       },
       commitWrites,
     );
@@ -159,7 +159,7 @@ export function createServices(env: Env, config: Configuration, providerRequestL
   const recurrence = new RecurrenceService(env.DB, {
     commands,
     operations,
-    ownerSubjectFor: () => accounts.requireInstallationOwnerSubject(),
+    ownerSubjectFor: () => accounts.sessions.requireInstallationOwnerSubject(),
     requestTaskCheck: sync.requestTaskCheck.bind(sync),
   });
   const transfer = createTransferOwners(env.DB, {
@@ -170,7 +170,7 @@ export function createServices(env: Env, config: Configuration, providerRequestL
     history,
     templates,
     graphRevision: (accountId) => metadata.getGraphRevision(accountId),
-    ownerSubjectFor: () => accounts.requireInstallationOwnerSubject(),
+    ownerSubjectFor: () => accounts.sessions.requireInstallationOwnerSubject(),
     sheetsClientFor,
     refreshRejectedToken,
     remainingProviderRequests: () => Math.max(0, 4 - budget.used),

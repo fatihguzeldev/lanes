@@ -2,10 +2,8 @@ import { createOperationStore } from '../../../tests/support/operation-store';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { seedAccount, testDatabase } from '../../../tests/support/sqlite-d1';
 import { invocationDatabase } from '../../../tests/support/d1-invocation';
-import {
-  AccountService,
-  accountGrantContext,
-} from '../../modules/accounts/server/oauth/account-service';
+import { createAccountServices } from '../../modules/accounts/server/create-services';
+import { accountGrantContext } from '../../modules/accounts/server/credentials/grant-context';
 import { encryptToken } from '../../modules/accounts/server/credentials/crypto';
 import { BoardService } from '../../modules/boards/server/boards/service';
 import { accountToday } from '../../modules/tasks/model/planning';
@@ -33,7 +31,7 @@ async function fixture() {
   const config = parseConfiguration(env);
   await seedAccount(database.db, 'account-a');
   await seedAccount(database.db, 'account-b');
-  const auth = new AccountService(database.db, config, {
+  const auth = createAccountServices(database.db, config, {
     exchange: async () => ({
       accessToken: 'test-access',
       refreshToken: null,
@@ -44,7 +42,7 @@ async function fixture() {
     }),
     verify: async () => ({ subject: 'owner', email: 'owner@example.com', name: 'owner' }),
   });
-  const start = await auth.startOAuth(
+  const start = await auth.oauth.startOAuth(
     new Request(config.origin + '/auth/google/start', {
       method: 'POST',
       headers: { origin: config.origin },
@@ -52,7 +50,7 @@ async function fixture() {
     { purpose: 'signin' },
   );
   const state = new URL(start.authorizationUrl).searchParams.get('state');
-  const finished = await auth.finishOAuth(
+  const finished = await auth.oauth.finishOAuth(
     new Request(`${config.origin}/auth/google/callback?code=test&state=${state}`, {
       headers: { cookie: start.cookie.split(';')[0]! },
     }),

@@ -3,16 +3,13 @@ import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vite
 import type { D1Database } from '@cloudflare/workers-types';
 import { testDatabase, seedAccount } from '../../../../../../tests/support/sqlite-d1';
 import { encryptToken } from '../../credentials/crypto';
-import { accountGrantContext, type AccountConfig } from '../../oauth/account-service';
+import { accountGrantContext } from '../../credentials/grant-context';
+import { type AccountConfig } from '../../configuration';
 import { GOOGLE_TASKS_SCOPE } from '../../oauth/google';
 import { ProviderAccess } from '../../credentials/provider-access';
-import {
-  AccountLifecycle,
-  assertAccountNotRemoving,
-  maintainAccountLifecycle,
-  type LifecycleOwner,
-} from '../removal';
-import { OperationStore } from '../../../../operations/server/journal/store';
+import { AccountLifecycle, type LifecycleOwner } from '../coordinator';
+import { assertAccountNotRemoving } from '../write-guards';
+import { maintainAccountLifecycle } from '../link-fence';
 import { TasksLifecycle } from '../../../../tasks/server/lifecycle/account';
 import { AppError } from '../../../../../shared/contracts/errors';
 import { HistoryService } from '../../../../history/server/events/event-store';
