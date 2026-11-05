@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  orderForPresentation,
-  resolveTaskDrop,
-  sameDropPosition,
-  taskDropSide,
-} from '../drag-model';
+import { orderForPresentation, resolveTaskDrop } from '../drag-model';
 
 const sourceTaskIds = ['a', 'b', 'c'];
 const drop = (taskId: string, targetTaskId: string | null, side: 'before' | 'after') =>
@@ -40,8 +35,6 @@ describe('task drag placement', () => {
       previousTaskId: 'b',
       beforeTaskId: 'c',
     });
-    expect(taskDropSide(49, { top: 30, height: 40 })).toBe('before');
-    expect(taskDropSide(50, { top: 30, height: 40 })).toBe('after');
   });
 
   it('allows moves to another list, including an empty destination', () => {
@@ -82,13 +75,6 @@ describe('task drag placement', () => {
         side: 'after',
       }),
     ).toBeNull();
-  });
-
-  it('keeps identical gaps stable across dragover events', () => {
-    const position = drop('a', 'b', 'after');
-    expect(sameDropPosition(position, drop('a', 'c', 'before'))).toBe(true);
-    expect(sameDropPosition(position, drop('a', 'c', 'after'))).toBe(false);
-    expect(sameDropPosition(null, null)).toBe(true);
   });
 });
 

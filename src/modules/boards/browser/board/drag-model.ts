@@ -6,13 +6,6 @@ export interface TaskDropPosition {
   beforeTaskId: string | null;
 }
 
-export function taskDropSide(
-  pointerY: number,
-  bounds: { top: number; height: number },
-): TaskDropSide {
-  return pointerY < bounds.top + bounds.height / 2 ? 'before' : 'after';
-}
-
 export function orderForPresentation<T extends { id: string }>(
   tasks: readonly T[],
   orderedTaskIds: readonly string[] | undefined,
@@ -57,15 +50,4 @@ export function resolveTaskDrop(input: {
     if (previousTaskId === (input.sourceTaskIds[originalIndex - 1] ?? null)) return null;
   }
   return { listId: input.destinationListId, previousTaskId, beforeTaskId: siblings[index] ?? null };
-}
-
-export function sameDropPosition(a: TaskDropPosition | null, b: TaskDropPosition | null): boolean {
-  return (
-    a === b ||
-    (!!a &&
-      !!b &&
-      a.listId === b.listId &&
-      a.previousTaskId === b.previousTaskId &&
-      a.beforeTaskId === b.beforeTaskId)
-  );
 }

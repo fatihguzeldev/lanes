@@ -52,7 +52,9 @@ google documents additional restrictions on assigned and native repeating tasks,
 
 manual order belongs to the provider among siblings. use the provider's positioning operations, not lexical guesses about task titles or locally generated position strings.
 
-manual drag and drop indicates the insertion point before or after a task. dropping onto the dragged task or back into its existing sibling position is a no-op: do not dispatch a provider move or change its revision.
+lifting a task starts its visual movement immediately. the held card follows the pointer while surrounding tasks move smoothly to make room. crossing lists preserves its expanded checklist and metadata. keep this gesture local: pointer movement does not submit commands, refresh provider data, or change provider positions. respect reduced-motion preferences.
+
+release validates the task's identity, current eligibility, list order, and final position before queuing a move. dropping onto the dragged task or back into its existing sibling position is a no-op: do not dispatch a provider move or change its revision. cancelling the gesture or releasing outside an eligible destination restores its prior placement without submitting work.
 
 an eligible drop updates the displayed order immediately while saving online. keep this pending presentation separate from confirmed provider positions. allow further drops while earlier moves save, serialize their provider work, and capture each move against the confirmed state when its turn starts. this queue is limited to the current browser session; it is not an offline outbox.
 
@@ -122,3 +124,4 @@ validation leaves the draft intact. stale revision conflicts offer refresh and e
 - `tasks-10`: assigned-task restrictions, native-repeat movement refusal, task storage exhaustion, and ambiguous writes preserve data and show the actual limit.
 - `tasks-11`: dropping onto the same task or unchanged sibling position produces no provider mutation and preserves the task's revision and fields.
 - `tasks-12`: rapid drops update presentation immediately while provider moves run serially; failed or uncertain moves stop dependent unsent work and preserve confirmed outcomes.
+- `tasks-13`: a lifted task follows the pointer and siblings move to make room before release. hover and cancellation submit no work; only a validated changed drop enters the move queue.
