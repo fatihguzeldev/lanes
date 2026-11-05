@@ -69,6 +69,10 @@ export function Select({
       event.preventDefault();
       if (open) choose(active);
       else show();
+    } else if (event.key === 'Escape' && open) {
+      event.preventDefault();
+      event.stopPropagation();
+      setOpen(false);
     } else if (event.key === 'Tab') setOpen(false);
     else if (event.key.length === 1 && !event.metaKey && !event.ctrlKey && !event.altKey) {
       event.preventDefault();
