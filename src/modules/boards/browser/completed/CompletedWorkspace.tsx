@@ -155,7 +155,7 @@ export function CompletedWorkspace({
           <div className="completed-workspace__summary-heading">
             <h3>last 7 days</h3>
           </div>
-          <ol>
+          <ol tabIndex={0} aria-label="daily completion counts">
             {summary.days.map((day) => (
               <li key={day.day}>
                 <span>{dayName.format(new Date(day.day + 'T12:00:00Z')).toLowerCase()}</span>

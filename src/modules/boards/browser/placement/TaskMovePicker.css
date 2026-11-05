@@ -32,7 +32,8 @@
 .task-move-picker__more {
   display: grid;
   place-items: center;
-  flex: 0 0 28px;
+  flex: 0 0 var(--control-size);
+  min-height: var(--control-size);
   padding: 0;
   border: 0;
   border-radius: 5px;

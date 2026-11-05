@@ -13,10 +13,20 @@
   line-height: 1.7;
 }
 .operation-resolution dl {
+  overflow-wrap: anywhere;
   display: grid;
   grid-template-columns: max-content minmax(0, 1fr);
   gap: 8px 15px;
   font-size: 12px;
+}
+@media (max-width: 480px) {
+  .operation-resolution dl {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 5px;
+  }
+  .operation-resolution dd + dt {
+    margin-top: 10px;
+  }
 }
 .operation-resolution dt {
   color: var(--secondary);

@@ -15,6 +15,7 @@
   border-radius: 5px;
   list-style: none;
   cursor: pointer;
+  min-height: var(--control-size);
 }
 .board-options__section summary::-webkit-details-marker {
   display: none;
@@ -54,7 +55,8 @@
   border-radius: 5px;
   background: var(--canvas);
   color: var(--ink);
-  font-size: 13px;
+  font-size: var(--field-font-size);
+  min-height: var(--field-height);
 }
 .board-options__fields small {
   font-size: 10px;
@@ -62,10 +64,11 @@
 }
 .board-options__pair {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
 .board-options__save {
+  min-height: var(--control-size);
   justify-self: end;
   padding: 7px 10px;
   border: 0;
@@ -88,6 +91,11 @@
   gap: 8px;
   font-size: 12px;
   color: var(--secondary);
+}
+@media (pointer: coarse) {
+  .board-options__checks label {
+    min-height: var(--control-size);
+  }
 }
 .board-options__checks input {
   margin: 0;

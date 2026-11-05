@@ -4,8 +4,8 @@
   align-items: center;
   justify-content: center;
   flex: none;
-  width: 30px;
-  height: 30px;
+  width: var(--control-size);
+  height: var(--control-size);
   padding: 5px;
   border: 0;
   border-radius: 5px;
@@ -19,13 +19,6 @@
 .workspace-view-menu__trigger[aria-expanded='true'] {
   color: var(--ink);
   background: var(--paper-hover);
-}
-@media (pointer: coarse) {
-  .workspace-view-menu__trigger,
-  .popover__trigger.workspace-view-menu__trigger {
-    min-width: 44px;
-    min-height: 44px;
-  }
 }
 .workspace-view-menu__trigger {
   position: relative;

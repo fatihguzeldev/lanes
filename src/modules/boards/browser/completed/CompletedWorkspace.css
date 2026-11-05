@@ -1,14 +1,18 @@
 .completed-workspace {
+  container: completed / inline-size;
   flex: 1;
   min-height: 0;
+  min-width: 0;
   overflow: auto;
-  padding: 28px var(--workspace-padding) 35px;
+  padding: 28px max(var(--workspace-padding), var(--safe-right)) max(35px, var(--safe-bottom))
+    max(var(--workspace-padding), var(--safe-left));
 }
 .completed-workspace__header {
   display: flex;
   justify-content: space-between;
   gap: 20px;
   align-items: flex-start;
+  flex-wrap: wrap;
 }
 .completed-workspace__header h2 {
   font-size: 22px;
@@ -28,13 +32,14 @@
 }
 .completed-workspace__filters .select {
   max-width: 220px;
+  min-width: 0;
 }
 .completed-workspace__filters .select__trigger {
   border: 1px solid var(--line);
   background: var(--paper);
   border-radius: 5px;
   padding: 8px;
-  font-size: 11px;
+  font-size: var(--field-font-size);
 }
 .completed-workspace__summary {
   max-width: 760px;
@@ -49,6 +54,7 @@
   align-items: baseline;
   justify-content: space-between;
   gap: 10px;
+  flex-wrap: wrap;
 }
 .completed-workspace__summary h3 {
   font-weight: 500;
@@ -61,9 +67,15 @@
 .completed-workspace__summary > ol {
   list-style: none;
   display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-template-columns: repeat(7, minmax(64px, 1fr));
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
   margin: 21px 0 4px;
-  padding: 0;
+  padding: 0 0 8px;
+}
+.completed-workspace__summary > ol:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 4px;
 }
 .completed-workspace__summary > ol > li {
   display: grid;
@@ -110,6 +122,7 @@
   justify-content: space-between;
   padding: 5px 0;
   gap: 12px;
+  overflow-wrap: anywhere;
 }
 .completed-workspace__summary details strong {
   font-weight: 500;
@@ -199,6 +212,9 @@
   padding: 4px;
   color: var(--muted);
   border-radius: 4px;
+  flex: none;
+  min-width: var(--control-size);
+  min-height: var(--control-size);
 }
 .completed-workspace__menu:hover {
   background: var(--paper-hover);
@@ -238,7 +254,7 @@
   line-height: 1.8;
   margin-top: 22px;
 }
-@media (max-width: 700px) {
+@container completed (max-width: 600px) {
   .completed-workspace__header {
     flex-direction: column;
     gap: 14px;
@@ -249,7 +265,7 @@
     gap: 5px;
   }
 }
-@media (max-width: 430px) {
+@container completed (max-width: 400px) {
   .completed-workspace__summary {
     padding: 17px 12px 14px;
   }
@@ -263,5 +279,13 @@
     max-width: 100%;
     min-width: 0;
     flex: 1;
+  }
+}
+@media (pointer: coarse) {
+  .completed-workspace__task,
+  .completed-workspace__more,
+  .completed-workspace__notice button,
+  .completed-workspace__summary summary {
+    min-height: var(--control-size);
   }
 }

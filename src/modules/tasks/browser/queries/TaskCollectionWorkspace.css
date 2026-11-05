@@ -1,12 +1,17 @@
 .task-collection {
+  container: task-collection / inline-size;
   flex: 1;
   overflow: auto;
   min-height: 0;
-  padding: 23px var(--workspace-padding);
+  min-width: 0;
+  padding: 23px max(var(--workspace-padding), var(--safe-right)) max(23px, var(--safe-bottom))
+    max(var(--workspace-padding), var(--safe-left));
 }
 .task-collection__scope {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  overflow-wrap: anywhere;
   gap: 8px;
   font-size: 11px;
   color: var(--secondary);
@@ -15,7 +20,7 @@
 .task-collection__list {
   max-width: 850px;
   margin: 0 auto 24px;
-  padding: 0 17px;
+  padding: 0 clamp(8px, 2cqi, 17px);
   background: var(--paper);
   border: 1px solid var(--line);
   border-radius: 9px;
@@ -26,10 +31,12 @@
   align-items: center;
   justify-content: space-between;
   gap: 18px;
+  flex-wrap: wrap;
   padding: 18px 0;
   border-bottom: 1px solid var(--fine);
 }
 .task-collection__list h2 {
+  overflow-wrap: anywhere;
   font-size: 15px;
   font-weight: 500;
   margin: 0 0 6px;
@@ -43,6 +50,7 @@
   border: 0;
   color: var(--secondary);
   font-size: 11px;
+  min-height: var(--control-size);
 }
 .task-collection__list > header > span {
   font-size: 11px;
@@ -57,6 +65,8 @@
 .task-collection__error {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  overflow-wrap: anywhere;
   gap: 18px;
   margin-bottom: 20px;
   padding: 13px;
@@ -92,6 +102,7 @@
   max-width: 390px;
 }
 .task-collection__more {
+  min-height: var(--control-size);
   display: flex;
   align-items: center;
   gap: 9px;

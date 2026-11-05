@@ -1,4 +1,8 @@
+.task-filters {
+  container: task-filters / inline-size;
+}
 .task-filters fieldset {
+  min-width: 0;
   margin: 0;
   padding: 12px;
   border: 1px solid var(--line);
@@ -36,4 +40,15 @@
   font-size: 13px;
   cursor: pointer;
   padding: 8px 0;
+}
+@container task-filters (max-width: 300px) {
+  .task-filters__range {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (pointer: coarse) {
+  .task-filters__choices label,
+  .task-filters details summary {
+    min-height: var(--control-size);
+  }
 }
