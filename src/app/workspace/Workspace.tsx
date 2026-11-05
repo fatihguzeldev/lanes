@@ -58,6 +58,8 @@ import { useRecurrenceWork } from '../../modules/tasks/browser/planning/useRecur
 import { AccountMenu } from '../../modules/accounts/browser/identity/AccountMenu';
 import { ThemeToggle } from '../theme/ThemeToggle';
 import { WorkspaceSettings } from './WorkspaceSettings';
+import { InlineListCreate } from '../../modules/boards/browser/management/InlineListCreate';
+import { TaskMovePicker } from '../../modules/boards/browser/placement/TaskMovePicker';
 import { useAccountPreferences } from '../../modules/accounts/browser/preferences/AccountPreferences';
 import { SyncControl } from '../../modules/tasks/browser/sync/SyncControl';
 import { TaskMoveError } from '../../modules/tasks/browser/movement/save-task-move';
@@ -116,6 +118,7 @@ export function Workspace({
   const historyDialog = useHistoryDialog();
   const [inlineDirty, setInlineDirty] = useState(false);
   const [boardCreationDirty, setBoardCreationDirty] = useState(false);
+  const [listCreationDirty, setListCreationDirty] = useState(false);
   const [draftContext, setDraftContext] = useState<{ board: Board; lists: BoardList[] } | null>(
     null,
   );
@@ -220,19 +223,6 @@ export function Workspace({
   const writable = account.state === 'connected' && connection === 'reachable';
   const localWritable =
     !['disconnecting', 'disconnected'].includes(account.state) && connection === 'reachable';
-  const guard = useCallback(
-    (action: () => void) => {
-      if (editorDirty || templateDirty || transferDirty || inlineDirty || boardCreationDirty)
-        setDiscard(() => action);
-      else action();
-    },
-    [editorDirty, templateDirty, transferDirty, inlineDirty, boardCreationDirty],
-  );
-  const guardAccount = (action: () => void) => {
-    if (movingTasks || boardManagement.placement.busy)
-      setNotice('wait for your task moves to finish before leaving this account.');
-    else guard(action);
-  };
   const submit = async (
     command: unknown,
     category: 'local' | 'provider' = 'local',
@@ -252,14 +242,33 @@ export function Workspace({
       );
     return false;
   };
-  const boardManagement = useBoardManagement(board, submit, setPrompt, {
+  const boardManagement = useBoardManagement(board, submit, {
     account,
     clockOffset,
     onChanged: changed,
     onNotice: setNotice,
     onInspect: inspection.inspect,
     onBoardDraftChange: setBoardCreationDirty,
+    onListDraftChange: setListCreationDirty,
   });
+  const guard = useCallback(
+    (action: () => void) => {
+      if (editorDirty || templateDirty || transferDirty || inlineDirty) setDiscard(() => action);
+      else action();
+    },
+    [editorDirty, templateDirty, transferDirty, inlineDirty],
+  );
+  const guardAccount = (action: () => void) => {
+    if (
+      movingTasks ||
+      boardManagement.placement.busy ||
+      boardManagement.creation.isSaving() ||
+      boardManagement.listCreation.isSaving()
+    )
+      setNotice('wait for your changes to finish saving before leaving this account.');
+    else if (boardCreationDirty || listCreationDirty) setDiscard(() => action);
+    else guard(action);
+  };
   useEffect(() => {
     const timer = setTimeout(() => setSearch(query), 220);
     return () => clearTimeout(timer);
@@ -275,6 +284,7 @@ export function Workspace({
         transferDirty ||
         inlineDirty ||
         boardCreationDirty ||
+        listCreationDirty ||
         movingTasks ||
         boardManagement.placement.busy
       ) {
@@ -290,6 +300,7 @@ export function Workspace({
     transferDirty,
     inlineDirty,
     boardCreationDirty,
+    listCreationDirty,
     movingTasks,
     boardManagement.placement.busy,
   ]);
@@ -377,7 +388,8 @@ export function Workspace({
       repeatWork.busy ||
       movingTasks ||
       boardManagement.placement.busy ||
-      boardManagement.creation.busy,
+      boardManagement.creation.busy ||
+      boardManagement.listCreation.busy,
     error: sync.error,
     status: sync.status,
     onRefresh: () =>
@@ -603,6 +615,12 @@ export function Workspace({
           pendingTaskIds={commands.pendingTaskIds}
           moveQueue={moveQueue}
           resetInlineDrafts={resetInlineDrafts}
+          listCreation={
+            boardManagement.listCreation.open &&
+            boardManagement.listCreation.boardId === board?.id ? (
+              <InlineListCreate controller={boardManagement.listCreation} writable={writable} />
+            ) : null
+          }
           onInitialReady={onInitialReady}
           actions={{
             onChanged: changed,
@@ -760,7 +778,15 @@ export function Workspace({
                   const next = discard;
                   setDiscard(null);
                   setInlineDirty(false);
-                  boardManagement.creation.discard();
+                  if (!boardManagement.creation.isSaving() && !boardManagement.creation.locked)
+                    boardManagement.creation.discard();
+                  if (
+                    !boardManagement.listCreation.isSaving() &&
+                    !boardManagement.listCreation.locked
+                  ) {
+                    boardManagement.listCreation.discard();
+                    setListCreationDirty(false);
+                  }
                   setResetInlineDrafts((value) => value + 1);
                   templateDialog.setDirty(false);
                   transferDialog.setDirty(false);
@@ -784,7 +810,17 @@ export function Workspace({
         }}
         onOpen={openTask}
         onDuplicate={(task) => boardManagement.duplicateTask(task, board?.id ?? '')}
-        onMove={(task, anchor) => guard(() => boardManagement.moveTask(task, anchor))}
+        onMove={(task, anchor) => boardManagement.moveTask(task, anchor)}
+        moveOpen={Boolean(
+          boardManagement.placement.selection &&
+          boardManagement.placement.selection.task.id === taskMenu.task?.id,
+        )}
+        moveMenu={
+          boardManagement.placement.selection ? (
+            <TaskMovePicker controller={boardManagement.placement} embedded />
+          ) : null
+        }
+        onMoveClose={boardManagement.placement.close}
         onDelete={(task) => void deleteTask(task)}
       />
       {accountLifecycleOpen && (

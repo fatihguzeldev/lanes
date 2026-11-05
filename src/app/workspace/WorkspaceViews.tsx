@@ -1,4 +1,4 @@
-import type { ComponentProps } from 'react';
+import type { ComponentProps, ReactNode } from 'react';
 import type { ConnectionSummary } from '../../modules/accounts/contracts/connection';
 import type { Board, BoardList } from '../../modules/boards/contracts/board';
 import type { Label, Task, TaskFilter, TaskSort } from '../../modules/tasks/contracts/task';
@@ -50,6 +50,7 @@ interface Props {
   pendingTaskIds: ReadonlySet<string>;
   moveQueue: TaskMoveQueue;
   resetInlineDrafts: number;
+  listCreation: ReactNode;
   onInitialReady(state: InitialViewReadiness): void;
   actions: ViewActions;
 }
@@ -77,6 +78,7 @@ export function WorkspaceViews({
   pendingTaskIds,
   moveQueue,
   resetInlineDrafts,
+  listCreation,
   onInitialReady,
   actions,
 }: Props) {
@@ -112,6 +114,7 @@ export function WorkspaceViews({
             errorMessage={lists.error}
             onRetry={() => void lists.reload()}
             onAddList={actions.onAddList}
+            listCreation={listCreation}
             {...(lists.nextCursor ? { onLoadMoreLists: () => void lists.loadMore() } : {})}
             clockOffset={clockOffset}
             onTaskCreated={actions.onChanged}
