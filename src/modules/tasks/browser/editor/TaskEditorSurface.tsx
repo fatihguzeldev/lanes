@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { restoreFocus } from '../../../../shared/ui/focus/restore-focus';
+import { applyViewport, observeViewport } from '../../../../shared/ui/viewport/viewport';
 
 interface Props {
   accountId: string;
@@ -34,6 +35,7 @@ export function TaskEditorSurface({ accountId, taskId, children }: Props) {
   useLayoutEffect(() => {
     if (!host) return;
     host.className = 'task-editor-surface';
+    const stopViewport = observeViewport((bounds) => applyViewport(host, bounds));
     const place = () => {
       const slot = findSlot(accountId, taskId);
       const title = slot?.parentElement?.querySelector<HTMLElement>(
@@ -56,6 +58,7 @@ export function TaskEditorSurface({ accountId, taskId, children }: Props) {
     host.addEventListener('keydown', onKey, true);
     host.addEventListener('pointerdown', onPointer, true);
     return () => {
+      stopViewport();
       observer.disconnect();
       host.removeEventListener('keydown', onKey, true);
       host.removeEventListener('pointerdown', onPointer, true);

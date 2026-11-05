@@ -1,5 +1,6 @@
 .task-editor {
   position: relative;
+  min-width: 0;
   padding: 9px 0 10px 23px;
 }
 .task-editor__context {
@@ -45,9 +46,9 @@
 .task-editor__title {
   min-height: 21px;
   max-height: 190px;
-  padding: 0 24px 0 0;
+  padding: 0 calc(var(--control-size) + 4px) 0 0;
   resize: none;
-  font-size: 14px;
+  font-size: max(14px, var(--field-font-size));
   line-height: 1.5;
   font-weight: 400;
   letter-spacing: -0.17px;
@@ -58,7 +59,7 @@
   resize: none;
   padding: 4px 0 10px;
   color: var(--secondary);
-  font-size: 13px;
+  font-size: var(--field-font-size);
   line-height: 1.6;
 }
 .task-editor textarea::placeholder {
@@ -106,13 +107,13 @@
 .task-editor input:not([type='checkbox']),
 .task-editor .select__trigger {
   width: 100%;
-  min-height: 36px;
+  min-height: var(--field-height);
   padding: 7px 9px;
   border: 1px solid var(--line);
   border-radius: 5px;
   background: var(--paper);
   color: var(--ink);
-  font-size: 12px;
+  font-size: var(--field-font-size);
   line-height: 1.5;
 }
 .task-editor input:not([type='checkbox']):hover:not(:disabled),
@@ -674,6 +675,7 @@
   background: transparent;
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 13px;
   margin-top: 10px;
   padding-block: 8px 0;
@@ -684,6 +686,8 @@
   gap: 12px;
   align-items: center;
   flex: 1;
+  min-width: 0;
+  flex-wrap: wrap;
 }
 .task-editor__lifecycle button {
   display: inline-flex;
@@ -706,7 +710,7 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: 30px;
+  min-height: var(--control-size);
   padding: 5px 9px;
   border: 0;
   border-radius: 5px;
@@ -735,12 +739,13 @@
   font-size: 10px;
   line-height: 1.7;
 }
-@media (max-width: 480px) {
+@container task-editor (max-width: 360px) {
   .task-editor {
-    padding-inline: 4px;
+    padding-right: 4px;
   }
-  .task-editor__title {
-    font-size: 14px;
+  .task-editor__schedule,
+  .task-editor__repeat-row {
+    grid-template-columns: minmax(0, 1fr);
   }
   .task-editor__repeat {
     padding: 11px;
@@ -768,33 +773,33 @@
     font-size: 9px;
   }
 }
-@media (pointer: coarse) {
-  .task-editor button,
-  .task-editor__disclosure > summary {
-    min-height: 40px;
-  }
-  .task-editor__labels label {
-    min-height: 36px;
-  }
-  .task-editor__complete {
-    min-height: 14px !important;
-  }
-  .task-editor__weekdays span {
-    min-height: 36px;
-  }
-}
-
 .task-editor-surface {
+  container: task-editor / inline-size;
   position: relative;
+  min-width: 0;
 }
 .task-editor-surface--detached {
+  --editor-header-space: max(
+    var(--safe-top),
+    min(var(--workspace-header-height, 70px), calc(var(--viewport-height, 100dvh) * 0.2))
+  );
   position: fixed;
   z-index: 20;
-  inset: 76px 18px auto auto;
-  width: min(380px, calc(100vw - 36px));
-  max-height: calc(100dvh - 94px);
+  inset: calc(var(--viewport-top, 0px) + var(--editor-header-space) + var(--floating-gutter))
+    calc(var(--viewport-right, 0px) + max(var(--floating-gutter), var(--safe-right))) auto auto;
+  width: min(
+    420px,
+    calc(
+      var(--viewport-width, 100vw) - max(var(--floating-gutter), var(--safe-left)) -
+        max(var(--floating-gutter), var(--safe-right))
+    )
+  );
+  max-height: calc(
+    var(--viewport-height, 100dvh) - var(--editor-header-space) - var(--floating-gutter) -
+      max(var(--floating-gutter), var(--safe-bottom))
+  );
   overflow-y: auto;
-  padding: 14px 18px;
+  padding: var(--panel-padding);
   border: 1px solid var(--line);
   border-radius: 10px;
   background: var(--paper);
@@ -814,8 +819,8 @@
   right: -2px;
   display: grid;
   place-items: center;
-  width: 24px;
-  height: 24px;
+  width: var(--control-size);
+  height: var(--control-size);
   padding: 0;
   border: 0;
   border-radius: 4px;
@@ -830,14 +835,15 @@
 .task-editor__tools {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 4px;
   padding-top: 4px;
 }
 .task-editor__tools button {
   display: grid;
   place-items: center;
-  width: 30px;
-  height: 30px;
+  width: var(--control-size);
+  height: var(--control-size);
   padding: 0;
   border: 0;
   border-radius: 5px;
@@ -894,4 +900,73 @@
 .task-editor textarea::selection {
   color: var(--on-accent);
   background: var(--green);
+}
+@media (pointer: coarse) {
+  .task-editor__title {
+    min-height: var(--control-size);
+    padding-right: calc(var(--control-size) + 4px);
+  }
+  .task-editor__close {
+    top: 0;
+  }
+  .task-editor__footer button,
+  .task-editor__disclosure > summary,
+  .task-editor__labels label,
+  .task-editor__weekdays span,
+  .task-editor__dependency-results > button,
+  .task-editor__text-button {
+    min-height: var(--control-size);
+  }
+  .task-editor__weekdays span {
+    min-width: var(--control-size);
+  }
+  .task-editor__complete,
+  .task-editor__completion {
+    position: relative;
+    width: var(--control-size);
+    height: var(--control-size);
+    flex: 0 0 var(--control-size);
+    margin: 0;
+    border: 0;
+    background: transparent;
+  }
+  .task-editor__complete::before,
+  .task-editor__completion::before {
+    content: '';
+    position: absolute;
+    inset: 14px;
+    border: 1.25px solid var(--check-border);
+    border-radius: 4px;
+    background: var(--paper);
+  }
+  .task-editor__complete[aria-checked='true']::before,
+  .task-editor__completion[aria-checked='true']::before {
+    background: var(--green);
+    border-color: var(--green);
+  }
+  .task-editor__complete > .icon,
+  .task-editor__completion > .icon {
+    position: relative;
+    color: var(--on-accent);
+  }
+  .task-editor__completion,
+  .task-editor-surface--detached
+    .task-editor:has(.task-editor__completion)
+    .task-editor__completion {
+    position: absolute;
+    top: 9px;
+    left: 0;
+  }
+  .task-editor:has(.task-editor__completion),
+  .task-editor-surface--detached .task-editor:has(.task-editor__completion) {
+    padding-left: calc(var(--control-size) + 8px);
+  }
+  .task-editor-surface--detached
+    .task-editor:has(.task-editor__completion)
+    .task-editor__completion {
+    top: 38px;
+  }
+  .task-editor__subtasks li > button:not(.task-editor__complete) {
+    min-height: var(--control-size);
+  }
 }

@@ -5,6 +5,7 @@ import { TaskChecklist } from './TaskChecklist';
 import {
   useEffect,
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -153,13 +154,26 @@ function EditorForm(props: TaskEditorProps) {
     titleInput.current?.focus({ preventScroll: true });
     titleInput.current?.select();
   }, []);
-  useEffect(() => {
+  function resizeFields() {
     for (const input of [titleInput.current, notesInput.current]) {
       if (!input) continue;
       input.style.height = 'auto';
       input.style.height = `${input.scrollHeight}px`;
     }
-  }, [draft.title, draft.notes]);
+  }
+  useLayoutEffect(resizeFields, [draft.title, draft.notes]);
+  useEffect(() => {
+    const form = titleInput.current?.form;
+    if (!form) return;
+    let width = form.clientWidth;
+    const observer = new ResizeObserver(() => {
+      if (form.clientWidth === width) return;
+      width = form.clientWidth;
+      resizeFields();
+    });
+    observer.observe(form);
+    return () => observer.disconnect();
+  }, []);
   useEffect(() => {
     props.onDirtyChange?.(dirty);
   }, [dirty, props.onDirtyChange]);
