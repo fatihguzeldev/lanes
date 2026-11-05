@@ -1,0 +1,12 @@
+.submenu {
+  min-width: 0;
+}
+.submenu__trigger > .icon:last-child {
+  margin-left: auto;
+}
+.submenu__trigger[aria-expanded='true'] {
+  background: var(--paper-hover);
+}
+.submenu__panel {
+  width: 240px;
+}

@@ -1,5 +1,5 @@
 import { useId, useLayoutEffect, useRef, useState, type AriaRole, type ReactNode } from 'react';
-import { placePopover } from './floating';
+import { placePopover, placeSubmenu } from './floating';
 import { restoreFocus as returnFocus } from '../focus/restore-focus';
 import { observeViewport, readViewport } from '../viewport/viewport';
 import './Popover.css';
@@ -12,8 +12,9 @@ export interface AnchoredPopoverProps {
   onClose: () => void;
   children: Content;
   align?: 'start' | 'end';
+  placement?: 'below' | 'side';
   className?: string;
-  focusOnOpen?: boolean;
+  focusOnOpen?: boolean | 'none';
   role?: AriaRole;
   id?: string;
 }
@@ -24,6 +25,7 @@ export function AnchoredPopover({
   onClose,
   children,
   align = 'start',
+  placement = 'below',
   className,
   focusOnOpen = true,
   role = 'dialog',
@@ -35,7 +37,7 @@ export function AnchoredPopover({
   useLayoutEffect(() => {
     const panel = ref.current;
     if (!panel) return;
-    let restoreFocus = true;
+    let restoreFocus = focusOnOpen !== 'none';
     let keyboard = anchor.matches(':focus-visible');
     const keydown = () => {
       keyboard = true;
@@ -65,7 +67,10 @@ export function AnchoredPopover({
         `${Math.max(0, usable.width - 2 * gutter)}px`,
       );
       const bounds = panel.getBoundingClientRect();
-      const next = placePopover(anchor.getBoundingClientRect(), bounds, usable, align, gutter);
+      const next =
+        placement === 'side'
+          ? placeSubmenu(anchor.getBoundingClientRect(), bounds, usable, gutter)
+          : placePopover(anchor.getBoundingClientRect(), bounds, usable, align, gutter);
       panel.style.left = `${next.left}px`;
       panel.style.top = `${next.top}px`;
       panel.style.maxHeight = `${next.maxHeight}px`;
@@ -130,7 +135,7 @@ export function AnchoredPopover({
           returnFocus(anchor, keyboard);
       });
     };
-  }, [anchor, align, focusOnOpen]);
+  }, [anchor, align, placement, focusOnOpen]);
   return (
     <div
       ref={ref}

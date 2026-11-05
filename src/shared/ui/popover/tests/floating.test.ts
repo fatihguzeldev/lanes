@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { placePopover } from '../floating';
+import { placePopover, placeSubmenu } from '../floating';
 
 const viewport = { left: 0, top: 0, width: 800, height: 600 };
 
@@ -60,5 +60,37 @@ describe('popover placement', () => {
         20,
       ),
     ).toEqual({ left: 20, top: 196, maxHeight: 264 });
+  });
+});
+
+describe('submenu placement', () => {
+  it('opens beside the hovered row without adding space below it', () => {
+    expect(
+      placeSubmenu(
+        { left: 120, right: 300, top: 140, bottom: 170 },
+        { width: 220, height: 180 },
+        viewport,
+      ),
+    ).toEqual({ left: 304, top: 140, maxHeight: 576 });
+  });
+
+  it('flips to the left near the right edge', () => {
+    expect(
+      placeSubmenu(
+        { left: 570, right: 750, top: 140, bottom: 170 },
+        { width: 220, height: 180 },
+        viewport,
+      ),
+    ).toEqual({ left: 346, top: 140, maxHeight: 576 });
+  });
+
+  it('keeps long cascades inside a narrow and panned visual viewport', () => {
+    expect(
+      placeSubmenu(
+        { left: 160, right: 360, top: 350, bottom: 380 },
+        { width: 296, height: 700 },
+        { left: 80, top: 200, width: 320, height: 240 },
+      ),
+    ).toEqual({ left: 92, top: 212, maxHeight: 216 });
   });
 });

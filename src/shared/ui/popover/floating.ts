@@ -37,3 +37,31 @@ export function placePopover(
     maxHeight: Math.max(0, maxHeight),
   };
 }
+
+export function placeSubmenu(
+  anchor: AnchorRect,
+  panel: { width: number; height: number },
+  viewport: ViewportRect,
+  margin = 12,
+): { left: number; top: number; maxHeight: number } {
+  const gap = 4;
+  const right = viewport.left + viewport.width - margin;
+  const bottom = viewport.top + viewport.height - margin;
+  const left = viewport.left + margin;
+  const availableRight = right - anchor.right - gap;
+  const availableLeft = anchor.left - gap - left;
+  const opensLeft = panel.width > availableRight && availableLeft > availableRight;
+  const maxHeight = Math.max(0, viewport.height - margin * 2);
+  const height = Math.min(panel.height, maxHeight);
+  return {
+    left: Math.max(
+      left,
+      Math.min(
+        opensLeft ? anchor.left - gap - panel.width : anchor.right + gap,
+        right - panel.width,
+      ),
+    ),
+    top: Math.max(viewport.top + margin, Math.min(anchor.top, bottom - height)),
+    maxHeight,
+  };
+}
