@@ -15,6 +15,21 @@
 .sync-control > .icon {
   flex: none;
 }
+.popover__trigger.sync-control--labelled {
+  justify-content: flex-start;
+  gap: 9px;
+  width: 100%;
+  height: auto;
+  min-height: var(--control-size);
+  padding: 8px 10px;
+  text-align: left;
+  font-size: 13px;
+  line-height: 17px;
+}
+.sync-control--labelled > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
 .sync-control:hover,
 .sync-control[aria-expanded='true'] {
   color: var(--ink);
@@ -69,5 +84,10 @@
 @keyframes sync-breathe {
   50% {
     opacity: 0.4;
+  }
+}
+@media (max-width: 768px) {
+  .popover:has(> .sync-control--compact.sync-control--synced[aria-expanded='false']) {
+    display: none;
   }
 }

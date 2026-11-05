@@ -8,6 +8,8 @@ import { syncPresentation } from './sync-presentation';
 import './SyncControl.css';
 
 interface Props {
+  compact?: boolean;
+  labelled?: boolean;
   unfinished: readonly OperationSummary[];
   moreUnfinished: boolean;
   unfinishedLoading: boolean;
@@ -15,6 +17,7 @@ interface Props {
   onMoreUnfinished: () => void;
   onRetryUnfinished: () => void;
   onInspectChange: (id: string) => void;
+  onNavigate?: () => void;
   connected: boolean;
   reachable: boolean;
   busy: boolean;
@@ -36,17 +39,20 @@ export function SyncControl(props: Props) {
     <Popover
       label={`google sync: ${state.label}`}
       trigger={
-        <Icon
-          name={
-            state.kind === 'synced'
-              ? 'cloud-check'
-              : state.kind === 'error' || state.kind === 'paused'
-                ? 'cloud-off'
-                : 'cloud'
-          }
-        />
+        <>
+          <Icon
+            name={
+              state.kind === 'synced'
+                ? 'cloud-check'
+                : state.kind === 'error' || state.kind === 'paused'
+                  ? 'cloud-off'
+                  : 'cloud'
+            }
+          />
+          {props.labelled && <span>{state.label}</span>}
+        </>
       }
-      triggerClassName={`sync-control sync-control--${state.kind}`}
+      triggerClassName={`sync-control sync-control--${state.kind}${props.labelled ? ' sync-control--labelled' : props.compact ? ' sync-control--compact' : ''}`}
       className="sync-control__panel"
       align="end"
     >
@@ -69,6 +75,7 @@ export function SyncControl(props: Props) {
                   className="popover__item"
                   onClick={() => {
                     close();
+                    props.onNavigate?.();
                     props.onInspectChange(item.id);
                   }}
                 >
