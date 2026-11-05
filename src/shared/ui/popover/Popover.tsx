@@ -41,7 +41,8 @@ export function AnchoredPopover({
       keyboard = true;
     };
     const position = () => {
-      if (!anchor.isConnected) {
+      if (!anchor.isConnected || !anchor.getClientRects().length) {
+        restoreFocus = false;
         closeRef.current();
         return;
       }
@@ -98,13 +99,13 @@ export function AnchoredPopover({
     document.addEventListener('focusin', focus);
     panel.showPopover();
     const stopViewport = observeViewport(position);
-    if (focusOnOpen) {
+    if (restoreFocus && focusOnOpen) {
       panel
         .querySelector<HTMLElement>(
           '[autofocus],button:not(:disabled),a[href],input:not(:disabled),textarea:not(:disabled),[tabindex="0"]',
         )
         ?.focus({ preventScroll: true });
-    } else anchor.focus({ preventScroll: true });
+    } else if (restoreFocus) anchor.focus({ preventScroll: true });
     const observer = new ResizeObserver(position);
     observer.observe(panel);
     window.addEventListener('scroll', position, true);
@@ -121,6 +122,7 @@ export function AnchoredPopover({
         if (
           restoreFocus &&
           anchor.isConnected &&
+          anchor.getClientRects().length &&
           (document.activeElement === document.body ||
             document.activeElement === anchor ||
             panel.contains(document.activeElement))
