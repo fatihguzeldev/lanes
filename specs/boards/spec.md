@@ -22,6 +22,8 @@ google has no board entity. creating, renaming, styling, or deleting an empty bo
 
 create a blank board with a nonblank title of at most 128 characters. an optional emoji and appearance do not affect identity. duplicate names are allowed, and actions must distinguish boards by identity and account.
 
+add a board in the navigation, without opening a dialog. prefill `new board` and select the name when the entry opens, so typing replaces it. enter submits and escape closes the entry. retain the draft across ordinary navigation rendering and background reads. closing the entry does not cancel an already submitted operation. an ambiguous retry keeps its original name and receipt identity; a confirmed save clears the entry.
+
 rename or reorder a board without changing its lists or tasks. new boards append after existing boards. persist account-owned ordering on the server so another browser sees the same organization.
 
 allow choosing a start board per account and browser. default to the main board. a removed or inaccessible preference falls back to the main board without losing the rest of the workspace settings.
@@ -52,6 +54,8 @@ this deliberately differs from tasksboard, whose [board deletion](https://suppor
 
 task and list menus open beside their trigger. changing a view, filtering, and sorting preserve the current account and make their scope explicit. keep account controls and synchronization separate from board actions; adding a list belongs beside the board's columns.
 
+browse task destinations through anchored board and list menus. placement submenus retain first, last, after-sibling, and eligible parent choices without a form. request further boards, lists, or task pages only when needed; a partial page does not prove that no destination exists. the task command keeps the selected source, list, parent, and sibling revisions, while its receipt controller remains mounted after the menu closes.
+
 show exact task counts only when the query and provider coverage establish the total. omit an unknown count instead of displaying a lower bound with `+`. hide empty completed sections; a section that has not been queried is not evidence that no completed tasks exist.
 
 support board colors, an optional emoji, and an optional background image from bundled assets or a user-supplied https image url. keep list colors and names readable in light and dark themes. image loading failure falls back to the chosen color. file uploads, an image hosting service, and an image search integration are not required.
@@ -63,6 +67,8 @@ support kanban, stacked-list, and calendar views over the same tasks. remember v
 ## initial reveal
 
 show one workspace skeleton while the session, selected board, loaded list page, and first task queries are being resolved. keep known navigation and action labels in place. board names, columns, counts, and task content appear together; independent responses must not reveal fragments of the workspace.
+
+reuse the shell's navigation, typography, icons, and control geometry in its loading state. keep a known account initial visible while its session is being revalidated; skeletons replace unknown values rather than changing the shell's proportions.
 
 keep the required queries mounted behind the skeleton. readiness belongs to the current account, view, loaded lists, and refresh generation; an older successful response does not satisfy a newer read. include completed-task queries when the view shows them, without requiring every result page to be downloaded.
 
@@ -111,3 +117,4 @@ read/write conflicts, missing destinations, and local storage failures keep conf
 - `boards-11`: delayed initial reads reveal the selected workspace together; stale readiness from an earlier account, list set, or refresh generation cannot reveal it early.
 - `boards-12`: a paused or failed initial refresh exposes recovery; later background refreshes retain the revealed workspace and do not require unloaded list pages.
 - `boards-13`: a returning connected account reveals its retained workspace after the current local read batch settles, even while provider coverage is partial. a first connection does not flash an empty board before topology is known.
+- `boards-14`: adding a board edits a selected default name inline in navigation; background reads preserve its draft and ambiguous saves retain the original receipt identity.
