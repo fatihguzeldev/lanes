@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import type { Label, TaskFilter, TaskList, TaskSort } from '../../../tasks/contracts/task';
 import type { BoardViewPreferences } from './view-preferences';
 import { Icon } from '../../../../shared/ui/icon/Icon';
@@ -9,6 +9,10 @@ import { TaskFiltersForm } from './TaskFiltersForm';
 import './WorkspaceViewMenu.css';
 
 interface Props {
+  trigger?: ReactNode;
+  label?: string;
+  triggerClassName?: string;
+  onBoardOptions?: (anchor: HTMLElement) => void;
   allowLayout: boolean;
   view: BoardViewPreferences['view'];
   sort: TaskSort;
@@ -28,22 +32,22 @@ interface Props {
 
 export function WorkspaceViewMenu(props: Props) {
   const [filtering, setFiltering] = useState(false);
+  const filtered = Object.keys(props.filter).length > 0;
+  const label = props.label ?? 'view options';
   return (
     <Popover
-      label="view options"
+      label={`${label}${filtered ? ', filters active' : ''}`}
       trigger={
         <>
-          <Icon name="filter" size={16} />
-          <span
-            className={Object.keys(props.filter).length ? 'workspace-view-menu__filter-dot' : ''}
-          />
+          {props.trigger ?? <Icon name="filter" size={16} />}
+          {filtered && <span className="workspace-view-menu__filter-dot" aria-hidden="true" />}
         </>
       }
-      triggerClassName="workspace-view-menu__trigger"
+      triggerClassName={`workspace-view-menu__trigger${props.trigger ? ' workspace-view-menu__trigger--custom' : ''}${props.triggerClassName ? ` ${props.triggerClassName}` : ''}`}
       className="workspace-view-menu"
       align="end"
     >
-      {(close) =>
+      {(close, anchor) =>
         filtering ? (
           <div className="workspace-view-menu__filters">
             <button className="popover__item" onClick={() => setFiltering(false)}>
@@ -97,10 +101,24 @@ export function WorkspaceViewMenu(props: Props) {
             <button className="popover__item" onClick={() => setFiltering(true)}>
               <Icon name="filter" size={15} /> filter tasks <Icon name="right" size={14} />
             </button>
-            {Object.keys(props.filter).length > 0 && (
+            {filtered && (
               <button className="popover__item" onClick={props.onClear}>
                 clear filters
               </button>
+            )}
+            {props.onBoardOptions && (
+              <div className="workspace-view-menu__board">
+                <button
+                  className="popover__item"
+                  onClick={() => {
+                    close();
+                    props.onBoardOptions?.(anchor);
+                  }}
+                >
+                  <Icon name="settings" size={15} /> board options
+                  <Icon name="right" size={14} />
+                </button>
+              </div>
             )}
           </div>
         )

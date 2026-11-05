@@ -23,6 +23,11 @@
 .workspace-view-menu__trigger {
   position: relative;
 }
+.popover__trigger.workspace-view-menu__trigger--custom {
+  width: auto;
+  min-width: 0;
+  gap: 6px;
+}
 .workspace-view-menu {
   width: 260px;
 }
@@ -45,6 +50,14 @@
   width: calc(100% + 12px);
 }
 .workspace-view-menu__body > .popover__item > .icon:last-child {
+  margin-left: auto;
+}
+.workspace-view-menu__board {
+  border-top: 1px solid var(--fine);
+  padding-top: 6px;
+  margin: 0 -6px -6px;
+}
+.workspace-view-menu__board .icon:last-child {
   margin-left: auto;
 }
 .workspace-view-menu:has(.workspace-view-menu__filters) {
@@ -71,4 +84,10 @@
   height: 4px;
   border-radius: 50%;
   background: var(--green);
+}
+.workspace-view-menu__trigger--custom .workspace-view-menu__filter-dot {
+  position: static;
+  flex: none;
+  width: 5px;
+  height: 5px;
 }

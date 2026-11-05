@@ -4,7 +4,7 @@ import { restoreFocus as returnFocus } from '../focus/restore-focus';
 import { observeViewport, readViewport } from '../viewport/viewport';
 import './Popover.css';
 
-type Content = ReactNode | ((close: () => void) => ReactNode);
+type Content = ReactNode | ((close: () => void, anchor: HTMLElement) => ReactNode);
 
 export interface AnchoredPopoverProps {
   anchor: HTMLElement;
@@ -138,7 +138,7 @@ export function AnchoredPopover({
       role={role}
       aria-label={role === 'presentation' ? undefined : label}
     >
-      {typeof children === 'function' ? children(onClose) : children}
+      {typeof children === 'function' ? children(onClose, anchor) : children}
     </div>
   );
 }
