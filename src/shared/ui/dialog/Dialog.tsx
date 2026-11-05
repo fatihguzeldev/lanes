@@ -11,6 +11,7 @@ export function Dialog({
   wide = false,
   side = false,
   pending = false,
+  dismissOnOutside = false,
 }: {
   title: string;
   children: ReactNode;
@@ -18,6 +19,7 @@ export function Dialog({
   wide?: boolean;
   side?: boolean;
   pending?: boolean;
+  dismissOnOutside?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
@@ -30,6 +32,7 @@ export function Dialog({
         : null,
   );
   const keyboard = useRef(opener.current?.matches(':focus-visible') ?? false);
+  const outsidePointer = useRef<number | null>(null);
   useLayoutEffect(() => {
     const element = heading.current;
     if (!element) return;
@@ -69,8 +72,40 @@ export function Dialog({
       onKeyDown={() => {
         keyboard.current = true;
       }}
-      onPointerDown={() => {
+      onPointerDown={(event) => {
         keyboard.current = false;
+        const bounds = event.currentTarget.getBoundingClientRect();
+        outsidePointer.current =
+          dismissOnOutside &&
+          event.button === 0 &&
+          event.isPrimary !== false &&
+          event.target === event.currentTarget &&
+          !event.currentTarget.querySelector('[popover]:popover-open') &&
+          (event.clientX < bounds.left ||
+            event.clientX >= bounds.right ||
+            event.clientY < bounds.top ||
+            event.clientY >= bounds.bottom)
+            ? event.pointerId
+            : null;
+      }}
+      onPointerUp={(event) => {
+        const pointer = outsidePointer.current;
+        outsidePointer.current = null;
+        const bounds = event.currentTarget.getBoundingClientRect();
+        if (
+          dismissOnOutside &&
+          !pending &&
+          pointer === event.pointerId &&
+          event.target === event.currentTarget &&
+          (event.clientX < bounds.left ||
+            event.clientX >= bounds.right ||
+            event.clientY < bounds.top ||
+            event.clientY >= bounds.bottom)
+        )
+          onClose();
+      }}
+      onPointerCancel={() => {
+        outsidePointer.current = null;
       }}
       onCancel={(event) => {
         event.preventDefault();

@@ -88,6 +88,7 @@ export function HistoryPanel({
       title={task ? 'task history' : board && scope === 'board' ? 'board history' : 'history'}
       onClose={onClose}
       side
+      dismissOnOutside
     >
       <div className="history-panel">
         <p className="history-panel__intro">

@@ -95,7 +95,7 @@
   border-radius: 4px;
 }
 .dialog__close:hover {
-  background: var(--paper-hover);
+  color: var(--green);
 }
 .dialog__body {
   padding: 5px var(--panel-padding) var(--panel-padding);
