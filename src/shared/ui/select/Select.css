@@ -25,7 +25,7 @@
   white-space: nowrap;
 }
 .select__trigger > .icon {
-  color: var(--secondary);
+  color: var(--icon);
   flex-shrink: 0;
 }
 .select__trigger:hover:not(:disabled),

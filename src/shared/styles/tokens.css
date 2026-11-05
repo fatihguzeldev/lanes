@@ -10,7 +10,9 @@
   --canvas: #f3f3f1;
   --sidebar: #eeeee9;
   --paper: #fdfdfb;
-  --paper-hover: #f5f5f1;
+  --paper-hover: #e9eee7;
+  --active: #dfe7dc;
+  --icon: #62775c;
   --ink: #2d2d2b;
   --secondary: #696963;
   --muted: #70706a;
@@ -21,6 +23,8 @@
   --on-accent: #fdfdfb;
   --check-border: #92928b;
   --focus: var(--green);
+  --selection: #3d5847;
+  --on-selection: #fdfdfb;
   --star: #8c712e;
   --rust: #a2553a;
   --rust-soft: #f3e6d9;
@@ -33,7 +37,9 @@
   --canvas: #222222;
   --sidebar: #202020;
   --paper: #2b2b2b;
-  --paper-hover: #30302e;
+  --paper-hover: #343c30;
+  --active: #3c4635;
+  --icon: #a6b995;
   --ink: #eeede9;
   --secondary: #b6b5af;
   --muted: #a4a39c;
@@ -42,6 +48,8 @@
   --green: #b1c59b;
   --green-soft: #363c31;
   --on-accent: #232323;
+  --selection: #b1c59b;
+  --on-selection: #232323;
   --star: #ccb77f;
   --rust: #dfab8d;
   --rust-soft: #4a382d;
@@ -87,7 +95,8 @@ a {
   color: var(--green);
 }
 ::selection {
-  background: var(--green-soft);
+  background: var(--selection);
+  color: var(--on-selection);
 }
 h1,
 h2,

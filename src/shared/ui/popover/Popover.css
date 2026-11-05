@@ -12,7 +12,7 @@
   border: 0;
   border-radius: 6px;
   padding: 6px 8px;
-  color: var(--secondary);
+  color: var(--icon);
   background: transparent;
   font-size: 13px;
 }
@@ -70,6 +70,9 @@
 }
 .popover__item.danger {
   color: var(--rust);
+}
+.popover__item:not(.danger) > .icon {
+  color: var(--icon);
 }
 @media (pointer: coarse) {
   .popover__trigger,

@@ -16,7 +16,7 @@ const paths = {
   right: 'm9 6 6 6-6 6',
   left: 'm15 6-6 6 6 6',
   up: 'm7 14 5-5 5 5',
-  more: 'M5 12h.01M12 12h.01M19 12h.01',
+  more: 'M12 5h.01M12 12h.01M12 19h.01',
   work: 'M4 7h16v13H4ZM8 7V4h8v3M4 12h16M10 12v2h4v-2',
   pen: 'm5 16-1 4 4-1L20 7l-3-3Zm9-9 3 3',
   book: 'M12 6c-4-3-8-2-9-1v14c3-2 6-2 9 0 3-2 6-2 9 0V5c-3-2-6-1-9 1Zm0 0v13',
@@ -63,7 +63,7 @@ export function Icon({ name, size = 18, title, className, ...props }: IconProps)
       height={size}
       fill="none"
       stroke="currentColor"
-      strokeWidth={1.65}
+      strokeWidth={name === 'more' ? 3.2 : 1.65}
       strokeLinecap="round"
       strokeLinejoin="round"
       focusable="false"

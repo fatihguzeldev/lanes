@@ -9,7 +9,7 @@
   padding: 5px;
   border: 0;
   border-radius: 5px;
-  color: var(--secondary);
+  color: var(--icon);
   background: transparent;
 }
 .sync-control > .icon {

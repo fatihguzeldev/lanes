@@ -34,7 +34,7 @@
   padding: 5px;
   border: 0;
   border-radius: 5px;
-  color: var(--secondary);
+  color: var(--icon);
   background: transparent;
 }
 .workspace__icon-button > .icon,
@@ -43,7 +43,7 @@
 }
 .workspace__icon-button:hover,
 .workspace__icon-button[aria-expanded='true'] {
-  color: var(--ink);
+  color: var(--green);
   background: var(--paper-hover);
 }
 .workspace__search-controls {
@@ -84,6 +84,9 @@
   color: var(--muted);
   font: 11px var(--font);
 }
+.workspace__search > .icon {
+  color: var(--icon);
+}
 .workspace__search-scope {
   max-width: 115px;
   font-size: 11px;
@@ -97,27 +100,6 @@
   justify-content: flex-end;
   align-items: center;
   gap: 4px;
-}
-.workspace__icon-button.workspace__account-trigger {
-  padding: 0;
-  margin-left: 4px;
-  border-radius: 50%;
-}
-.workspace__avatar {
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  flex: none;
-  aspect-ratio: 1;
-  border: 1px solid color-mix(in srgb, var(--green) 70%, var(--line));
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--green) 6%, var(--paper));
-  color: var(--ink);
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 1;
-  text-transform: lowercase;
 }
 .workspace__search-controls > .popover {
   position: relative;
