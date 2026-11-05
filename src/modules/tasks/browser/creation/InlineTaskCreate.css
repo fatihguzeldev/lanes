@@ -40,7 +40,9 @@
   font-size: 13px;
 }
 .inline-task-create__field input:focus-visible {
-  outline-offset: 2px;
+  outline: none;
+  border-radius: 0;
+  box-shadow: inset 0 -1px var(--green);
 }
 .inline-task-create__field button {
   display: grid;
