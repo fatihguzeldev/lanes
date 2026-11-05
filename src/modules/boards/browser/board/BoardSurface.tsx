@@ -1,13 +1,6 @@
 import type { TaskMoveIntent } from '../../../tasks/contracts/task';
-import {
-  useId,
-  useMemo,
-  useRef,
-  useState,
-  type CSSProperties,
-  type DragEvent,
-  type ReactNode,
-} from 'react';
+import { DragDropProvider } from '@dnd-kit/react';
+import { useId, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import type { Coverage } from '../../../../shared/contracts/http';
 import { Icon, type IconName } from '../../../../shared/ui/icon/Icon';
 import { Skeleton } from '../../../../shared/ui/skeleton/Skeleton';
@@ -15,13 +8,9 @@ import type { Label, Task, TaskList, TaskSort } from '../../../tasks/contracts/t
 import { countOpenTasks, getBlockingStates, sortTasks } from '../../../tasks/model/task';
 import { TaskCard } from '../../../tasks/browser/items/TaskCard';
 import { BoardSkeleton, ColumnSkeleton } from './BoardSkeleton';
-import {
-  orderForPresentation,
-  resolveTaskDrop,
-  sameDropPosition,
-  taskDropSide,
-  type TaskDropPosition,
-} from './drag-model';
+import { orderForPresentation } from './drag-model';
+import { SortableTask, TaskDropZone, taskDragSensors } from './TaskDrag';
+import { useBoardTaskDrag } from './useBoardTaskDrag';
 import './BoardSurface.css';
 import type { SubtaskSummary } from '../../../tasks/contracts/query';
 
@@ -80,8 +69,6 @@ export interface BoardSurfaceProps {
   onMoveTask?: ((intent: TaskMoveIntent) => void) | undefined;
 }
 
-type DraggedTask = Pick<TaskMoveIntent, 'accountId' | 'taskId' | 'revision' | 'sourceListId'>;
-const dragType = 'application/x-lanes-task+json';
 const title = (list: TaskList): string => (list.title.trim() ? list.title : 'untitled list');
 
 function confirmedTasks(tasks: readonly Task[], accountId: string, listId?: string): Task[] {
@@ -105,55 +92,24 @@ function columnRootIds(column: BoardColumn, accountId: string): string[] {
     .map((task) => task.id);
 }
 
-function readDrag(data: string): DraggedTask | null {
-  try {
-    const value: unknown = JSON.parse(data);
-    if (!value || typeof value !== 'object') return null;
-    const record = value as Record<string, unknown>;
-    if (
-      typeof record.accountId !== 'string' ||
-      typeof record.taskId !== 'string' ||
-      typeof record.sourceListId !== 'string' ||
-      typeof record.revision !== 'number' ||
-      !Number.isSafeInteger(record.revision) ||
-      record.revision < 0
-    )
-      return null;
-    return {
-      accountId: record.accountId,
-      taskId: record.taskId,
-      sourceListId: record.sourceListId,
-      revision: record.revision,
-    };
-  } catch {
-    return null;
-  }
-}
-
 interface ColumnProps {
   column: BoardColumn;
   options: BoardSurfaceProps;
   knownTasks: readonly Task[];
   canReorder: boolean;
-  dragging: DraggedTask | null;
-  dropTarget: TaskDropPosition | null;
-  startDrag: (task: Task, event: DragEvent<HTMLElement>) => void;
-  endDrag: () => void;
-  overColumn: (column: BoardColumn, event: DragEvent<HTMLElement>) => void;
-  dropOnColumn: (column: BoardColumn, event: DragEvent<HTMLElement>) => void;
+  expandedTasks: ReadonlyMap<string, boolean>;
+  onExpandedChange: (task: Task, expanded: boolean) => void;
 }
+
+const expansionKey = (task: Task) => `${task.accountId}:${task.id}`;
 
 function ListColumn({
   column,
   options,
   knownTasks,
   canReorder,
-  dragging,
-  dropTarget,
-  startDrag,
-  endDrag,
-  overColumn,
-  dropOnColumn,
+  expandedTasks,
+  onExpandedChange,
 }: ColumnProps) {
   const [completedExpanded, setCompletedExpanded] = useState(options.expandCompleted ?? false);
   const headingId = useId();
@@ -182,57 +138,64 @@ function ListColumn({
   );
   const completedCoverage = column.completedCoverage ?? column.coverage;
   const canDrop = canReorder && (column.orderReady ?? column.coverage.complete);
-  const placement = dropTarget?.listId === list.id ? dropTarget : null;
-  const lastOpenRoot = openCards.filter((task) => !task.parentId && !task.completed).at(-1)?.id;
+  const rootIds = columnRootIds(column, options.accountId);
   const columnStyle =
     column.color && /^#[\da-f]{3}(?:[\da-f]{3})?$/i.test(column.color)
       ? ({ '--list-color': column.color } as CSSProperties)
       : undefined;
   const parentTitle = (task: Task): string | undefined =>
     task.parentId ? byId.get(task.parentId)?.title || 'parent not loaded' : undefined;
-  const renderCard = (task: Task, completedRow = false) => (
-    <TaskCard
-      key={`${task.accountId}:${task.id}`}
-      task={task}
-      subtasks={completedRow || task.parentId ? [] : (children.get(task.id) ?? [])}
-      subtaskSummary={
-        completedRow || task.parentId ? undefined : column.subtaskSummaries?.[task.id]
-      }
-      initiallyExpanded={
-        !!options.filtered &&
-        (children.get(task.id) ?? []).some((child) => !matching || matching.has(child.id))
-      }
-      relatedTasks={knownTasks}
-      blockingState={blockers.get(task)}
-      labels={options.labels}
-      today={options.today}
-      accountTimeZone={options.accountTimeZone}
-      pending={options.pendingTaskIds?.has(task.id) ?? false}
-      {...(options.pendingTaskIds ? { pendingTaskIds: options.pendingTaskIds } : {})}
-      providerActionsEnabled={options.providerActionsEnabled ?? true}
-      contextOnly={!completedRow && task.completed}
-      {...(parentTitle(task) ? { parentTitle: parentTitle(task)! } : {})}
-      draggable={canDrop && !task.completed && task.capabilities.canMove}
-      dragging={dragging?.taskId === task.id}
-      dropEdge={
-        !completedRow && placement?.beforeTaskId === task.id
-          ? 'before'
-          : !completedRow &&
-              placement &&
-              placement.beforeTaskId === null &&
-              lastOpenRoot === task.id
-            ? 'after'
-            : undefined
-      }
-      showNotes={options.showNotes ?? true}
-      layout={options.layout === 'stacked' ? 'row' : 'column'}
-      onOpen={options.onOpenTask}
-      onToggleComplete={options.onToggleComplete}
-      onMenu={options.onTaskMenu}
-      onDragStart={(event) => startDrag(task, event)}
-      onDragEnd={endDrag}
-    />
-  );
+  const renderCard = (task: Task, completedRow = false) => {
+    const card = (
+      <TaskCard
+        key={`${task.accountId}:${task.id}`}
+        task={task}
+        subtasks={completedRow || task.parentId ? [] : (children.get(task.id) ?? [])}
+        subtaskSummary={
+          completedRow || task.parentId ? undefined : column.subtaskSummaries?.[task.id]
+        }
+        expanded={
+          expandedTasks.get(expansionKey(task)) ??
+          (!!options.filtered &&
+            (children.get(task.id) ?? []).some((child) => !matching || matching.has(child.id)))
+        }
+        onExpandedChange={(expanded) => onExpandedChange(task, expanded)}
+        relatedTasks={knownTasks}
+        blockingState={blockers.get(task)}
+        labels={options.labels}
+        today={options.today}
+        accountTimeZone={options.accountTimeZone}
+        pending={options.pendingTaskIds?.has(task.id) ?? false}
+        {...(options.pendingTaskIds ? { pendingTaskIds: options.pendingTaskIds } : {})}
+        providerActionsEnabled={options.providerActionsEnabled ?? true}
+        contextOnly={!completedRow && task.completed}
+        {...(parentTitle(task) ? { parentTitle: parentTitle(task)! } : {})}
+        showNotes={options.showNotes ?? true}
+        layout={options.layout === 'stacked' ? 'row' : 'column'}
+        onOpen={options.onOpenTask}
+        onToggleComplete={options.onToggleComplete}
+        onMenu={options.onTaskMenu}
+      />
+    );
+    if (completedRow || task.parentId || task.completed) return card;
+    return (
+      <SortableTask
+        key={`${task.accountId}:${task.id}`}
+        task={task}
+        index={rootIds.indexOf(task.id)}
+        listId={list.id}
+        draggable={
+          canDrop &&
+          task.capabilities.canMove &&
+          !task.unsupportedHierarchy &&
+          !options.pendingTaskIds?.has(task.id)
+        }
+        droppable={canDrop}
+      >
+        {card}
+      </SortableTask>
+    );
+  };
 
   function toggleCompleted() {
     const next = !completedExpanded;
@@ -243,13 +206,11 @@ function ListColumn({
 
   return (
     <section
-      className={`board-column${placement && dragging ? ' board-column--drop-target' : ''}`}
+      className="board-column"
       style={columnStyle}
       aria-labelledby={headingId}
       aria-busy={column.status === 'loading' || undefined}
       data-list-id={list.id}
-      onDragOver={(event) => overColumn(column, event)}
-      onDrop={(event) => dropOnColumn(column, event)}
     >
       <header className="board-column__header">
         <span className="board-column__symbol">
@@ -297,14 +258,12 @@ function ListColumn({
               add a task
             </button>
           )}
-      <div
-        className="board-column__tasks"
-        role={openCards.length ? 'list' : undefined}
-        aria-label={openCards.length ? `open tasks in ${title(list)}` : undefined}
+      <TaskDropZone
+        listId={list.id}
+        disabled={!canDrop}
+        hasItems={openCards.length > 0}
+        label={`open tasks in ${title(list)}`}
       >
-        {placement && !lastOpenRoot && (
-          <div className="board-column__drop-slot" aria-hidden="true" />
-        )}
         {openCards.map((task) => renderCard(task))}
         {entries.length === 0 && column.status === 'loading' && !column.coverage.complete && (
           <ColumnSkeleton />
@@ -314,7 +273,7 @@ function ListColumn({
             {options.filtered ? 'no matching tasks.' : 'no tasks.'}
           </p>
         )}
-      </div>
+      </TaskDropZone>
       {column.nextCursor !== null && (
         <button
           className="board-column__load-more"
@@ -394,19 +353,12 @@ function ListColumn({
 }
 
 export function BoardSurface(options: BoardSurfaceProps) {
-  const [dragging, setDragging] = useState<DraggedTask | null>(null);
-  const [dropTarget, setDropTarget] = useState<TaskDropPosition | null>(null);
-  const activeDrag = useRef<DraggedTask | null>(null);
-  const currentTarget = useRef<TaskDropPosition | null>(null);
-  const [announcement, setAnnouncement] = useState('');
-  const columns = options.columns.filter((column) => column.list.accountId === options.accountId);
-  const knownTasks = useMemo(
-    () =>
-      confirmedTasks(
-        options.relatedTasks ?? options.columns.flatMap((column) => column.tasks),
-        options.accountId,
-      ),
-    [options.relatedTasks, options.columns, options.accountId],
+  const [expandedTasks, setExpandedTasks] = useState<ReadonlyMap<string, boolean>>(() => new Map());
+  const onExpandedChange = (task: Task, expanded: boolean) => {
+    setExpandedTasks((previous) => new Map(previous).set(expansionKey(task), expanded));
+  };
+  const sourceColumns = options.columns.filter(
+    (column) => column.list.accountId === options.accountId,
   );
   const canReorder = Boolean(
     options.onMoveTask &&
@@ -415,263 +367,118 @@ export function BoardSurface(options: BoardSurfaceProps) {
     (options.sort ?? 'manual') === 'manual',
   );
 
-  function showTarget(next: TaskDropPosition | null) {
-    if (sameDropPosition(currentTarget.current, next)) return;
-    currentTarget.current = next;
-    setDropTarget(next);
-  }
-
-  function targetPosition(
-    column: BoardColumn,
-    event: DragEvent<HTMLElement>,
-    dragged: DraggedTask,
-  ): TaskDropPosition | null {
-    const source = columns.find((item) => item.list.id === dragged.sourceListId);
-    if (
-      !source ||
-      !(source.orderReady ?? source.coverage.complete) ||
-      !(column.orderReady ?? column.coverage.complete)
-    )
-      return null;
-    const destinationTaskIds = columnRootIds(column, options.accountId);
-    const card =
-      event.target instanceof Element ? event.target.closest<HTMLElement>('[data-task-id]') : null;
-    let targetTaskId: string | null = null;
-    let side: 'before' | 'after' = 'after';
-    if (card) {
-      const id = card.dataset.taskId;
-      if (!id || !destinationTaskIds.includes(id)) return null;
-      targetTaskId = id;
-      side = taskDropSide(event.clientY, card.getBoundingClientRect());
-    } else {
-      const cards = event.currentTarget.querySelectorAll<HTMLElement>('[data-task-id]');
-      for (const candidate of cards) {
-        const id = candidate.dataset.taskId;
-        if (!id || id === dragged.taskId || !destinationTaskIds.includes(id)) continue;
-        if (taskDropSide(event.clientY, candidate.getBoundingClientRect()) === 'before') {
-          targetTaskId = id;
-          side = 'before';
-          break;
-        }
-      }
-    }
-    return resolveTaskDrop({
-      taskId: dragged.taskId,
-      sourceListId: dragged.sourceListId,
-      destinationListId: column.list.id,
-      sourceTaskIds: columnRootIds(source, options.accountId),
-      destinationTaskIds,
-      targetTaskId,
-      side,
-    });
-  }
-
-  function startDrag(task: Task, event: DragEvent<HTMLElement>) {
-    if (
-      !canReorder ||
-      task.accountId !== options.accountId ||
-      task.parentId ||
-      task.completed ||
-      !task.capabilities.canMove ||
-      task.unsupportedHierarchy ||
-      options.pendingTaskIds?.has(task.id)
-    ) {
-      event.preventDefault();
-      return;
-    }
-    const source = columns.find((column) => column.list.id === task.listId);
-    if (!source || !(source.orderReady ?? source.coverage.complete)) {
-      event.preventDefault();
-      return;
-    }
-    const payload: DraggedTask = {
-      accountId: task.accountId,
-      taskId: task.id,
-      sourceListId: task.listId,
-      revision: task.revision,
-    };
-    event.dataTransfer.setData(dragType, JSON.stringify(payload));
-    event.dataTransfer.effectAllowed = 'move';
-    activeDrag.current = payload;
-    showTarget(null);
-    requestAnimationFrame(() => {
-      if (activeDrag.current === payload) setDragging(payload);
-    });
-    setAnnouncement(
-      `moving ${task.title || 'untitled task'}. task options provide keyboard movement.`,
-    );
-  }
-
-  function endDrag() {
-    activeDrag.current = null;
-    setDragging(null);
-    showTarget(null);
-  }
-
-  function overColumn(column: BoardColumn, event: DragEvent<HTMLElement>) {
-    const dragged = activeDrag.current;
-    if (
-      !canReorder ||
-      !dragged ||
-      dragged.accountId !== options.accountId ||
-      !(column.orderReady ?? column.coverage.complete)
-    ) {
-      showTarget(null);
-      return;
-    }
-    event.preventDefault();
-    event.dataTransfer.dropEffect = 'move';
-    showTarget(targetPosition(column, event, dragged));
-  }
-
-  function dropOnColumn(column: BoardColumn, event: DragEvent<HTMLElement>) {
-    const dragged = activeDrag.current;
-    if (!canReorder || !dragged || !(column.orderReady ?? column.coverage.complete)) return;
-    event.preventDefault();
-    const payload = readDrag(event.dataTransfer.getData(dragType));
-    const source = payload ? columns.find((item) => item.list.id === payload.sourceListId) : null;
-    const task =
-      payload && source
-        ? confirmedTasks(source.tasks, options.accountId, source.list.id).find(
-            (item) =>
-              item.id === payload.taskId &&
-              item.accountId === payload.accountId &&
-              item.listId === payload.sourceListId,
-          )
-        : undefined;
-    if (
-      !payload ||
-      !task ||
-      payload.accountId !== options.accountId ||
-      payload.accountId !== dragged.accountId ||
-      payload.taskId !== dragged.taskId ||
-      payload.revision !== dragged.revision ||
-      payload.sourceListId !== dragged.sourceListId ||
-      task.revision !== payload.revision ||
-      !task.capabilities.canMove ||
-      task.parentId ||
-      task.completed ||
-      task.unsupportedHierarchy ||
-      options.pendingTaskIds?.has(task.id)
-    ) {
-      endDrag();
-      setAnnouncement('the task changed. choose its destination again.');
-      return;
-    }
-    const position = targetPosition(column, event, payload);
-    endDrag();
-    if (!position) {
-      setAnnouncement('task order unchanged.');
-      return;
-    }
-    options.onMoveTask?.({
-      accountId: options.accountId,
-      taskId: task.id,
-      revision: payload.revision,
-      sourceListId: payload.sourceListId,
-      destinationListId: column.list.id,
-      parentId: null,
-      previousTaskId: position.previousTaskId,
-    });
-    setAnnouncement(`move requested for ${task.title || 'untitled task'}.`);
-  }
+  const scope = JSON.stringify([
+    options.accountId,
+    options.layout,
+    options.sort,
+    options.filtered,
+    options.providerActionsEnabled,
+    sourceColumns.map((column) => column.list.id),
+  ]);
+  const drag = useBoardTaskDrag({
+    accountId: options.accountId,
+    columns: sourceColumns,
+    enabled: canReorder,
+    scope,
+    pendingTaskIds: options.pendingTaskIds,
+    onMoveTask: options.onMoveTask,
+  });
+  const columns = drag.columns;
+  const knownTasks = useMemo(
+    () =>
+      confirmedTasks(
+        options.relatedTasks ?? columns.flatMap((column) => column.tasks),
+        options.accountId,
+      ),
+    [options.relatedTasks, columns, options.accountId],
+  );
 
   const status = options.status ?? 'ready';
   return (
-    <div
-      className={`board-surface${options.layout === 'stacked' ? ' board-surface--stacked' : ''}${dragging ? ' board-surface--dragging' : ''}`}
-      onDragOver={(event) => {
-        if (!(event.target instanceof Element) || !event.target.closest('[data-list-id]'))
-          showTarget(null);
-      }}
-      onDragLeave={(event) => {
-        const bounds = event.currentTarget.getBoundingClientRect();
-        if (
-          event.clientX < bounds.left ||
-          event.clientX > bounds.right ||
-          event.clientY < bounds.top ||
-          event.clientY > bounds.bottom
-        )
-          showTarget(null);
-      }}
+    <DragDropProvider
+      sensors={taskDragSensors}
+      onBeforeDragStart={drag.onBeforeDragStart}
+      onDragStart={drag.onDragStart}
+      onDragOver={drag.onDragOver}
+      onDragEnd={drag.onDragEnd}
     >
-      <div className="board-surface__sr-only" role="status" aria-live="polite">
-        {announcement}
-      </div>
-      {status === 'error' && (
-        <div className="board-surface__error" role="alert">
-          <span>{options.errorMessage ?? 'this board could not be loaded.'}</span>
-          {options.onRetry && (
-            <button type="button" onClick={options.onRetry}>
-              try again
-            </button>
-          )}
+      <div
+        className={`board-surface${options.layout === 'stacked' ? ' board-surface--stacked' : ''}${drag.dragging ? ' board-surface--dragging' : ''}`}
+      >
+        <div className="board-surface__sr-only" role="status" aria-live="polite">
+          {drag.announcement}
         </div>
-      )}
-      <div className="board-surface__scroll">
-        {columns.length === 0 && status === 'loading' ? (
-          <BoardSkeleton
-            showAddList={!!options.onAddList}
-            showCounts={options.showCounts !== false}
-          />
-        ) : columns.length === 0 && status === 'ready' ? (
-          <div className="board-surface__empty">
-            <Icon name="board" size={28} />
-            <h2>this board is empty.</h2>
-            <p>add a google tasks list to get started.</p>
-            {options.onAddList && (
-              <button
-                type="button"
-                disabled={options.providerActionsEnabled === false}
-                onClick={options.onAddList}
-              >
-                <Icon name="plus" size={14} />
-                new list
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="board-surface__grid">
-            {columns.map((column) => (
-              <ListColumn
-                key={`${options.accountId}:${column.list.id}`}
-                column={column}
-                options={options}
-                knownTasks={knownTasks}
-                canReorder={canReorder}
-                dragging={dragging}
-                dropTarget={dropTarget}
-                startDrag={startDrag}
-                endDrag={endDrag}
-                overColumn={overColumn}
-                dropOnColumn={dropOnColumn}
-              />
-            ))}
-            {options.onLoadMoreLists && (
-              <button
-                className="board-surface__more-lists"
-                type="button"
-                disabled={status === 'loading'}
-                onClick={options.onLoadMoreLists}
-              >
-                more lists
-                <Icon name="right" size={13} />
-              </button>
-            )}
-            {options.onAddList && (
-              <button
-                className="board-surface__add-list"
-                type="button"
-                disabled={options.providerActionsEnabled === false}
-                onClick={options.onAddList}
-              >
-                <Icon name="plus" size={14} />
-                new list
+        {status === 'error' && (
+          <div className="board-surface__error" role="alert">
+            <span>{options.errorMessage ?? 'this board could not be loaded.'}</span>
+            {options.onRetry && (
+              <button type="button" onClick={options.onRetry}>
+                try again
               </button>
             )}
           </div>
         )}
+        <div className="board-surface__scroll">
+          {columns.length === 0 && status === 'loading' ? (
+            <BoardSkeleton
+              showAddList={!!options.onAddList}
+              showCounts={options.showCounts !== false}
+            />
+          ) : columns.length === 0 && status === 'ready' ? (
+            <div className="board-surface__empty">
+              <Icon name="board" size={28} />
+              <h2>this board is empty.</h2>
+              <p>add a google tasks list to get started.</p>
+              {options.onAddList && (
+                <button
+                  type="button"
+                  disabled={options.providerActionsEnabled === false}
+                  onClick={options.onAddList}
+                >
+                  <Icon name="plus" size={14} />
+                  new list
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="board-surface__grid">
+              {columns.map((column) => (
+                <ListColumn
+                  key={`${options.accountId}:${column.list.id}`}
+                  column={column}
+                  options={options}
+                  knownTasks={knownTasks}
+                  canReorder={canReorder}
+                  expandedTasks={expandedTasks}
+                  onExpandedChange={onExpandedChange}
+                />
+              ))}
+              {options.onLoadMoreLists && (
+                <button
+                  className="board-surface__more-lists"
+                  type="button"
+                  disabled={status === 'loading'}
+                  onClick={options.onLoadMoreLists}
+                >
+                  more lists
+                  <Icon name="right" size={13} />
+                </button>
+              )}
+              {options.onAddList && (
+                <button
+                  className="board-surface__add-list"
+                  type="button"
+                  disabled={options.providerActionsEnabled === false}
+                  onClick={options.onAddList}
+                >
+                  <Icon name="plus" size={14} />
+                  new list
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </DragDropProvider>
   );
 }

@@ -21,28 +21,6 @@
 .task-card:focus-within::before {
   background: color-mix(in srgb, var(--green-soft, #dce3d3) 35%, var(--paper, #fdfbf6));
 }
-.task-card[draggable='true'] {
-  cursor: grab;
-}
-.task-card--dragging {
-  opacity: 0.35;
-}
-.task-card[data-drop-edge]::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 2px;
-  border-radius: 2px;
-  background: var(--green);
-  pointer-events: none;
-}
-.task-card[data-drop-edge='before']::after {
-  top: -1px;
-}
-.task-card[data-drop-edge='after']::after {
-  bottom: -1px;
-}
 .task-card__main {
   position: relative;
   padding: 8px 0;

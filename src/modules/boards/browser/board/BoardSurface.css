@@ -29,26 +29,6 @@
   background: var(--paper, #fdfbf6);
   color: var(--ink, #30392f);
 }
-.board-column--drop-target {
-  outline: 1px solid color-mix(in srgb, var(--green) 60%, var(--line));
-  outline-offset: 3px;
-}
-.board-column__drop-slot {
-  position: relative;
-  height: 0;
-  margin: 0 12px;
-  pointer-events: none;
-}
-.board-column__drop-slot::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  border-radius: 2px;
-  background: var(--green);
-}
 .board-column__header {
   display: flex;
   align-items: center;

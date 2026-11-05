@@ -1,4 +1,4 @@
-import { useEffect, useId, useState, type CSSProperties, type DragEventHandler } from 'react';
+import { useEffect, useId, useState, type CSSProperties } from 'react';
 import { Icon } from '../../../../shared/ui/icon/Icon';
 import type { BlockingState, Label, Task } from '../../contracts/task';
 import { countOpenTasks, getBlockingState } from '../../model/task';
@@ -20,17 +20,14 @@ export interface TaskCardProps {
   providerActionsEnabled?: boolean;
   contextOnly?: boolean;
   parentTitle?: string;
-  draggable?: boolean;
-  dragging?: boolean;
-  dropEdge?: 'before' | 'after' | undefined;
   initiallyExpanded?: boolean;
+  expanded?: boolean | undefined;
+  onExpandedChange?: ((expanded: boolean) => void) | undefined;
   showNotes?: boolean;
   layout?: 'column' | 'row';
   onOpen: (task: Task) => void;
   onToggleComplete: (task: Task, completed: boolean) => void;
   onMenu?: (task: Task, anchor: HTMLButtonElement) => void;
-  onDragStart?: DragEventHandler<HTMLElement>;
-  onDragEnd?: DragEventHandler<HTMLElement>;
 }
 
 const shortDay = new Intl.DateTimeFormat('en', {
@@ -110,22 +107,20 @@ export function TaskCard({
   providerActionsEnabled = true,
   contextOnly = false,
   parentTitle,
-  draggable = false,
-  dragging = false,
-  dropEdge,
   initiallyExpanded = false,
+  expanded: controlledExpanded,
+  onExpandedChange,
   showNotes = true,
   layout = 'column',
   onOpen,
   onToggleComplete,
   onMenu,
-  onDragStart,
-  onDragEnd,
 }: TaskCardProps) {
-  const [expanded, setExpanded] = useState(initiallyExpanded);
+  const [localExpanded, setLocalExpanded] = useState(initiallyExpanded);
+  const expanded = controlledExpanded ?? localExpanded;
   useEffect(() => {
-    if (initiallyExpanded) setExpanded(true);
-  }, [initiallyExpanded]);
+    if (initiallyExpanded && controlledExpanded === undefined) setLocalExpanded(true);
+  }, [initiallyExpanded, controlledExpanded]);
   const childrenId = useId();
   const children = subtasks.filter(
     (child) =>
@@ -163,21 +158,11 @@ export function TaskCard({
 
   return (
     <article
-      className={`task-card task-card--${layout}${task.completed ? ' task-card--completed' : ''}${pending ? ' task-card--pending' : ''}${contextOnly ? ' task-card--context' : ''}${dragging ? ' task-card--dragging' : ''}`}
+      className={`task-card task-card--${layout}${task.completed ? ' task-card--completed' : ''}${pending ? ' task-card--pending' : ''}${contextOnly ? ' task-card--context' : ''}`}
       role="listitem"
       aria-busy={pending || undefined}
       data-task-id={task.id}
       data-account-id={task.accountId}
-      data-drop-edge={dropEdge}
-      draggable={
-        draggable &&
-        !pending &&
-        task.capabilities.canMove &&
-        !task.parentId &&
-        !task.unsupportedHierarchy
-      }
-      onDragStart={onDragStart}
-      onDragEnd={onDragEnd}
     >
       <div className="task-card__main">
         {parentTitle && <p className="task-card__parent">in {parentTitle}</p>}
@@ -277,7 +262,12 @@ export function TaskCard({
                     ? `${partialChildren ? 'open checklist with' : expanded ? 'hide' : 'show'} ${childTotal} subtasks, ${childOpen} open`
                     : 'open checklist'
                 }
-                onClick={() => (partialChildren ? onOpen(task) : setExpanded((value) => !value))}
+                onClick={() => {
+                  if (partialChildren) return onOpen(task);
+                  const next = !expanded;
+                  if (controlledExpanded === undefined) setLocalExpanded(next);
+                  onExpandedChange?.(next);
+                }}
               >
                 <Icon name="subtasks" size={12} />
                 <span>

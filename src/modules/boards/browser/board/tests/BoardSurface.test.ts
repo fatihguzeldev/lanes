@@ -118,10 +118,11 @@ describe('board list presentation', () => {
       orderReady: true,
     };
     const markup = render(column, { onMoveTask() {} });
-    expect(markup).toContain('draggable="true"');
+    expect(markup).toContain('data-draggable="true"');
+    expect(markup).not.toMatch(/(?:^|\s)draggable=/);
     expect(markup).not.toContain('board-column__count');
-    expect(render({ ...column, orderReady: false }, { onMoveTask() {} })).toContain(
-      'draggable="false"',
+    expect(render({ ...column, orderReady: false }, { onMoveTask() {} })).not.toContain(
+      'data-draggable="true"',
     );
   });
 
