@@ -4,7 +4,9 @@ lanes keeps neutral surfaces, fine dividers, compact typography, and green accen
 
 ## responsive layout
 
-- the workspace navigation becomes a drawer at 768px and below. the toolbar reflows when its own available width cannot hold the title, search, and account controls. keep those controls available.
+- the workspace navigation becomes a drawer at 768px and below. use one compact toolbar row there: navigation, the current view, search, and account. opening search replaces that row's contents; it does not add a row.
+- on a narrow screen, the current view's title opens layout, sort, filters, and board options. keep an active filter visible on that trigger. navigation holds manual sync, the theme toggle, and settings; the toolbar shows sync while it is working or needs attention.
+- above the drawer threshold, the toolbar reflows when its own available width cannot hold the title, search, and account controls. choose layout changes when content needs them; pointer capability changes target sizes, not which controls are available.
 - a board is a horizontal canvas. columns fit the available canvas width on a narrow screen, with a small indication of the next column. keep horizontal scrolling inside that canvas.
 - list views, forms, filters, and editor sections reflow within their containing surface. a narrow column can need the compact layout even on a large monitor.
 - calendar time grids and comparison tables may have their own horizontal scroll region. their navigation and actions must remain reachable without scrolling to a distant edge.
@@ -25,6 +27,8 @@ menus stay anchored and fit inside the visible viewport. dialogs and detached pa
 use [the visual viewport](https://developer.mozilla.org/en-US/docs/Web/API/VisualViewport) for floating surfaces: the visible area can shrink independently of the document layout when the keyboard opens or the page is zoomed.
 
 loading placeholders use the same layout classes and control geometry as the content they replace. known labels and the retained account initial remain visible; unknown values use placeholders.
+
+search uses one input across screen sizes. closing it clears the query through the existing draft guard. keep a pending query visible if the owner cancels that confirmation. settings presentations share one save controller across navigation and toolbar layouts.
 
 ## verification
 
