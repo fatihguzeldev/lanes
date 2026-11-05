@@ -126,6 +126,69 @@ describe('optimistic task positions', () => {
       3,
     );
   });
+  it.each([true, false])(
+    'moves a parent subtask summary without changing its complete=%s coverage or other summaries',
+    (complete) => {
+      const summary = { open: 2, total: 5, complete };
+      const otherSummary = { open: 1, total: 1, complete: true };
+      const source = {
+        ...column('one', [task('a'), task('b'), task('child', 'one', 'a')]),
+        subtaskSummaries: { a: summary, b: otherSummary },
+      };
+      const destination = {
+        ...column('two', [task('x', 'two')]),
+        subtaskSummaries: { x: otherSummary },
+      };
+      const projected = projectTaskMoves([source, destination], [move('a', 'x', 'two')]);
+      expect(projected[0]!.subtaskSummaries).toEqual({ b: otherSummary });
+      expect(projected[1]!.subtaskSummaries).toEqual({ x: otherSummary, a: summary });
+      expect(source.subtaskSummaries).toEqual({ a: summary, b: otherSummary });
+      expect(destination.subtaskSummaries).toEqual({ x: otherSummary });
+    },
+  );
+  it('keeps the summary with a parent through successive queued cross-list moves', () => {
+    const summary = { open: 1, total: 3, complete: false };
+    const source = { ...column('one', [task('a')]), subtaskSummaries: { a: summary } };
+    const destination = { ...column('two', []), subtaskSummaries: {} };
+    const third = { ...column('three', []), subtaskSummaries: {} };
+    const onward = move('a', null, 'three');
+    onward.intent.sourceListId = 'two';
+    const projected = projectTaskMoves(
+      [source, destination, third],
+      [move('a', null, 'two'), onward],
+    );
+    expect(projected.map((item) => item.subtaskSummaries)).toEqual([{}, {}, { a: summary }]);
+  });
+  it('preserves a fresher destination summary while a confirmed move is awaiting reconciliation', () => {
+    const oldSummary = { open: 1, total: 3, complete: false };
+    const currentSummary = { open: 2, total: 4, complete: true };
+    const source = {
+      ...column('one', [task('a')]),
+      subtaskSummaries: { a: oldSummary },
+    };
+    const destination = {
+      ...column('two', [{ ...task('a', 'two'), revision: 2 }]),
+      subtaskSummaries: { a: currentSummary },
+    };
+    const projected = projectTaskMoves([source, destination], [move('a', null, 'two')]);
+    expect(projected[0]!.subtaskSummaries).toEqual({});
+    expect(projected[1]!.subtaskSummaries).toEqual({ a: currentSummary });
+  });
+  it('retains a known source summary when the destination task arrives before its summary', () => {
+    const summary = { open: 1, total: 3, complete: false };
+    const source = { ...column('one', [task('a')]), subtaskSummaries: { a: summary } };
+    const destination = {
+      ...column('two', [{ ...task('a', 'two'), revision: 2 }]),
+      subtaskSummaries: {},
+    };
+    const projected = projectTaskMoves([source, destination], [move('a', null, 'two')]);
+    expect(projected[1]!.subtaskSummaries).toEqual({ a: summary });
+  });
+  it('does not infer complete child counts from the children loaded for a move', () => {
+    const original = [column('one', [task('a'), task('child', 'one', 'a')]), column('two', [])];
+    const projected = projectTaskMoves(original, [move('a', null, 'two')]);
+    expect(projected[1]!.subtaskSummaries).toBeUndefined();
+  });
   it('keeps a task visible when its destination or anchor is no longer available', () => {
     const original = [column('one', [task('a'), task('b')])];
     expect(projectTaskMoves(original, [move('a', null, 'removed')])).toEqual(original);

@@ -1,5 +1,6 @@
 import type { Coverage } from '../../../../shared/contracts/http';
 import type { TaskList, TaskMoveIntent } from '../../contracts/task';
+import type { SubtaskSummary } from '../../contracts/query';
 
 export interface TaskMoveList {
   list: TaskList;
@@ -11,6 +12,7 @@ export interface TaskMoveList {
   orderReady?: boolean | undefined;
   readVersion?: number | undefined;
   providerComplete?: boolean | undefined;
+  subtaskSummaries?: Record<string, SubtaskSummary> | undefined;
 }
 import type { Task } from '../../contracts/task';
 import { sortTasks } from '../../model/task';
@@ -76,6 +78,14 @@ export function projectTaskMoves<T extends TaskMoveList>(
       entries.find((task) => task.accountId === intent.accountId && task.id === intent.taskId) ??
       move.task;
     if (task.accountId !== intent.accountId) continue;
+    const summary =
+      projected.find(
+        (column) => column.list.accountId === intent.accountId && column.list.id === task.listId,
+      )?.subtaskSummaries?.[task.id] ??
+      projected.find(
+        (column) =>
+          column.list.accountId === intent.accountId && column.subtaskSummaries?.[task.id],
+      )?.subtaskSummaries?.[task.id];
     const children = new Map(
       move.children
         .filter((child) => child.accountId === intent.accountId)
@@ -94,8 +104,15 @@ export function projectTaskMoves<T extends TaskMoveList>(
       if (column.list.accountId !== intent.accountId) return column;
       const remaining = latestTasks(column.tasks).filter((task) => !moving.has(task.id));
       const target = column.list.id === destination.list.id;
+      let subtaskSummaries = column.subtaskSummaries;
+      if (subtaskSummaries?.[task.id] || (target && summary)) {
+        subtaskSummaries = { ...subtaskSummaries };
+        delete subtaskSummaries[task.id];
+        if (target && summary) subtaskSummaries[task.id] = summary;
+      }
       return {
         ...column,
+        ...(subtaskSummaries ? { subtaskSummaries } : {}),
         tasks: target
           ? [
               ...remaining,
