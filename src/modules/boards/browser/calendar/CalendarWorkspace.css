@@ -3,6 +3,7 @@
   flex: 1;
   flex-direction: column;
   min-height: 0;
+  min-width: 0;
 }
 .calendar-workspace > .calendar-view {
   flex: 1;
@@ -19,6 +20,7 @@
   font-size: 12px;
 }
 .calendar-workspace__pages button {
+  min-height: var(--control-size);
   padding: 7px 11px;
   border: 1px solid var(--line);
   border-radius: 5px;
@@ -30,7 +32,7 @@
 }
 .calendar-workspace__pages p {
   flex: 1;
-  min-width: 180px;
+  min-width: min(180px, 100%);
   line-height: 1.6;
 }
 .calendar-workspace__error {

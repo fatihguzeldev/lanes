@@ -540,41 +540,48 @@ export function CalendarView(options: CalendarViewProps) {
             </button>
           </div>
         )}
-        <table className="calendar-view__table" aria-busy={status === 'loading' || undefined}>
-          <caption className="calendar-view__sr-only">
-            {periodTitle(cursorDay, options.mode, range)} ·{' '}
-            {options.scope === 'board' ? 'current board' : 'all boards in the selected account'}
-          </caption>
-          <thead>
-            <tr>
-              {grid[0]?.map((day) => (
-                <th scope="col" key={day.weekday}>
-                  {weekdayNames[day.weekday - 1]}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {grid.map((row) => (
-              <tr key={row[0]?.date}>
-                {row.map((day) => (
-                  <DayCell
-                    key={day.date}
-                    day={day}
-                    bucket={groups.byDay.get(day.date)}
-                    options={options}
-                    dragging={dragging}
-                    dropTarget={dropTarget}
-                    itemProps={itemProps}
-                    inspectDay={inspectDay}
-                    dragOver={dragOver}
-                    drop={drop}
-                  />
+        <div
+          className="calendar-view__grid"
+          role="region"
+          aria-label={`${options.mode} calendar`}
+          tabIndex={0}
+        >
+          <table className="calendar-view__table" aria-busy={status === 'loading' || undefined}>
+            <caption className="calendar-view__sr-only">
+              {periodTitle(cursorDay, options.mode, range)} ·{' '}
+              {options.scope === 'board' ? 'current board' : 'all boards in the selected account'}
+            </caption>
+            <thead>
+              <tr>
+                {grid[0]?.map((day) => (
+                  <th scope="col" key={day.weekday}>
+                    {weekdayNames[day.weekday - 1]}
+                  </th>
                 ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {grid.map((row) => (
+                <tr key={row[0]?.date}>
+                  {row.map((day) => (
+                    <DayCell
+                      key={day.date}
+                      day={day}
+                      bucket={groups.byDay.get(day.date)}
+                      options={options}
+                      dragging={dragging}
+                      dropTarget={dropTarget}
+                      itemProps={itemProps}
+                      inspectDay={inspectDay}
+                      dragOver={dragOver}
+                      drop={drop}
+                    />
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
         {options.nextCursor != null && (
           <button
             className="calendar-view__load-more"
