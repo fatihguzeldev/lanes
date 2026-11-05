@@ -1,28 +1,25 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  SyncAdvanceSchema,
-  SyncStatusSchema,
-  type SyncAdvance,
-  type SyncStatus,
-} from '../../contracts/sync';
+import { SyncStepSchema, type SyncAdvance, type SyncStatus } from '../../contracts/sync';
 import { request } from '../../../../shared/browser/http/http';
 
-export function syncProgressNeedsRefresh(
-  progress: Pick<SyncAdvance, 'phase' | 'errorCode'>,
-  lastInvalidatedAt: number | null,
-  firstTaskPage: boolean,
-  now: number,
-): boolean {
-  if (progress.errorCode || progress.phase === 'idle' || progress.phase === 'coalesced')
-    return false;
-  return (
-    lastInvalidatedAt === null ||
-    (firstTaskPage && progress.phase === 'tasks') ||
-    now - lastInvalidatedAt >= 10_000
-  );
+export interface SyncChanges {
+  topology: boolean;
+  tasks: boolean;
 }
 
-export function useWorkspaceSync(accountId: string, onChanged: () => void) {
+export function syncChanges(progress: Pick<SyncAdvance, 'phase' | 'errorCode'>): SyncChanges {
+  if (progress.errorCode) return { topology: false, tasks: false };
+  return {
+    topology: ['default', 'inventory', 'list_check'].includes(progress.phase),
+    tasks: ['tasks', 'list_check', 'task_check'].includes(progress.phase),
+  };
+}
+
+export function useWorkspaceSync(
+  accountId: string,
+  onChanged: (changes: SyncChanges) => void,
+  retainedWorkspace = false,
+) {
   const [status, setStatus] = useState<SyncStatus | null>(null),
     [busy, setBusy] = useState(false),
     [error, setError] = useState('');
@@ -31,6 +28,9 @@ export function useWorkspaceSync(accountId: string, onChanged: () => void) {
   const topologySeen = useRef(false);
   const callback = useRef(onChanged);
   callback.current = onChanged;
+  const retained = useRef(retainedWorkspace);
+  retained.current = retainedWorkspace;
+  const pendingChanges = useRef<SyncChanges>({ topology: false, tasks: false });
   const generation = useRef(0),
     flight = useRef<AbortController | null>(null),
     timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -44,24 +44,41 @@ export function useWorkspaceSync(accountId: string, onChanged: () => void) {
       setBusy(true);
       setError('');
       const base = `/api/accounts/${encodeURIComponent(accountId)}/sync`;
-      let lastInvalidatedAt: number | null = null,
-        firstTaskPage = true;
+      let lastInvalidatedAt = Date.now();
+      const returning = retained.current;
+      const flushChanges = () => {
+        const changes = pendingChanges.current;
+        if (!changes.topology && !changes.tasks) return;
+        pendingChanges.current = { topology: false, tasks: false };
+        lastInvalidatedAt = Date.now();
+        callback.current(changes);
+      };
       const advance = async (first: boolean): Promise<void> => {
         if (controller.signal.aborted || generation.current !== epoch) return;
         try {
-          const progress = await request(first ? base : `${base}/advance`, SyncAdvanceSchema, {
-            method: 'POST',
-            body: first ? { reason, visibleListIds } : {},
-            signal: controller.signal,
-          });
-          const next = await request(base, SyncStatusSchema, { signal: controller.signal });
+          const progress = await request(
+            `${first ? base : `${base}/advance`}?status=1`,
+            SyncStepSchema,
+            {
+              method: 'POST',
+              body: first ? { reason, visibleListIds } : {},
+              signal: controller.signal,
+            },
+          );
           if (controller.signal.aborted || generation.current !== epoch) return;
+          const next = progress.status;
           setStatus(next);
-          if (!topologySeen.current && ['inventory', 'tasks'].includes(progress.phase)) {
+          const changes = syncChanges(progress);
+          pendingChanges.current.topology ||= changes.topology;
+          pendingChanges.current.tasks ||= changes.tasks;
+          if (
+            !topologySeen.current &&
+            !progress.errorCode &&
+            ['inventory', 'tasks'].includes(progress.phase)
+          ) {
             topologySeen.current = true;
             setInitialTopologyReady(true);
-            lastInvalidatedAt = Date.now();
-            callback.current();
+            if (!returning) flushChanges();
           }
           if (
             next.pending &&
@@ -71,15 +88,7 @@ export function useWorkspaceSync(accountId: string, onChanged: () => void) {
             const wait = Math.max(300, next.nextAttemptAt - Date.now());
             // Long backoff is visible; a future return/manual refresh can resume it.
             if (wait <= 30_000) {
-              const now = Date.now();
-              if (
-                topologySeen.current &&
-                syncProgressNeedsRefresh(progress, lastInvalidatedAt, firstTaskPage, now)
-              ) {
-                lastInvalidatedAt = now;
-                callback.current();
-              }
-              if (progress.phase === 'tasks' && !progress.errorCode) firstTaskPage = false;
+              if (Date.now() - lastInvalidatedAt >= 10_000) flushChanges();
               timer.current = setTimeout(() => void advance(false), wait);
               return;
             }
@@ -87,7 +96,7 @@ export function useWorkspaceSync(accountId: string, onChanged: () => void) {
           topologySeen.current = true;
           setInitialTopologyReady(true);
           setInitialForegroundSettled(true);
-          callback.current();
+          flushChanges();
           setBusy(false);
           flight.current = null;
         } catch (error) {
@@ -96,7 +105,9 @@ export function useWorkspaceSync(accountId: string, onChanged: () => void) {
             topologySeen.current = true;
             setInitialTopologyReady(true);
             setInitialForegroundSettled(true);
-            callback.current();
+            // The slice may have committed before its response or status read was lost.
+            pendingChanges.current = { topology: true, tasks: true };
+            flushChanges();
             setBusy(false);
             flight.current = null;
           }
@@ -116,6 +127,7 @@ export function useWorkspaceSync(accountId: string, onChanged: () => void) {
       ++generation.current;
       flight.current?.abort();
       flight.current = null;
+      pendingChanges.current = { topology: false, tasks: false };
       if (timer.current) clearTimeout(timer.current);
       document.removeEventListener('visibilitychange', visible);
     };

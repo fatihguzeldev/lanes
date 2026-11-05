@@ -48,7 +48,10 @@ import {
   type Prompt,
 } from '../../modules/operations/browser/submission/PromptDialog';
 import { useCommands } from '../../modules/operations/browser/submission/useCommands';
-import { useWorkspaceSync } from '../../modules/tasks/browser/sync/useWorkspaceSync';
+import {
+  useWorkspaceSync,
+  type SyncChanges,
+} from '../../modules/tasks/browser/sync/useWorkspaceSync';
 import {
   Confirmation,
   type ConfirmationChoice,
@@ -96,6 +99,8 @@ export function Workspace({
 }: WorkspaceProps) {
   const connection = useServerConnection();
   const [version, setVersion] = useState(0);
+  const [topologyVersion, setTopologyVersion] = useState(0);
+  const [localVersion, setLocalVersion] = useState(0);
   const [quick, setQuick] = useState<'all' | 'today' | 'starred'>('all');
   const templateDialog = useTemplateDialog();
   const templateDirty = templateDialog.dirty;
@@ -133,7 +138,11 @@ export function Workspace({
   const completion = useTaskCompletion();
   const taskMenu = useTaskMenu();
   const searchRef = useRef<HTMLInputElement>(null);
-  const changed = useCallback(() => setVersion((value) => value + 1), []);
+  const changed = useCallback(() => {
+    setVersion((value) => value + 1);
+    setTopologyVersion((value) => value + 1);
+    setLocalVersion((value) => value + 1);
+  }, []);
   const moveQueue = useTaskMoveQueue(account.id, {
     version,
     clockOffset,
@@ -159,14 +168,20 @@ export function Workspace({
   const movingTasks = moveQueue.busy;
   const commands = useCommands(account.id, clockOffset, changed);
   const repeatWork = useRecurrenceWork(account.id, account.state === 'connected', changed);
-  const syncChanged = useCallback(() => {
-    changed();
-    void repeatWork.run();
-  }, [changed, repeatWork.run]);
-  const sync = useWorkspaceSync(account.id, syncChanged);
+  const syncChanged = useCallback(
+    ({ topology, tasks }: SyncChanges) => {
+      if (topology) setTopologyVersion((value) => value + 1);
+      if (tasks) {
+        setVersion((value) => value + 1);
+        void repeatWork.run();
+      }
+    },
+    [repeatWork.run],
+  );
+  const sync = useWorkspaceSync(account.id, syncChanged, account.state === 'connected');
   const boardData = useBoardData({
     accountId: account.id,
-    version,
+    version: topologyVersion,
     retainedBoard: draftContext?.board ?? null,
     onNotice: setNotice,
   });
@@ -190,7 +205,7 @@ export function Workspace({
         ]
       : lists.items;
   const unfinished = useUnfinishedChanges(account.id, version);
-  const labels = useLabels(account.id, version);
+  const labels = useLabels(account.id, localVersion);
   const activeFilter = useMemo<TaskFilter>(
     () => ({
       ...filter,
