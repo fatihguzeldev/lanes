@@ -910,6 +910,7 @@
   .task-editor__title {
     min-height: var(--control-size);
     padding-right: calc(var(--control-size) + 4px);
+    padding-block: max(0px, calc((var(--control-size) - 1lh) / 2));
   }
   .task-editor__close {
     top: 0;
