@@ -26,6 +26,7 @@ export function useBoardManagement(
     onChanged(): void;
     onNotice(message: string): void;
     onInspect(id: string): void;
+    onMoved?: ((taskId: string) => void) | undefined;
     onBoardDraftChange?: ((dirty: boolean) => void) | undefined;
     onListDraftChange?: ((dirty: boolean) => void) | undefined;
   },

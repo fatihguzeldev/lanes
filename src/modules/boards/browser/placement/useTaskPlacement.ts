@@ -20,6 +20,7 @@ export function useTaskPlacement(options: {
   onChanged(): void;
   onNotice(message: string): void;
   onInspect(id: string): void;
+  onMoved?: ((taskId: string) => void) | undefined;
 }) {
   const [selection, setSelection] = useState<{
     task: Task;
@@ -35,6 +36,8 @@ export function useTaskPlacement(options: {
   const commands = useCommands(options.account.id, options.clockOffset, options.onChanged);
   const connection = useServerConnection();
   const flight = useRef(false);
+  const moved = useRef(options.onMoved);
+  moved.current = options.onMoved;
   const selectedId = selection?.task.id ?? null;
   useEffect(() => {
     setSource(null);
@@ -89,6 +92,7 @@ export function useTaskPlacement(options: {
         setAttempt(null);
         setSelection(null);
         commands.clearError();
+        moved.current?.(captured.taskId);
       } else
         options.onNotice('this move has not been confirmed. check its save from the sync menu.');
     } finally {
