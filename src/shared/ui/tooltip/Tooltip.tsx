@@ -22,19 +22,25 @@ export function Tooltip({ label, children }: { label: string; children: ReactEle
         return;
       }
       const view = readViewport();
+      const styles = getComputedStyle(tooltip);
+      const gutter = parseFloat(styles.getPropertyValue('--floating-gutter')) || 12;
+      const safe = (side: string) =>
+        Math.max(0, parseFloat(styles.getPropertyValue(`--safe-${side}`)) || 0);
+      const leftEdge = view.left + safe('left') + gutter;
+      const rightEdge = view.left + view.width - safe('right') - gutter;
+      const topEdge = view.top + safe('top') + gutter;
+      const bottomEdge = view.top + view.height - safe('bottom') - gutter;
       const bounds = anchor.getBoundingClientRect();
-      tooltip.style.maxWidth = `${Math.max(0, view.width - 24)}px`;
+      tooltip.style.maxWidth = `${Math.max(0, rightEdge - leftEdge)}px`;
+      tooltip.style.maxHeight = `${Math.max(0, bottomEdge - topEdge)}px`;
       const size = tooltip.getBoundingClientRect();
       const left = Math.max(
-        view.left + 12,
-        Math.min(
-          bounds.left + (bounds.width - size.width) / 2,
-          view.left + view.width - size.width - 12,
-        ),
+        leftEdge,
+        Math.min(bounds.left + (bounds.width - size.width) / 2, rightEdge - size.width),
       );
       const above = bounds.top - size.height - 7;
       tooltip.style.left = `${left}px`;
-      tooltip.style.top = `${Math.max(view.top + 12, Math.min(above >= view.top + 12 ? above : bounds.bottom + 7, view.top + view.height - size.height - 12))}px`;
+      tooltip.style.top = `${Math.max(topEdge, Math.min(above >= topEdge ? above : bounds.bottom + 7, bottomEdge - size.height))}px`;
     };
     tooltip.showPopover();
     const escape = (event: KeyboardEvent) => {

@@ -13,5 +13,6 @@
   box-shadow: var(--shadow);
   font: 12px/1.4 var(--font);
   overflow-wrap: anywhere;
+  overflow: auto;
   pointer-events: none;
 }

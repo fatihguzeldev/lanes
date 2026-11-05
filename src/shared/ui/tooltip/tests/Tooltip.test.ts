@@ -32,6 +32,7 @@ class Element {
   open = false;
   attributes = new Map<string, string>();
   style = { maxWidth: '', left: '', top: '' };
+  bounds = { left: 20, right: 120, top: 5, bottom: 33, width: 100, height: 28 };
   focus = vi.fn();
   setAttribute(key: string, value: string) {
     this.attributes.set(key, value);
@@ -52,7 +53,7 @@ class Element {
     return [{}];
   }
   getBoundingClientRect() {
-    return { left: 20, right: 40, top: 5, bottom: 25, width: 100, height: 28 };
+    return this.bounds;
   }
   showPopover() {
     this.open = true;
@@ -80,6 +81,9 @@ describe('control tooltips', () => {
     state.setOpen.mockClear();
     vi.stubGlobal('window', new EventTarget());
     vi.stubGlobal('document', new EventTarget());
+    vi.stubGlobal('getComputedStyle', () => ({
+      getPropertyValue: (name: string) => (name === '--floating-gutter' ? '12px' : '0px'),
+    }));
     vi.stubGlobal(
       'ResizeObserver',
       class {
@@ -139,5 +143,24 @@ describe('control tooltips', () => {
     cleanup = undefined;
     expect(anchor.getAttribute('aria-describedby')).toBe('validation extra');
     expect(panel.open).toBe(false);
+  });
+
+  it('keeps labels inside the safe area and shared floating gutter', () => {
+    const tokens: Record<string, string> = {
+      '--floating-gutter': '16px',
+      '--safe-left': '44px',
+      '--safe-right': '21px',
+      '--safe-top': '10px',
+      '--safe-bottom': '34px',
+    };
+    vi.stubGlobal('getComputedStyle', () => ({
+      getPropertyValue: (name: string) => tokens[name] ?? '',
+    }));
+    const { anchor, panel } = render(true);
+    anchor.bounds = { left: 260, right: 304, top: 450, bottom: 494, width: 44, height: 44 };
+    cleanup = state.effects.at(-1)!() || undefined;
+    expect(panel.style.maxWidth).toBe('223px');
+    expect(panel.style.left).toBe('183px');
+    expect(panel.style.top).toBe('402px');
   });
 });
