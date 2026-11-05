@@ -1,4 +1,5 @@
 .task-card {
+  container: task-card / inline-size;
   position: relative;
   margin: 0 12px;
   border-bottom: 1px solid var(--fine, #e5e4dc);
@@ -199,6 +200,8 @@
   line-height: 16px;
   color: var(--ink, #30392f);
   background: color-mix(in srgb, var(--task-label-color, #9cae7b) 16%, var(--paper, #fdfbf6));
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 .task-card__label i {
   width: 4px;
@@ -323,7 +326,7 @@
 }
 .task-card--row .task-card__main {
   display: grid;
-  grid-template-columns: minmax(180px, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(0, auto);
   gap: 0 20px;
   align-items: start;
 }
@@ -353,7 +356,7 @@
     opacity: 1;
   }
 }
-@media (max-width: 700px) {
+@container task-card (max-width: 600px) {
   .task-card--row .task-card__main {
     display: block;
   }
@@ -375,6 +378,70 @@
   }
   .task-card__child-title {
     font-size: 13px;
+  }
+}
+@media (pointer: coarse) {
+  .task-card__main {
+    padding-block: 4px;
+  }
+  .task-card__top {
+    padding-right: 36px;
+  }
+  .task-card__title,
+  .task-card__child-title {
+    display: flex;
+    align-items: center;
+    min-height: var(--control-size);
+  }
+  .task-card .task-card__check {
+    position: relative;
+    width: var(--control-size);
+    height: var(--control-size);
+    flex: 0 0 var(--control-size);
+    margin: 0;
+    border: 0;
+    background: transparent;
+  }
+  .task-card .task-card__check:hover:not(:disabled) {
+    background: transparent;
+  }
+  .task-card__check::before {
+    content: '';
+    position: absolute;
+    inset: 14px;
+    border: 1.25px solid var(--check-border);
+    border-radius: 4px;
+    background: var(--paper);
+  }
+  .task-card__check--completed::before {
+    border-color: var(--green);
+    background: var(--green);
+  }
+  .task-card__check > .icon {
+    position: relative;
+  }
+  .task-card .task-card__menu {
+    width: var(--control-size);
+    height: var(--control-size);
+    flex: none;
+    margin: 0;
+    right: -8px;
+  }
+  .task-card__notes,
+  .task-card__meta,
+  .task-card__parent,
+  .task-card__context-label,
+  .task-card__children {
+    margin-left: calc(var(--control-size) + 8px);
+  }
+  .task-card__subtasks-toggle {
+    min-height: var(--control-size);
+    padding-inline: 8px;
+  }
+  @container task-card (max-width: 600px) {
+    .task-card--row .task-card__meta {
+      margin-left: calc(var(--control-size) + 8px);
+    }
   }
 }
 @media (prefers-reduced-motion: reduce) {
