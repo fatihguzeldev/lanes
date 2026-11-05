@@ -21,6 +21,8 @@ create ordinary tasks inline in their destination list. a title and enter are su
 
 open a task in its row, with its title selected for editing and notes immediately available. schedule, metadata, dependencies, and checklist controls reveal their own fields when requested. keep a retained non-modal editor when its card is outside the current view; changing presentation must not remount its draft or abandon a submitted save. closing or navigating away still applies the unsent-draft guard.
 
+clicking outside an editor requests the same close as its close control. clicks in its nested menus or an open dialog do not discard the editor. icon-only detail actions show their meaning on hover and keyboard focus, in addition to their accessible names.
+
 task menus contain secondary actions. completion remains on the task's checkbox rather than a duplicate menu item. show each row's options control on hover or keyboard focus, and keep it available on devices without hover.
 
 - require a nonblank title, at most 1,024 characters. trim outer whitespace when the owner submits it. notes allow up to 8,192 characters and preserve line breaks.

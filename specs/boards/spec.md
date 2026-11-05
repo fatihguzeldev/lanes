@@ -22,7 +22,7 @@ google has no board entity. creating, renaming, styling, or deleting an empty bo
 
 create a blank board with a nonblank title of at most 128 characters. an optional emoji and appearance do not affect identity. duplicate names are allowed, and actions must distinguish boards by identity and account.
 
-add a board in the navigation, without opening a dialog. prefill `new board` and select the name when the entry opens, so typing replaces it. enter submits and escape closes the entry. retain the draft across ordinary navigation rendering and background reads. closing the entry does not cancel an already submitted operation. an ambiguous retry keeps its original name and receipt identity; a confirmed save clears the entry.
+add a board in the navigation, without opening a dialog. open an empty name field without placeholder text or an approval button. enter or leaving a nonblank field creates the board; leaving an empty field closes it without creating anything. escape discards the unsubmitted entry. retain the draft across ordinary navigation rendering and background reads. blur and enter cannot submit twice. closing the entry does not cancel an already submitted operation. a failed save retains the name; an ambiguous retry keeps its original name and receipt identity. a confirmed save clears the entry.
 
 rename or reorder a board without changing its lists or tasks. new boards append after existing boards. persist account-owned ordering on the server so another browser sees the same organization.
 
@@ -55,6 +55,8 @@ this deliberately differs from tasksboard, whose [board deletion](https://suppor
 task and list menus open beside their trigger. changing a view, filtering, and sorting preserve the current account and make their scope explicit. keep account controls and synchronization separate from board actions; adding a list belongs beside the board's columns.
 
 browse task destinations through anchored board and list menus. placement submenus retain first, last, after-sibling, and eligible parent choices without a form. request further boards, lists, or task pages only when needed; a partial page does not prove that no destination exists. the task command keeps the selected source, list, parent, and sibling revisions, while its receipt controller remains mounted after the menu closes.
+
+move actions reveal their destination submenu beside the hovered action. moving the pointer into that submenu keeps it open. keyboard navigation and a touch activation expose the same destinations. hide the destination choices until that action is opened, and flip or constrain a submenu at the viewport edge.
 
 show exact task counts only when the query and provider coverage establish the total. omit an unknown count instead of displaying a lower bound with `+`. hide empty completed sections; a section that has not been queried is not evidence that no completed tasks exist.
 
@@ -117,4 +119,4 @@ read/write conflicts, missing destinations, and local storage failures keep conf
 - `boards-11`: delayed initial reads reveal the selected workspace together; stale readiness from an earlier account, list set, or refresh generation cannot reveal it early.
 - `boards-12`: a paused or failed initial refresh exposes recovery; later background refreshes retain the revealed workspace and do not require unloaded list pages.
 - `boards-13`: a returning connected account reveals its retained workspace after the current local read batch settles, even while provider coverage is partial. a first connection does not flash an empty board before topology is known.
-- `boards-14`: adding a board edits a selected default name inline in navigation; background reads preserve its draft and ambiguous saves retain the original receipt identity.
+- `boards-14`: adding a board uses an empty inline name; enter or leaving a nonblank field submits once, leaving a blank field creates nothing, and failed or ambiguous saves retain their draft and receipt identity.
