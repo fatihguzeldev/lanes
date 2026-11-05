@@ -31,6 +31,15 @@
   --shadow: 0 3px 12px #0000000a;
   --font: 'DM Sans', sans-serif;
   --workspace-padding: 24px;
+  --control-size: 30px;
+  --field-height: 34px;
+  --field-font-size: 13px;
+  --panel-padding: 20px;
+  --floating-gutter: 12px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
 }
 :root[data-theme='dark'] {
   color-scheme: dark;
@@ -131,6 +140,14 @@ textarea {
 @media (max-width: 560px) {
   :root {
     --workspace-padding: 16px;
+    --panel-padding: 16px;
+  }
+}
+@media (pointer: coarse) {
+  :root {
+    --control-size: 44px;
+    --field-height: 44px;
+    --field-font-size: 16px;
   }
 }
 @media (prefers-reduced-motion: reduce) {

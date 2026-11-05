@@ -58,6 +58,8 @@ google ids are scoped to a connected account. task references also carry the lis
 
 all scoped actions must be available with a keyboard. drag and drop has a menu or keyboard equivalent. interactive controls have accessible names, visible focus, and understandable disabled and error states. color is not the only way to communicate priority, blocking, account state, or failure.
 
+the workspace must remain usable at 320 css pixels and when available space changes through zoom or input. controls, drafts, and actions stay reachable. horizontal scrolling belongs to an explicit board canvas, calendar grid, or data comparison region; other content reflows within its surface. see [design](../agents/design.md) for the responsive layout and input rules.
+
 use confirmation for destructive list/task deletion and for completing a blocked task. name the affected resource and consequence. board deletion explains that its lists move to the main board. routine edits do not need an approval dialog.
 
 render task content as text. notes do not execute html or markdown. external links may open safely, but lanes does not fetch attachments or implement the excluded drive features.
