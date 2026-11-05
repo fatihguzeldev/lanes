@@ -109,6 +109,8 @@ describe('cascading submenu interaction', () => {
   it('keeps a hovered cascade open when the mouse clicks its trigger', () => {
     const menu = mount();
     menu.wrapper.props.onPointerEnter(pointer());
+    expect(menu.trigger.props.popoverTarget).toBe((menu.panel as UI).props.id);
+    expect(menu.trigger.props.popoverTargetAction).toBe('show');
     menu.trigger.props.onClick({ detail: 1 });
     expect(menu.trigger.props['aria-expanded']).toBe(true);
   });
@@ -124,6 +126,7 @@ describe('cascading submenu interaction', () => {
     expect(menu.trigger.props['aria-expanded']).toBe(true);
     menu.trigger.props.onClick({ detail: 1 });
     expect(menu.trigger.props['aria-expanded']).toBe(false);
+    expect(menu.trigger.props.popoverTarget).toBeUndefined();
   });
 
   it('opens with Right and returns focus with Left without closing its parent', () => {

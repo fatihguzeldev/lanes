@@ -67,6 +67,8 @@ export function Submenu(props: Props) {
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-controls={open ? id : undefined}
+        popoverTarget={open ? id : undefined}
+        popoverTargetAction="show"
         disabled={props.disabled}
         onPointerDown={(event) => {
           pointerType.current = event.pointerType;
