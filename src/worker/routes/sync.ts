@@ -12,7 +12,7 @@ export async function syncRoute(
   services: Pick<Services, 'sync' | 'boards' | 'access'>,
   db: D1Database,
 ): Promise<Response | null> {
-  const { request, route, account } = context;
+  const { request, route, account, url } = context;
   const accountId = account.id;
   const { sync, boards } = services;
   if (route.length === 4 && route[3] === 'sync' && request.method === 'POST') {
@@ -30,9 +30,9 @@ export async function syncRoute(
       ...(input.visibleListIds ? { visibleListIds: input.visibleListIds } : {}),
     });
     const result = await sync.advance(accountId);
-    if ((await sync.getStatus(accountId)).initialized)
-      await services.access.markWorkspaceInitialized(accountId);
-    return jsonResponse(result);
+    const status = await sync.getStatus(accountId);
+    if (status.initialized) await services.access.markWorkspaceInitialized(accountId);
+    return jsonResponse(url.searchParams.get('status') === '1' ? { ...result, status } : result);
   }
   if (
     route.length === 5 &&
@@ -42,9 +42,9 @@ export async function syncRoute(
   ) {
     await readJson(request, z.object({}).strict());
     const result = await sync.advance(accountId);
-    if ((await sync.getStatus(accountId)).initialized)
-      await services.access.markWorkspaceInitialized(accountId);
-    return jsonResponse(result);
+    const status = await sync.getStatus(accountId);
+    if (status.initialized) await services.access.markWorkspaceInitialized(accountId);
+    return jsonResponse(url.searchParams.get('status') === '1' ? { ...result, status } : result);
   }
   if (route.length === 4 && route[3] === 'sync' && request.method === 'GET')
     return jsonResponse(await sync.getStatus(accountId));

@@ -36,3 +36,6 @@ export const SyncStatusSchema = z
   })
   .strict();
 export type SyncStatus = z.infer<typeof SyncStatusSchema>;
+
+export const SyncStepSchema = SyncAdvanceSchema.extend({ status: SyncStatusSchema });
+export type SyncStep = z.infer<typeof SyncStepSchema>;
