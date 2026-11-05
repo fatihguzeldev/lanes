@@ -114,6 +114,7 @@ export function Workspace({
   const [navOpen, setNavOpen] = useState(false);
   const historyDialog = useHistoryDialog();
   const [inlineDirty, setInlineDirty] = useState(false);
+  const [boardCreationDirty, setBoardCreationDirty] = useState(false);
   const [draftContext, setDraftContext] = useState<{ board: Board; lists: BoardList[] } | null>(
     null,
   );
@@ -221,13 +222,15 @@ export function Workspace({
     !['disconnecting', 'disconnected'].includes(account.state) && connection === 'reachable';
   const guard = useCallback(
     (action: () => void) => {
-      if (editorDirty || templateDirty || transferDirty || inlineDirty) setDiscard(() => action);
+      if (editorDirty || templateDirty || transferDirty || inlineDirty || boardCreationDirty)
+        setDiscard(() => action);
       else action();
     },
-    [editorDirty, templateDirty, transferDirty, inlineDirty],
+    [editorDirty, templateDirty, transferDirty, inlineDirty, boardCreationDirty],
   );
   const guardAccount = (action: () => void) => {
-    if (movingTasks) setNotice('wait for your task moves to finish before leaving this account.');
+    if (movingTasks || boardManagement.placement.busy)
+      setNotice('wait for your task moves to finish before leaving this account.');
     else guard(action);
   };
   const submit = async (
@@ -249,7 +252,14 @@ export function Workspace({
       );
     return false;
   };
-  const boardManagement = useBoardManagement(board, submit, setPrompt);
+  const boardManagement = useBoardManagement(board, submit, setPrompt, {
+    account,
+    clockOffset,
+    onChanged: changed,
+    onNotice: setNotice,
+    onInspect: inspection.inspect,
+    onBoardDraftChange: setBoardCreationDirty,
+  });
   useEffect(() => {
     const timer = setTimeout(() => setSearch(query), 220);
     return () => clearTimeout(timer);
@@ -259,14 +269,30 @@ export function Workspace({
   }, [sync.status?.initialized, onAccountsChanged]);
   useEffect(() => {
     const unload = (event: BeforeUnloadEvent) => {
-      if (editorDirty || templateDirty || transferDirty || inlineDirty || movingTasks) {
+      if (
+        editorDirty ||
+        templateDirty ||
+        transferDirty ||
+        inlineDirty ||
+        boardCreationDirty ||
+        movingTasks ||
+        boardManagement.placement.busy
+      ) {
         event.preventDefault();
         event.returnValue = '';
       }
     };
     window.addEventListener('beforeunload', unload);
     return () => window.removeEventListener('beforeunload', unload);
-  }, [editorDirty, templateDirty, transferDirty, inlineDirty, movingTasks]);
+  }, [
+    editorDirty,
+    templateDirty,
+    transferDirty,
+    inlineDirty,
+    boardCreationDirty,
+    movingTasks,
+    boardManagement.placement.busy,
+  ]);
   useEffect(() => {
     const key = (event: KeyboardEvent) => {
       if (
@@ -336,7 +362,12 @@ export function Workspace({
       inert={!revealed}
       aria-busy={!revealed || undefined}
     >
-      {!revealed && <WorkspaceSkeleton theme={theme} />}
+      {!revealed && (
+        <WorkspaceSkeleton
+          theme={theme}
+          accountInitial={Array.from(account.displayName.trim())[0] ?? '?'}
+        />
+      )}
       <WorkspaceNavigation
         navigation={navigation}
         open={navOpen}
@@ -354,10 +385,8 @@ export function Workspace({
           selectedBoardId:
             quick === 'all' && !(searchScope === 'account' && search) ? (board?.id ?? null) : null,
           writable: localWritable,
-          onCreate: () => {
-            setNavOpen(false);
-            boardManagement.createBoard();
-          },
+          creation: boardManagement.creation,
+          onCreate: boardManagement.createBoard,
           onSelect: (item) =>
             guard(() => {
               boardData.selectBoard(item);
@@ -440,7 +469,14 @@ export function Workspace({
                 }}
                 connected={account.state === 'connected'}
                 reachable={connection === 'reachable'}
-                busy={sync.busy || commands.busy || repeatWork.busy || movingTasks}
+                busy={
+                  sync.busy ||
+                  commands.busy ||
+                  repeatWork.busy ||
+                  movingTasks ||
+                  boardManagement.placement.busy ||
+                  boardManagement.creation.busy
+                }
                 error={sync.error}
                 status={sync.status}
                 onRefresh={() =>
@@ -721,6 +757,7 @@ export function Workspace({
                   const next = discard;
                   setDiscard(null);
                   setInlineDirty(false);
+                  boardManagement.creation.discard();
                   setResetInlineDrafts((value) => value + 1);
                   templateDialog.setDirty(false);
                   transferDialog.setDirty(false);
@@ -744,8 +781,7 @@ export function Workspace({
         }}
         onOpen={openTask}
         onDuplicate={(task) => boardManagement.duplicateTask(task, board?.id ?? '')}
-        onMove={boardManagement.moveTask}
-        onToggleComplete={(task) => void toggleComplete(task, !task.completed)}
+        onMove={(task, anchor) => guard(() => boardManagement.moveTask(task, anchor))}
         onDelete={(task) => void deleteTask(task)}
       />
       {accountLifecycleOpen && (
