@@ -32,6 +32,7 @@ export function TaskEditorSurface({ accountId, taskId, children }: Props) {
   );
   const opener = useRef<HTMLElement | null>(origin?.element ?? null);
   const keyboard = useRef(origin?.keyboard ?? false);
+  const returnFocus = useRef(true);
   useLayoutEffect(() => {
     if (!host) return;
     host.className = 'task-editor-surface';
@@ -51,21 +52,24 @@ export function TaskEditorSurface({ accountId, taskId, children }: Props) {
     observer.observe(document.body, { childList: true, subtree: true });
     const onKey = () => {
       keyboard.current = true;
+      returnFocus.current = true;
     };
-    const onPointer = () => {
+    const onPointer = (event: PointerEvent) => {
       keyboard.current = false;
+      returnFocus.current = event.target instanceof Node && host.contains(event.target);
     };
-    host.addEventListener('keydown', onKey, true);
-    host.addEventListener('pointerdown', onPointer, true);
+    const capture = { capture: true };
+    host.addEventListener('keydown', onKey, capture);
+    document.addEventListener('pointerdown', onPointer, capture);
     return () => {
       stopViewport();
       observer.disconnect();
-      host.removeEventListener('keydown', onKey, true);
-      host.removeEventListener('pointerdown', onPointer, true);
+      host.removeEventListener('keydown', onKey, capture);
+      document.removeEventListener('pointerdown', onPointer, capture);
       host.remove();
       const target = opener.current;
       queueMicrotask(() => {
-        if (target && document.activeElement === document.body)
+        if (returnFocus.current && target && document.activeElement === document.body)
           restoreFocus(target, keyboard.current);
       });
     };

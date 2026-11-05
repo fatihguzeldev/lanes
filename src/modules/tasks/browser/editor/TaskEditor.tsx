@@ -26,6 +26,7 @@ import { TaskRecurrence } from './TaskRecurrence';
 import { TaskDependants } from './TaskDependants';
 import { Select } from '../../../../shared/ui/select/Select';
 import { Tooltip } from '../../../../shared/ui/tooltip/Tooltip';
+import { useOutsideDismiss } from '../../../../shared/ui/dismiss/useOutsideDismiss';
 import './TaskEditor.css';
 
 const title = (task: Task) => task.title.trim() || 'untitled task';
@@ -44,6 +45,7 @@ export function TaskEditor(props: TaskEditorProps) {
 }
 function EditorForm(props: TaskEditorProps) {
   const uid = useId();
+  const surface = useRef<HTMLElement>(null);
   const titleInput = useRef<HTMLTextAreaElement>(null);
   const notesInput = useRef<HTMLTextAreaElement>(null);
   const [snapshot, setSnapshot] = useState(() => ({
@@ -77,6 +79,7 @@ function EditorForm(props: TaskEditorProps) {
   >(null);
   const task = snapshot.task,
     pending = props.pending ?? false;
+  useOutsideDismiss(surface, props.onClose, { enabled: !pending || !!props.submitted });
   const dirty = editorDraftIsDirty(draft, task, options);
   const contextChanged =
     props.accountId !== snapshot.accountId ||
@@ -286,6 +289,7 @@ function EditorForm(props: TaskEditorProps) {
 
   return (
     <section
+      ref={surface}
       className="task-editor-panel"
       aria-label={task ? 'edit task' : snapshot.parent ? 'new subtask' : 'new task'}
     >

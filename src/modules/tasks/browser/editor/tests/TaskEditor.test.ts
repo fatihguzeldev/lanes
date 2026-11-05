@@ -1,9 +1,14 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { useOutsideDismiss } from '../../../../../shared/ui/dismiss/useOutsideDismiss';
 import { TaskSchema } from '../../../contracts/task';
 import { TaskEditor } from '../TaskEditor';
 import type { TaskEditorProps } from '../editor-contract';
+
+vi.mock('../../../../../shared/ui/dismiss/useOutsideDismiss', () => ({
+  useOutsideDismiss: vi.fn(),
+}));
 
 const task = TaskSchema.parse({
   id: 'task',
@@ -96,5 +101,24 @@ describe('direct task editing', () => {
     const html = render({ task: { ...task, parentId: 'parent' } });
     expect(html).not.toContain('aria-label="checklist"');
     expect(html).toContain('aria-label="dependencies"');
+  });
+
+  it('delegates an outside click to the supplied guarded close action', () => {
+    const onClose = vi.fn();
+    render({ onClose });
+    const dismissal = vi.mocked(useOutsideDismiss).mock.calls.at(-1);
+    expect(dismissal?.[2]?.enabled).toBe(true);
+    dismissal?.[1]();
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it('keeps an initial save admission open until its receipt is captured', () => {
+    render({ pending: true, submitted: false });
+    expect(vi.mocked(useOutsideDismiss).mock.calls.at(-1)?.[2]?.enabled).toBe(false);
+  });
+
+  it('allows closing after a pending save has a captured receipt', () => {
+    render({ pending: true, submitted: true });
+    expect(vi.mocked(useOutsideDismiss).mock.calls.at(-1)?.[2]?.enabled).toBe(true);
   });
 });
