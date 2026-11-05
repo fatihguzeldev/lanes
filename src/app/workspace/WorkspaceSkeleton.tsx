@@ -1,5 +1,6 @@
 import './WorkspaceNavigation.css';
 import './WorkspaceToolbar.css';
+import '../../modules/accounts/browser/identity/AccountMenu.css';
 import { Skeleton } from '../../shared/ui/skeleton/Skeleton';
 import { Brand } from '../../shared/ui/brand/Brand';
 import { Icon } from '../../shared/ui/icon/Icon';
@@ -9,7 +10,13 @@ import type { ResolvedTheme } from '../theme/theme';
 import './Workspace.css';
 import './WorkspaceSkeleton.css';
 
-export function WorkspaceSkeleton({ theme = 'light' }: { theme?: ResolvedTheme }) {
+export function WorkspaceSkeleton({
+  theme = 'light',
+  accountInitial = null,
+}: {
+  theme?: ResolvedTheme;
+  accountInitial?: string | null;
+}) {
   return (
     <div
       className="workspace workspace-skeleton"
@@ -17,54 +24,56 @@ export function WorkspaceSkeleton({ theme = 'light' }: { theme?: ResolvedTheme }
       aria-label="loading workspace"
       aria-busy="true"
     >
-      <aside className="workspace__sidebar" aria-hidden="true">
+      <aside className="workspace__sidebar" aria-hidden="true" inert>
         <Brand />
-        <div className="workspace__navigation">
-          <div>
+        <nav className="workspace__navigation">
+          <button type="button" tabIndex={-1}>
             <Icon name="sun" size={16} />
             today
-          </div>
-          <div>
+          </button>
+          <button type="button" tabIndex={-1}>
             <Icon name="star" size={16} />
             starred
-          </div>
-        </div>
+          </button>
+        </nav>
         <BoardNavigationSkeleton />
       </aside>
-      <main className="workspace__main" aria-hidden="true">
+      <main className="workspace__main" aria-hidden="true" inert>
         <header className="workspace__topbar">
           <div className="workspace__title">
-            <span className="workspace__mobile-menu">
+            <button type="button" tabIndex={-1} className="workspace__mobile-menu">
               <Icon name="menu" />
-            </span>
-            <Skeleton className="workspace-skeleton__title" />
-            <span className="workspace__icon-button">
+            </button>
+            <h1>
+              <Skeleton className="workspace-skeleton__title" />
+            </h1>
+            <button type="button" tabIndex={-1} className="workspace__icon-button">
               <Icon name="more" />
-            </span>
+            </button>
           </div>
           <div className="workspace__search-controls">
-            <span className="workspace__search">
+            <label className="workspace__search">
               <Icon name="search" size={16} />
-              <span className="workspace-skeleton__search-label">search tasks</span>
+              <input placeholder="search tasks" readOnly tabIndex={-1} />
               <kbd>/</kbd>
-            </span>
-            <span className="workspace__icon-button">
+            </label>
+            <button type="button" tabIndex={-1} className="workspace__icon-button">
               <Icon name="filter" size={16} />
-            </span>
+            </button>
           </div>
           <div className="workspace__global-controls">
-            <span className="workspace__icon-button">
+            <button type="button" tabIndex={-1} className="workspace__icon-button">
               <Icon name="cloud" />
-            </span>
-            <span className="workspace__icon-button">
+            </button>
+            <button type="button" tabIndex={-1} className="workspace__icon-button">
               <Icon name={theme === 'dark' ? 'sun' : 'moon'} />
-            </span>
-            <span className="workspace__icon-button">
+            </button>
+            <button type="button" tabIndex={-1} className="workspace__icon-button">
               <Icon name="settings" />
-            </span>
-            <span className="workspace__icon-button workspace__account-trigger">
-              <span className="workspace__avatar" />
-            </span>
+            </button>
+            <button type="button" tabIndex={-1} className="account-menu__trigger">
+              <span className="account-menu__avatar">{accountInitial}</span>
+            </button>
           </div>
         </header>
         <div className="board-surface">

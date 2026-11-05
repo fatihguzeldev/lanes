@@ -19,6 +19,7 @@ export function App() {
     pending,
     clockOffset,
     selected,
+    loadingInitial,
     load,
     selectAccount,
     signOut,
@@ -26,11 +27,19 @@ export function App() {
     loadMoreAccounts,
     dismissError,
   } = useOwnerSession(() => portabilityLanding()?.accountId ?? null);
-  if (!session && !error) return <WorkspaceSkeleton theme={resolvedTheme} />;
+  if (!session && !error)
+    return <WorkspaceSkeleton theme={resolvedTheme} accountInitial={loadingInitial} />;
   if (session?.authenticated && selected)
     return (
       <>
-        <Suspense fallback={<WorkspaceSkeleton theme={resolvedTheme} />}>
+        <Suspense
+          fallback={
+            <WorkspaceSkeleton
+              theme={resolvedTheme}
+              accountInitial={Array.from(selected.displayName.trim())[0] ?? '?'}
+            />
+          }
+        >
           <Workspace
             key={selected.id}
             account={selected}

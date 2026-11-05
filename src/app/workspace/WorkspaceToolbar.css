@@ -13,8 +13,10 @@
   align-items: center;
   gap: 8px;
   min-width: 0;
+  max-width: 220px;
 }
 .workspace__title h1 {
+  flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;

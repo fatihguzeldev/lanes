@@ -1,15 +1,14 @@
 import { Icon } from '../../../../shared/ui/icon/Icon';
 import { Skeleton } from '../../../../shared/ui/skeleton/Skeleton';
+import { TaskCardSkeleton } from '../../../tasks/browser/items/TaskCardSkeleton';
+import { InlineTaskCreatePlaceholder } from '../../../tasks/browser/creation/InlineTaskCreatePlaceholder';
 import './BoardSurface.css';
 
 export function ColumnSkeleton() {
   return (
     <div className="board-column__skeleton" aria-hidden="true">
       {[0, 1, 2].map((id) => (
-        <div className="board-column__skeleton-row" key={id}>
-          <span className="board-skeleton__check" />
-          <Skeleton className="board-skeleton__task-title" />
-        </div>
+        <TaskCardSkeleton key={id} />
       ))}
     </div>
   );
@@ -37,18 +36,20 @@ export function BoardSkeleton({
               <Icon name="more" size={16} />
             </span>
           </div>
-          <div className="board-column__skeleton-add">
-            <Icon name="plus" size={13} />
-            add a task
-          </div>
+          <InlineTaskCreatePlaceholder />
           <ColumnSkeleton />
         </div>
       ))}
       {showAddList && (
-        <span className="board-surface__add-list board-skeleton__add-list" aria-hidden="true">
+        <button
+          type="button"
+          tabIndex={-1}
+          className="board-surface__add-list board-skeleton__add-list"
+          aria-hidden="true"
+        >
           <Icon name="plus" size={14} />
           new list
-        </span>
+        </button>
       )}
     </div>
   );

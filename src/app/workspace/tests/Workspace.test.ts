@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import type { ConnectionSummary } from '../../../modules/accounts/contracts/connection';
 import { Workspace } from '../Workspace';
+import { WorkspaceSkeleton } from '../WorkspaceSkeleton';
 
 const account: ConnectionSummary = {
   id: 'account',
@@ -19,6 +20,15 @@ const account: ConnectionSummary = {
 const noop = () => {};
 
 describe('workspace loading shell', () => {
+  it('shows the retained initial without making loading controls interactive', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkspaceSkeleton, { accountInitial: 'F', theme: 'dark' }),
+    );
+    expect(html).toContain('aria-label="loading workspace" aria-busy="true"');
+    expect(html).toContain('class="workspace__main" aria-hidden="true" inert=""');
+    expect(html).toContain('<span class="account-menu__avatar">F</span>');
+    expect(html).toContain('placeholder="search tasks"');
+  });
   it('keeps the mounted workspace inert until its coherent initial reveal', () => {
     const html = renderToStaticMarkup(
       createElement(Workspace, {
