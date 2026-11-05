@@ -1,17 +1,6 @@
 .task-move-picker {
   width: 280px;
 }
-.task-move-picker__label {
-  padding: 7px 10px;
-  color: var(--secondary);
-  font-size: 11px;
-}
-.task-move-picker__back {
-  margin-bottom: 4px;
-  border-bottom: 1px solid var(--fine);
-  border-radius: 0;
-  color: var(--secondary);
-}
 .task-move-picker .popover__item > span {
   min-width: 0;
   overflow: hidden;
@@ -29,10 +18,13 @@
   flex: 1;
   min-width: 0;
 }
+.task-move-picker__destination > .submenu {
+  flex: 0 0 var(--control-size);
+}
 .task-move-picker__more {
   display: grid;
   place-items: center;
-  flex: 0 0 var(--control-size);
+  width: 100%;
   min-height: var(--control-size);
   padding: 0;
   border: 0;
@@ -40,9 +32,13 @@
   background: none;
   color: var(--secondary);
 }
-.task-move-picker__more:hover:not(:disabled) {
+.task-move-picker__more:hover:not(:disabled),
+.task-move-picker__more[aria-expanded='true'] {
   background: var(--paper-hover);
   color: var(--green);
+}
+.task-move-picker__destination .task-move-picker__more > .icon:last-child {
+  margin-left: 0;
 }
 .task-move-picker__more:disabled {
   opacity: 0.45;

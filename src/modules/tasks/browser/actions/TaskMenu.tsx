@@ -22,27 +22,30 @@ type Props = Omit<ComponentProps<typeof TaskOptions>, 'task' | 'anchor' | 'onClo
 };
 export function TaskMenu({ controller, ...props }: Props) {
   if (!controller.task || !controller.anchor) return null;
+  const close = () => {
+    props.onMoveClose?.();
+    controller.close();
+  };
   return (
     <TaskOptions
       {...props}
       task={controller.task}
       anchor={controller.anchor}
-      onClose={controller.close}
+      onClose={close}
       onHistory={(task) => {
         props.onHistory(task);
-        controller.close();
+        close();
       }}
       onOpen={(task) => {
         props.onOpen(task);
-        controller.close();
+        close();
       }}
       onDuplicate={(task) => {
         props.onDuplicate(task);
-        controller.close();
+        close();
       }}
       onMove={(task, anchor) => {
         props.onMove(task, anchor);
-        controller.close();
       }}
     />
   );

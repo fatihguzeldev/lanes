@@ -1,6 +1,8 @@
+import type { ReactNode } from 'react';
 import type { Task } from '../../contracts/task';
 import { Icon } from '../../../../shared/ui/icon/Icon';
 import { AnchoredPopover } from '../../../../shared/ui/popover/Popover';
+import { Submenu } from '../../../../shared/ui/submenu/Submenu';
 
 interface Props {
   task: Task;
@@ -17,6 +19,9 @@ interface Props {
   onOpen: (task: Task) => void;
   onDuplicate: (task: Task) => void;
   onMove: (task: Task, anchor: HTMLElement) => void;
+  moveOpen?: boolean;
+  moveMenu?: ReactNode;
+  onMoveClose?: () => void;
   onDelete: (task: Task) => void;
 }
 export function TaskOptions({
@@ -30,6 +35,9 @@ export function TaskOptions({
   onOpen,
   onDuplicate,
   onMove,
+  moveOpen,
+  moveMenu,
+  onMoveClose,
   onDelete,
 }: Props) {
   return (
@@ -75,15 +83,24 @@ export function TaskOptions({
           <Icon name="copy" size={16} />
           duplicate task
         </button>
-        <button
+        <Submenu
+          label="move task"
+          trigger={
+            <>
+              <Icon name="arrow" size={16} />
+              <span>move task</span>
+            </>
+          }
+          {...(moveOpen !== undefined ? { open: moveOpen } : {})}
+          className="task-move-picker"
           disabled={!writable || !task.capabilities.canMove}
-          onClick={() => {
-            onMove(task, anchor);
+          onOpenChange={(open, trigger) => {
+            if (open) onMove(task, trigger);
+            else onMoveClose?.();
           }}
         >
-          <Icon name="arrow" size={16} />
-          move task
-        </button>
+          {moveMenu}
+        </Submenu>
         <button
           className="danger"
           disabled={!writable || !task.capabilities.canDelete}
