@@ -38,15 +38,16 @@
   width: 100%;
   resize: vertical;
   border: 0;
-  border-radius: 4px;
+  border-radius: 0;
   outline-offset: 4px;
   background: transparent;
   color: var(--ink);
 }
 .task-editor__title {
+  width: calc(100% - var(--control-size) - 4px);
   min-height: 21px;
   max-height: 190px;
-  padding: 0 calc(var(--control-size) + 4px) 0 0;
+  padding: 0;
   resize: none;
   font-size: max(14px, var(--field-font-size));
   line-height: 1.5;
@@ -828,7 +829,9 @@
   background: transparent;
   color: var(--icon);
 }
-.task-editor__close:hover,
+.task-editor__close:hover {
+  color: var(--green);
+}
 .task-editor__tools button:hover {
   background: var(--paper-hover);
   color: var(--green);
@@ -909,7 +912,6 @@
   }
   .task-editor__title {
     min-height: var(--control-size);
-    padding-right: calc(var(--control-size) + 4px);
     padding-block: max(0px, calc((var(--control-size) - 1lh) / 2));
   }
   .task-editor__close {
@@ -967,6 +969,9 @@
   .task-editor:has(.task-editor__completion) > .task-editor__notes {
     margin-left: calc(var(--control-size) + 8px);
     width: calc(100% - var(--control-size) - 8px);
+  }
+  .task-editor:has(.task-editor__completion) > .task-editor__title {
+    width: calc(100% - 2 * var(--control-size) - 12px);
   }
   .task-editor-surface--detached
     .task-editor:has(.task-editor__completion)
