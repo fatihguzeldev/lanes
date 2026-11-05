@@ -1,0 +1,17 @@
+.tooltip {
+  display: contents;
+}
+.tooltip__panel {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--ink);
+  color: var(--paper);
+  box-shadow: var(--shadow);
+  font: 12px/1.4 var(--font);
+  overflow-wrap: anywhere;
+  pointer-events: none;
+}
