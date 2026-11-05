@@ -36,6 +36,7 @@ interface OldTask {
   provider_parent_id: string | null;
   parent_id: string | null;
   provider_etag: string | null;
+  provider_position: string | null;
   provider_updated_at: string | null;
   provider_hidden: number;
   title: string;
@@ -47,6 +48,7 @@ interface OldTask {
   time_zone: string | null;
   repeat_rule_json: string | null;
   revision: number;
+  provider_missing_at: number | null;
   deleted_at: number | null;
   unsupported_hierarchy: number;
   capabilities_json: string;
@@ -169,6 +171,35 @@ export class TaskProjectionStore {
     this.id = options.id ?? (() => crypto.randomUUID());
   }
 
+  private async hierarchyRepairChanges(
+    accountId: string,
+    listId: string,
+    roots: { providerId: string; id: string }[],
+    nestedIds: string[],
+  ): Promise<boolean> {
+    if (!roots.length && !nestedIds.length) return false;
+    const result = await this.db
+      .prepare(
+        `SELECT EXISTS(
+          SELECT 1 FROM tasks_tasks child JOIN json_each(?) parent
+          ON child.provider_parent_id=json_extract(parent.value,'$.providerId')
+          WHERE child.account_id=? AND child.list_id=?
+          AND child.id<>json_extract(parent.value,'$.id')
+          AND (child.parent_id IS NOT json_extract(parent.value,'$.id') OR child.unsupported_hierarchy=1)
+          AND child.deleted_at IS NULL AND child.provider_missing_at IS NULL
+          AND NOT EXISTS(SELECT 1 FROM tasks_tasks descendant WHERE descendant.account_id=child.account_id
+            AND descendant.parent_id=child.id AND descendant.deleted_at IS NULL)
+        ) OR EXISTS(
+          SELECT 1 FROM tasks_tasks child WHERE child.account_id=? AND child.list_id=?
+          AND child.parent_id IN(SELECT value FROM json_each(?))
+          AND child.deleted_at IS NULL AND child.unsupported_hierarchy=0
+        ) AS changed`,
+      )
+      .bind(JSON.stringify(roots), accountId, listId, accountId, listId, JSON.stringify(nestedIds))
+      .first<{ changed: number }>();
+    return result?.changed === 1;
+  }
+
   prepareCompletionCapture(
     accountId: string,
     taskId: string,
@@ -251,7 +282,7 @@ export class TaskProjectionStore {
     listId: string,
     records: GoogleTaskDTO[],
     options: ProjectionWriteOptions = {},
-  ): Promise<{ writes: D1PreparedStatement[]; taskIds: Map<string, string> }> {
+  ): Promise<{ writes: D1PreparedStatement[]; taskIds: Map<string, string>; changed: boolean }> {
     assertProjectionIdentity(accountId);
     assertProjectionIdentity(listId);
     if (records.length > 5)
@@ -323,6 +354,14 @@ export class TaskProjectionStore {
     const captures: D1PreparedStatement[] = [];
     const writes: D1PreparedStatement[] = [];
     const events: D1PreparedStatement[] = [];
+    let changed = await this.hierarchyRepairChanges(
+      accountId,
+      listId,
+      records
+        .filter((task) => !task.deleted && !task.parent)
+        .map((task) => ({ providerId: task.id, id: taskIds.get(task.id)! })),
+      records.filter((task) => !task.deleted && task.parent).map((task) => taskIds.get(task.id)!),
+    );
     const at = this.now();
     const scanId = options.scanId ?? this.id();
     // Children may arrive on a later destination page. Keep their provider parent reference
@@ -507,6 +546,7 @@ export class TaskProjectionStore {
       }
       if (task.deleted) {
         if (!old || old.deleted_at !== null) continue;
+        changed = true;
         writes.push(...this.retireTaskWrites(accountId, id, at));
         emit('task_deleted', {
           parentId: old.parent_id,
@@ -548,6 +588,31 @@ export class TaskProjectionStore {
       const title = task.title ?? '';
       const notes = task.notes ?? '';
       const cap = JSON.stringify(capabilities(task, unsupported));
+      const hidden = Number(
+        task.hidden ?? (Boolean(options.preserveMissingFields) && Boolean(old?.provider_hidden)),
+      );
+      changed ||= Boolean(
+        !old ||
+        old.deleted_at !== null ||
+        old.provider_missing_at !== null ||
+        old.list_id !== listId ||
+        old.provider_id !== task.id ||
+        old.provider_parent_id !== (task.parent ?? null) ||
+        old.provider_etag !== (task.etag ?? null) ||
+        old.provider_updated_at !== (task.updated ?? null) ||
+        old.provider_position !== (task.position ?? null) ||
+        old.provider_hidden !== hidden ||
+        old.title !== title ||
+        old.notes !== notes ||
+        old.completed !== Number(completed) ||
+        old.completed_at !== (task.completed ?? null) ||
+        old.scheduled_day !== day ||
+        old.parent_id !== parentId ||
+        old.capabilities_json !== cap ||
+        old.unsupported_hierarchy !== Number(unsupported) ||
+        (day === null && (old.scheduled_time !== null || old.time_zone !== null)) ||
+        ((day === null || task.parent !== undefined) && old.repeat_rule_json !== null),
+      );
       writes.push(
         this.db
           .prepare(
@@ -583,10 +648,7 @@ export class TaskProjectionStore {
             cap,
             Number(unsupported),
             options.scanId ?? null,
-            Number(
-              task.hidden ??
-                (Boolean(options.preserveMissingFields) && Boolean(old?.provider_hidden)),
-            ),
+            hidden,
           ),
       );
       if (!old && !options.baseline) emit('task_created', {});
@@ -636,7 +698,7 @@ export class TaskProjectionStore {
           )
           .bind(accountId, listId, taskIds.get(task.id)!),
       );
-    return { writes: [...captures, ...writes, ...events], taskIds };
+    return { writes: [...captures, ...writes, ...events], taskIds, changed };
   }
   retireTaskWrites(accountId: string, taskId: string, at: number): D1PreparedStatement[] {
     const affected = 'SELECT id FROM tasks_tasks WHERE account_id=? AND (id=? OR parent_id=?)';

@@ -37,5 +37,13 @@ export const SyncStatusSchema = z
   .strict();
 export type SyncStatus = z.infer<typeof SyncStatusSchema>;
 
+export const SyncChangesSchema = z.object({ topology: z.boolean(), tasks: z.boolean() }).strict();
+export type SyncChanges = z.infer<typeof SyncChangesSchema>;
+
 export const SyncStepSchema = SyncAdvanceSchema.extend({ status: SyncStatusSchema });
 export type SyncStep = z.infer<typeof SyncStepSchema>;
+
+export const SyncForegroundSchema = SyncStepSchema.extend({
+  changes: SyncChangesSchema,
+});
+export type SyncForeground = z.infer<typeof SyncForegroundSchema>;
