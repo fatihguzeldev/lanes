@@ -49,4 +49,16 @@ describe('popover placement', () => {
     expect(position.maxHeight).toBe(0);
     expect(position.top).toBe(12);
   });
+
+  it('uses the shared gutter for both placement and available space', () => {
+    expect(
+      placePopover(
+        { left: 290, right: 310, top: 160, bottom: 190 },
+        { width: 280, height: 700 },
+        { left: 0, top: 0, width: 320, height: 480 },
+        'start',
+        20,
+      ),
+    ).toEqual({ left: 20, top: 196, maxHeight: 264 });
+  });
 });

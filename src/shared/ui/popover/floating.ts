@@ -12,9 +12,9 @@ export function placePopover(
   panel: { width: number; height: number },
   viewport: ViewportRect,
   align: 'start' | 'end' = 'start',
+  margin = 12,
 ): { left: number; top: number; maxHeight: number } {
-  const margin = 12,
-    gap = 6;
+  const gap = 6;
   const right = viewport.left + viewport.width,
     bottom = viewport.top + viewport.height;
   const below = Math.max(0, bottom - anchor.bottom - gap - margin),

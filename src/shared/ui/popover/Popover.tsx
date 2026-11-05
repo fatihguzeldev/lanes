@@ -47,6 +47,7 @@ export function AnchoredPopover({
       }
       const viewport = readViewport();
       const styles = getComputedStyle(panel);
+      const gutter = parseFloat(styles.getPropertyValue('--floating-gutter')) || 12;
       const safe = (side: string) => parseFloat(styles.getPropertyValue(`--safe-${side}`)) || 0;
       const left = safe('left'),
         right = safe('right'),
@@ -58,9 +59,12 @@ export function AnchoredPopover({
         width: Math.max(0, viewport.width - left - right),
         height: Math.max(0, viewport.height - top - bottom),
       };
-      panel.style.setProperty('--floating-max-width', `${Math.max(0, usable.width - 24)}px`);
+      panel.style.setProperty(
+        '--floating-max-width',
+        `${Math.max(0, usable.width - 2 * gutter)}px`,
+      );
       const bounds = panel.getBoundingClientRect();
-      const next = placePopover(anchor.getBoundingClientRect(), bounds, usable, align);
+      const next = placePopover(anchor.getBoundingClientRect(), bounds, usable, align, gutter);
       panel.style.left = `${next.left}px`;
       panel.style.top = `${next.top}px`;
       panel.style.maxHeight = `${next.maxHeight}px`;
