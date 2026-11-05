@@ -16,6 +16,8 @@ refresh the selected account on initial workspace entry, explicit refresh, and r
 
 prioritize list inventory and the visible board's tasks. return cached projections promptly with their freshness and coverage. fetching another page must not hide already loaded content. after a confirmed mutation, update the affected projection and invalidate relevant queries rather than resyncing every account.
 
+an initialized workspace opens when its current local board and task reads settle; provider refresh continues behind it. combine progress and scheduling status in the foreground step response. coalesce read invalidations until a short refresh settles, or once per ten seconds during longer work. refresh board topology for list changes and task reads for task changes. provider sync does not invalidate local label definitions. a recurrence check with no advancement does not invalidate reads; a lost response may require a conservative reread because work could already have committed.
+
 retain the visible workspace while a refresh advances. show ordinary synchronization progress in one account-level control rather than repeated loading messages in every list. incomplete or failed refreshes must not report success. actionable failures remain available from that control or the affected action.
 
 do not continuously poll idle accounts. background reads serve tracked repeat occurrences and admitted work; they are bounded and fair across eligible accounts. there is no full-workspace real-time synchronization promise.
@@ -25,6 +27,8 @@ do not continuously poll idle accounts. background reads serve tracked repeat oc
 follow every required page token. a list inventory is complete only after all its pages succeed. track task coverage per list, including completed/hidden coverage, independently from the list inventory.
 
 use provider update filters where supported, with an overlap window and resource-version deduplication. query deleted, hidden, completed, and assigned states deliberately; default api filters are not a complete task inventory or history. commit a checkpoint only after its page's records are durably processed. interrupted page work is safe to replay.
+
+provider page size and reconciliation slice size are separate bounds. retain a validated provider page while bounded slices process it, and advance its provider token only after the entire page is committed. persist each slice's offset with its projection writes. discard a retained page if the local projection changed before it resumes. unchanged ordinary tasks may update scan coverage together; moved, deleted, recurring, assigned, and hierarchical tasks retain their reconciliation rules.
 
 the incremental update window overlaps the saved watermark by 120 seconds. an active account becomes eligible for a full task reconciliation after 30 minutes; this eligibility does not create a continuous idle-account poll.
 
@@ -136,3 +140,5 @@ measure cpu on the deployed free plan; waiting on google is not the whole cost. 
 - `sync-11`: an externally moved task with a verified unchanged provider id keeps its lanes identity, metadata, dependencies, and history across pages; stale source pages and live address collisions do not merge or recreate it.
 - `sync-12`: a move accepts an order-only provider change while rejecting changed content or hierarchy; lost responses retain the fresh dispatched version for recovery.
 - `sync-13`: confirmed moves schedule source and destination order reconciliation, and later positioning commands cannot capture stale sibling order before it completes.
+- `sync-14`: a returning workspace opens after its coherent local read batch while provider refresh remains pending. short refreshes coalesce invalidations, no-op recurrence checks do not repeat reads, and cancelled account generations cannot publish changes.
+- `sync-15`: a retained provider page resumes across bounded slices without advancing its cursor early. local revision changes discard the capture, failed commits retain its prior offset, and unchanged-page optimization preserves metadata and history semantics.
