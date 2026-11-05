@@ -31,7 +31,7 @@
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  padding-right: 12px;
+  padding-right: 24px;
 }
 .task-card__title,
 .task-card__child-title {
@@ -67,10 +67,6 @@
 .task-card:nth-child(3) .task-card__skeleton-title > .skeleton {
   width: 57%;
 }
-.task-card__title:hover,
-.task-card__child-title:hover {
-  color: var(--green, #3d5847);
-}
 .task-card__check {
   display: grid;
   place-items: center;
@@ -104,7 +100,7 @@
 .task-card__menu {
   position: absolute;
   top: 0;
-  right: -12px;
+  right: -2px;
   display: grid;
   place-items: center;
   width: 23px;
@@ -125,9 +121,6 @@
 .task-card__menu:focus-visible {
   opacity: 1;
   color: var(--green);
-}
-.task-card__menu:hover {
-  background: var(--paper-hover);
 }
 .task-card__star {
   margin-top: 3px;
@@ -323,6 +316,19 @@
 .task-card button:focus-visible {
   outline: 2px solid var(--green, #7a9569);
   outline-offset: 3px;
+}
+.task-card button.task-card__menu:focus-visible {
+  outline: none;
+}
+.task-card__menu:focus-visible:not([data-pointer-focus])::after {
+  content: '';
+  position: absolute;
+  bottom: 4px;
+  width: 14px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--focus);
+  pointer-events: none;
 }
 .task-card--row .task-card__main {
   display: grid;
