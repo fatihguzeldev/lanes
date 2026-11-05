@@ -79,6 +79,7 @@ describe('control tooltips', () => {
     state.effects.length = 0;
     state.setOpen.mockClear();
     vi.stubGlobal('window', new EventTarget());
+    vi.stubGlobal('document', new EventTarget());
     vi.stubGlobal(
       'ResizeObserver',
       class {
@@ -112,13 +113,19 @@ describe('control tooltips', () => {
     props.onFocus!({ target: anchor });
     expect(state.setOpen).not.toHaveBeenCalled();
   });
-  it('lets Escape dismiss the tooltip before the editor', () => {
-    const { props } = render(true);
-    const event = { key: 'Escape', preventDefault: vi.fn(), stopPropagation: vi.fn() };
-    props.onKeyDownCapture!(event);
+  it('dismisses a hovered tooltip before Escape reaches an editor field outside its trigger', () => {
+    render(true);
+    cleanup = state.effects.at(-1)!() || undefined;
+    const event = new Event('keydown', { cancelable: true });
+    Object.defineProperties(event, {
+      key: { value: 'Escape' },
+      target: { value: new Element() },
+    });
+    const stopped = vi.spyOn(event, 'stopPropagation');
+    document.dispatchEvent(event);
     expect(state.setOpen).toHaveBeenCalledWith(false);
-    expect(event.preventDefault).toHaveBeenCalledOnce();
-    expect(event.stopPropagation).toHaveBeenCalledOnce();
+    expect(event.defaultPrevented).toBe(true);
+    expect(stopped).toHaveBeenCalledOnce();
   });
   it('describes its control without moving focus and preserves other descriptions', () => {
     const { anchor, panel } = render(true);

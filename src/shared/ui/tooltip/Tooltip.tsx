@@ -37,6 +37,13 @@ export function Tooltip({ label, children }: { label: string; children: ReactEle
       tooltip.style.top = `${Math.max(view.top + 12, Math.min(above >= view.top + 12 ? above : bounds.bottom + 7, view.top + view.height - size.height - 12))}px`;
     };
     tooltip.showPopover();
+    const escape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      event.stopPropagation();
+      setOpen(false);
+    };
+    document.addEventListener('keydown', escape, { capture: true });
     const stop = observeViewport(position);
     const observer = new ResizeObserver(position);
     observer.observe(tooltip);
@@ -45,6 +52,7 @@ export function Tooltip({ label, children }: { label: string; children: ReactEle
       stop();
       observer.disconnect();
       window.removeEventListener('scroll', position, true);
+      document.removeEventListener('keydown', escape, { capture: true });
       if (tooltip.matches(':popover-open')) tooltip.hidePopover();
       const remaining = anchor
         .getAttribute('aria-describedby')
@@ -73,13 +81,6 @@ export function Tooltip({ label, children }: { label: string; children: ReactEle
           setOpen(true);
       }}
       onBlur={() => setOpen(false)}
-      onKeyDownCapture={(event) => {
-        if (event.key === 'Escape' && open) {
-          event.preventDefault();
-          event.stopPropagation();
-          setOpen(false);
-        }
-      }}
     >
       {children}
       {open && (
