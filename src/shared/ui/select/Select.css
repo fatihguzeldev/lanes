@@ -9,6 +9,7 @@
   justify-content: space-between;
   gap: 10px;
   width: 100%;
+  min-height: var(--field-height);
   min-width: 0;
   padding: 6px 8px;
   border: 1px solid var(--line);
@@ -46,8 +47,8 @@
   border-color: var(--rust);
 }
 .select__popover {
-  min-width: 160px;
-  max-width: min(320px, calc(100vw - 24px));
+  min-width: min(160px, var(--floating-max-width, calc(100vw - 24px)));
+  max-width: min(320px, var(--floating-max-width, calc(100vw - 24px)));
   padding: 4px;
 }
 .select__option {
@@ -58,6 +59,7 @@
   padding: 7px 9px;
   border-radius: 5px;
   cursor: pointer;
+  min-height: var(--control-size);
 }
 .select__option[data-active] {
   background: var(--paper-hover);
@@ -79,8 +81,7 @@
   overflow-wrap: anywhere;
 }
 @media (pointer: coarse) {
-  .select__trigger,
-  .select__option {
-    min-height: 44px;
+  .select__trigger {
+    font-size: var(--field-font-size);
   }
 }

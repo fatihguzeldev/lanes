@@ -24,8 +24,10 @@
   color: var(--green);
 }
 .time-zone__popover {
+  display: flex;
+  flex-direction: column;
   width: 260px;
-  max-width: min(260px, calc(100vw - 24px));
+  max-width: min(260px, var(--floating-max-width, calc(100vw - 24px)));
 }
 .time-zone__search {
   width: 100%;
@@ -35,10 +37,14 @@
   background: var(--canvas);
   color: var(--ink);
   padding: 8px 10px;
-  font-size: 13px;
+  font-size: var(--field-font-size);
+  min-height: var(--field-height);
+  flex: none;
   margin-bottom: 5px;
 }
 .time-zone__list {
+  min-height: 0;
+  flex: 1;
   max-height: 250px;
   overflow: auto;
   overscroll-behavior: contain;

@@ -1,6 +1,7 @@
 import { useId, useLayoutEffect, useRef, useState, type AriaRole, type ReactNode } from 'react';
 import { placePopover } from './floating';
 import { restoreFocus as returnFocus } from '../focus/restore-focus';
+import { observeViewport, readViewport } from '../viewport/viewport';
 import './Popover.css';
 
 type Content = ReactNode | ((close: () => void) => ReactNode);
@@ -44,16 +45,22 @@ export function AnchoredPopover({
         closeRef.current();
         return;
       }
+      const viewport = readViewport();
+      const styles = getComputedStyle(panel);
+      const safe = (side: string) => parseFloat(styles.getPropertyValue(`--safe-${side}`)) || 0;
+      const left = safe('left'),
+        right = safe('right'),
+        top = safe('top'),
+        bottom = safe('bottom');
+      const usable = {
+        left: viewport.left + left,
+        top: viewport.top + top,
+        width: Math.max(0, viewport.width - left - right),
+        height: Math.max(0, viewport.height - top - bottom),
+      };
+      panel.style.setProperty('--floating-max-width', `${Math.max(0, usable.width - 24)}px`);
       const bounds = panel.getBoundingClientRect();
-      const next = placePopover(
-        anchor.getBoundingClientRect(),
-        bounds,
-        {
-          width: document.documentElement.clientWidth,
-          height: window.innerHeight,
-        },
-        align,
-      );
+      const next = placePopover(anchor.getBoundingClientRect(), bounds, usable, align);
       panel.style.left = `${next.left}px`;
       panel.style.top = `${next.top}px`;
       panel.style.maxHeight = `${next.maxHeight}px`;
@@ -86,7 +93,7 @@ export function AnchoredPopover({
     document.addEventListener('keydown', keydown, true);
     document.addEventListener('focusin', focus);
     panel.showPopover();
-    position();
+    const stopViewport = observeViewport(position);
     if (focusOnOpen) {
       panel
         .querySelector<HTMLElement>(
@@ -96,7 +103,6 @@ export function AnchoredPopover({
     } else anchor.focus({ preventScroll: true });
     const observer = new ResizeObserver(position);
     observer.observe(panel);
-    window.addEventListener('resize', position);
     window.addEventListener('scroll', position, true);
     return () => {
       panel.removeEventListener('toggle', toggled);
@@ -104,7 +110,7 @@ export function AnchoredPopover({
       document.removeEventListener('keydown', keydown, true);
       document.removeEventListener('focusin', focus);
       observer.disconnect();
-      window.removeEventListener('resize', position);
+      stopViewport();
       window.removeEventListener('scroll', position, true);
       if (panel.matches(':popover-open')) panel.hidePopover();
       queueMicrotask(() => {

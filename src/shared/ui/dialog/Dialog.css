@@ -1,8 +1,19 @@
 .dialog {
+  position: fixed;
+  inset: calc(var(--viewport-top, 0px) + var(--safe-top))
+    calc(var(--viewport-right, 0px) + var(--safe-right))
+    calc(var(--viewport-bottom, 0px) + var(--safe-bottom))
+    calc(var(--viewport-left, 0px) + var(--safe-left));
+  margin: auto;
   padding: 0;
   width: 430px;
-  max-width: calc(100vw - 32px);
-  max-height: calc(100svh - 48px);
+  max-width: calc(
+    var(--viewport-width, 100vw) - var(--safe-left) - var(--safe-right) - 2 * var(--floating-gutter)
+  );
+  max-height: calc(
+    var(--viewport-height, 100dvh) - var(--safe-top) - var(--safe-bottom) - 2 *
+      var(--floating-gutter)
+  );
   overflow: auto;
   border: 1px solid var(--line);
   border-radius: 12px;
@@ -10,17 +21,20 @@
   color: var(--ink);
   box-shadow: 0 25px 90px #1b291e30;
   font-family: var(--font);
+  overscroll-behavior: contain;
+  overflow-wrap: anywhere;
 }
 .dialog--wide {
   width: 620px;
 }
 .dialog--side {
-  inset: 0 0 0 auto;
+  inset: calc(var(--viewport-top, 0px) + var(--safe-top))
+    calc(var(--viewport-right, 0px) + var(--safe-right)) auto auto;
   margin: 0;
   width: 480px;
-  max-width: 100vw;
-  height: 100svh;
-  max-height: 100svh;
+  max-width: calc(var(--viewport-width, 100vw) - var(--safe-left) - var(--safe-right));
+  height: calc(var(--viewport-height, 100dvh) - var(--safe-top) - var(--safe-bottom));
+  max-height: calc(var(--viewport-height, 100dvh) - var(--safe-top) - var(--safe-bottom));
   border-width: 0 0 0 1px;
   border-radius: 0;
 }
@@ -32,7 +46,7 @@
   position: sticky;
   top: 0;
   z-index: 1;
-  padding: 20px 28px 16px;
+  padding: var(--panel-padding);
   background: var(--paper);
 }
 .dialog--side .dialog__heading h2 {
@@ -43,18 +57,26 @@
   backdrop-filter: blur(3px);
 }
 .dialog__heading {
+  position: sticky;
+  top: 0;
+  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 20px;
-  padding: 25px 28px 16px;
+  padding: var(--panel-padding);
+  background: var(--paper);
 }
 .dialog__heading h2 {
   font-size: 20px;
   font-weight: 550;
   letter-spacing: -0.5px;
+  min-width: 0;
 }
 .dialog__close {
+  flex: none;
+  min-width: var(--control-size);
+  min-height: var(--control-size);
   border: 0;
   background: none;
   color: var(--muted);
@@ -67,7 +89,8 @@
   background: var(--paper-hover);
 }
 .dialog__body {
-  padding: 5px 28px 28px;
+  padding: 5px var(--panel-padding) var(--panel-padding);
+  min-width: 0;
 }
 .dialog__body p {
   color: var(--secondary);
@@ -80,8 +103,9 @@
   gap: 8px;
   margin-top: 18px;
   color: var(--secondary);
+  min-width: 0;
 }
-.dialog__body input,
+.dialog__body input:not([type='checkbox'], [type='radio']),
 .dialog__body select,
 .dialog__body textarea {
   border: 1px solid var(--line);
@@ -90,15 +114,19 @@
   padding: 10px;
   width: 100%;
   min-width: 0;
+  min-height: var(--field-height);
+  font-size: var(--field-font-size);
 }
 .dialog__body footer {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: 14px;
   margin-top: 26px;
 }
 .dialog__body footer button {
+  min-height: var(--control-size);
   border: 0;
   background: none;
   font-size: 13px;
@@ -128,6 +156,11 @@
   padding: 12px;
   border-radius: 6px;
   font-size: 13px;
+  min-height: var(--control-size);
+  overflow-wrap: anywhere;
+}
+.dialog__actions button > .icon {
+  flex: none;
 }
 .dialog__actions button:hover {
   background: var(--paper-hover);

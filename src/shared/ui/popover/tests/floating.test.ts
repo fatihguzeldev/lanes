@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { placePopover } from '../floating';
 
-const viewport = { width: 800, height: 600 };
+const viewport = { left: 0, top: 0, width: 800, height: 600 };
 
 describe('popover placement', () => {
   it('opens below its trigger and aligns either edge', () => {
@@ -26,8 +26,27 @@ describe('popover placement', () => {
     const position = placePopover(
       { left: 290, right: 310, top: 160, bottom: 190 },
       { width: 296, height: 700 },
-      { width: 320, height: 480 },
+      { left: 0, top: 0, width: 320, height: 480 },
     );
     expect(position).toEqual({ left: 12, top: 196, maxHeight: 272 });
+  });
+
+  it('keeps menus inside a panned visual viewport with the keyboard open', () => {
+    const position = placePopover(
+      { left: 180, right: 220, top: 350, bottom: 380 },
+      { width: 260, height: 300 },
+      { left: 80, top: 200, width: 320, height: 240 },
+    );
+    expect(position).toEqual({ left: 128, top: 212, maxHeight: 132 });
+  });
+
+  it('never returns negative height when very little space is visible', () => {
+    const position = placePopover(
+      { left: 0, right: 20, top: 0, bottom: 20 },
+      { width: 180, height: 100 },
+      { left: 0, top: 0, width: 100, height: 16 },
+    );
+    expect(position.maxHeight).toBe(0);
+    expect(position.top).toBe(12);
   });
 });

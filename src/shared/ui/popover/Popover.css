@@ -7,8 +7,8 @@
   align-items: center;
   justify-content: center;
   gap: 7px;
-  min-width: 30px;
-  min-height: 30px;
+  min-width: var(--control-size);
+  min-height: var(--control-size);
   border: 0;
   border-radius: 6px;
   padding: 6px 8px;
@@ -29,8 +29,8 @@
   inset: auto;
   margin: 0;
   width: max-content;
-  min-width: 180px;
-  max-width: calc(100vw - 24px);
+  min-width: min(180px, var(--floating-max-width, calc(100vw - 24px)));
+  max-width: var(--floating-max-width, calc(100vw - 24px));
   overflow: auto;
   overscroll-behavior: contain;
   padding: 6px;
@@ -61,6 +61,15 @@
   color: var(--ink);
   text-align: left;
   font-size: 13px;
+  min-height: var(--control-size);
+  overflow-wrap: anywhere;
+  line-height: 1.4;
+}
+.popover__item > .icon {
+  flex: none;
+}
+.popover__item > span {
+  min-width: 0;
 }
 .popover__item:hover:not(:disabled) {
   background: var(--paper-hover);
@@ -74,19 +83,13 @@
 .popover__item:not(.danger) > .icon {
   color: var(--icon);
 }
-@media (pointer: coarse) {
-  .popover__trigger,
-  .popover__item {
-    min-height: 44px;
-  }
-}
-
 .popover__panel .dialog__actions {
   padding: 0;
   gap: 2px;
-  min-width: 210px;
+  min-width: 0;
 }
 .popover__panel .dialog__actions > button {
   padding: 8px 10px;
   gap: 9px;
+  min-height: var(--control-size);
 }

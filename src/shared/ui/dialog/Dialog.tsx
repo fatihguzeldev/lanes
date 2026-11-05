@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, type ReactNode } from 'react';
 import { Icon } from '../icon/Icon';
 import { restoreFocus } from '../focus/restore-focus';
+import { applyViewport, observeViewport } from '../viewport/viewport';
 import './Dialog.css';
 
 export function Dialog({
@@ -29,8 +30,12 @@ export function Dialog({
   const keyboard = useRef(opener.current?.matches(':focus-visible') ?? false);
   useLayoutEffect(() => {
     const dialog = ref.current;
+    const stopViewport = dialog
+      ? observeViewport((bounds) => applyViewport(dialog, bounds))
+      : () => {};
     if (dialog && !dialog.open) dialog.showModal();
     return () => {
+      stopViewport();
       if (dialog?.open) dialog.close();
       queueMicrotask(() => {
         if (
