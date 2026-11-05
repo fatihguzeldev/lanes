@@ -15,6 +15,7 @@ export function useTaskEditor(
   const [dirty, changeDirty] = useState(false);
   const [saves, setSaves] = useState<ReadonlySet<number>>(() => new Set());
   const nextId = useRef(0);
+  const intent = useRef(0);
   const current = useRef(session);
   current.current = session;
   const select = (next: EditorSelection) => {
@@ -29,11 +30,24 @@ export function useTaskEditor(
     finish: (location: EditorLocation) => void,
     fallback: string,
   ) => {
-    if (loaded) finish(loaded);
+    const generation = ++intent.current;
+    const apply = (location: EditorLocation) => {
+      if (generation === intent.current) finish(location);
+    };
+    if (loaded) apply(loaded);
     else
       void resolveLocation(listId)
-        .then(finish)
-        .catch((error) => onNotice(error instanceof Error ? error.message : fallback));
+        .then(apply)
+        .catch((error) => {
+          if (generation === intent.current)
+            onNotice(error instanceof Error ? error.message : fallback);
+        });
+  };
+  const dismiss = (id: number | undefined) => {
+    if (current.current?.id !== id) return;
+    current.current = null;
+    setSession(null);
+    changeDirty(false);
   };
   return {
     session,
@@ -71,6 +85,7 @@ export function useTaskEditor(
     createSubtask(task: Task) {
       const selection = current.current?.selection;
       if (!selection) return;
+      intent.current++;
       select({
         task: null,
         list: selection.list,
@@ -80,9 +95,11 @@ export function useTaskEditor(
     },
     close(id = current.current?.id) {
       if (current.current?.id !== id) return;
-      current.current = null;
-      setSession(null);
-      changeDirty(false);
+      intent.current++;
+      dismiss(id);
+    },
+    closeSaved(id: number) {
+      dismiss(id);
     },
   };
 }

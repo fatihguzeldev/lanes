@@ -25,15 +25,19 @@ vi.mock('react', async (original) => ({
 }));
 const task = (id: string) => ({ id, accountId: 'account', listId: 'list', title: id }) as Task;
 const location = { list: { id: 'list', accountId: 'account' }, boardId: 'board' } as EditorLocation;
+const readLocation = vi.fn();
+const notice = vi.fn();
 function render() {
   hooks.index = 0;
-  return useTaskEditor(async () => location, vi.fn());
+  return useTaskEditor(readLocation, notice);
 }
 
 describe('task editor session ownership', () => {
   beforeEach(() => {
     hooks.slots = [];
     hooks.index = 0;
+    readLocation.mockReset().mockResolvedValue(location);
+    notice.mockReset();
   });
 
   it('retains saving ownership after the editor presentation closes', () => {
@@ -85,5 +89,75 @@ describe('task editor session ownership', () => {
     expect(render().saving).toBe(true);
     render().setSaving(second, false);
     expect(render().saving).toBe(false);
+  });
+
+  it('does not replace a newer dirty editor when an older location lookup finishes', async () => {
+    let resolve!: (value: EditorLocation) => void;
+    readLocation.mockImplementation(() => new Promise((done) => (resolve = done)));
+    render().open(task('old-lookup'));
+    render().open(task('new-draft'), location);
+    render().setDirty(true);
+    resolve(location);
+    await Promise.resolve();
+    expect(render().selection?.task?.id).toBe('new-draft');
+    expect(render().dirty).toBe(true);
+  });
+
+  it('does not open a creation lookup after the owner dismisses it', async () => {
+    let resolve!: (value: EditorLocation) => void;
+    readLocation.mockImplementation(() => new Promise((done) => (resolve = done)));
+    render().create('list', '2026-11-06');
+    render().close();
+    resolve(location);
+    await Promise.resolve();
+    expect(render().selection).toBeNull();
+  });
+
+  it('lets a chosen subtask entry supersede an older location lookup', async () => {
+    let resolve!: (value: EditorLocation) => void;
+    readLocation.mockImplementation(() => new Promise((done) => (resolve = done)));
+    render().open(task('parent'), location);
+    render().open(task('old-lookup'));
+    render().createSubtask(task('parent'));
+    resolve(location);
+    await Promise.resolve();
+    expect(render().selection?.task).toBeNull();
+    expect(render().selection?.parent?.id).toBe('parent');
+  });
+
+  it('ignores a stale lookup failure after another editor opens', async () => {
+    let reject!: (reason: Error) => void;
+    readLocation.mockImplementation(() => new Promise((_done, failed) => (reject = failed)));
+    render().open(task('old-lookup'));
+    render().open(task('new-draft'), location);
+    reject(new Error('old list could not load'));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(notice).not.toHaveBeenCalled();
+    expect(render().selection?.task?.id).toBe('new-draft');
+  });
+
+  it('keeps a new pending lookup when an old session finishes saving', async () => {
+    let resolve!: (value: EditorLocation) => void;
+    readLocation.mockImplementation(() => new Promise((done) => (resolve = done)));
+    render().open(task('saved'), location);
+    const oldId = render().session!.id;
+    render().open(task('new-lookup'));
+    render().closeSaved(oldId);
+    resolve(location);
+    await Promise.resolve();
+    expect(render().selection?.task?.id).toBe('new-lookup');
+  });
+
+  it('cancels a pending lookup when the current editor is explicitly dismissed', async () => {
+    let resolve!: (value: EditorLocation) => void;
+    readLocation.mockImplementation(() => new Promise((done) => (resolve = done)));
+    render().open(task('current'), location);
+    const currentId = render().session!.id;
+    render().open(task('pending'));
+    render().close(currentId);
+    resolve(location);
+    await Promise.resolve();
+    expect(render().selection).toBeNull();
   });
 });
