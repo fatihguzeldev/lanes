@@ -320,15 +320,11 @@
 .task-card button.task-card__menu:focus-visible {
   outline: none;
 }
-.task-card__menu:focus-visible:not([data-pointer-focus])::after {
-  content: '';
-  position: absolute;
-  bottom: 4px;
-  width: 14px;
-  height: 2px;
-  border-radius: 1px;
-  background: var(--focus);
-  pointer-events: none;
+.task-card__menu:focus-visible:not([data-pointer-focus]) {
+  background-image: linear-gradient(var(--focus), var(--focus));
+  background-position: center calc(100% - 4px);
+  background-size: 14px 2px;
+  background-repeat: no-repeat;
 }
 .task-card--row .task-card__main {
   display: grid;
