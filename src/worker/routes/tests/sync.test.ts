@@ -43,7 +43,7 @@ describe('foreground sync HTTP responses', () => {
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify(path === 'sync' ? { reason: 'entry' } : {}),
           }),
-          account: { id: 'account-a', state: 'connected' } as ConnectionSummary,
+          account: { id: 'account-a', state: 'connecting' } as ConnectionSummary,
           ownerSubject: 'owner',
         },
         services,
@@ -54,6 +54,62 @@ describe('foreground sync HTTP responses', () => {
       expect(markWorkspaceInitialized).toHaveBeenCalledExactlyOnceWith('account-a');
     },
   );
+
+  it.each([
+    ['sync', 'connected'],
+    ['sync', 'connecting'],
+    ['sync/advance', 'connected'],
+    ['sync/advance', 'connecting'],
+  ])('returns the bounded %s batch with actual changes for a %s account', async (path, state) => {
+    const database = testDatabase();
+    open.push(database);
+    await seedAccount(database.db);
+    const progress = {
+      accountId: 'account-a',
+      phase: 'tasks',
+      continued: false,
+      status: {
+        initialized: true,
+        pending: false,
+        nextAttemptAt: null,
+        phase: 'idle',
+        errorCode: null,
+      },
+      changes: { topology: false, tasks: false },
+    };
+    const advance = vi.fn();
+    const advanceForeground = vi.fn().mockResolvedValue(progress);
+    const getStatus = vi.fn();
+    const markWorkspaceInitialized = vi.fn();
+    const services = {
+      sync: { requestRefresh: vi.fn(), advance, advanceForeground, getStatus },
+      boards: { ensureMainBoard: vi.fn() },
+      access: { markWorkspaceInitialized },
+    } as unknown as Pick<Services, 'sync' | 'boards' | 'access'>;
+    const url = new URL(`https://lanes.example/api/accounts/account-a/${path}?status=1&changes=1`);
+    const response = await syncRoute(
+      {
+        url,
+        route: url.pathname.split('/').filter(Boolean),
+        request: new Request(url, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(path === 'sync' ? { reason: 'manual' } : {}),
+        }),
+        account: { id: 'account-a', state } as ConnectionSummary,
+        ownerSubject: 'owner',
+      },
+      services,
+      database.db,
+    );
+    expect(await response!.json()).toEqual(progress);
+    expect(advanceForeground).toHaveBeenCalledExactlyOnceWith('account-a');
+    expect(advance).not.toHaveBeenCalled();
+    expect(getStatus).not.toHaveBeenCalled();
+    if (state === 'connecting')
+      expect(markWorkspaceInitialized).toHaveBeenCalledExactlyOnceWith('account-a');
+    else expect(markWorkspaceInitialized).not.toHaveBeenCalled();
+  });
 
   it('keeps the existing advance response for clients that do not request status', async () => {
     const database = testDatabase();

@@ -15,6 +15,19 @@ export async function syncRoute(
   const { request, route, account, url } = context;
   const accountId = account.id;
   const { sync, boards } = services;
+  const advanceResponse = async () => {
+    if (url.searchParams.get('status') === '1' && url.searchParams.get('changes') === '1') {
+      const result = await sync.advanceForeground(accountId);
+      if (result.status.initialized && account.state === 'connecting')
+        await services.access.markWorkspaceInitialized(accountId);
+      return jsonResponse(result);
+    }
+    const result = await sync.advance(accountId);
+    const status = await sync.getStatus(accountId);
+    if (status.initialized && account.state === 'connecting')
+      await services.access.markWorkspaceInitialized(accountId);
+    return jsonResponse(url.searchParams.get('status') === '1' ? { ...result, status } : result);
+  };
   if (route.length === 4 && route[3] === 'sync' && request.method === 'POST') {
     const input = await readJson(request, RefreshRequestSchema);
     if (['disconnected', 'disconnecting'].includes(account.state))
@@ -29,10 +42,7 @@ export async function syncRoute(
       reason: input.reason,
       ...(input.visibleListIds ? { visibleListIds: input.visibleListIds } : {}),
     });
-    const result = await sync.advance(accountId);
-    const status = await sync.getStatus(accountId);
-    if (status.initialized) await services.access.markWorkspaceInitialized(accountId);
-    return jsonResponse(url.searchParams.get('status') === '1' ? { ...result, status } : result);
+    return advanceResponse();
   }
   if (
     route.length === 5 &&
@@ -41,10 +51,7 @@ export async function syncRoute(
     request.method === 'POST'
   ) {
     await readJson(request, z.object({}).strict());
-    const result = await sync.advance(accountId);
-    const status = await sync.getStatus(accountId);
-    if (status.initialized) await services.access.markWorkspaceInitialized(accountId);
-    return jsonResponse(url.searchParams.get('status') === '1' ? { ...result, status } : result);
+    return advanceResponse();
   }
   if (route.length === 4 && route[3] === 'sync' && request.method === 'GET')
     return jsonResponse(await sync.getStatus(accountId));

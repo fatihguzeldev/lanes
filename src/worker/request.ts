@@ -4,6 +4,7 @@ import { createServices } from './composition/services';
 import { errorResponse, jsonResponse, pageOptions, requireSameOrigin } from './protocol/http';
 import { authenticationRoute, signOutRoute } from './routes/auth';
 import { accountRoute } from './routes/account';
+import { databaseUsage } from './transport/database-usage';
 function parts(path: string): string[] {
   try {
     return path.split('/').filter(Boolean).map(decodeURIComponent);
@@ -35,14 +36,24 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
     }
     const route = parts(url.pathname);
     const syncRead = route[0] === 'api' && route[1] === 'accounts' && route[3] === 'sync';
-    const services = createServices(env, config, syncRead ? 10 : 4);
+    const usage =
+      syncRead && url.searchParams.get('status') === '1' && url.searchParams.get('changes') === '1'
+        ? databaseUsage(env.DB)
+        : null;
+    const bindings = usage ? { ...env, DB: usage.db } : env;
+    const services = createServices(
+      bindings,
+      config,
+      syncRead ? 10 : 4,
+      usage ? () => usage.used : undefined,
+    );
     const { accounts } = services;
     if (request.method !== 'GET' && request.method !== 'HEAD') {
       requireSameOrigin(request, config.origin);
       if (request.headers.get('x-lanes-api') !== '1')
         throw new AppError('conflict', 'reload lanes before submitting another change.', 409);
     }
-    const authentication = await authenticationRoute(request, url, env.DB, config, services);
+    const authentication = await authenticationRoute(request, url, bindings.DB, config, services);
     if (authentication) return authentication;
     const owner = await accounts.sessions.requireSession(request);
     const signOut = await signOutRoute(request, url, accounts);
@@ -57,7 +68,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       route,
       owner.subject,
       services,
-      env.DB,
+      bindings.DB,
       config,
     );
     if (response) return response;

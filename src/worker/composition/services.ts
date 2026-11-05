@@ -33,7 +33,12 @@ import {
 import { createTransferOwners } from './transfer-services';
 
 /** Invocation-local composition. Durable owners hold every execution claim. */
-export function createServices(env: Env, config: Configuration, providerRequestLimit: 4 | 10 = 4) {
+export function createServices(
+  env: Env,
+  config: Configuration,
+  providerRequestLimit: 4 | 10 = 4,
+  databaseQueries?: () => number,
+) {
   const budget = googleTransport(providerRequestLimit);
   const accounts = createAccountServices(env.DB, config, { fetch: budget.fetch });
   let templates: TemplateOwners;
@@ -94,6 +99,8 @@ export function createServices(env: Env, config: Configuration, providerRequestL
     placementWrites,
     removalWrites,
     refreshRejectedToken,
+    ...(databaseQueries ? { databaseQueries } : {}),
+    providerRequests: () => budget.used,
   });
   const commands = new TaskCommandService(env.DB, {
     operations,
