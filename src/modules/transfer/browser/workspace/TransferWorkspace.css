@@ -1,7 +1,8 @@
 .transfer {
   min-width: 0;
-  padding: 2px 28px 28px;
+  padding: 2px var(--panel-padding, 20px) var(--panel-padding, 20px);
   color: var(--ink);
+  overflow-wrap: anywhere;
 }
 .transfer__heading {
   padding: 4px 0 20px;
@@ -28,7 +29,7 @@
   border-bottom: 1px solid var(--line);
   margin-bottom: 22px;
 }
-.transfer__tabs button {
+.transfer .transfer__tabs button {
   background: none;
   border: 0;
   border-bottom: 2px solid transparent;
@@ -70,6 +71,7 @@
   gap: 8px;
   margin-top: 17px;
   color: var(--secondary);
+  min-width: 0;
 }
 .transfer input,
 .transfer .select__trigger,
@@ -99,6 +101,12 @@
 .transfer textarea {
   resize: vertical;
 }
+.transfer input:not([type='checkbox'], [type='radio']),
+.transfer .select__trigger,
+.transfer textarea {
+  min-height: var(--field-height, 34px);
+  font-size: var(--field-font-size, 13px);
+}
 .transfer fieldset {
   padding: 0;
   border: 0;
@@ -118,6 +126,10 @@
   border: 1px solid var(--line);
   border-radius: 5px;
   padding: 8px 11px;
+  min-width: 0;
+  min-height: var(--control-size, 30px);
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 .transfer button:disabled {
   opacity: 0.45;
@@ -182,8 +194,9 @@
   display: grid;
   gap: 7px;
   margin: 16px 0;
-  max-height: 230px;
+  max-height: min(230px, 40dvh);
   overflow: auto;
+  overscroll-behavior: contain;
 }
 .transfer__checklist .transfer__check {
   margin: 0;
@@ -191,7 +204,7 @@
 }
 .transfer__two {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
   gap: 16px;
 }
 .transfer__segmented {
@@ -255,7 +268,7 @@
 }
 .transfer__numbers {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 90px), 1fr));
   gap: 12px;
   margin: 18px 0;
 }
@@ -271,6 +284,7 @@
   font-weight: 500;
   letter-spacing: -0.5px;
   color: var(--green);
+  overflow-wrap: anywhere;
 }
 .transfer__details {
   border-top: 1px solid var(--fine);
@@ -312,7 +326,7 @@
 }
 .transfer__mapping {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
   gap: 0 15px;
 }
 .transfer__sheet {
@@ -335,6 +349,7 @@
 }
 .transfer__section-title {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
@@ -343,7 +358,7 @@
 .transfer__section-title > small {
   font-size: 10px;
   color: var(--muted);
-  white-space: nowrap;
+  min-width: 0;
 }
 .transfer__records {
   margin: 14px 0;
@@ -378,7 +393,7 @@
 }
 .transfer__compare {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
   gap: 10px;
   margin: 10px 0;
 }
@@ -396,6 +411,7 @@
 }
 .transfer__output li {
   display: flex;
+  flex-wrap: wrap;
   gap: 15px;
   align-items: center;
   justify-content: space-between;
@@ -404,6 +420,8 @@
 }
 .transfer__output span {
   font-size: 11px;
+  min-width: 0;
+  flex: 1 1 160px;
 }
 .transfer .transfer__danger {
   color: var(--rust);
@@ -422,6 +440,7 @@
 }
 .transfer__activity article {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
@@ -430,6 +449,7 @@
 }
 .transfer__activity article > div {
   min-width: 0;
+  flex: 1 1 220px;
 }
 .transfer__activity strong {
   font-size: 13px;
@@ -446,7 +466,7 @@
 }
 @media (max-width: 560px) {
   .transfer {
-    padding: 0 18px 22px;
+    padding-top: 0;
   }
   .transfer__tabs {
     gap: 14px;
@@ -456,12 +476,6 @@
   }
   .transfer__heading h2 {
     font-size: 24px;
-  }
-  .transfer__two,
-  .transfer__mapping,
-  .transfer__compare {
-    grid-template-columns: 1fr;
-    gap: 0;
   }
   .transfer__numbers {
     gap: 8px;
@@ -490,6 +504,20 @@
   }
   .transfer .transfer__check {
     font-size: 11px;
+  }
+}
+
+@media (pointer: coarse) {
+  .transfer .transfer__check {
+    min-height: var(--control-size, 44px);
+    align-items: center;
+  }
+  .transfer .transfer__check input {
+    margin-top: 0;
+  }
+  .transfer input[type='file']::file-selector-button {
+    min-height: var(--control-size, 44px);
+    font-size: 13px;
   }
 }
 
