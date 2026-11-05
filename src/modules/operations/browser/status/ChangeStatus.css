@@ -10,9 +10,14 @@
   border-radius: 5px;
   background: var(--canvas);
   font-size: 12px;
+  min-width: 0;
+  min-height: var(--control-size, 30px);
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 .change-status__items {
   display: grid;
+  min-width: 0;
   gap: 8px;
   margin-top: 18px;
 }
@@ -22,4 +27,14 @@
   background: none;
   color: var(--green);
   text-align: left;
+}
+.change-status {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.change-status__items a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-size, 30px);
+  max-width: 100%;
 }

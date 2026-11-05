@@ -1,12 +1,15 @@
 .account-preferences {
   display: grid;
   gap: 15px;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .account-preferences label {
   display: grid;
   gap: 6px;
   color: var(--secondary);
   font-size: 12px;
+  min-width: 0;
 }
 .account-preferences label > .popover,
 .account-preferences label > .select {

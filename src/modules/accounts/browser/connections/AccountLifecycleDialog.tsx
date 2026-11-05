@@ -135,7 +135,7 @@ export function AccountLifecycleDialog({ account, onClose, onChanged }: Props) {
       wide
       pending={busy && !status?.disconnect && !status?.removal}
     >
-      <div className="dialog__body">
+      <div className="dialog__body account-lifecycle">
         <p>
           <strong>{account.email}</strong>
         </p>
@@ -218,7 +218,7 @@ export function AccountLifecycleDialog({ account, onClose, onChanged }: Props) {
           </p>
         )}
         {!removed && !removing && !status?.disconnect?.pending && (
-          <div className="board-options__order">
+          <div className="account-lifecycle__actions">
             {!disconnected && (
               <button
                 disabled={busy || connection !== 'reachable'}
@@ -259,14 +259,13 @@ export function AccountLifecycleDialog({ account, onClose, onChanged }: Props) {
                 spellCheck={false}
               />
             </label>
-            <label>
+            <label className="account-lifecycle__check">
+              <input
+                type="checkbox"
+                checked={confirmed}
+                onChange={(event) => setConfirmed(event.target.checked)}
+              />
               <span>
-                <input
-                  type="checkbox"
-                  style={{ width: 'auto' }}
-                  checked={confirmed}
-                  onChange={(event) => setConfirmed(event.target.checked)}
-                />{' '}
                 {choice === 'disconnect'
                   ? 'pause work and disconnect this account'
                   : 'remove this account’s local data'}

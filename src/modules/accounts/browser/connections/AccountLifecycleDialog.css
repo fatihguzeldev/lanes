@@ -1,3 +1,36 @@
+.account-lifecycle {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.account-lifecycle button {
+  min-height: var(--control-size, 30px);
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.account-lifecycle__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-block: 16px;
+}
+.account-lifecycle__actions button,
+.account-lifecycle__confirm > button {
+  padding: 8px 11px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 12px;
+}
+.account-lifecycle__actions .danger,
+.account-lifecycle__confirm > .danger {
+  color: var(--rust);
+}
+.account-lifecycle__confirm > .primary {
+  background: var(--green);
+  border-color: var(--green);
+  color: var(--on-accent);
+}
 .account-lifecycle__confirm {
   display: grid;
   gap: 14px;
@@ -5,6 +38,32 @@
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--canvas);
+}
+.account-lifecycle__confirm .account-lifecycle__check {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  line-height: 1.7;
+}
+.account-lifecycle .account-lifecycle__check input {
+  flex: none;
+  width: 15px;
+  height: 15px;
+  margin: 3px 0 0;
+  padding: 0;
+  accent-color: var(--green);
+}
+.account-lifecycle__check span {
+  min-width: 0;
+}
+@media (pointer: coarse) {
+  .account-lifecycle__confirm .account-lifecycle__check {
+    min-height: var(--control-size, 44px);
+    align-items: center;
+  }
+  .account-lifecycle .account-lifecycle__check input {
+    margin-top: 0;
+  }
 }
 .account-lifecycle__confirm h3 {
   margin: 0;

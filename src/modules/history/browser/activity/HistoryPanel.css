@@ -1,5 +1,7 @@
 .history-panel {
-  padding: 2px 28px 24px;
+  min-width: 0;
+  padding: 2px var(--panel-padding, 20px) var(--panel-padding, 20px);
+  overflow-wrap: anywhere;
 }
 .history-panel__intro {
   font-size: 14px;
@@ -13,7 +15,8 @@
   color: var(--muted);
 }
 .history-panel__filters {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr));
   gap: 12px;
   margin-top: 20px;
 }
@@ -31,7 +34,8 @@
   border: 1px solid var(--line);
   background: var(--paper);
   border-radius: 5px;
-  font-size: 12px;
+  font-size: var(--field-font-size, 13px);
+  min-height: var(--field-height, 34px);
 }
 .history-panel__day {
   margin-top: 24px;
@@ -92,6 +96,7 @@
 }
 .history-panel__entry strong,
 .history-panel__task {
+  max-width: 100%;
   font-weight: 550;
 }
 .history-panel__task {
@@ -100,6 +105,7 @@
   background: none;
   text-align: left;
   line-height: inherit;
+  overflow-wrap: anywhere;
 }
 .history-panel__task:hover {
   text-decoration: underline;
@@ -161,6 +167,8 @@
   background: var(--paper);
   border-radius: 5px;
   font-size: 12px;
+  min-height: var(--control-size, 30px);
+  max-width: 100%;
 }
 .history-panel__error button {
   margin-top: 8px;
@@ -190,13 +198,8 @@
 .history-panel__footnote p {
   margin-top: 8px;
 }
-@media (max-width: 480px) {
-  .history-panel {
-    padding-left: 20px;
-    padding-right: 20px;
-  }
-  .history-panel__filters {
-    flex-direction: column;
-    gap: 10px;
+@media (pointer: coarse) {
+  .history-panel__task {
+    min-height: var(--control-size, 44px);
   }
 }
