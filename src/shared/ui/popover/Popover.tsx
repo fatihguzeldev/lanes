@@ -1,5 +1,6 @@
 import { useId, useLayoutEffect, useRef, useState, type AriaRole, type ReactNode } from 'react';
 import { placePopover } from './floating';
+import { restoreFocus as returnFocus } from '../focus/restore-focus';
 import './Popover.css';
 
 type Content = ReactNode | ((close: () => void) => ReactNode);
@@ -34,6 +35,10 @@ export function AnchoredPopover({
     const panel = ref.current;
     if (!panel) return;
     let restoreFocus = true;
+    let keyboard = anchor.matches(':focus-visible');
+    const keydown = () => {
+      keyboard = true;
+    };
     const position = () => {
       if (!anchor.isConnected) {
         closeRef.current();
@@ -58,6 +63,7 @@ export function AnchoredPopover({
         closeRef.current();
     };
     const outside = (event: PointerEvent) => {
+      keyboard = false;
       if (
         event.target instanceof Node &&
         !panel.contains(event.target) &&
@@ -77,6 +83,7 @@ export function AnchoredPopover({
     };
     panel.addEventListener('toggle', toggled);
     document.addEventListener('pointerdown', outside, true);
+    document.addEventListener('keydown', keydown, true);
     document.addEventListener('focusin', focus);
     panel.showPopover();
     position();
@@ -94,6 +101,7 @@ export function AnchoredPopover({
     return () => {
       panel.removeEventListener('toggle', toggled);
       document.removeEventListener('pointerdown', outside, true);
+      document.removeEventListener('keydown', keydown, true);
       document.removeEventListener('focusin', focus);
       observer.disconnect();
       window.removeEventListener('resize', position);
@@ -103,9 +111,11 @@ export function AnchoredPopover({
         if (
           restoreFocus &&
           anchor.isConnected &&
-          (document.activeElement === document.body || panel.contains(document.activeElement))
+          (document.activeElement === document.body ||
+            document.activeElement === anchor ||
+            panel.contains(document.activeElement))
         )
-          anchor.focus({ preventScroll: true });
+          returnFocus(anchor, keyboard);
       });
     };
   }, [anchor, align, focusOnOpen]);

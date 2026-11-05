@@ -98,6 +98,9 @@ a {
   background: var(--selection);
   color: var(--on-selection);
 }
+:root [data-pointer-focus]:focus-visible {
+  outline: none;
+}
 h1,
 h2,
 h3,

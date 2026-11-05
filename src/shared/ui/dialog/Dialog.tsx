@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, type ReactNode } from 'react';
 import { Icon } from '../icon/Icon';
+import { restoreFocus } from '../focus/restore-focus';
 import './Dialog.css';
 
 export function Dialog({
@@ -25,13 +26,15 @@ export function Dialog({
         ? document.activeElement
         : null,
   );
+  const keyboard = useRef(opener.current?.matches(':focus-visible') ?? false);
   useLayoutEffect(() => {
     const dialog = ref.current;
     if (dialog && !dialog.open) dialog.showModal();
     return () => {
       if (dialog?.open) dialog.close();
       queueMicrotask(() => {
-        if (!dialog?.open && opener.current?.isConnected) opener.current.focus();
+        if (!dialog?.open && opener.current?.isConnected)
+          restoreFocus(opener.current, keyboard.current);
       });
     };
   }, []);
@@ -41,6 +44,12 @@ export function Dialog({
       className={`dialog${wide ? ' dialog--wide' : ''}${side ? ' dialog--side' : ''}`}
       aria-label={title}
       aria-busy={pending || undefined}
+      onKeyDown={() => {
+        keyboard.current = true;
+      }}
+      onPointerDown={() => {
+        keyboard.current = false;
+      }}
       onCancel={(event) => {
         event.preventDefault();
         if (!pending) onClose();
