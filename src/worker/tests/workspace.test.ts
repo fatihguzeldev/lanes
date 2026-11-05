@@ -175,7 +175,7 @@ describe('authenticated workspace composition', () => {
       expect(init?.method).toBe('GET');
       expect(new Headers(init?.headers).get('authorization')).toBe('Bearer fresh-access');
       if (url.pathname.endsWith('/lists/google-destination/tasks')) {
-        expect(url.searchParams.get('maxResults')).toBe('4');
+        expect(url.searchParams.get('maxResults')).toBe('25');
         return Response.json({ items: records });
       }
       const task = records.find((task) => url.pathname.endsWith('/tasks/' + task.id));

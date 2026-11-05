@@ -50,7 +50,7 @@ describe('durable bounded provider reconciliation', () => {
       },
       listTasks: async (id, input = {}) => {
         calls.push('tasks:' + id);
-        expect(input.maxResults).toBe(4);
+        expect(input.maxResults).toBe(25);
         return taskPage(id, input);
       },
       getTask: async (listId, id) => {

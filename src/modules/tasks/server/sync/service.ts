@@ -3,6 +3,8 @@ import { AppError } from '../../../../shared/contracts/errors';
 import type { HistoryService } from '../../../history/server/events/event-store';
 import type { TaskList } from '../../contracts/task';
 import { normalizeTaskSearchText } from '../../model/task';
+import { captureTaskPage, retainedTaskPage, providerPageSize } from './captured-page';
+import { unchangedTaskPageWrites } from './unchanged-page';
 import {
   RefreshRequestSchema,
   type RefreshRequest,
@@ -56,6 +58,9 @@ interface Work {
   scan_id: string | null;
   started_at: number | null;
   updated_min: string | null;
+  page_json: string | null;
+  page_offset: number;
+  page_projection_revision: number | null;
 }
 const leaseMs = 45_000;
 const fullInterval = 30 * 60_000;
@@ -238,7 +243,8 @@ export class TaskSyncService {
           .prepare(
             `INSERT INTO tasks_sync_list_work(account_id,list_id,priority,next_at,mode) VALUES (?,?,0,?,'full')
           ON CONFLICT(account_id,list_id) DO UPDATE SET priority=0,next_at=MIN(next_at,excluded.next_at),
-          mode='full',page_token=NULL,scan_id=NULL,started_at=NULL,updated_min=NULL`,
+          mode='full',page_token=NULL,scan_id=NULL,started_at=NULL,updated_min=NULL,
+          page_json=NULL,page_offset=0,page_projection_revision=NULL`,
           )
           .bind(accountId, list, at),
       ]),
@@ -733,7 +739,8 @@ export class TaskSyncService {
         .prepare(
           `INSERT INTO tasks_sync_list_work(account_id,list_id,priority,next_at,mode) VALUES (?,?,0,?,'full')
         ON CONFLICT(account_id,list_id) DO UPDATE SET priority=0,next_at=MIN(next_at,excluded.next_at),
-        mode='full',page_token=NULL,scan_id=NULL,started_at=NULL,updated_min=NULL`,
+        mode='full',page_token=NULL,scan_id=NULL,started_at=NULL,updated_min=NULL,
+        page_json=NULL,page_offset=0,page_projection_revision=NULL`,
         )
         .bind(accountId, source, this.now()),
     ]);
@@ -767,14 +774,17 @@ export class TaskSyncService {
         (list.sync_watermark
           ? new Date(Date.parse(list.sync_watermark) - 120_000).toISOString()
           : null));
-    let page;
+    const retained = retainedTaskPage(work, list.projection_revision);
+    let page = retained?.page;
+    const offset = retained?.offset ?? 0;
     try {
-      page = await reader.listTasks(list.provider_id, {
-        // One page + at most two address checks per task + a token refresh fits ten requests.
-        maxResults: 4,
-        ...(work.page_token ? { pageToken: work.page_token } : {}),
-        ...(updatedMin ? { updatedMin } : {}),
-      });
+      page ??= captureTaskPage(
+        await reader.listTasks(list.provider_id, {
+          maxResults: providerPageSize,
+          ...(work.page_token ? { pageToken: work.page_token } : {}),
+          ...(updatedMin ? { updatedMin } : {}),
+        }),
+      );
     } catch (error) {
       if (!(error instanceof GoogleTasksError) || error.code !== 'not_found') throw error;
       await this.commit(
@@ -798,31 +808,47 @@ export class TaskSyncService {
       );
       return;
     }
-    const moved = await this.resolveMovedTasks(job.account_id, reader, list, page.items);
-    const projection = await this.projection.prepareConfirmedWrites(
-      job.account_id,
-      list.id,
-      moved.records,
-      {
-        scanId,
-        observed: true,
-        baseline: list.tasks_complete_at === null,
-        knownTaskIds: moved.knownTaskIds,
-      },
-    );
-    const writes = [...moved.guards, ...projection.writes, ...moved.sourceWrites];
-    if (page.nextPageToken)
+    const remaining = page.items.slice(offset);
+    const unchanged =
+      remaining.length > 4
+        ? await unchangedTaskPageWrites(this.db, job.account_id, list.id, remaining, scanId)
+        : null;
+    // Even a collision at every address needs at most eight checks plus this page and a refresh.
+    const records = unchanged ? remaining : remaining.slice(0, 4);
+    const writes: D1PreparedStatement[] = [];
+    if (unchanged) writes.push(...unchanged);
+    else {
+      const moved = await this.resolveMovedTasks(job.account_id, reader, list, records);
+      const projection = await this.projection.prepareConfirmedWrites(
+        job.account_id,
+        list.id,
+        moved.records,
+        {
+          scanId,
+          observed: true,
+          baseline: list.tasks_complete_at === null,
+          knownTaskIds: moved.knownTaskIds,
+        },
+      );
+      writes.push(...moved.guards, ...projection.writes, ...moved.sourceWrites);
+    }
+    const nextOffset = offset + records.length;
+    const partialPage = nextOffset < page.items.length;
+    if (partialPage || page.nextPageToken)
       writes.push(
         this.db
           .prepare(
-            'UPDATE tasks_sync_list_work SET mode=?,page_token=?,scan_id=?,started_at=?,updated_min=? WHERE account_id=? AND list_id=?',
+            'UPDATE tasks_sync_list_work SET mode=?,page_token=?,scan_id=?,started_at=?,updated_min=?,page_json=?,page_offset=?,page_projection_revision=? WHERE account_id=? AND list_id=?',
           )
           .bind(
             full ? 'full' : 'delta',
-            page.nextPageToken,
+            partialPage ? work.page_token : page.nextPageToken,
             scanId,
             startedAt,
             updatedMin,
+            partialPage ? JSON.stringify(page) : null,
+            partialPage ? nextOffset : 0,
+            partialPage ? list.projection_revision + 1 : null,
             job.account_id,
             list.id,
           ),
@@ -861,6 +887,8 @@ export class TaskSyncService {
         );
       }
     }
+    // A retained last page has no provider next token, but its coverage is not complete yet.
+    const cursor = partialPage ? scanId : page.nextPageToken;
     writes.push(
       this.db
         .prepare(
@@ -872,19 +900,19 @@ export class TaskSyncService {
         )
         .bind(
           this.now(),
-          page.nextPageToken,
-          page.nextPageToken,
+          cursor,
+          cursor,
           new Date(startedAt).toISOString(),
-          page.nextPageToken,
+          cursor,
           job.account_id,
           list.id,
           this.now(),
-          page.nextPageToken,
+          cursor,
           job.account_id,
           list.id,
           this.now(),
           Number(full),
-          page.nextPageToken,
+          cursor,
           this.now(),
           job.account_id,
           list.id,
