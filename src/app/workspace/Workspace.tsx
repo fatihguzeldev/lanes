@@ -127,9 +127,13 @@ export function Workspace({
   const navigation = useMobileNavigation(navOpen, closeNavigation);
   const [prompt, setPrompt] = useState<Prompt | null>(null);
   const [discard, setDiscard] = useState<(() => void) | null>(null),
-    [notice, setNotice] = useState('');
+    [notice, setNoticeText] = useState('');
   const [confirmation, setConfirmation] = useState<ConfirmationChoice | null>(null);
-  const [moveErrorId, setMoveErrorId] = useState<string | null>(null);
+  const [noticeOperationId, setNoticeOperationId] = useState<string | null>(null);
+  const setNotice = useCallback((message: string, operationId: string | null = null) => {
+    setNoticeText(message);
+    setNoticeOperationId(operationId);
+  }, []);
   const taskEditor = useTaskEditor(async (listId) => {
     const [list, membership] = await Promise.all([
       readTaskList(account.id, listId),
@@ -150,8 +154,10 @@ export function Workspace({
     clockOffset,
     onRefresh: changed,
     onError: (error) => {
-      setNotice(error instanceof Error ? error.message : 'couldn’t move this task.');
-      setMoveErrorId(error instanceof TaskMoveError ? (error.operationId ?? null) : null);
+      setNotice(
+        error instanceof Error ? error.message : 'couldn’t move this task.',
+        error instanceof TaskMoveError ? (error.operationId ?? null) : null,
+      );
     },
     confirmChildren: (title, count) =>
       new Promise<boolean>((resolve) => {
@@ -250,6 +256,9 @@ export function Workspace({
     onInspect: inspection.inspect,
     onBoardDraftChange: setBoardCreationDirty,
     onListDraftChange: setListCreationDirty,
+    onMoved: (taskId) => {
+      if (taskMenu.task?.id === taskId) taskMenu.close();
+    },
   });
   const guard = useCallback(
     (action: () => void) => {
@@ -261,6 +270,7 @@ export function Workspace({
   const guardAccount = (action: () => void) => {
     if (
       movingTasks ||
+      taskEditor.saving ||
       boardManagement.placement.busy ||
       boardManagement.creation.isSaving() ||
       boardManagement.listCreation.isSaving()
@@ -286,6 +296,7 @@ export function Workspace({
         boardCreationDirty ||
         listCreationDirty ||
         movingTasks ||
+        taskEditor.saving ||
         boardManagement.placement.busy
       ) {
         event.preventDefault();
@@ -302,6 +313,7 @@ export function Workspace({
     boardCreationDirty,
     listCreationDirty,
     movingTasks,
+    taskEditor.saving,
     boardManagement.placement.busy,
   ]);
   const openTask = (task: Task) => {
@@ -387,6 +399,7 @@ export function Workspace({
       commands.busy ||
       repeatWork.busy ||
       movingTasks ||
+      taskEditor.saving ||
       boardManagement.placement.busy ||
       boardManagement.creation.busy ||
       boardManagement.listCreation.busy,
@@ -398,6 +411,11 @@ export function Workspace({
         lists.items.map((list) => list.id),
       ),
   };
+  const noticeInspectionId = commands.error
+    ? (commands.errorDetails?.operationId ?? commands.latest?.id ?? null)
+    : repeatWork.error
+      ? null
+      : noticeOperationId;
   return (
     <div
       className={`workspace${navOpen ? ' workspace--nav-open' : ''}${!revealed ? ' workspace--loading' : ''}`}
@@ -564,27 +582,14 @@ export function Workspace({
         {(commands.error || repeatWork.error || notice) && (
           <div className="workspace__notice" role={commands.error ? 'alert' : 'status'}>
             <span>{commands.error || repeatWork.error || notice}</span>
-            {(((commands.errorDetails?.operationId || commands.latest?.id) && commands.error) ||
-              moveErrorId) && (
-              <button
-                onClick={() => {
-                  inspection.inspect(
-                    moveErrorId ??
-                      commands.errorDetails?.operationId ??
-                      commands.latest?.id ??
-                      null,
-                  );
-                }}
-              >
-                check save
-              </button>
+            {noticeInspectionId && (
+              <button onClick={() => inspection.inspect(noticeInspectionId)}>check save</button>
             )}
             <button
               aria-label="dismiss message"
               onClick={() => {
                 commands.clearError();
                 setNotice('');
-                setMoveErrorId(null);
               }}
             >
               <Icon name="close" size={14} />
@@ -660,6 +665,7 @@ export function Workspace({
       </main>
       <TaskEditorFlow
         controller={taskEditor}
+        onNotice={setNotice}
         account={account}
         boardId={board?.id ?? null}
         labels={labels.items}
