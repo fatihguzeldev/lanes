@@ -277,6 +277,7 @@ function EditorForm(props: TaskEditorProps) {
         onSubmit={submit}
         noValidate
         onKeyDown={(event) => {
+          if (event.nativeEvent.isComposing) return;
           if (event.key === 'Escape' && !event.defaultPrevented && !(pending && !props.submitted)) {
             event.stopPropagation();
             props.onClose();
@@ -380,6 +381,7 @@ function EditorForm(props: TaskEditorProps) {
           disabled={!providerEnabled}
           aria-invalid={invalid('title')}
           onKeyDown={(event) => {
+            if (event.nativeEvent.isComposing) return;
             if (event.key === 'Enter' && !event.shiftKey) {
               event.preventDefault();
               if (saveEnabled) event.currentTarget.form?.requestSubmit();
