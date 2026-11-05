@@ -28,9 +28,12 @@ vi.mock('react', async (original) => ({
   },
   useEffect: (effect: () => void | (() => void)) => hooks.effects.push(effect),
 }));
-class Element {
+class Element extends EventTarget {
+  isConnected = true;
   children: Element[] = [];
   focus = vi.fn();
+  setAttribute = vi.fn();
+  removeAttribute = vi.fn();
   contains(element: unknown) {
     return element === this || this.children.includes(element as Element);
   }
@@ -103,14 +106,24 @@ describe('cascading submenu interaction', () => {
     expect(menu.trigger.props['aria-expanded']).toBe(false);
   });
 
+  it('keeps a hovered cascade open when the mouse clicks its trigger', () => {
+    const menu = mount();
+    menu.wrapper.props.onPointerEnter(pointer());
+    menu.trigger.props.onClick({ detail: 1 });
+    expect(menu.trigger.props['aria-expanded']).toBe(true);
+  });
+
   it('uses a tap rather than touch hover and does not close on finger lift', () => {
     const menu = mount();
     menu.wrapper.props.onPointerEnter(pointer('touch'));
     expect(menu.trigger.props['aria-expanded']).toBe(false);
+    menu.trigger.props.onPointerDown(pointer('touch'));
     menu.trigger.props.onClick({ detail: 1 });
     menu.wrapper.props.onPointerLeave(pointer('touch'));
     vi.advanceTimersByTime(500);
     expect(menu.trigger.props['aria-expanded']).toBe(true);
+    menu.trigger.props.onClick({ detail: 1 });
+    expect(menu.trigger.props['aria-expanded']).toBe(false);
   });
 
   it('opens with Right and returns focus with Left without closing its parent', () => {
@@ -133,6 +146,18 @@ describe('cascading submenu interaction', () => {
     menu.wrapper.props.onPointerEnter(pointer());
     expect(changed).toHaveBeenCalledWith(true, menu.trigger.props.ref.current);
     expect(menu.trigger.props['aria-expanded']).toBe(false);
+  });
+
+  it('provides a back action for touch cascades without dismissing the parent', () => {
+    const menu = mount();
+    menu.trigger.props.onPointerDown(pointer('touch'));
+    menu.trigger.props.onClick({ detail: 1 });
+    const content = (menu.panel as UI).props.children as UI;
+    const back = (content.props.children as UI[])[0]!;
+    expect(back.props['aria-label']).toBe('back from move task');
+    back.props.onClick({ detail: 1 });
+    expect(menu.trigger.props['aria-expanded']).toBe(false);
+    expect(menu.trigger.props.ref.current.focus).toHaveBeenCalledOnce();
   });
 
   it('never opens a disabled destination', () => {

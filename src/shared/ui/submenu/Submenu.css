@@ -10,3 +10,14 @@
 .submenu__panel {
   width: 240px;
 }
+.submenu__back {
+  display: none;
+  border-bottom: 1px solid var(--fine);
+  border-radius: 0;
+  color: var(--secondary);
+}
+@media (hover: none), (pointer: coarse) {
+  .submenu__back {
+    display: flex;
+  }
+}

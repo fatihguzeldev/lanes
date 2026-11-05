@@ -25,6 +25,7 @@ class Element extends EventTarget {
   visible = true;
   open = false;
   child: Element | null = null;
+  controls: Element[] = [];
   style = { setProperty: vi.fn(), left: '', top: '', maxHeight: '' };
   focus = vi.fn(() => {
     documentState.activeElement = this;
@@ -49,6 +50,9 @@ class Element extends EventTarget {
   querySelector() {
     return this.child;
   }
+  querySelectorAll() {
+    return this.controls.length ? this.controls : this.child ? [this.child] : [];
+  }
   contains(element: unknown) {
     return element === this || element === this.child;
   }
@@ -59,11 +63,14 @@ const documentState = Object.assign(new EventTarget(), {
 });
 let cleanup: (() => void) | undefined;
 
-function mount(visible = true) {
+function mount(visible = true, hiddenFirst = false) {
   const anchor = new Element();
   anchor.visible = visible;
   const panel = new Element();
   panel.child = new Element();
+  const hidden = new Element();
+  hidden.visible = false;
+  if (hiddenFirst) panel.controls = [hidden, panel.child];
   lifecycle.panel = panel;
   const close = vi.fn();
   AnchoredPopover({
@@ -73,7 +80,7 @@ function mount(visible = true) {
     children: null,
   });
   cleanup = lifecycle.effects.at(-1)!() || undefined;
-  return { anchor, panel, close };
+  return { anchor, panel, close, hidden };
 }
 
 describe('popover anchor visibility', () => {
@@ -115,6 +122,12 @@ describe('popover anchor visibility', () => {
     const { panel, close } = mount(false);
     expect(close).toHaveBeenCalledOnce();
     expect(panel.child?.focus).not.toHaveBeenCalled();
+  });
+
+  it('skips a hidden touch-only back control when focusing a desktop cascade', () => {
+    const { panel, hidden } = mount(true, true);
+    expect(hidden.focus).not.toHaveBeenCalled();
+    expect(panel.child?.focus).toHaveBeenCalledOnce();
   });
 
   it('keeps an available anchor open and restores its focus after dismissal', async () => {

@@ -105,10 +105,12 @@ export function AnchoredPopover({
     panel.showPopover();
     const stopViewport = observeViewport(position);
     if (restoreFocus && focusOnOpen) {
-      panel
-        .querySelector<HTMLElement>(
+      [
+        ...panel.querySelectorAll<HTMLElement>(
           '[autofocus],button:not(:disabled),a[href],input:not(:disabled),textarea:not(:disabled),[tabindex="0"]',
-        )
+        ),
+      ]
+        .find((control) => control.getClientRects().length)
         ?.focus({ preventScroll: true });
     } else if (restoreFocus) anchor.focus({ preventScroll: true });
     const observer = new ResizeObserver(position);

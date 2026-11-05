@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { AnchoredPopover } from '../popover/Popover';
 import { Icon } from '../icon/Icon';
+import { restoreFocus } from '../focus/restore-focus';
 import './Submenu.css';
 
 interface Props {
@@ -18,6 +19,7 @@ export function Submenu(props: Props) {
   const [localOpen, setLocalOpen] = useState(false);
   const [focusOnOpen, setFocusOnOpen] = useState<true | 'none'>('none');
   const pointerMode = useRef(true);
+  const pointerType = useRef('mouse');
   const open = props.open ?? localOpen;
   const button = useRef<HTMLButtonElement>(null);
   const region = useRef<HTMLDivElement>(null);
@@ -66,7 +68,15 @@ export function Submenu(props: Props) {
         aria-expanded={open}
         aria-controls={open ? id : undefined}
         disabled={props.disabled}
-        onClick={(event) => change(!open, event.detail === 0)}
+        onPointerDown={(event) => {
+          pointerType.current = event.pointerType;
+        }}
+        onClick={(event) =>
+          change(
+            event.detail === 0 || pointerType.current !== 'touch' ? true : !open,
+            event.detail === 0,
+          )
+        }
         onKeyDown={(event) => {
           if (event.key === 'ArrowRight') {
             event.preventDefault();
@@ -106,10 +116,22 @@ export function Submenu(props: Props) {
                 event.preventDefault();
                 event.stopPropagation();
                 change(false, true);
-                button.current?.focus({ preventScroll: true });
+                if (button.current) restoreFocus(button.current, true);
               }
             }}
           >
+            <button
+              type="button"
+              className="popover__item submenu__back"
+              aria-label={`back from ${props.label}`}
+              onClick={(event) => {
+                change(false, event.detail === 0);
+                if (button.current) restoreFocus(button.current, event.detail === 0);
+              }}
+            >
+              <Icon name="left" size={14} />
+              <span>back</span>
+            </button>
             {props.children}
           </div>
         </AnchoredPopover>
