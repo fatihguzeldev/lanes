@@ -3,6 +3,7 @@ import type { ConnectionSummary } from '../../../accounts/contracts/connection';
 import type { Label, Task } from '../../contracts/task';
 import type { TaskEditorController } from './useTaskEditor';
 import { TaskEditorWorkspace } from './TaskEditorWorkspace';
+import { TaskEditorSurface } from './TaskEditorSurface';
 import { LabelManager } from '../labels/LabelManager';
 
 interface Props {
@@ -40,33 +41,39 @@ export function TaskEditorFlow({
   return (
     <>
       {editor && (
-        <TaskEditorWorkspace
+        <TaskEditorSurface
           key={`${account.id}:${editor.task?.id ?? `new:${editor.list.id}:${editor.parent?.id ?? ''}`}`}
-          account={account}
-          selection={editor}
-          boardId={editor.boardId ?? boardId}
-          labels={labels}
-          version={version}
-          clockOffset={clockOffset}
-          onChanged={onChanged}
-          onClose={() =>
-            guard(() => {
+          accountId={account.id}
+          taskId={editor.task?.id ?? null}
+        >
+          <TaskEditorWorkspace
+            key={`${account.id}:${editor.task?.id ?? `new:${editor.list.id}:${editor.parent?.id ?? ''}`}`}
+            account={account}
+            selection={editor}
+            boardId={editor.boardId ?? boardId}
+            labels={labels}
+            version={version}
+            clockOffset={clockOffset}
+            onChanged={onChanged}
+            onClose={() =>
+              guard(() => {
+                controller.close();
+              })
+            }
+            onSaved={() => {
               controller.close();
-            })
-          }
-          onSaved={() => {
-            controller.close();
-            onChanged();
-            onAccountsChanged();
-          }}
-          onInspectChange={onInspect}
-          onDirtyChange={controller.setDirty}
-          onOpenTask={onOpenTask}
-          onToggleComplete={onToggleComplete}
-          onDelete={onDelete}
-          onCreateSubtask={(task) => guard(() => controller.createSubtask(task))}
-          onManageLabels={() => setLabelsOpen(true)}
-        />
+              onChanged();
+              onAccountsChanged();
+            }}
+            onInspectChange={onInspect}
+            onDirtyChange={controller.setDirty}
+            onOpenTask={onOpenTask}
+            onToggleComplete={onToggleComplete}
+            onDelete={onDelete}
+            onCreateSubtask={(task) => guard(() => controller.createSubtask(task))}
+            onManageLabels={() => setLabelsOpen(true)}
+          />
+        </TaskEditorSurface>
       )}
       {labelsOpen && (
         <LabelManager

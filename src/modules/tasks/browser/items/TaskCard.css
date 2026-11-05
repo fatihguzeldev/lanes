@@ -19,7 +19,7 @@
 }
 .task-card:hover::before,
 .task-card:focus-within::before {
-  background: color-mix(in srgb, var(--green-soft, #dce3d3) 35%, var(--paper, #fdfbf6));
+  background: var(--paper-hover);
 }
 .task-card__main {
   position: relative;
@@ -49,6 +49,22 @@
   font-weight: 400;
   line-height: 1.5;
   letter-spacing: -0.17px;
+}
+.task-card__skeleton-title {
+  position: relative;
+}
+.task-card__skeleton-title > .skeleton {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 72%;
+  height: 11px;
+}
+.task-card:nth-child(2) .task-card__skeleton-title > .skeleton {
+  width: 84%;
+}
+.task-card:nth-child(3) .task-card__skeleton-title > .skeleton {
+  width: 57%;
 }
 .task-card__title:hover,
 .task-card__child-title:hover {
@@ -98,20 +114,19 @@
   border-radius: 4px;
   background: none;
   color: var(--secondary, #697063);
-  opacity: 0.8;
+  opacity: 0;
   cursor: pointer;
 }
-.task-card__menu .icon {
-  stroke-width: 2.4;
-}
-.task-card:hover .task-card__menu,
-.task-card:focus-within .task-card__menu,
+.task-card__main:hover .task-card__top > .task-card__menu,
+.task-card__main:focus-within .task-card__top > .task-card__menu,
+.task-card__child:hover > .task-card__menu,
+.task-card__child:focus-within > .task-card__menu,
 .task-card__menu:focus-visible {
   opacity: 1;
   color: var(--green);
 }
 .task-card__menu:hover {
-  background: color-mix(in srgb, var(--green-soft, #dce3d3) 65%, transparent);
+  background: var(--paper-hover);
 }
 .task-card__star {
   margin-top: 3px;
@@ -367,4 +382,18 @@
   .task-card::before {
     transition: none;
   }
+}
+
+.task-card__editor-slot:empty {
+  display: none;
+}
+.task-card:has(> .task-card__editor-slot:not(:empty)) > .task-card__main,
+.task-card:has(> .task-card__editor-slot:not(:empty)) > .task-card__children {
+  display: none;
+}
+.task-card__child:has(> .task-card__editor-slot:not(:empty)) {
+  display: block;
+}
+.task-card__child:has(> .task-card__editor-slot:not(:empty)) > :not(.task-card__editor-slot) {
+  display: none;
 }

@@ -19,6 +19,10 @@ lanes metadata is stored separately from task notes. do not insert hidden syntax
 
 create ordinary tasks inline in their destination list. a title and enter are sufficient; successful creation leaves the input ready for another task. escape closes the input without silently discarding an unsent draft. additional fields belong to task details. there is no global create action that silently chooses a list.
 
+open a task in its row, with its title selected for editing and notes immediately available. schedule, metadata, dependencies, and checklist controls reveal their own fields when requested. keep a retained non-modal editor when its card is outside the current view; changing presentation must not remount its draft or abandon a submitted save. closing or navigating away still applies the unsent-draft guard.
+
+task menus contain secondary actions. completion remains on the task's checkbox rather than a duplicate menu item. show each row's options control on hover or keyboard focus, and keep it available on devices without hover.
+
 - require a nonblank title, at most 1,024 characters. trim outer whitespace when the owner submits it. notes allow up to 8,192 characters and preserve line breaks.
 - create an open task in a selected list, at the end of the manual sibling order unless an insertion position was explicitly chosen.
 - notes are plain text. changing a title or note does not reset other fields or replace unrelated provider values.
@@ -125,3 +129,5 @@ validation leaves the draft intact. stale revision conflicts offer refresh and e
 - `tasks-11`: dropping onto the same task or unchanged sibling position produces no provider mutation and preserves the task's revision and fields.
 - `tasks-12`: rapid drops update presentation immediately while provider moves run serially; failed or uncertain moves stop dependent unsent work and preserve confirmed outcomes.
 - `tasks-13`: a lifted task follows the pointer and siblings move to make room before release. hover and cancellation submit no work; only a validated changed drop enters the move queue.
+
+- `tasks-14`: opening task details edits the existing row without a modal. optional fields appear on request; failed saves keep the same draft, including when its card leaves the visible collection.

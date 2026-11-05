@@ -11,8 +11,7 @@ import {
   type CSSProperties,
   type FormEvent,
 } from 'react';
-import { Dialog } from '../../../../shared/ui/dialog/Dialog';
-import { Icon } from '../../../../shared/ui/icon/Icon';
+import { Icon, type IconName } from '../../../../shared/ui/icon/Icon';
 import type { Task } from '../../contracts/task';
 import {
   createEditorDraft,
@@ -70,6 +69,9 @@ function EditorForm(props: TaskEditorProps) {
   const [localErrors, setLocalErrors] = useState<Record<string, string>>({});
   const [clearConfirmed, setClearConfirmed] = useState(false);
   const [dependencyQuery, setDependencyQuery] = useState('');
+  const [section, setSection] = useState<
+    'schedule' | 'details' | 'dependencies' | 'checklist' | null
+  >(null);
   const task = snapshot.task,
     pending = props.pending ?? false;
   const dirty = editorDraftIsDirty(draft, task, options);
@@ -148,7 +150,14 @@ function EditorForm(props: TaskEditorProps) {
 
   useEffect(() => {
     titleInput.current?.focus({ preventScroll: true });
+    titleInput.current?.select();
   }, []);
+  useEffect(() => {
+    const input = titleInput.current;
+    if (!input) return;
+    input.style.height = 'auto';
+    input.style.height = `${input.scrollHeight}px`;
+  }, [draft.title]);
   useEffect(() => {
     props.onDirtyChange?.(dirty);
   }, [dirty, props.onDirtyChange]);
@@ -259,18 +268,32 @@ function EditorForm(props: TaskEditorProps) {
   }
 
   return (
-    <Dialog
-      title={task ? 'task details' : snapshot.parent ? 'new subtask' : 'new task'}
-      onClose={props.onClose}
-      wide
-      pending={pending && !props.submitted}
+    <section
+      className="task-editor-panel"
+      aria-label={task ? 'edit task' : snapshot.parent ? 'new subtask' : 'new task'}
     >
-      <form className="task-editor" onSubmit={submit} noValidate>
-        <div className="task-editor__context">
-          <Icon name="list" size={13} />
-          <span>{snapshot.list.title || 'untitled list'}</span>
-          <span aria-hidden="true">·</span>
-          <span>{snapshot.accountLabel ?? 'connected account'}</span>
+      <form
+        className="task-editor"
+        onSubmit={submit}
+        noValidate
+        onKeyDown={(event) => {
+          if (event.key === 'Escape' && !event.defaultPrevented && !(pending && !props.submitted)) {
+            event.stopPropagation();
+            props.onClose();
+          }
+        }}
+      >
+        <div className="task-editor__heading">
+          <span className="task-editor__context">{snapshot.list.title || 'untitled list'}</span>
+          <button
+            type="button"
+            className="task-editor__close"
+            aria-label="close task"
+            onClick={props.onClose}
+            disabled={pending && !props.submitted}
+          >
+            <Icon name="close" size={14} />
+          </button>
         </div>
         {snapshot.parent && (
           <p className="task-editor__parent">
@@ -329,6 +352,19 @@ function EditorForm(props: TaskEditorProps) {
             )}
           </p>
         )}
+        {task && props.onToggleComplete && (
+          <button
+            type="button"
+            className="task-editor__completion"
+            role="checkbox"
+            aria-checked={task.completed}
+            aria-label={`${task.completed ? 'reopen' : 'complete'} ${title(task)}`}
+            disabled={!providerEnabled}
+            onClick={() => props.onToggleComplete?.(task, !task.completed)}
+          >
+            {task.completed && <Icon name="check" size={11} />}
+          </button>
+        )}
         <label className="sr-only" htmlFor={inputId('title')}>
           task title
         </label>
@@ -343,6 +379,12 @@ function EditorForm(props: TaskEditorProps) {
           onChange={(event) => set('title', event.target.value)}
           disabled={!providerEnabled}
           aria-invalid={invalid('title')}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' && !event.shiftKey) {
+              event.preventDefault();
+              if (saveEnabled) event.currentTarget.form?.requestSubmit();
+            }
+          }}
         />
         <label className="sr-only" htmlFor={inputId('notes')}>
           notes
@@ -350,8 +392,8 @@ function EditorForm(props: TaskEditorProps) {
         <textarea
           className="task-editor__notes"
           id={inputId('notes')}
-          rows={3}
-          placeholder="add a note…"
+          rows={2}
+          placeholder="details"
           value={draft.notes}
           onChange={(event) => set('notes', event.target.value)}
           disabled={!providerEnabled || (!!task && !task.capabilities.canEditNotes)}
@@ -363,153 +405,182 @@ function EditorForm(props: TaskEditorProps) {
           </p>
         )}
 
-        <TaskScheduleFields
-          draft={draft}
-          task={task}
-          parent={snapshot.parent}
-          providerEnabled={providerEnabled}
-          clearingSchedule={clearingSchedule}
-          clearConfirmed={clearConfirmed}
-          onClearConfirmed={setClearConfirmed}
-          set={set}
-          invalid={invalid}
-          inputId={inputId}
-          recurrence={
-            task &&
-            props.recurrence && (
-              <TaskRecurrence
-                taskId={task.id}
-                completed={task.completed}
-                hasRule={!!task.repeatRule}
-                repeatEnabled={draft.repeatEnabled}
-                hasDay={!!draft.scheduledDay}
-                nested={!!task.parentId}
-                dirty={dirty}
-                available={providerEnabled && props.serverReachable !== false}
-                {...props.recurrence}
-                {...(props.onInspectRecurrence ? { onInspect: props.onInspectRecurrence } : {})}
-                {...(props.onRetryRecurrence ? { onRetry: props.onRetryRecurrence } : {})}
-                {...(props.onResumeRecurrence ? { onResume: props.onResumeRecurrence } : {})}
-                {...(props.onOpenRecurrenceTask
-                  ? { onOpenSuccessor: props.onOpenRecurrenceTask }
-                  : {})}
-                onRestore={(rule) => {
-                  setDraft((current) => restorePausedRepeatRule(current, rule));
-                  setLocalErrors({});
-                }}
-              />
-            )
-          }
-        />
-
-        <section className="task-editor__section" aria-labelledby={inputId('details-heading')}>
-          <h3 id={inputId('details-heading')}>
-            <Icon name="filter" size={14} />
-            details
-          </h3>
-          <div className="task-editor__metadata-row">
-            <label>
-              priority
-              <Select
-                value={draft.priority}
-                onChange={(selectedValue) =>
-                  set('priority', selectedValue as TaskEditorDraft['priority'])
-                }
-                disabled={!localEnabled}
-                aria-label="priority"
-                options={[
-                  { value: 'none', label: 'none' },
-                  { value: 'low', label: 'low' },
-                  { value: 'medium', label: 'medium' },
-                  { value: 'high', label: 'high' },
-                ]}
-              />
-            </label>
+        <div className="task-editor__tools" aria-label="task details">
+          {(
+            [
+              ['schedule', 'calendar', 'schedule'],
+              ['details', 'filter', 'labels and priority'],
+              ['dependencies', 'link', 'dependencies'],
+              ...(!task?.parentId && task ? [['checklist', 'subtasks', 'checklist']] : []),
+            ] as const
+          ).map(([value, icon, label]) => (
             <button
-              className={`task-editor__star${draft.starred ? ' is-starred' : ''}`}
+              key={value}
               type="button"
-              aria-pressed={draft.starred}
-              disabled={!localEnabled}
-              onClick={() => set('starred', !draft.starred)}
+              aria-label={label}
+              title={label}
+              aria-expanded={section === value}
+              onClick={() => setSection(section === value ? null : (value as typeof section))}
             >
-              <Icon name="star" size={16} />
-              {draft.starred ? 'starred' : 'add a star'}
+              <Icon name={icon as IconName} size={16} />
             </button>
-          </div>
-          <fieldset className="task-editor__labels" disabled={!localEnabled}>
-            <legend>
-              labels <span>{draft.labelIds.length}/20</span>
-            </legend>
-            <div>
-              {labels.map((label) => (
-                <label
-                  className={draft.labelIds.includes(label.id) ? 'is-selected' : ''}
-                  style={{ '--label-color': label.color } as CSSProperties}
-                  key={label.id}
-                >
-                  <input
-                    type="checkbox"
-                    checked={draft.labelIds.includes(label.id)}
-                    disabled={
-                      !draft.labelIds.includes(label.id) &&
-                      (draft.labelIds.length >= 20 || props.pendingLabelIds?.has(label.id))
-                    }
-                    onChange={() => toggle('labelIds', label.id)}
-                  />
-                  <i aria-hidden="true" />
-                  {label.name}
-                  {props.pendingLabelIds?.has(label.id) && <small>deleting</small>}
-                </label>
-              ))}
-              {draft.labelIds
-                .filter((id) => !labels.some((label) => label.id === id))
-                .map((id) => (
-                  <button type="button" key={id} onClick={() => toggle('labelIds', id)}>
-                    label not loaded <Icon name="close" size={11} />
-                  </button>
-                ))}
-            </div>
-            {!labels.length && !draft.labelIds.length && (
-              <p className="task-editor__hint">no labels in this account yet.</p>
-            )}
-          </fieldset>
-          {props.onManageLabels && (
-            <button
-              className="task-editor__text-button"
-              type="button"
-              disabled={pending}
-              onClick={props.onManageLabels}
-            >
-              manage labels
-              <Icon name="right" size={12} />
-            </button>
-          )}
-          <TaskDependencies
-            blockedBy={draft.blockedBy}
-            related={related}
-            listId={snapshot.list.id}
-            localEnabled={localEnabled}
-            query={dependencyQuery}
-            onQuery={setDependencyQuery}
-            onToggle={(id) => toggle('blockedBy', id)}
-            scope={props.dependencySearchScope}
-            loading={props.relatedTasksLoading}
-            error={props.dependencyError}
-            hasMore={props.dependenciesHaveMore}
-            onLoadMore={props.onLoadMoreDependencies}
-            remoteSearch={!!props.onSearchDependencies}
+          ))}
+          <button
+            type="button"
+            aria-label={draft.starred ? 'remove star' : 'star task'}
+            title={draft.starred ? 'remove star' : 'star task'}
+            aria-pressed={draft.starred}
+            disabled={!localEnabled}
+            onClick={() => set('starred', !draft.starred)}
+          >
+            <Icon name="star" size={16} />
+          </button>
+        </div>
+        {section === 'schedule' && (
+          <TaskScheduleFields
+            draft={draft}
+            task={task}
+            parent={snapshot.parent}
+            providerEnabled={providerEnabled}
+            clearingSchedule={clearingSchedule}
+            clearConfirmed={clearConfirmed}
+            onClearConfirmed={setClearConfirmed}
+            set={set}
+            invalid={invalid}
+            inputId={inputId}
+            recurrence={
+              task &&
+              props.recurrence && (
+                <TaskRecurrence
+                  taskId={task.id}
+                  completed={task.completed}
+                  hasRule={!!task.repeatRule}
+                  repeatEnabled={draft.repeatEnabled}
+                  hasDay={!!draft.scheduledDay}
+                  nested={!!task.parentId}
+                  dirty={dirty}
+                  available={providerEnabled && props.serverReachable !== false}
+                  {...props.recurrence}
+                  {...(props.onInspectRecurrence ? { onInspect: props.onInspectRecurrence } : {})}
+                  {...(props.onRetryRecurrence ? { onRetry: props.onRetryRecurrence } : {})}
+                  {...(props.onResumeRecurrence ? { onResume: props.onResumeRecurrence } : {})}
+                  {...(props.onOpenRecurrenceTask
+                    ? { onOpenSuccessor: props.onOpenRecurrenceTask }
+                    : {})}
+                  onRestore={(rule) => {
+                    setDraft((current) => restorePausedRepeatRule(current, rule));
+                    setLocalErrors({});
+                  }}
+                />
+              )
+            }
           />
-          {task && props.dependants && (
-            <TaskDependants
-              {...props.dependants}
-              accountId={snapshot.accountId}
-              completed={task.completed}
-              pending={pending}
-            />
-          )}
-        </section>
+        )}
 
-        {task && !task.parentId && (
+        {section === 'details' && (
+          <section className="task-editor__section" aria-labelledby={inputId('details-heading')}>
+            <h3 id={inputId('details-heading')}>
+              <Icon name="filter" size={14} />
+              details
+            </h3>
+            <div className="task-editor__metadata-row">
+              <label>
+                priority
+                <Select
+                  value={draft.priority}
+                  onChange={(selectedValue) =>
+                    set('priority', selectedValue as TaskEditorDraft['priority'])
+                  }
+                  disabled={!localEnabled}
+                  aria-label="priority"
+                  options={[
+                    { value: 'none', label: 'none' },
+                    { value: 'low', label: 'low' },
+                    { value: 'medium', label: 'medium' },
+                    { value: 'high', label: 'high' },
+                  ]}
+                />
+              </label>
+            </div>
+            <fieldset className="task-editor__labels" disabled={!localEnabled}>
+              <legend>
+                labels <span>{draft.labelIds.length}/20</span>
+              </legend>
+              <div>
+                {labels.map((label) => (
+                  <label
+                    className={draft.labelIds.includes(label.id) ? 'is-selected' : ''}
+                    style={{ '--label-color': label.color } as CSSProperties}
+                    key={label.id}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={draft.labelIds.includes(label.id)}
+                      disabled={
+                        !draft.labelIds.includes(label.id) &&
+                        (draft.labelIds.length >= 20 || props.pendingLabelIds?.has(label.id))
+                      }
+                      onChange={() => toggle('labelIds', label.id)}
+                    />
+                    <i aria-hidden="true" />
+                    {label.name}
+                    {props.pendingLabelIds?.has(label.id) && <small>deleting</small>}
+                  </label>
+                ))}
+                {draft.labelIds
+                  .filter((id) => !labels.some((label) => label.id === id))
+                  .map((id) => (
+                    <button type="button" key={id} onClick={() => toggle('labelIds', id)}>
+                      label not loaded <Icon name="close" size={11} />
+                    </button>
+                  ))}
+              </div>
+              {!labels.length && !draft.labelIds.length && (
+                <p className="task-editor__hint">no labels in this account yet.</p>
+              )}
+            </fieldset>
+            {props.onManageLabels && (
+              <button
+                className="task-editor__text-button"
+                type="button"
+                disabled={pending}
+                onClick={props.onManageLabels}
+              >
+                manage labels
+                <Icon name="right" size={12} />
+              </button>
+            )}
+          </section>
+        )}
+        {section === 'dependencies' && (
+          <section className="task-editor__section" aria-label="dependencies">
+            <TaskDependencies
+              blockedBy={draft.blockedBy}
+              related={related}
+              listId={snapshot.list.id}
+              localEnabled={localEnabled}
+              query={dependencyQuery}
+              onQuery={setDependencyQuery}
+              onToggle={(id) => toggle('blockedBy', id)}
+              scope={props.dependencySearchScope}
+              loading={props.relatedTasksLoading}
+              error={props.dependencyError}
+              hasMore={props.dependenciesHaveMore}
+              onLoadMore={props.onLoadMoreDependencies}
+              remoteSearch={!!props.onSearchDependencies}
+            />
+            {task && props.dependants && (
+              <TaskDependants
+                {...props.dependants}
+                accountId={snapshot.accountId}
+                completed={task.completed}
+                pending={pending}
+              />
+            )}
+          </section>
+        )}
+
+        {section === 'checklist' && task && !task.parentId && (
           <TaskChecklist
             task={task}
             children={children}
@@ -603,16 +674,6 @@ function EditorForm(props: TaskEditorProps) {
         )}
         <footer className="task-editor__footer">
           <div className="task-editor__lifecycle">
-            {task && props.onToggleComplete && (
-              <button
-                type="button"
-                disabled={!providerEnabled}
-                onClick={() => props.onToggleComplete?.(task, !task.completed)}
-              >
-                <Icon name="check" size={14} />
-                {task.completed ? 'reopen' : 'complete'}
-              </button>
-            )}
             {task && props.onDelete && (
               <button
                 type="button"
@@ -634,7 +695,7 @@ function EditorForm(props: TaskEditorProps) {
             {props.submitted ? 'close' : 'cancel'}
           </button>
           <button type="submit" className="task-editor__save" disabled={!saveEnabled}>
-            {pending ? 'saving…' : task ? 'save changes' : 'add task'}
+            {pending ? 'saving…' : task ? 'save' : 'add task'}
             {!pending && <Icon name="arrow" size={14} />}
           </button>
         </footer>
@@ -646,6 +707,6 @@ function EditorForm(props: TaskEditorProps) {
           </p>
         )}
       </form>
-    </Dialog>
+    </section>
   );
 }

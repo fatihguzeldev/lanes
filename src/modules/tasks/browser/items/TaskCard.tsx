@@ -1,5 +1,6 @@
 import { useEffect, useId, useState, type CSSProperties } from 'react';
 import { Icon } from '../../../../shared/ui/icon/Icon';
+import { Skeleton } from '../../../../shared/ui/skeleton/Skeleton';
 import type { BlockingState, Label, Task } from '../../contracts/task';
 import { countOpenTasks, getBlockingState } from '../../model/task';
 import { addCalendarDays } from '../../model/planning';
@@ -37,6 +38,22 @@ const shortDay = new Intl.DateTimeFormat('en', {
   timeZone: 'UTC',
 });
 const taskTitle = (task: Task): string => (task.title.trim() ? task.title : 'untitled task');
+
+export function TaskCardSkeleton() {
+  return (
+    <div className="task-card" aria-hidden="true">
+      <div className="task-card__main">
+        <div className="task-card__top">
+          <span className="task-card__check" />
+          <span className="task-card__title task-card__skeleton-title">
+            &nbsp;
+            <Skeleton />
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function scheduledText(day: string, today: string): string {
   if (day === today) return 'today';
@@ -294,6 +311,7 @@ export function TaskCard({
                   className={`task-card__child${child.completed ? ' task-card__child--completed' : ''}`}
                   key={child.id}
                   aria-busy={childPending || undefined}
+                  data-task-child-id={child.id}
                 >
                   <CompletionButton
                     task={child}
@@ -316,6 +334,11 @@ export function TaskCard({
                     </button>
                     <DueDate task={child} today={today} accountTimeZone={accountTimeZone} />
                   </div>
+                  <div
+                    className="task-card__editor-slot"
+                    data-task-editor-host={child.id}
+                    data-account-id={child.accountId}
+                  />
                   {onMenu && (
                     <button
                       className="task-card__menu"
@@ -331,6 +354,11 @@ export function TaskCard({
             })}
         </ul>
       )}
+      <div
+        className="task-card__editor-slot"
+        data-task-editor-host={task.id}
+        data-account-id={task.accountId}
+      />
     </article>
   );
 }
