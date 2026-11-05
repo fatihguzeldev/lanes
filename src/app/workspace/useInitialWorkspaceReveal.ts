@@ -5,6 +5,7 @@ import { initialWorkspaceReady } from './workspace-startup';
 interface Input {
   scope: string;
   version: number;
+  retainedWorkspace: boolean;
   topologyReady: boolean;
   foregroundSettled: boolean;
   metadataSettled: boolean;

@@ -305,6 +305,7 @@ export function Workspace({
   ]);
   const { revealed, onInitialReady } = useInitialWorkspaceReveal({
     scope: initialViewKey,
+    retainedWorkspace: account.state === 'connected',
     version,
     topologyReady: sync.initialTopologyReady,
     foregroundSettled: sync.initialForegroundSettled,

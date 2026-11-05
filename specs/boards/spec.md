@@ -66,7 +66,7 @@ show one workspace skeleton while the session, selected board, loaded list page,
 
 keep the required queries mounted behind the skeleton. readiness belongs to the current account, view, loaded lists, and refresh generation; an older successful response does not satisfy a newer read. include completed-task queries when the view shows them, without requiring every result page to be downloaded.
 
-a complete cached baseline for the loaded lists can reveal while other provider work continues. a cold visible baseline waits for those lists to reconcile or for the initial foreground run to settle, pause, or fail. do not require every account list or every list page before showing the selected view. failed reads and paused authorization expose their recovery controls instead of keeping the skeleton indefinitely.
+an already initialized workspace reveals once its current metadata and visible task queries settle. reading retained data does not wait for google inventory, task sync, or recurrence work; partial coverage stays partial while background refresh continues. a cold visible baseline waits for those lists to reconcile or for the initial foreground run to settle, pause, or fail. do not reveal an empty first workspace before its initial topology resolves. do not require every account list or every list page before showing the selected view. failed reads and paused authorization expose their recovery controls instead of keeping the skeleton indefinitely.
 
 after the first reveal, retain the workspace during background refresh. further pages and provider changes update the existing content without replacing the page with the startup skeleton.
 
@@ -110,3 +110,4 @@ read/write conflicts, missing destinations, and local storage failures keep conf
 - `boards-10`: board operations remain usable with an expired google grant while provider-backed edits show reconnect.
 - `boards-11`: delayed initial reads reveal the selected workspace together; stale readiness from an earlier account, list set, or refresh generation cannot reveal it early.
 - `boards-12`: a paused or failed initial refresh exposes recovery; later background refreshes retain the revealed workspace and do not require unloaded list pages.
+- `boards-13`: a returning connected account reveals its retained workspace after the current local read batch settles, even while provider coverage is partial. a first connection does not flash an empty board before topology is known.
