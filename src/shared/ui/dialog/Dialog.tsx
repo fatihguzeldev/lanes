@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, type ReactNode } from 'react';
+import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { Icon } from '../icon/Icon';
 import { restoreFocus } from '../focus/restore-focus';
 import { applyViewport, observeViewport } from '../viewport/viewport';
@@ -20,6 +20,8 @@ export function Dialog({
   pending?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const heading = useRef<HTMLHeadingElement>(null);
+  const [scrollableTitle, setScrollableTitle] = useState(false);
   const opener = useRef(
     typeof document === 'undefined'
       ? null
@@ -28,6 +30,15 @@ export function Dialog({
         : null,
   );
   const keyboard = useRef(opener.current?.matches(':focus-visible') ?? false);
+  useLayoutEffect(() => {
+    const element = heading.current;
+    if (!element) return;
+    const update = () => setScrollableTitle(element.scrollHeight > element.clientHeight + 1);
+    const observer = new ResizeObserver(update);
+    observer.observe(element);
+    update();
+    return () => observer.disconnect();
+  }, [title]);
   useLayoutEffect(() => {
     const dialog = ref.current;
     const stopViewport = dialog
@@ -67,7 +78,9 @@ export function Dialog({
       }}
     >
       <div className="dialog__heading">
-        <h2>{title}</h2>
+        <h2 ref={heading} tabIndex={scrollableTitle ? 0 : undefined}>
+          {title}
+        </h2>
         <button
           type="button"
           className="dialog__close"
