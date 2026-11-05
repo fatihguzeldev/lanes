@@ -9,6 +9,7 @@ import {
 } from '../../contracts/session';
 import { ConnectionSummarySchema } from '../../contracts/connection';
 import { oauthLandingError } from './landing';
+import { clearAccountInitial, readAccountInitial, rememberAccountInitial } from './account-initial';
 
 export function useOwnerSession(initialAccountId: () => string | null) {
   const [session, setSession] = useState<SessionSnapshot | null>(null);
@@ -25,6 +26,7 @@ export function useOwnerSession(initialAccountId: () => string | null) {
     }
   });
   const selectedAccountId = useRef(accountId);
+  const [loadingInitial, setLoadingInitial] = useState(() => readAccountInitial(accountId));
   selectedAccountId.current = accountId;
   const channel = useRef<BroadcastChannel | null>(null);
   const sessionFlight = useRef<AbortController | null>(null);
@@ -60,6 +62,15 @@ export function useOwnerSession(initialAccountId: () => string | null) {
         }
       }
       if (flight.signal.aborted) return;
+      const nextAccount = next.authenticated
+        ? (next.accounts?.items.find((account) => account.id === selectedAccountId.current) ??
+          next.accounts?.items[0])
+        : undefined;
+      if (nextAccount) setLoadingInitial(rememberAccountInitial(nextAccount));
+      else {
+        clearAccountInitial();
+        setLoadingInitial(null);
+      }
       setClockOffset(next.serverTime - Date.now());
       setSession((previous) =>
         next.authenticated && next.accounts && previous?.authenticated && previous.accounts
@@ -92,6 +103,8 @@ export function useOwnerSession(initialAccountId: () => string | null) {
     const clearPrivate = () => {
       sessionFlight.current?.abort();
       setSession(null);
+      clearAccountInitial();
+      setLoadingInitial(null);
     };
     const expired = () => {
       clearPrivate();
@@ -121,6 +134,9 @@ export function useOwnerSession(initialAccountId: () => string | null) {
     };
   }, [load]);
   const selectAccount = (id: string) => {
+    const confirmedAccount = session?.accounts?.items.find((account) => account.id === id);
+    setLoadingInitial(confirmedAccount ? rememberAccountInitial(confirmedAccount) : null);
+    if (!confirmedAccount) clearAccountInitial();
     try {
       sessionStorage.setItem('lanes.account', id);
       localStorage.setItem('lanes.account', id);
@@ -137,6 +153,8 @@ export function useOwnerSession(initialAccountId: () => string | null) {
       .then(() => {
         sessionFlight.current?.abort();
         setSession(null);
+        clearAccountInitial();
+        setLoadingInitial(null);
         try {
           sessionStorage.removeItem('lanes.account');
           localStorage.removeItem('lanes.account');
@@ -218,6 +236,7 @@ export function useOwnerSession(initialAccountId: () => string | null) {
     pending,
     clockOffset,
     selected,
+    loadingInitial,
     load,
     selectAccount,
     signOut,

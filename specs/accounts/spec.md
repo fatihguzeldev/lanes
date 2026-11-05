@@ -68,6 +68,8 @@ show the active account's email and profile identity in the workspace. every rou
 
 remember the last selected account per browser. selection is local to a tab; other tabs may show another account. this avoids changing the destination under a user editing in another tab. signing out and disconnecting invalidate affected views across tabs.
 
+keep a confirmed account's avatar initial visible in the loading shell during a reload. a tab may retain only its account reference and single initial for this display hint; it does not replace server session validation or expose workspace content. clear the hint on sign-out, session expiry, an unauthenticated response, or a mismatched account selection.
+
 when switching accounts, keep an in-progress editor attached to its original account and require saving or discarding its unsent draft. a submitted operation continues against its captured account and remains discoverable there. never copy an unsent draft into the newly selected account.
 
 ## connection states

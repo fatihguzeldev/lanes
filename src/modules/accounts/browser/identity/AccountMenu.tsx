@@ -23,7 +23,11 @@ export function AccountMenu({
   return (
     <Popover
       label={`google account: ${account.email}`}
-      trigger={<span className="account-menu__avatar">{account.displayName.slice(0, 1)}</span>}
+      trigger={
+        <span className="account-menu__avatar">
+          {Array.from(account.displayName.trim())[0] ?? '?'}
+        </span>
+      }
       triggerClassName="account-menu__trigger"
       className="account-menu"
       align="end"
