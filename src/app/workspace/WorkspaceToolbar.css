@@ -153,7 +153,7 @@
     display: none;
   }
 }
-@media (max-width: 359px) and (pointer: coarse) {
+@media (max-width: 480px) and (pointer: coarse) {
   .workspace__topbar {
     grid-template-columns: minmax(0, 1fr);
     gap: 8px;
@@ -164,6 +164,7 @@
   .workspace__global-controls {
     grid-column: 1;
     grid-row: 2;
+    justify-content: space-between;
   }
   .workspace__search-controls {
     grid-column: 1;
