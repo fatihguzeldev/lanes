@@ -14,10 +14,9 @@
   align-items: center;
   gap: 8px;
   min-width: 0;
-  max-width: 220px;
 }
 .workspace__title h1 {
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -69,7 +68,7 @@
   color: var(--secondary);
 }
 .workspace__search:focus-within {
-  border-color: var(--check-border);
+  border-color: var(--green);
 }
 .workspace__search input {
   min-width: 0;
