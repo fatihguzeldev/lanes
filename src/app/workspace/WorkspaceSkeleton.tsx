@@ -51,10 +51,33 @@ export function WorkspaceSkeleton({
             <h1>
               <Skeleton className="workspace-skeleton__title" />
             </h1>
-            <button type="button" tabIndex={-1} className="workspace__icon-button">
+            <span className="workspace__compact-title">
+              <button
+                type="button"
+                tabIndex={-1}
+                className="workspace__icon-button workspace__board-trigger"
+              >
+                <span>
+                  <Skeleton className="workspace-skeleton__title" />
+                </span>
+                <Icon name="down" size={14} />
+              </button>
+            </span>
+            <button
+              type="button"
+              tabIndex={-1}
+              className="workspace__icon-button workspace__board-options"
+            >
               <Icon name="more" />
             </button>
           </div>
+          <button
+            type="button"
+            tabIndex={-1}
+            className="workspace__icon-button workspace__search-launch"
+          >
+            <Icon name="search" />
+          </button>
           <div className="workspace__search-controls">
             <label className="workspace__search">
               <Icon name="search" size={16} />
@@ -69,12 +92,14 @@ export function WorkspaceSkeleton({
             <button type="button" tabIndex={-1} className="workspace__icon-button">
               <Icon name="cloud" />
             </button>
-            <button type="button" tabIndex={-1} className="workspace__icon-button">
-              <Icon name={theme === 'dark' ? 'sun' : 'moon'} />
-            </button>
-            <button type="button" tabIndex={-1} className="workspace__icon-button">
-              <Icon name="settings" />
-            </button>
+            <div className="workspace__desktop-utilities">
+              <button type="button" tabIndex={-1} className="workspace__icon-button">
+                <Icon name={theme === 'dark' ? 'sun' : 'moon'} />
+              </button>
+              <button type="button" tabIndex={-1} className="workspace__icon-button">
+                <Icon name="settings" />
+              </button>
+            </div>
             <button type="button" tabIndex={-1} className="account-menu__trigger">
               <span className="account-menu__avatar">{accountInitial}</span>
             </button>

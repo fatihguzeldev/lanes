@@ -34,7 +34,7 @@ import { readListPlacement } from '../../modules/boards/browser/placement/querie
 import { useLabels } from '../../modules/tasks/browser/labels/useLabels';
 import { useUnfinishedChanges } from '../../modules/operations/browser/queries/useUnfinishedChanges';
 import { createTaskActions } from '../../modules/tasks/browser/actions/task-actions';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { WorkspaceSkeleton } from './WorkspaceSkeleton';
 import { Icon } from '../../shared/ui/icon/Icon';
 import { Dialog } from '../../shared/ui/dialog/Dialog';
@@ -137,7 +137,6 @@ export function Workspace({
   const editorDirty = taskEditor.dirty;
   const completion = useTaskCompletion();
   const taskMenu = useTaskMenu();
-  const searchRef = useRef<HTMLInputElement>(null);
   const changed = useCallback(() => {
     setVersion((value) => value + 1);
     setTopologyVersion((value) => value + 1);
@@ -294,23 +293,6 @@ export function Workspace({
     movingTasks,
     boardManagement.placement.busy,
   ]);
-  useEffect(() => {
-    const key = (event: KeyboardEvent) => {
-      if (
-        event.target instanceof HTMLElement &&
-        event.target.closest(
-          'input,textarea,select,[role=combobox],[contenteditable=true],dialog,[popover]',
-        )
-      )
-        return;
-      if (event.key === '/') {
-        event.preventDefault();
-        searchRef.current?.focus();
-      }
-    };
-    window.addEventListener('keydown', key);
-    return () => window.removeEventListener('keydown', key);
-  }, []);
   const openTask = (task: Task) => {
     const list = lists.items.find((item) => item.id === task.listId);
     guard(() => taskEditor.open(task, list ? { list, boardId: list.boardId } : undefined));
@@ -484,7 +466,6 @@ export function Workspace({
             boardManagement.openBoardMenu(anchor);
           }}
           query={query}
-          searchRef={searchRef}
           onQuery={(value) => {
             if (inlineDirty && searchScope === 'account') guard(() => setQuery(value));
             else setQuery(value);

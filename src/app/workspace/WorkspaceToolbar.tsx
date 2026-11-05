@@ -5,6 +5,7 @@ import { Skeleton } from '../../shared/ui/skeleton/Skeleton';
 import { Icon } from '../../shared/ui/icon/Icon';
 import { Select } from '../../shared/ui/select/Select';
 import { useWorkspaceHeader } from './useWorkspaceHeader';
+import { useWorkspaceSearch } from './useWorkspaceSearch';
 import './WorkspaceToolbar.css';
 
 interface Props {
@@ -15,9 +16,8 @@ interface Props {
   searchScope: 'board' | 'account';
   search: string;
   board: Board | null;
-  onBoardOptions(anchor: HTMLButtonElement): void;
+  onBoardOptions(anchor: HTMLElement): void;
   query: string;
-  searchRef: Ref<HTMLInputElement>;
   onQuery(value: string): void;
   onScope(value: 'board' | 'account'): void;
   viewMenu: ComponentProps<typeof WorkspaceViewMenu>;
@@ -33,15 +33,28 @@ export function WorkspaceToolbar({
   board,
   onBoardOptions,
   query,
-  searchRef,
   onQuery,
   onScope,
   viewMenu,
   controls,
 }: Props) {
   const header = useWorkspaceHeader();
+  const taskSearch = useWorkspaceSearch(query, onQuery);
+  const title =
+    quick === 'today'
+      ? 'today'
+      : quick === 'starred'
+        ? 'starred'
+        : searchScope === 'account' && search
+          ? 'search results'
+          : (board?.title ??
+            (awaitingBoard ? <Skeleton className="workspace-skeleton__title" /> : 'boards'));
+  const boardActions = board && quick === 'all' && !(searchScope === 'account' && search);
   return (
-    <header ref={header} className="workspace__topbar">
+    <header
+      ref={header}
+      className={`workspace__topbar${taskSearch.searching ? ' workspace__topbar--searching' : ''}`}
+    >
       <div className="workspace__title">
         <button
           ref={navigationTrigger}
@@ -59,23 +72,30 @@ export function WorkspaceToolbar({
               : undefined
           }
         >
-          {quick === 'today'
-            ? 'today'
-            : quick === 'starred'
-              ? 'starred'
-              : searchScope === 'account' && search
-                ? 'search results'
-                : (board?.title ??
-                  (awaitingBoard ? <Skeleton className="workspace-skeleton__title" /> : 'boards'))}
+          {title}
         </h1>
+        <span className="workspace__compact-title">
+          <WorkspaceViewMenu
+            {...viewMenu}
+            trigger={
+              <>
+                <span>{title}</span>
+                <Icon name="down" size={14} />
+              </>
+            }
+            label={`view options for ${typeof title === 'string' ? title : 'board'}`}
+            triggerClassName="workspace__board-trigger"
+            {...(boardActions ? { onBoardOptions } : {})}
+          />
+        </span>
         {awaitingBoard && quick === 'all' && !(searchScope === 'account' && search) && (
-          <span className="workspace__icon-button" aria-hidden="true">
+          <span className="workspace__icon-button workspace__board-options" aria-hidden="true">
             <Icon name="more" />
           </span>
         )}
-        {board && quick === 'all' && !(searchScope === 'account' && search) && (
+        {boardActions && (
           <button
-            className="workspace__icon-button"
+            className="workspace__icon-button workspace__board-options"
             aria-label={`options for ${board.title}`}
             onClick={(event) => {
               onBoardOptions(event.currentTarget);
@@ -85,15 +105,41 @@ export function WorkspaceToolbar({
           </button>
         )}
       </div>
+      <button
+        ref={taskSearch.trigger}
+        type="button"
+        className="workspace__icon-button workspace__search-launch"
+        aria-label="search tasks"
+        onClick={taskSearch.open}
+      >
+        <Icon name="search" />
+      </button>
       <div className="workspace__search-controls">
+        <button
+          type="button"
+          className="workspace__icon-button workspace__search-back"
+          aria-label="close search"
+          onClick={taskSearch.close}
+        >
+          <Icon name="left" />
+        </button>
         <label className="workspace__search">
           <Icon name="search" size={16} />
           <input
-            ref={searchRef}
+            ref={taskSearch.input}
+            type="search"
+            enterKeyHint="search"
             value={query}
             onChange={(event) => onQuery(event.target.value)}
             placeholder="search tasks"
             aria-label="search tasks"
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') {
+                event.preventDefault();
+                event.stopPropagation();
+                taskSearch.close();
+              }
+            }}
           />
           <kbd>/</kbd>
         </label>
@@ -109,7 +155,9 @@ export function WorkspaceToolbar({
             ]}
           />
         )}
-        <WorkspaceViewMenu {...viewMenu} />
+        <span className="workspace__desktop-view">
+          <WorkspaceViewMenu {...viewMenu} />
+        </span>
       </div>
       <div className="workspace__global-controls">{controls}</div>
     </header>
