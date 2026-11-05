@@ -31,6 +31,7 @@ export function useWorkspaceSync(
   const retained = useRef(retainedWorkspace);
   retained.current = retainedWorkspace;
   const pendingChanges = useRef<SyncChanges>({ topology: false, tasks: false });
+  const observedWork = useRef({ pending: false, external: false });
   const generation = useRef(0),
     flight = useRef<AbortController | null>(null),
     timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -53,6 +54,12 @@ export function useWorkspaceSync(
         lastInvalidatedAt = Date.now();
         callback.current(changes);
       };
+      const settleChanges = () => {
+        if (observedWork.current.external) pendingChanges.current = { topology: true, tasks: true };
+        if (!observedWork.current.pending)
+          observedWork.current = { pending: false, external: false };
+        flushChanges();
+      };
       const advance = async (first: boolean): Promise<void> => {
         if (controller.signal.aborted || generation.current !== epoch) return;
         try {
@@ -68,6 +75,13 @@ export function useWorkspaceSync(
           if (controller.signal.aborted || generation.current !== epoch) return;
           const next = progress.status;
           setStatus(next);
+          if (
+            progress.phase === 'coalesced' ||
+            (progress.phase === 'idle' && (observedWork.current.pending || next.pending)) ||
+            (progress.continued && !next.pending)
+          )
+            observedWork.current.external = true;
+          observedWork.current.pending = next.pending;
           const changes = syncChanges(progress);
           pendingChanges.current.topology ||= changes.topology;
           pendingChanges.current.tasks ||= changes.tasks;
@@ -96,7 +110,7 @@ export function useWorkspaceSync(
           topologySeen.current = true;
           setInitialTopologyReady(true);
           setInitialForegroundSettled(true);
-          flushChanges();
+          settleChanges();
           setBusy(false);
           flight.current = null;
         } catch (error) {
@@ -107,7 +121,8 @@ export function useWorkspaceSync(
             setInitialForegroundSettled(true);
             // The slice may have committed before its response or status read was lost.
             pendingChanges.current = { topology: true, tasks: true };
-            flushChanges();
+            observedWork.current = { pending: true, external: true };
+            settleChanges();
             setBusy(false);
             flight.current = null;
           }
@@ -128,6 +143,7 @@ export function useWorkspaceSync(
       flight.current?.abort();
       flight.current = null;
       pendingChanges.current = { topology: false, tasks: false };
+      observedWork.current = { pending: false, external: false };
       if (timer.current) clearTimeout(timer.current);
       document.removeEventListener('visibilitychange', visible);
     };

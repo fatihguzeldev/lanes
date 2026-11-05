@@ -122,6 +122,7 @@ describe('workspace sync flow', () => {
       () => step('inventory', { pending: true }),
       () => new Promise<Step>((resolve) => (release = resolve)),
       () => step('coalesced'),
+      () => step('idle'),
     );
     const changed = vi.fn();
     const sync = useWorkspaceSync('account-a', changed, true);
@@ -129,7 +130,8 @@ describe('workspace sync flow', () => {
     await sync.refresh('manual');
     release(step('tasks'));
     await vi.advanceTimersByTimeAsync(0);
-    expect(changed.mock.calls).toEqual([[{ topology: true, tasks: false }]]);
+    await sync.refresh('manual');
+    expect(changed.mock.calls).toEqual([[{ topology: true, tasks: true }]]);
     expect(vi.getTimerCount()).toBe(0);
   });
 
@@ -148,7 +150,7 @@ describe('workspace sync flow', () => {
     await vi.advanceTimersByTimeAsync(300);
     expect(changed.mock.calls).toEqual([
       [{ topology: true, tasks: false }],
-      [{ topology: false, tasks: true }],
+      [{ topology: true, tasks: true }],
     ]);
   });
 
@@ -174,7 +176,6 @@ describe('workspace sync flow', () => {
 
   it.each([
     ['idle', undefined],
-    ['coalesced', undefined],
     ['tasks', 'reconnect_required'],
   ] as const)(
     'does not invalidate unchanged reads for %s with error %s',
@@ -186,6 +187,68 @@ describe('workspace sync flow', () => {
       expect(changed).not.toHaveBeenCalled();
     },
   );
+
+  it('refreshes once after externally claimed work finishes between polls', async () => {
+    serve(
+      () => step('coalesced', { pending: true, delay: 5_000 }),
+      () => step('coalesced', { pending: true, delay: 5_000 }),
+      () => step('coalesced', { pending: true, delay: 5_000 }),
+      () => step('idle'),
+    );
+    const changed = vi.fn();
+    useWorkspaceSync('account-a', changed, true);
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(changed).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(changed.mock.calls).toEqual([[{ topology: true, tasks: true }]]);
+  });
+
+  it('refreshes once when another worker removes the job before status is read', async () => {
+    serve(() => step('coalesced'));
+    const changed = vi.fn();
+    useWorkspaceSync('account-a', changed, true);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(changed.mock.calls).toEqual([[{ topology: true, tasks: true }]]);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('refreshes once when previously pending work disappears during an idle poll', async () => {
+    serve(
+      () => step('idle', { pending: true }),
+      () => step('idle'),
+    );
+    const changed = vi.fn();
+    useWorkspaceSync('account-a', changed, true);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(changed).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(300);
+    expect(changed.mock.calls).toEqual([[{ topology: true, tasks: true }]]);
+  });
+
+  it('reconciles a job that finishes between its committed slice and status read', async () => {
+    serve(() => ({ ...step('inventory'), continued: true }));
+    const changed = vi.fn();
+    useWorkspaceSync('account-a', changed, true);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(changed.mock.calls).toEqual([[{ topology: true, tasks: true }]]);
+  });
+
+  it('retains pending external work across a foreground backoff pause', async () => {
+    serve(
+      () => step('coalesced', { pending: true, delay: 31_000 }),
+      () => step('idle'),
+    );
+    const changed = vi.fn();
+    const sync = useWorkspaceSync('account-a', changed, true);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(changed.mock.calls).toEqual([[{ topology: true, tasks: true }]]);
+    expect(vi.getTimerCount()).toBe(0);
+    await sync.refresh('manual');
+    expect(changed.mock.calls).toEqual([
+      [{ topology: true, tasks: true }],
+      [{ topology: true, tasks: true }],
+    ]);
+  });
 
   it('reconciles all possibly committed progress when a later response is lost', async () => {
     serve(
@@ -211,6 +274,24 @@ describe('workspace sync flow', () => {
     await vi.advanceTimersByTimeAsync(0);
     expect(changed.mock.calls).toEqual([[{ topology: true, tasks: true }]]);
     expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('retains unknown work after a lost first response until a later refresh settles', async () => {
+    serve(
+      () => {
+        throw new Error('the first response was lost');
+      },
+      () => step('idle'),
+    );
+    const changed = vi.fn();
+    const sync = useWorkspaceSync('account-a', changed, true);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(changed.mock.calls).toEqual([[{ topology: true, tasks: true }]]);
+    await sync.refresh('manual');
+    expect(changed.mock.calls).toEqual([
+      [{ topology: true, tasks: true }],
+      [{ topology: true, tasks: true }],
+    ]);
   });
 
   it('does not invalidate a cancelled account from its late response', async () => {
