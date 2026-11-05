@@ -104,6 +104,20 @@ describe('board entry completion', () => {
     expect(entry).toMatchObject({ open: false, title: '' });
   });
 
+  it('lets an already submitted board finish after the entry closes', async () => {
+    let finish!: (value: { state: string }) => void;
+    command.submit.mockImplementation(() => new Promise((resolve) => (finish = resolve)));
+    render().show();
+    render().change('reading');
+    const pending = render().save();
+    render().close();
+    expect(render()).toMatchObject({ open: false, title: 'reading', locked: true });
+    finish({ state: 'succeeded' });
+    await pending;
+    expect(render()).toMatchObject({ open: false, title: '', locked: false });
+    expect(command.submit).toHaveBeenCalledOnce();
+  });
+
   it('keeps a rejected name editable and waits for an edit or explicit retry', async () => {
     command.submit.mockResolvedValue(null);
     render().show();
