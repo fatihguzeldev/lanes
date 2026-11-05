@@ -40,12 +40,8 @@ export function TaskMenu({ controller, ...props }: Props) {
         props.onDuplicate(task);
         controller.close();
       }}
-      onMove={(task) => {
-        props.onMove(task);
-        controller.close();
-      }}
-      onToggleComplete={(task) => {
-        props.onToggleComplete(task);
+      onMove={(task, anchor) => {
+        props.onMove(task, anchor);
         controller.close();
       }}
     />

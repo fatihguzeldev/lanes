@@ -16,8 +16,7 @@ interface Props {
   onHistory: (task: Task) => void;
   onOpen: (task: Task) => void;
   onDuplicate: (task: Task) => void;
-  onMove: (task: Task) => void;
-  onToggleComplete: (task: Task) => void;
+  onMove: (task: Task, anchor: HTMLElement) => void;
   onDelete: (task: Task) => void;
 }
 export function TaskOptions({
@@ -31,7 +30,6 @@ export function TaskOptions({
   onOpen,
   onDuplicate,
   onMove,
-  onToggleComplete,
   onDelete,
 }: Props) {
   return (
@@ -80,20 +78,11 @@ export function TaskOptions({
         <button
           disabled={!writable || !task.capabilities.canMove}
           onClick={() => {
-            onMove(task);
+            onMove(task, anchor);
           }}
         >
           <Icon name="arrow" size={16} />
           move task
-        </button>
-        <button
-          disabled={!writable}
-          onClick={() => {
-            onToggleComplete(task);
-          }}
-        >
-          <Icon name="check" size={16} />
-          {task.completed ? 'reopen' : 'complete'}
         </button>
         <button
           className="danger"
