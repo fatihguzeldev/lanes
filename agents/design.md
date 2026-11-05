@@ -20,9 +20,13 @@ fine-pointer controls stay compact. coarse-pointer controls have at least a 44px
 
 hover can reveal secondary controls, but keyboard focus must reveal them too. touch users must not need hover. preserve visible keyboard focus and the quieter pointer focus return.
 
+inline board, list, and task creation use flat name fields in place. use the accent for their focus underline; avoid a second input box inside a row. task text keeps its color on hover, and close icons do not need a separate hover tile. icon-only editor actions show a tooltip on hover and keyboard focus.
+
 ## constrained surfaces
 
 menus stay anchored and fit inside the visible viewport. dialogs and detached panels keep their content and actions scrollable at short heights. account for display safe areas and viewport changes without replacing an open draft or submitted operation.
+
+destination submenus open to the side on hover and remain reachable across the pointer gap. keyboard and touch expose the same choices; a narrow touch submenu needs a visible way back. outside clicks close the current transient surface, through its owner's draft or pending-work rules.
 
 use [the visual viewport](https://developer.mozilla.org/en-US/docs/Web/API/VisualViewport) for floating surfaces: the visible area can shrink independently of the document layout when the keyboard opens or the page is zoomed.
 

@@ -23,6 +23,8 @@ open a task in its row, with its title selected for editing and notes immediatel
 
 clicking outside an editor requests the same close as its close control. clicks in its nested menus or an open dialog do not discard the editor. icon-only detail actions show their meaning on hover and keyboard focus, in addition to their accessible names.
 
+an admitted save continues when its editor closes. keep its operation identity and account fixed while it drains; a later result cannot close another editor or clear that editor's unsent input. a hidden save that needs recovery appears in the workspace's save status.
+
 task menus contain secondary actions. completion remains on the task's checkbox rather than a duplicate menu item. show each row's options control on hover or keyboard focus, and keep it available on devices without hover.
 
 - require a nonblank title, at most 1,024 characters. trim outer whitespace when the owner submits it. notes allow up to 8,192 characters and preserve line breaks.
@@ -133,3 +135,4 @@ validation leaves the draft intact. stale revision conflicts offer refresh and e
 - `tasks-13`: a lifted task follows the pointer and siblings move to make room before release. hover and cancellation submit no work; only a validated changed drop enters the move queue.
 
 - `tasks-14`: opening task details edits the existing row without a modal. optional fields appear on request; failed saves keep the same draft, including when its card leaves the visible collection.
+- `tasks-15`: outside dismissal preserves the unsent-draft guard and nested menus; an admitted hidden save continues independently without closing or clearing a newer editor.
