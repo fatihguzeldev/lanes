@@ -25,12 +25,33 @@ describe('workspace startup', () => {
     expect(html).not.toContain('opening your workspace');
   });
 
-  it('shows no remembered account data or usable controls before session authorization', () => {
+  it('ignores invalid stored identity data and keeps loading controls inert', () => {
     const storage = { getItem: () => 'remembered-private-account' };
     vi.stubGlobal('sessionStorage', storage);
     vi.stubGlobal('localStorage', storage);
     const html = renderToStaticMarkup(createElement(App));
     expect(html).not.toContain('remembered-private-account');
-    expect(html).not.toMatch(/<(?:button|input|select)\b/);
+    expect(html).toContain('class="workspace__sidebar" aria-hidden="true" inert=""');
+    expect(html).toContain('class="workspace__main" aria-hidden="true" inert=""');
+    const controls = html.match(/<(?:button|input|select)\b[^>]*>/g) ?? [];
+    expect(controls.length).toBeGreaterThan(0);
+    expect(controls.every((control) => /tabindex="-1"|disabled=""/.test(control))).toBe(true);
+  });
+
+  it('retains only the avatar initial while session authorization is pending', () => {
+    const storage = {
+      getItem: (key: string) =>
+        key === 'lanes.account-initial'
+          ? JSON.stringify({ accountId: 'private-account', initial: 'F' })
+          : key === 'lanes.account'
+            ? 'private-account'
+            : null,
+    };
+    vi.stubGlobal('sessionStorage', storage);
+    vi.stubGlobal('localStorage', storage);
+    const html = renderToStaticMarkup(createElement(App));
+    expect(html).toContain('<span class="account-menu__avatar">F</span>');
+    expect(html).not.toContain('private-account');
+    expect(html).not.toContain('aria-label="workspace navigation"');
   });
 });
