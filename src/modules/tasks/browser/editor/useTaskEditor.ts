@@ -1,16 +1,27 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { Task } from '../../contracts/task';
 import type { EditorLocation, EditorSelection } from './editor-contract';
+
+export interface TaskEditorSession {
+  id: number;
+  selection: EditorSelection;
+}
 
 export function useTaskEditor(
   resolveLocation: (listId: string) => Promise<EditorLocation>,
   onNotice: (message: string) => void,
 ) {
-  const [selection, setSelection] = useState<EditorSelection | null>(null);
-  const [dirty, setDirty] = useState(false);
+  const [session, setSession] = useState<TaskEditorSession | null>(null);
+  const [dirty, changeDirty] = useState(false);
+  const [saves, setSaves] = useState<ReadonlySet<number>>(() => new Set());
+  const nextId = useRef(0);
+  const current = useRef(session);
+  current.current = session;
   const select = (next: EditorSelection) => {
-    setSelection(next);
-    setDirty(false);
+    const selected = { id: ++nextId.current, selection: next };
+    current.current = selected;
+    setSession(selected);
+    changeDirty(false);
   };
   const resolve = (
     listId: string,
@@ -25,9 +36,22 @@ export function useTaskEditor(
         .catch((error) => onNotice(error instanceof Error ? error.message : fallback));
   };
   return {
-    selection,
+    session,
+    selection: session?.selection ?? null,
     dirty,
-    setDirty,
+    saving: saves.size > 0,
+    setDirty(value: boolean, id = current.current?.id) {
+      if (current.current?.id === id) changeDirty(value);
+    },
+    setSaving(id: number, busy: boolean) {
+      setSaves((previous) => {
+        if (previous.has(id) === busy) return previous;
+        const next = new Set(previous);
+        if (busy) next.add(id);
+        else next.delete(id);
+        return next;
+      });
+    },
     open(task: Task, loaded?: EditorLocation) {
       resolve(
         task.listId,
@@ -45,6 +69,7 @@ export function useTaskEditor(
       );
     },
     createSubtask(task: Task) {
+      const selection = current.current?.selection;
       if (!selection) return;
       select({
         task: null,
@@ -53,9 +78,11 @@ export function useTaskEditor(
         ...(selection.boardId ? { boardId: selection.boardId } : {}),
       });
     },
-    close() {
-      setSelection(null);
-      setDirty(false);
+    close(id = current.current?.id) {
+      if (current.current?.id !== id) return;
+      current.current = null;
+      setSession(null);
+      changeDirty(false);
     },
   };
 }

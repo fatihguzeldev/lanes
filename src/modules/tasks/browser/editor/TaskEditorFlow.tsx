@@ -1,9 +1,8 @@
-import { useState } from 'react';
+import { useLayoutEffect, useState } from 'react';
 import type { ConnectionSummary } from '../../../accounts/contracts/connection';
 import type { Label, Task } from '../../contracts/task';
-import type { TaskEditorController } from './useTaskEditor';
+import type { TaskEditorController, TaskEditorSession } from './useTaskEditor';
 import { TaskEditorWorkspace } from './TaskEditorWorkspace';
-import { TaskEditorSurface } from './TaskEditorSurface';
 import { LabelManager } from '../labels/LabelManager';
 
 interface Props {
@@ -20,6 +19,7 @@ interface Props {
   onOpenTask(task: Task): void;
   onToggleComplete(task: Task, completed: boolean): void;
   onDelete(task: Task): void;
+  onNotice(message: string): void;
 }
 export function TaskEditorFlow({
   controller,
@@ -35,46 +35,65 @@ export function TaskEditorFlow({
   onOpenTask,
   onToggleComplete,
   onDelete,
+  onNotice,
 }: Props) {
-  const editor = controller.selection;
+  const session = controller.session;
+  const [sessions, setSessions] = useState<Array<TaskEditorSession & { boardId: string | null }>>(
+    () => (session ? [{ ...session, boardId: session.selection.boardId ?? boardId }] : []),
+  );
+  useLayoutEffect(() => {
+    if (!session) return;
+    setSessions((current) =>
+      current.some((item) => item.id === session.id)
+        ? current
+        : [...current, { ...session, boardId: session.selection.boardId ?? boardId }],
+    );
+  }, [session, boardId]);
+  const retire = (id: number) => {
+    controller.setSaving(id, false);
+    setSessions((current) => current.filter((item) => item.id !== id));
+  };
   const [labelsOpen, setLabelsOpen] = useState(false);
   return (
     <>
-      {editor && (
-        <TaskEditorSurface
-          key={`${account.id}:${editor.task?.id ?? `new:${editor.list.id}:${editor.parent?.id ?? ''}`}`}
-          accountId={account.id}
-          taskId={editor.task?.id ?? null}
-        >
-          <TaskEditorWorkspace
-            key={`${account.id}:${editor.task?.id ?? `new:${editor.list.id}:${editor.parent?.id ?? ''}`}`}
-            account={account}
-            selection={editor}
-            boardId={editor.boardId ?? boardId}
-            labels={labels}
-            version={version}
-            clockOffset={clockOffset}
-            onChanged={onChanged}
-            onClose={() =>
-              guard(() => {
-                controller.close();
-              })
-            }
-            onSaved={() => {
-              controller.close();
-              onChanged();
-              onAccountsChanged();
-            }}
-            onInspectChange={onInspect}
-            onDirtyChange={controller.setDirty}
-            onOpenTask={onOpenTask}
-            onToggleComplete={onToggleComplete}
-            onDelete={onDelete}
-            onCreateSubtask={(task) => guard(() => controller.createSubtask(task))}
-            onManageLabels={() => setLabelsOpen(true)}
-          />
-        </TaskEditorSurface>
-      )}
+      {sessions.map(({ id, selection: editor, boardId: editorBoard }) => (
+        <TaskEditorWorkspace
+          key={`${account.id}:${id}`}
+          account={account}
+          selection={editor}
+          boardId={editorBoard}
+          presented={id === session?.id}
+          onBusyChange={(busy) => controller.setSaving(id, busy)}
+          onRetire={(hadWork, error) => {
+            retire(id);
+            if (hadWork) onChanged();
+            if (error)
+              onNotice(`saving ${editor.task?.title || 'this task'} needs attention. ${error}`);
+          }}
+          labels={labels}
+          version={version}
+          clockOffset={clockOffset}
+          onChanged={onChanged}
+          onClose={() =>
+            guard(() => {
+              controller.close(id);
+            })
+          }
+          onSaved={() => {
+            controller.close(id);
+            retire(id);
+            onChanged();
+            onAccountsChanged();
+          }}
+          onInspectChange={onInspect}
+          onDirtyChange={(dirty) => controller.setDirty(dirty, id)}
+          onOpenTask={onOpenTask}
+          onToggleComplete={onToggleComplete}
+          onDelete={onDelete}
+          onCreateSubtask={(task) => guard(() => controller.createSubtask(task))}
+          onManageLabels={() => setLabelsOpen(true)}
+        />
+      ))}
       {labelsOpen && (
         <LabelManager
           account={account}

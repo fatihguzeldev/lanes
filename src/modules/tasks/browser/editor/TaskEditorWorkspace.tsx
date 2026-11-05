@@ -1,5 +1,5 @@
 import { CoverageSchema } from '../../../../shared/contracts/coverage';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { z } from 'zod';
 import type { ConnectionSummary } from '../../../accounts/contracts/connection';
 import { TaskEditor } from './TaskEditor';
@@ -15,10 +15,14 @@ import { newOperationId } from '../../../operations/browser/submission/operation
 import { useCommands } from '../../../operations/browser/submission/useCommands';
 import { useServerConnection } from '../../../../shared/browser/connectivity/useServerConnection';
 import { useRecurrenceWork } from '../planning/useRecurrenceWork';
+import { TaskEditorSurface } from './TaskEditorSurface';
 
 interface Props {
   account: ConnectionSummary;
   selection: EditorSelection;
+  presented: boolean;
+  onBusyChange(busy: boolean): void;
+  onRetire(hadWork: boolean, error: string | null): void;
   boardId: string | null;
   labels: readonly Label[];
   version: number;
@@ -56,6 +60,9 @@ const providerFields = new Set([
 export function TaskEditorWorkspace({
   account,
   selection,
+  presented,
+  onBusyChange,
+  onRetire,
   boardId,
   labels,
   version,
@@ -80,7 +87,7 @@ export function TaskEditorWorkspace({
   const resumeAbort = useRef<AbortController | null>(null);
   const repeatWork = useRecurrenceWork(
     account.id,
-    account.state === 'connected' && connection === 'reachable',
+    presented && account.state === 'connected' && connection === 'reachable',
     onChanged,
   );
   const [latest, setLatest] = useState(selection.task),
@@ -91,6 +98,20 @@ export function TaskEditorWorkspace({
   const [identity, setIdentity] = useState(() => newOperationId(clockOffset));
   const commands = useCommands(account.id, clockOffset, onChanged);
   const submitted = commands.latest?.id === identity;
+  const pending = commands.busy || resumePending || repeatWork.busy;
+  const lifetime = useRef({ onBusyChange, onRetire });
+  lifetime.current = { onBusyChange, onRetire };
+  const hadWork = useRef(false),
+    retired = useRef(false);
+  useLayoutEffect(() => {
+    if (pending) hadWork.current = true;
+    lifetime.current.onBusyChange(pending);
+    if (!presented && !pending && commands.latest?.state !== 'succeeded' && !retired.current) {
+      retired.current = true;
+      lifetime.current.onRetire(hadWork.current, commands.error || null);
+    }
+  }, [presented, pending, commands.error, commands.latest?.state]);
+  useLayoutEffect(() => () => lifetime.current.onBusyChange(false), []);
   const retryFailed =
     submitted && commands.latest?.state === 'failed' && commands.latest.finished
       ? () => {
@@ -100,7 +121,7 @@ export function TaskEditorWorkspace({
       : undefined;
   const base = `/api/accounts/${encodeURIComponent(account.id)}`;
   const dependants = usePagedResource(
-    selection.task ? `${account.id}:${selection.task.id}:dependants` : null,
+    presented && selection.task ? `${account.id}:${selection.task.id}:dependants` : null,
     (cursor, signal) =>
       request(
         `${base}/tasks/${encodeURIComponent(selection.task!.id)}/dependants?limit=50${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`,
@@ -111,7 +132,7 @@ export function TaskEditorWorkspace({
     version,
   );
   useEffect(() => {
-    if (!selection.task) return;
+    if (!presented || !selection.task) return;
     const abort = new AbortController();
     setRecurrenceLoading(true);
     setRecurrenceError('');
@@ -131,7 +152,7 @@ export function TaskEditorWorkspace({
         if (!abort.signal.aborted) setRecurrenceLoading(false);
       });
     return () => abort.abort();
-  }, [base, selection.task?.id, version, recurrenceVersion]);
+  }, [presented, base, selection.task?.id, version, recurrenceVersion]);
   useEffect(() => () => resumeAbort.current?.abort(), [account.id, selection.task?.id]);
   const resumeRecurrence = () => {
     if (
@@ -167,7 +188,7 @@ export function TaskEditorWorkspace({
   };
   const subtasksInput = useMemo(
     () =>
-      selection.task
+      presented && selection.task
         ? {
             listIds: [selection.list.id],
             parentId: selection.task.id,
@@ -175,20 +196,23 @@ export function TaskEditorWorkspace({
             sort: 'manual' as const,
           }
         : null,
-    [selection.task?.id, selection.list.id],
+    [presented, selection.task?.id, selection.list.id],
   );
   const subtasks = useTaskQuery(account.id, subtasksInput, version);
   const dependenciesInput = useMemo(
-    () => ({
-      ...(boardId ? { boardId } : {}),
-      query: dependencyQuery,
-      filter: { completion: 'all' as const },
-    }),
-    [boardId, dependencyQuery],
+    () =>
+      presented
+        ? {
+            ...(boardId ? { boardId } : {}),
+            query: dependencyQuery,
+            filter: { completion: 'all' as const },
+          }
+        : null,
+    [presented, boardId, dependencyQuery],
   );
   const dependencies = useTaskQuery(account.id, dependenciesInput, version);
   const deleting = usePagedResource(
-    `${account.id}:label-deletions`,
+    presented ? `${account.id}:label-deletions` : null,
     (cursor, signal) =>
       request(
         `${base}/labels/deletions${cursor ? '?cursor=' + encodeURIComponent(cursor) : ''}`,
@@ -199,6 +223,7 @@ export function TaskEditorWorkspace({
     version,
   );
   useEffect(() => {
+    if (!presented) return;
     const abort = new AbortController();
     setReadError('');
     void request(`${base}/dependency-graph`, graphSchema, { signal: abort.signal })
@@ -221,8 +246,9 @@ export function TaskEditorWorkspace({
             );
         });
     return () => abort.abort();
-  }, [account.id, selection.task?.id, version, base]);
+  }, [presented, account.id, selection.task?.id, version, base]);
   useEffect(() => {
+    if (!presented) return;
     const ids = latest?.blockedBy ?? [];
     if (!ids.length) {
       setResolved([]);
@@ -242,7 +268,7 @@ export function TaskEditorWorkspace({
           );
       });
     return () => abort.abort();
-  }, [base, latest?.blockedBy, version]);
+  }, [presented, base, latest?.blockedBy, version]);
   const related = [
     ...new Map([...dependencies.page.items, ...resolved].map((task) => [task.id, task])).values(),
   ];
@@ -296,121 +322,124 @@ export function TaskEditorWorkspace({
       'provider',
     );
   };
+  if (!presented) return null;
   return (
-    <TaskEditor
-      open
-      accountId={account.id}
-      accountLabel={account.email}
-      task={latest}
-      list={selection.list}
-      labels={labels}
-      relatedTasks={related}
-      timeZone={account.planningZone}
-      weekStart={account.weekStart}
-      {...(graph === undefined ? {} : { graphRevision: graph })}
-      {...(selection.initialDay === undefined ? {} : { initialDay: selection.initialDay })}
-      {...(selection.parent === undefined ? {} : { parent: selection.parent })}
-      providerWritesEnabled={account.state === 'connected'}
-      localWritesEnabled={!['disconnecting', 'disconnected'].includes(account.state)}
-      serverReachable={connection === 'reachable'}
-      pending={commands.busy || resumePending}
-      submitted={submitted}
-      onCheckConnection={() => {
-        if (connection === 'incompatible') window.location.reload();
-        else
-          void checkServerConnection().catch((error) =>
-            setReadError(
-              error instanceof Error ? error.message : 'the server is still unavailable.',
-            ),
-          );
-      }}
-      {...(retryFailed ? { onRetryFailed: retryFailed } : {})}
-      error={
-        commands.error
+    <TaskEditorSurface accountId={account.id} taskId={selection.task?.id ?? null}>
+      <TaskEditor
+        open
+        accountId={account.id}
+        accountLabel={account.email}
+        task={latest}
+        list={selection.list}
+        labels={labels}
+        relatedTasks={related}
+        timeZone={account.planningZone}
+        weekStart={account.weekStart}
+        {...(graph === undefined ? {} : { graphRevision: graph })}
+        {...(selection.initialDay === undefined ? {} : { initialDay: selection.initialDay })}
+        {...(selection.parent === undefined ? {} : { parent: selection.parent })}
+        providerWritesEnabled={account.state === 'connected'}
+        localWritesEnabled={!['disconnecting', 'disconnected'].includes(account.state)}
+        serverReachable={connection === 'reachable'}
+        pending={pending}
+        submitted={submitted}
+        onCheckConnection={() => {
+          if (connection === 'incompatible') window.location.reload();
+          else
+            void checkServerConnection().catch((error) =>
+              setReadError(
+                error instanceof Error ? error.message : 'the server is still unavailable.',
+              ),
+            );
+        }}
+        {...(retryFailed ? { onRetryFailed: retryFailed } : {})}
+        error={
+          commands.error
+            ? {
+                message: commands.error,
+                ...(commands.errorDetails?.code ? { code: commands.errorDetails.code } : {}),
+                ...(commands.errorDetails?.fields ? { fields: commands.errorDetails.fields } : {}),
+              }
+            : null
+        }
+        subtasks={{
+          items: subtasks.page.items,
+          nextCursor: subtasks.page.nextCursor,
+          coverage: subtasks.page.coverage,
+          pending: subtasks.status === 'loading',
+        }}
+        relatedTasksLoading={dependencies.status === 'loading'}
+        dependencyError={dependencies.error || readError || null}
+        dependencySearchScope={boardId ? 'board' : 'account'}
+        dependenciesHaveMore={dependencies.page.nextCursor !== null}
+        pendingLabelIds={new Set(deleting.items.map((job) => job.labelId))}
+        onClose={onClose}
+        onSave={save}
+        onCreate={create}
+        onDirtyChange={(dirty) => onDirtyChange(dirty && !submitted)}
+        onOpenTask={onOpenTask}
+        onToggleComplete={onToggleComplete}
+        onLoadMoreSubtasks={() => void subtasks.loadMore()}
+        onCreateSubtask={onCreateSubtask}
+        onSearchDependencies={setDependencyQuery}
+        onLoadMoreDependencies={() => void dependencies.loadMore()}
+        onRefresh={onChanged}
+        onDelete={onDelete}
+        onManageLabels={onManageLabels}
+        {...(selection.task
           ? {
-              message: commands.error,
-              ...(commands.errorDetails?.code ? { code: commands.errorDetails.code } : {}),
-              ...(commands.errorDetails?.fields ? { fields: commands.errorDetails.fields } : {}),
-            }
-          : null
-      }
-      subtasks={{
-        items: subtasks.page.items,
-        nextCursor: subtasks.page.nextCursor,
-        coverage: subtasks.page.coverage,
-        pending: subtasks.status === 'loading',
-      }}
-      relatedTasksLoading={dependencies.status === 'loading'}
-      dependencyError={dependencies.error || readError || null}
-      dependencySearchScope={boardId ? 'board' : 'account'}
-      dependenciesHaveMore={dependencies.page.nextCursor !== null}
-      pendingLabelIds={new Set(deleting.items.map((job) => job.labelId))}
-      onClose={onClose}
-      onSave={save}
-      onCreate={create}
-      onDirtyChange={(dirty) => onDirtyChange(dirty && !submitted)}
-      onOpenTask={onOpenTask}
-      onToggleComplete={onToggleComplete}
-      onLoadMoreSubtasks={() => void subtasks.loadMore()}
-      onCreateSubtask={onCreateSubtask}
-      onSearchDependencies={setDependencyQuery}
-      onLoadMoreDependencies={() => void dependencies.loadMore()}
-      onRefresh={onChanged}
-      onDelete={onDelete}
-      onManageLabels={onManageLabels}
-      {...(selection.task
-        ? {
-            dependants: {
-              items: dependants.items,
-              loading: dependants.status === 'loading',
-              loaded: dependants.loaded,
-              error: dependants.error,
-              nextCursor: dependants.nextCursor,
-              stale: dependants.coverage.stale,
-              onRetry: () => void dependants.reload(),
-              onMore: () => void dependants.loadMore(),
-              onOpenTask: (taskId: string) => {
-                void request(`${base}/tasks/${encodeURIComponent(taskId)}`, TaskSchema)
-                  .then((task) => {
-                    if (task.accountId === account.id) onOpenTask(task);
-                  })
-                  .catch((error) =>
-                    setReadError(
-                      error instanceof Error
-                        ? error.message
-                        : 'the dependent task could not be opened.',
-                    ),
-                  );
+              dependants: {
+                items: dependants.items,
+                loading: dependants.status === 'loading',
+                loaded: dependants.loaded,
+                error: dependants.error,
+                nextCursor: dependants.nextCursor,
+                stale: dependants.coverage.stale,
+                onRetry: () => void dependants.reload(),
+                onMore: () => void dependants.loadMore(),
+                onOpenTask: (taskId: string) => {
+                  void request(`${base}/tasks/${encodeURIComponent(taskId)}`, TaskSchema)
+                    .then((task) => {
+                      if (task.accountId === account.id) onOpenTask(task);
+                    })
+                    .catch((error) =>
+                      setReadError(
+                        error instanceof Error
+                          ? error.message
+                          : 'the dependent task could not be opened.',
+                      ),
+                    );
+                },
               },
-            },
-          }
-        : {})}
-      recurrence={{
-        status: recurrence,
-        loading: recurrenceLoading,
-        error: recurrenceError || repeatWork.error || null,
-        pending: resumePending || repeatWork.busy,
-      }}
-      {...(commands.errorDetails?.operationId || (submitted && commands.latest?.id)
-        ? {
-            onInspectSave: () =>
-              onInspectChange(commands.errorDetails?.operationId ?? commands.latest!.id),
-          }
-        : {})}
-      onInspectRecurrence={onInspectChange}
-      onRetryRecurrence={() => setRecurrenceVersion((value) => value + 1)}
-      onResumeRecurrence={resumeRecurrence}
-      onOpenRecurrenceTask={(taskId) => {
-        void request(`${base}/tasks/${encodeURIComponent(taskId)}`, TaskSchema)
-          .then((task) => {
-            if (task.accountId === account.id) onOpenTask(task);
-          })
-          .catch((error) =>
-            setRecurrenceError(
-              error instanceof Error ? error.message : 'the successor could not be opened.',
-            ),
-          );
-      }}
-    />
+            }
+          : {})}
+        recurrence={{
+          status: recurrence,
+          loading: recurrenceLoading,
+          error: recurrenceError || repeatWork.error || null,
+          pending: resumePending || repeatWork.busy,
+        }}
+        {...(commands.errorDetails?.operationId || (submitted && commands.latest?.id)
+          ? {
+              onInspectSave: () =>
+                onInspectChange(commands.errorDetails?.operationId ?? commands.latest!.id),
+            }
+          : {})}
+        onInspectRecurrence={onInspectChange}
+        onRetryRecurrence={() => setRecurrenceVersion((value) => value + 1)}
+        onResumeRecurrence={resumeRecurrence}
+        onOpenRecurrenceTask={(taskId) => {
+          void request(`${base}/tasks/${encodeURIComponent(taskId)}`, TaskSchema)
+            .then((task) => {
+              if (task.accountId === account.id) onOpenTask(task);
+            })
+            .catch((error) =>
+              setRecurrenceError(
+                error instanceof Error ? error.message : 'the successor could not be opened.',
+              ),
+            );
+        }}
+      />
+    </TaskEditorSurface>
   );
 }
