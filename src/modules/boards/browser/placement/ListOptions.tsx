@@ -2,7 +2,7 @@ import type { Board, BoardList } from '../../contracts/board';
 import type { Prompt } from '../../../operations/browser/submission/PromptDialog';
 import { Icon } from '../../../../shared/ui/icon/Icon';
 import { AnchoredPopover } from '../../../../shared/ui/popover/Popover';
-import { Select } from '../../../../shared/ui/select/Select';
+import { Submenu } from '../../../../shared/ui/submenu/Submenu';
 import './ListOptions.css';
 
 interface Props {
@@ -100,27 +100,44 @@ export function ListOptions({
           <Icon name="leaf" size={16} />
           color
         </button>
-        <label className="list-options__destination">
-          move to board
-          <Select
-            aria-label="move to board"
-            value={selectedList.boardId}
-            disabled={!localWritable || selectedList.isDefault}
-            onChange={(value) =>
-              guard(() => {
-                void submit({
-                  kind: 'list.placement',
-                  listId: selectedList.id,
-                  boardId: value,
-                  revision: selectedList.membershipRevision,
-                }).then((done) => {
-                  if (done) onClose();
-                });
-              })
-            }
-            options={boards.map((item) => ({ value: item.id, label: item.title }))}
-          />
-        </label>
+        <Submenu
+          label="move to board"
+          trigger={
+            <>
+              <Icon name="board" size={16} />
+              <span>move to board</span>
+            </>
+          }
+          disabled={!localWritable || selectedList.isDefault}
+          className="list-options__boards"
+        >
+          {boards
+            .filter((item) => item.accountId === selectedList.accountId)
+            .map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className="popover__item"
+                aria-pressed={item.id === selectedList.boardId}
+                disabled={item.id === selectedList.boardId}
+                onClick={() =>
+                  guard(() => {
+                    void submit({
+                      kind: 'list.placement',
+                      listId: selectedList.id,
+                      boardId: item.id,
+                      revision: selectedList.membershipRevision,
+                    }).then((done) => {
+                      if (done) onClose();
+                    });
+                  })
+                }
+              >
+                <span>{item.title || 'untitled board'}</span>
+                {item.id === selectedList.boardId && <Icon name="check" size={14} />}
+              </button>
+            ))}
+        </Submenu>
         <button
           disabled={!localWritable || lists.findIndex((list) => list.id === selectedList.id) <= 0}
           onClick={() => {
