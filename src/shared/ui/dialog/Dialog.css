@@ -138,3 +138,6 @@
 .dialog__actions .danger {
   color: var(--rust);
 }
+.dialog__actions button:not(.danger) > .icon {
+  color: var(--icon);
+}
