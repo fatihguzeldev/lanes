@@ -143,6 +143,237 @@ describe('bounded provider page throughput', () => {
     ).toBe(0);
   });
 
+  it('batches foreground phases under the shared invocation counters without invalidating unchanged data', async () => {
+    await seedProjection();
+    await db
+      .prepare('UPDATE tasks_lists SET provider_etag=? WHERE id=?')
+      .bind(list.etag, 'list')
+      .run();
+    await service().requestRefresh('account', { reason: 'entry' });
+    await db.prepare('UPDATE tasks_account_state SET inventory_complete_at=?').bind(clock).run();
+    let requests = 0;
+    for (; requests < 5; requests++) {
+      const invocation = invocationDatabase(db);
+      for (let auth = 0; auth < 5; auth++) await invocation.db.prepare('SELECT 1').first();
+      const before = providerCalls;
+      const sync = new TaskSyncService(invocation.db, {
+        history: new HistoryService(invocation.db, { now: () => clock }),
+        clientFor: async () => reader,
+        now: () => clock,
+        databaseQueries: () => invocation.queries,
+        providerRequests: () => providerCalls - before,
+      });
+      const result = await sync.advanceForeground('account');
+      expect(result.changes).toEqual({ topology: false, tasks: false });
+      expect(invocation.queries).toBeLessThanOrEqual(43);
+      expect(providerCalls - before).toBeLessThanOrEqual(10);
+      if (!result.status.pending) break;
+    }
+    expect(requests + 1).toBeLessThan(3);
+    expect(pageReads).toBe(1);
+  });
+
+  it('certifies an unchanged prefix before a changed tail without reconciling it four records at a time', async () => {
+    await seedProjection();
+    observed[24] = { ...observed[24]!, title: 'changed tail', etag: 'tail-v2' };
+    await start();
+    await advance();
+    expect(await db.prepare('SELECT page_offset FROM tasks_sync_list_work').first()).toEqual({
+      page_offset: 24,
+    });
+    await finish();
+    expect(pageReads).toBe(1);
+    expect(
+      await db.prepare("SELECT title FROM tasks_tasks WHERE provider_id='google-task-24'").first(),
+    ).toEqual({ title: 'changed tail' });
+  });
+
+  it('retains the four-record projection bound across a foreground batch', async () => {
+    await start();
+    const invocation = invocationDatabase(db);
+    const before = providerCalls;
+    const sync = new TaskSyncService(invocation.db, {
+      clientFor: async () => reader,
+      history: new HistoryService(invocation.db, { now: () => clock }),
+      now: () => clock,
+      databaseQueries: () => invocation.queries,
+      providerRequests: () => providerCalls - before,
+    });
+    expect((await sync.advanceForeground('account')).changes.tasks).toBe(true);
+    expect(await db.prepare('SELECT COUNT(*) AS n FROM tasks_tasks').first()).toEqual({ n: 4 });
+    expect(await db.prepare('SELECT page_offset FROM tasks_sync_list_work').first()).toEqual({
+      page_offset: 4,
+    });
+    expect(pageReads).toBe(1);
+    expect(invocation.queries).toBeLessThanOrEqual(42);
+  });
+
+  it('reports newly missing addresses even when coverage was already incomplete', async () => {
+    await seedProjection();
+    await db
+      .prepare('UPDATE tasks_lists SET tasks_complete_at=NULL,completed_complete_at=NULL')
+      .run();
+    observed = [];
+    await start();
+    const sync = service();
+    expect((await sync.advanceForeground('account')).changes).toEqual({
+      topology: false,
+      tasks: true,
+    });
+    expect(
+      (
+        await db
+          .prepare('SELECT COUNT(*) AS n FROM tasks_tasks WHERE provider_missing_at IS NOT NULL')
+          .first<{ n: number }>()
+      )?.n,
+    ).toBe(25);
+  });
+
+  it('does not invalidate task reads for an unchanged tracked task check', async () => {
+    await seedProjection();
+    const recorded = await db
+      .prepare('SELECT id FROM tasks_tasks WHERE provider_id=?')
+      .bind(tasks[0]!.id)
+      .first<{ id: string }>();
+    reader.getTask = async () => {
+      providerCalls++;
+      return tasks[0]!;
+    };
+    await service().requestTaskCheck('account', recorded!.id);
+    const result = await service().advanceForeground('account');
+    expect(result.changes).toEqual({ topology: false, tasks: false });
+    expect(result.status.pending).toBe(false);
+  });
+
+  it('reports an unchanged baseline becoming complete as a task query change', async () => {
+    await seedProjection();
+    await db
+      .prepare('UPDATE tasks_lists SET tasks_complete_at=NULL,completed_complete_at=NULL')
+      .run();
+    await start();
+    expect((await service().advanceForeground('account')).changes.tasks).toBe(true);
+  });
+
+  it('does not claim work whose shared invocation has no safe next-slice headroom', async () => {
+    await service().requestRefresh('account', { reason: 'entry' });
+    const invocation = invocationDatabase(db);
+    for (let query = 0; query < 39; query++) await invocation.db.prepare('SELECT 1').first();
+    const sync = new TaskSyncService(invocation.db, {
+      clientFor: async () => reader,
+      history: new HistoryService(invocation.db, { now: () => clock }),
+      databaseQueries: () => invocation.queries,
+      providerRequests: () => providerCalls,
+      now: () => clock,
+    });
+    const result = await sync.advanceForeground('account');
+    expect(providerCalls).toBe(0);
+    expect(result.status.pending).toBe(true);
+    expect(result.changes).toEqual({ topology: false, tasks: false });
+    expect(invocation.queries).toBeLessThanOrEqual(43);
+    expect(await db.prepare('SELECT claim_id FROM tasks_sync_jobs').first()).toEqual({
+      claim_id: null,
+    });
+  });
+
+  it.each(['missing baseline', 'retained cursor'] as const)(
+    'distinguishes a %s from an inventory data change when unchanged rows settle',
+    async (state) => {
+      await seedProjection();
+      await start();
+      await db
+        .prepare('UPDATE tasks_sync_jobs SET default_pending=0,inventory_pending=1,task_turn=0')
+        .run();
+      await db
+        .prepare('UPDATE tasks_account_state SET inventory_complete_at=?,inventory_cursor=?')
+        .bind(
+          state === 'missing baseline' ? null : clock,
+          state === 'retained cursor' ? 'cursor' : null,
+        )
+        .run();
+      const result = await service().advanceForeground('account');
+      expect(result.changes).toEqual({ topology: state === 'missing baseline', tasks: false });
+    },
+  );
+
+  it.each([false, true])(
+    'preserves external settlement evidence before the final status read with foreign claim=%s',
+    async (foreignClaim) => {
+      await seedProjection();
+      await start();
+      await db
+        .prepare(
+          "INSERT INTO tasks_lists(id,account_id,provider_id,title,title_key) VALUES('z-list','account','z-provider','other','other')",
+        )
+        .run();
+      await db
+        .prepare(
+          "INSERT INTO tasks_sync_list_work(account_id,list_id,next_at) VALUES('account','z-list',?)",
+        )
+        .bind(clock)
+        .run();
+      if (foreignClaim)
+        await db
+          .prepare("UPDATE tasks_sync_jobs SET claim_id='other-worker',claim_until=?")
+          .bind(clock + 45_000)
+          .run();
+      let intercepted = false;
+      const racing = new Proxy(db, {
+        get(target, key) {
+          if (key === 'prepare')
+            return (sql: string) => {
+              const statement = target.prepare(sql);
+              if (!sql.includes('SELECT CASE WHEN inventory_complete_at')) return statement;
+              return new Proxy(statement, {
+                get(prepared, method) {
+                  if (method === 'bind')
+                    return (...values: unknown[]) => {
+                      const bound = prepared.bind(...values);
+                      return new Proxy(bound, {
+                        get(current, operation) {
+                          if (operation === 'first')
+                            return async () => {
+                              intercepted = true;
+                              await db.batch([
+                                db.prepare(
+                                  "DELETE FROM tasks_sync_list_work WHERE account_id='account'",
+                                ),
+                                db.prepare(
+                                  "DELETE FROM tasks_sync_jobs WHERE account_id='account'",
+                                ),
+                              ]);
+                              return current.first();
+                            };
+                          return Reflect.get(current, operation);
+                        },
+                      });
+                    };
+                  return Reflect.get(prepared, method);
+                },
+              });
+            };
+          return Reflect.get(target, key);
+        },
+      });
+      const invocation = invocationDatabase(racing);
+      const sync = foreignClaim
+        ? new TaskSyncService(invocation.db, {
+            clientFor: async () => reader,
+            history: new HistoryService(invocation.db, { now: () => clock }),
+            now: () => clock,
+            databaseQueries: () => invocation.queries,
+            providerRequests: () => providerCalls,
+          })
+        : service(racing);
+      const result = await sync.advanceForeground('account');
+      expect(intercepted).toBe(true);
+      expect(result).toMatchObject({
+        phase: foreignClaim ? 'coalesced' : 'tasks',
+        continued: true,
+        status: { pending: false },
+      });
+    },
+  );
+
   it('refreshes a 6/4/15-task board in five slices and three provider task pages', async () => {
     const slices = [
       { local: 'list', provider: list, records: tasks.slice(0, 6) },

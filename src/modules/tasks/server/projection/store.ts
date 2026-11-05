@@ -354,14 +354,7 @@ export class TaskProjectionStore {
     const captures: D1PreparedStatement[] = [];
     const writes: D1PreparedStatement[] = [];
     const events: D1PreparedStatement[] = [];
-    let changed = await this.hierarchyRepairChanges(
-      accountId,
-      listId,
-      records
-        .filter((task) => !task.deleted && !task.parent)
-        .map((task) => ({ providerId: task.id, id: taskIds.get(task.id)! })),
-      records.filter((task) => !task.deleted && task.parent).map((task) => taskIds.get(task.id)!),
-    );
+    let changed = false;
     const at = this.now();
     const scanId = options.scanId ?? this.id();
     // Children may arrive on a later destination page. Keep their provider parent reference
@@ -698,6 +691,14 @@ export class TaskProjectionStore {
           )
           .bind(accountId, listId, taskIds.get(task.id)!),
       );
+    changed ||= await this.hierarchyRepairChanges(
+      accountId,
+      listId,
+      records
+        .filter((task) => !task.deleted && !task.parent)
+        .map((task) => ({ providerId: task.id, id: taskIds.get(task.id)! })),
+      records.filter((task) => !task.deleted && task.parent).map((task) => taskIds.get(task.id)!),
+    );
     return { writes: [...captures, ...writes, ...events], taskIds, changed };
   }
   retireTaskWrites(accountId: string, taskId: string, at: number): D1PreparedStatement[] {

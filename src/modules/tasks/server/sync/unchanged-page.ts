@@ -17,14 +17,15 @@ interface OrdinaryTaskRow {
 }
 
 /** Complex observations still use projection reconciliation, including checklist captures. */
-export async function unchangedTaskPageWrites(
+export async function unchangedTaskPrefixWrites(
   db: D1Database,
   accountId: string,
   listId: string,
   records: GoogleTaskDTO[],
   scanId: string,
-): Promise<D1PreparedStatement[] | null> {
-  if (records.some((task) => task.deleted || task.parent || task.assignmentInfo)) return null;
+): Promise<{ writes: D1PreparedStatement[]; count: number } | null> {
+  if (!records.length || records[0]?.deleted || records[0]?.parent || records[0]?.assignmentInfo)
+    return null;
   const ids = JSON.stringify(records.map((task) => task.id));
   const rows = (
     await db
@@ -49,33 +50,37 @@ export async function unchangedTaskPageWrites(
       .bind(accountId, listId, ids)
       .all<OrdinaryTaskRow>()
   ).results;
-  if (rows.length !== records.length) return null;
   const byId = new Map(rows.map((row) => [row.provider_id, row]));
-  if (
-    !records.every((task) => {
-      const old = byId.get(task.id);
-      const day = task.due?.slice(0, 10) ?? null;
-      return (
-        old &&
-        old.provider_etag === (task.etag ?? null) &&
-        old.provider_updated_at === (task.updated ?? null) &&
-        old.provider_position === (task.position ?? null) &&
-        old.provider_hidden === Number(task.hidden ?? false) &&
-        old.title === (task.title ?? '') &&
-        old.notes === (task.notes ?? '') &&
-        old.completed === Number(task.status === 'completed') &&
-        old.completed_at === (task.completed ?? null) &&
-        old.scheduled_day === day &&
-        (day !== null || (old.scheduled_time === null && old.time_zone === null))
-      );
-    })
-  )
-    return null;
-  return [
-    db
-      .prepare(
-        'UPDATE tasks_tasks SET last_seen_scan=? WHERE account_id=? AND list_id=? AND provider_id IN(SELECT value FROM json_each(?))',
-      )
-      .bind(scanId, accountId, listId, ids),
-  ];
+  const count = records.findIndex((task) => {
+    const old = byId.get(task.id);
+    const day = task.due?.slice(0, 10) ?? null;
+    return !(
+      !task.deleted &&
+      !task.parent &&
+      !task.assignmentInfo &&
+      old &&
+      old.provider_etag === (task.etag ?? null) &&
+      old.provider_updated_at === (task.updated ?? null) &&
+      old.provider_position === (task.position ?? null) &&
+      old.provider_hidden === Number(task.hidden ?? false) &&
+      old.title === (task.title ?? '') &&
+      old.notes === (task.notes ?? '') &&
+      old.completed === Number(task.status === 'completed') &&
+      old.completed_at === (task.completed ?? null) &&
+      old.scheduled_day === day &&
+      (day !== null || (old.scheduled_time === null && old.time_zone === null))
+    );
+  });
+  const prefix = count < 0 ? records : records.slice(0, count);
+  if (!prefix.length) return null;
+  return {
+    count: prefix.length,
+    writes: [
+      db
+        .prepare(
+          'UPDATE tasks_tasks SET last_seen_scan=? WHERE account_id=? AND list_id=? AND provider_id IN(SELECT value FROM json_each(?))',
+        )
+        .bind(scanId, accountId, listId, JSON.stringify(prefix.map((task) => task.id))),
+    ],
+  };
 }
