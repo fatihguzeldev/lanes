@@ -81,7 +81,7 @@ describe('recurrence work invalidation', () => {
     expect(changed).toHaveBeenCalledTimes(2);
   });
 
-  it('does not invalidate already reported progress again when a later slice fails', async () => {
+  it('recovers an uncertain later request even when earlier progress was reported', async () => {
     boundary.request
       .mockResolvedValueOnce(step({ advanced: true, pending: true, state: 'pending' }))
       .mockRejectedValueOnce(new Error('the next slice could not be read'));
@@ -89,8 +89,57 @@ describe('recurrence work invalidation', () => {
     const run = useRecurrenceWork('account-a', true, changed).run();
     await vi.advanceTimersByTimeAsync(350);
     await run;
+    expect(changed).toHaveBeenCalledTimes(2);
+  });
+
+  it('refreshes once when the first recurrence request loses its response', async () => {
+    boundary.request.mockRejectedValueOnce(new Error('the response was lost after submission'));
+    const changed = vi.fn();
+    await useRecurrenceWork('account-a', true, changed).run();
     expect(changed).toHaveBeenCalledTimes(1);
   });
+
+  it('refreshes task changes made by the undo sync after recurrence progress was reported', async () => {
+    boundary.request
+      .mockResolvedValueOnce(step({ advanced: true, pending: true, state: 'undoing' }))
+      .mockResolvedValueOnce({ accountId: 'account-a', phase: 'tasks', continued: false })
+      .mockResolvedValueOnce(step());
+    const changed = vi.fn();
+    const run = useRecurrenceWork('account-a', true, changed).run();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(changed).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(350);
+    await run;
+    expect(changed).toHaveBeenCalledTimes(2);
+  });
+
+  it('recovers undo sync changes when its response is lost after the earlier refresh', async () => {
+    boundary.request
+      .mockResolvedValueOnce(step({ advanced: true, pending: true, state: 'undoing' }))
+      .mockRejectedValueOnce(new Error('the undo sync response was lost'));
+    const changed = vi.fn();
+    await useRecurrenceWork('account-a', true, changed).run();
+    expect(changed).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([
+    ['idle', undefined],
+    ['coalesced', undefined],
+    ['tasks', 'reconnect_required'],
+  ] as const)(
+    'does not publish another refresh for undo sync %s with error %s',
+    async (phase, errorCode) => {
+      boundary.request
+        .mockResolvedValueOnce(step({ advanced: true, pending: true, state: 'undoing' }))
+        .mockResolvedValueOnce({ accountId: 'account-a', phase, continued: false, errorCode })
+        .mockResolvedValueOnce(step());
+      const changed = vi.fn();
+      const run = useRecurrenceWork('account-a', true, changed).run();
+      await vi.advanceTimersByTimeAsync(350);
+      await run;
+      expect(changed).toHaveBeenCalledTimes(1);
+    },
+  );
 
   it('does not publish late progress after leaving the account', async () => {
     let release!: (value: RecurrenceAdvance) => void;

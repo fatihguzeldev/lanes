@@ -45,12 +45,15 @@ export function useRecurrenceWork(accountId: string, enabled: boolean, onChanged
           }
           if (!step.pending || ['paused', 'uncertain', 'reopen_required'].includes(step.state))
             break;
-          if (step.state === 'undoing')
-            await request(`${base}/sync/advance`, SyncAdvanceSchema, {
+          if (step.state === 'undoing') {
+            const synced = await request(`${base}/sync/advance`, SyncAdvanceSchema, {
               method: 'POST',
               body: {},
               signal: controller.signal,
             });
+            if (!synced.errorCode && !['idle', 'coalesced'].includes(synced.phase))
+              unreportedProgress = true;
+          }
           if (controller.signal.aborted) return;
           await new Promise<void>((resolve, reject) => {
             const timer = setTimeout(done, 350);
@@ -67,12 +70,14 @@ export function useRecurrenceWork(accountId: string, enabled: boolean, onChanged
         }
       } while (again.current && !controller.signal.aborted && Date.now() < deadline);
     } catch (error) {
-      if (!controller.signal.aborted)
+      if (!controller.signal.aborted) {
+        unreportedProgress = true;
         setError(
           error instanceof Error
             ? error.message
             : 'repeat work is retained and needs another attempt.',
         );
+      }
     } finally {
       running.current = false;
       if (!controller.signal.aborted) {
