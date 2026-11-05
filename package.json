@@ -25,6 +25,9 @@
     "deploy": "npm run build:deploy && wrangler deploy"
   },
   "dependencies": {
+    "@dnd-kit/collision": "0.5.3",
+    "@dnd-kit/dom": "0.5.3",
+    "@dnd-kit/react": "0.5.3",
     "@js-temporal/polyfill": "0.5.1",
     "fflate": "0.8.3",
     "jose": "6.2.15",
