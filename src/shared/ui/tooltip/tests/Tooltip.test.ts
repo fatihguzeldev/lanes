@@ -63,15 +63,20 @@ class Element {
   }
 }
 let cleanup: (() => void) | undefined;
+const lifetimes: Array<() => void> = [];
 function render(open = false) {
   state.open = open;
+  const refStart = state.refs.length;
+  const effectStart = state.effects.length;
   const anchor = new Element(),
     panel = new Element();
   const view = Tooltip({ label: 'schedule', children: createElement('button') }) as ReactElement<
     Record<string, Function>
   >;
-  state.refs[0]!.current = { querySelector: () => anchor };
-  state.refs[1]!.current = panel;
+  state.refs[refStart]!.current = { querySelector: () => anchor };
+  state.refs[refStart + 1]!.current = panel;
+  const lifetime = state.effects[effectStart]!();
+  if (lifetime) lifetimes.push(lifetime);
   return { anchor, panel, props: view.props };
 }
 describe('control tooltips', () => {
@@ -80,7 +85,7 @@ describe('control tooltips', () => {
     state.effects.length = 0;
     state.setOpen.mockClear();
     vi.stubGlobal('window', new EventTarget());
-    vi.stubGlobal('document', new EventTarget());
+    vi.stubGlobal('document', Object.assign(new EventTarget(), { activeElement: null }));
     vi.stubGlobal('getComputedStyle', () => ({
       getPropertyValue: (name: string) => (name === '--floating-gutter' ? '12px' : '0px'),
     }));
@@ -95,6 +100,11 @@ describe('control tooltips', () => {
   afterEach(() => {
     cleanup?.();
     cleanup = undefined;
+    lifetimes
+      .splice(0)
+      .reverse()
+      .forEach((dispose) => dispose());
+    vi.useRealTimers();
     vi.unstubAllGlobals();
   });
   it('opens for pointer hover and keyboard focus without reacting to touch', () => {
@@ -162,5 +172,71 @@ describe('control tooltips', () => {
     expect(panel.style.maxWidth).toBe('223px');
     expect(panel.style.left).toBe('183px');
     expect(panel.style.top).toBe('402px');
+  });
+
+  it('keeps a label open while the pointer crosses the gap to its content', () => {
+    vi.useFakeTimers();
+    const { props } = render();
+    props.onPointerEnter!({ pointerType: 'mouse' });
+    state.setOpen.mockClear();
+    props.onPointerLeave!();
+    expect(state.setOpen).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(100);
+    props.onPointerEnter!({ pointerType: 'mouse' });
+    state.setOpen.mockClear();
+    vi.advanceTimersByTime(200);
+    expect(state.setOpen).not.toHaveBeenCalled();
+    props.onPointerLeave!();
+    vi.advanceTimersByTime(120);
+    expect(state.setOpen).toHaveBeenCalledWith(false);
+  });
+
+  it('keeps a keyboard label visible when the pointer leaves its control', () => {
+    vi.useFakeTimers();
+    const { anchor, props } = render();
+    anchor.keyboard = true;
+    Object.assign(document, { activeElement: anchor });
+    props.onFocus!({ target: anchor });
+    state.setOpen.mockClear();
+    props.onPointerLeave!();
+    vi.advanceTimersByTime(200);
+    expect(state.setOpen).not.toHaveBeenCalled();
+    props.onBlur!();
+    expect(state.setOpen).toHaveBeenCalledWith(false);
+  });
+
+  it('still dismisses a hovered label after a quiet pointer focus return', () => {
+    vi.useFakeTimers();
+    const { anchor, props } = render();
+    anchor.keyboard = true;
+    anchor.setAttribute('data-pointer-focus', '');
+    Object.assign(document, { activeElement: anchor });
+    props.onPointerEnter!({ pointerType: 'mouse' });
+    state.setOpen.mockClear();
+    props.onPointerLeave!();
+    vi.advanceTimersByTime(120);
+    expect(state.setOpen).toHaveBeenCalledWith(false);
+  });
+
+  it('replaces the previous label when another control is hovered', () => {
+    const first = render();
+    first.props.onPointerEnter!({ pointerType: 'mouse' });
+    state.setOpen.mockClear();
+    const second = render();
+    second.props.onPointerEnter!({ pointerType: 'mouse' });
+    expect(state.setOpen.mock.calls.map(([value]) => value)).toEqual([false, true]);
+  });
+
+  it('cancels pending hover dismissal when its control unmounts', () => {
+    vi.useFakeTimers();
+    const { props } = render();
+    props.onPointerEnter!({ pointerType: 'mouse' });
+    props.onPointerLeave!();
+    lifetimes.at(-1)?.();
+    state.setOpen.mockClear();
+    vi.advanceTimersByTime(200);
+    expect(state.setOpen).not.toHaveBeenCalled();
+    render().props.onPointerEnter!({ pointerType: 'mouse' });
+    expect(state.setOpen.mock.calls.map(([value]) => value)).toEqual([true]);
   });
 });

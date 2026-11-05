@@ -2,13 +2,51 @@ import { useId, useLayoutEffect, useRef, useState, type ReactElement } from 'rea
 import { observeViewport, readViewport } from '../viewport/viewport';
 import './Tooltip.css';
 
+let activeTooltip: { owner: object; dismiss: () => void } | null = null;
+
 export function Tooltip({ label, children }: { label: string; children: ReactElement }) {
   const id = useId();
   const wrapper = useRef<HTMLSpanElement>(null);
   const panel = useRef<HTMLDivElement>(null);
+  const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const owner = useRef({});
   const [open, setOpen] = useState(false);
   const trigger = () =>
     wrapper.current?.querySelector<HTMLElement>('button,summary,input,[tabindex]');
+  const cancelLeave = () => {
+    if (leaveTimer.current !== null) clearTimeout(leaveTimer.current);
+    leaveTimer.current = null;
+  };
+  const dismiss = () => {
+    cancelLeave();
+    if (activeTooltip?.owner === owner.current) activeTooltip = null;
+    setOpen(false);
+  };
+  const show = () => {
+    cancelLeave();
+    if (activeTooltip?.owner !== owner.current) activeTooltip?.dismiss();
+    activeTooltip = { owner: owner.current, dismiss };
+    setOpen(true);
+  };
+  const leave = () => {
+    const anchor = trigger();
+    if (
+      anchor &&
+      anchor === document.activeElement &&
+      anchor.matches(':focus-visible') &&
+      !anchor.hasAttribute('data-pointer-focus')
+    )
+      return;
+    cancelLeave();
+    leaveTimer.current = setTimeout(dismiss, 120);
+  };
+  useLayoutEffect(
+    () => () => {
+      cancelLeave();
+      if (activeTooltip?.owner === owner.current) activeTooltip = null;
+    },
+    [],
+  );
   useLayoutEffect(() => {
     if (!open) return;
     const anchor = trigger(),
@@ -18,7 +56,7 @@ export function Tooltip({ label, children }: { label: string; children: ReactEle
     anchor.setAttribute('aria-describedby', [...described, id].join(' '));
     const position = () => {
       if (!anchor.isConnected || !anchor.getClientRects().length) {
-        setOpen(false);
+        dismiss();
         return;
       }
       const view = readViewport();
@@ -47,7 +85,7 @@ export function Tooltip({ label, children }: { label: string; children: ReactEle
       if (event.key !== 'Escape') return;
       event.preventDefault();
       event.stopPropagation();
-      setOpen(false);
+      dismiss();
     };
     document.addEventListener('keydown', escape, { capture: true });
     const stop = observeViewport(position);
@@ -74,19 +112,19 @@ export function Tooltip({ label, children }: { label: string; children: ReactEle
       className="tooltip"
       ref={wrapper}
       onPointerEnter={(event) => {
-        if (event.pointerType !== 'touch') setOpen(true);
+        if (event.pointerType !== 'touch') show();
       }}
-      onPointerLeave={() => setOpen(false)}
-      onPointerDownCapture={() => setOpen(false)}
+      onPointerLeave={leave}
+      onPointerDownCapture={dismiss}
       onFocus={(event) => {
         if (
           event.target === trigger() &&
           event.target.matches(':focus-visible') &&
           !event.target.hasAttribute('data-pointer-focus')
         )
-          setOpen(true);
+          show();
       }}
-      onBlur={() => setOpen(false)}
+      onBlur={dismiss}
     >
       {children}
       {open && (
