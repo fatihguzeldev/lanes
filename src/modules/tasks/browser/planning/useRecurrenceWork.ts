@@ -25,7 +25,8 @@ export function useRecurrenceWork(accountId: string, enabled: boolean, onChanged
     setError('');
     const base = `/api/accounts/${encodeURIComponent(accountId)}`,
       deadline = Date.now() + 45_000;
-    let lastInvalidation = 0;
+    let lastInvalidation = 0,
+      unreportedProgress = false;
     try {
       do {
         again.current = false;
@@ -35,9 +36,12 @@ export function useRecurrenceWork(accountId: string, enabled: boolean, onChanged
             body: {},
             signal: controller.signal,
           });
-          if (step.advanced && (Date.now() - lastInvalidation > 1200 || !step.pending)) {
+          if (controller.signal.aborted) return;
+          unreportedProgress ||= step.advanced;
+          if (unreportedProgress && (Date.now() - lastInvalidation > 1200 || !step.pending)) {
             callback.current();
             lastInvalidation = Date.now();
+            unreportedProgress = false;
           }
           if (!step.pending || ['paused', 'uncertain', 'reopen_required'].includes(step.state))
             break;
@@ -47,6 +51,7 @@ export function useRecurrenceWork(accountId: string, enabled: boolean, onChanged
               body: {},
               signal: controller.signal,
             });
+          if (controller.signal.aborted) return;
           await new Promise<void>((resolve, reject) => {
             const timer = setTimeout(done, 350);
             function done() {
@@ -72,7 +77,7 @@ export function useRecurrenceWork(accountId: string, enabled: boolean, onChanged
       running.current = false;
       if (!controller.signal.aborted) {
         setBusy(false);
-        callback.current();
+        if (unreportedProgress) callback.current();
       }
     }
   }, [accountId, enabled]);
