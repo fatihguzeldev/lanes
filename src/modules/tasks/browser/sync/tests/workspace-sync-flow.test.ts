@@ -233,6 +233,54 @@ describe('workspace sync flow', () => {
     expect(boundary.request).toHaveBeenCalledTimes(2);
   });
 
+  it('backs off consecutive already-due idle and coalesced responses up to ten seconds', async () => {
+    serve(
+      ...['coalesced', 'idle', 'coalesced', 'idle', 'coalesced', 'idle'].map(
+        (phase) => () => step(phase as SyncAdvance['phase'], { pending: true, delay: 0 }),
+      ),
+      () => step('idle'),
+    );
+    useWorkspaceSync('account-a', vi.fn(), true);
+    for (const [index, wait] of [1000, 2000, 4000, 8000, 10_000, 10_000].entries()) {
+      await vi.advanceTimersByTimeAsync(wait - 1);
+      expect(boundary.request).toHaveBeenCalledTimes(index + 1);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(boundary.request).toHaveBeenCalledTimes(index + 2);
+    }
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('resets no-progress backoff after meaningful work without slowing ready work', async () => {
+    serve(
+      () => step('coalesced', { pending: true, delay: 0 }),
+      () => step('coalesced', { pending: true, delay: 0 }),
+      () => step('tasks', { pending: true, delay: 0 }),
+      () => step('coalesced', { pending: true, delay: 0 }),
+      () => step('idle'),
+    );
+    useWorkspaceSync('account-a', vi.fn(), true);
+    await vi.advanceTimersByTimeAsync(3001);
+    expect(boundary.request).toHaveBeenCalledTimes(4);
+    await vi.advanceTimersByTimeAsync(999);
+    expect(boundary.request).toHaveBeenCalledTimes(4);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(boundary.request).toHaveBeenCalledTimes(5);
+  });
+
+  it('honors a server-clock future retry even after no-progress backoff has increased', async () => {
+    serve(
+      () => step('coalesced', { pending: true, delay: 60_000 }),
+      () => step('coalesced', { pending: true, delay: 60_000 }),
+      () => step('coalesced', { pending: true, delay: 60_125 }),
+      () => step('idle'),
+    );
+    useWorkspaceSync('account-a', vi.fn(), true, 60_000);
+    await vi.advanceTimersByTimeAsync(3124);
+    expect(boundary.request).toHaveBeenCalledTimes(3);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(boundary.request).toHaveBeenCalledTimes(4);
+  });
+
   it('respects a future coalesced retry without imposing the no-progress floor', async () => {
     serve(
       () => step('coalesced', { pending: true, delay: 125 }),

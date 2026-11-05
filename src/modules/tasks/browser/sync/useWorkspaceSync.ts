@@ -39,6 +39,7 @@ export function useWorkspaceSync(
       setError('');
       const base = `/api/accounts/${encodeURIComponent(accountId)}/sync`;
       let lastInvalidatedAt = Date.now();
+      let noProgressDelay = 0;
       const returning = retained.current;
       const flushChanges = () => {
         const changes = pendingChanges.current;
@@ -92,6 +93,9 @@ export function useWorkspaceSync(
           const changes = progress.changes;
           pendingChanges.current.topology ||= changes.topology;
           pendingChanges.current.tasks ||= changes.tasks;
+          noProgressDelay = ['idle', 'coalesced'].includes(progress.phase)
+            ? Math.min(10_000, noProgressDelay ? noProgressDelay * 2 : 1000)
+            : 0;
           if (
             !topologySeen.current &&
             !progress.errorCode &&
@@ -107,8 +111,7 @@ export function useWorkspaceSync(
             document.visibilityState === 'visible'
           ) {
             const scheduledWait = next.nextAttemptAt - (Date.now() + offset.current);
-            const noProgress = ['idle', 'coalesced'].includes(progress.phase);
-            const wait = scheduledWait > 0 ? scheduledWait : noProgress ? 1000 : 0;
+            const wait = scheduledWait > 0 ? scheduledWait : noProgressDelay;
             // Long backoff is visible; a future return/manual refresh can resume it.
             if (wait <= 30_000) {
               if (Date.now() - lastInvalidatedAt >= 10_000) flushChanges();
