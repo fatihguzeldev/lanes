@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import type { Label, TaskFilter, TaskList, TaskSort } from '../../../tasks/contracts/task';
 import type { BoardViewPreferences } from './view-preferences';
 import { Icon } from '../../../../shared/ui/icon/Icon';
@@ -32,6 +32,14 @@ interface Props {
 
 export function WorkspaceViewMenu(props: Props) {
   const [filtering, setFiltering] = useState(false);
+  const previousPage = useRef(filtering);
+  const filterAction = useRef<HTMLButtonElement>(null);
+  const backAction = useRef<HTMLButtonElement>(null);
+  useLayoutEffect(() => {
+    if (previousPage.current === filtering) return;
+    previousPage.current = filtering;
+    (filtering ? backAction : filterAction).current?.focus({ preventScroll: true });
+  }, [filtering]);
   const filtered = Object.keys(props.filter).length > 0;
   const label = props.label ?? 'view options';
   return (
@@ -50,7 +58,7 @@ export function WorkspaceViewMenu(props: Props) {
       {(close, anchor) =>
         filtering ? (
           <div className="workspace-view-menu__filters">
-            <button className="popover__item" onClick={() => setFiltering(false)}>
+            <button ref={backAction} className="popover__item" onClick={() => setFiltering(false)}>
               <Icon name="left" size={14} /> view options
             </button>
             <TaskFiltersForm
@@ -98,7 +106,7 @@ export function WorkspaceViewMenu(props: Props) {
                 ]}
               />
             </label>
-            <button className="popover__item" onClick={() => setFiltering(true)}>
+            <button ref={filterAction} className="popover__item" onClick={() => setFiltering(true)}>
               <Icon name="filter" size={15} /> filter tasks <Icon name="right" size={14} />
             </button>
             {filtered && (
