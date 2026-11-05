@@ -278,6 +278,7 @@ function EditorForm(props: TaskEditorProps) {
         noValidate
         onKeyDown={(event) => {
           if (event.nativeEvent.isComposing) return;
+          if (event.target instanceof Element && event.target.closest('[popover]')) return;
           if (event.key === 'Escape' && !event.defaultPrevented && !(pending && !props.submitted)) {
             event.stopPropagation();
             props.onClose();
