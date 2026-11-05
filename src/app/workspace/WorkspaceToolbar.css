@@ -221,7 +221,8 @@
     flex: none;
     gap: 0;
   }
-  .workspace__global-controls .account-menu__trigger {
+  .workspace__global-controls .account-menu__trigger,
+  .workspace__global-controls .popover__trigger.account-menu__trigger {
     margin-left: 0;
   }
   .workspace__icon-button.workspace__search-launch,
