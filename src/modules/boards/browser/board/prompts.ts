@@ -7,20 +7,6 @@ type Submit = (
   identity?: string,
 ) => Promise<boolean>;
 
-export function createListPrompt(board: Board, submit: Submit): Prompt {
-  return {
-    title: 'new list',
-    label: 'list name',
-    initial: '',
-    submit: (value, identity) =>
-      submit(
-        { kind: 'list.create', title: value, boardId: board.id, boardRevision: board.revision },
-        'provider',
-        identity,
-      ),
-  };
-}
-
 export function deleteBoardPrompt(board: Board, submit: Submit): Prompt {
   return {
     title: `delete ${board.title}?`,

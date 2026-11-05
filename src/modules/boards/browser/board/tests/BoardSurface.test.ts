@@ -228,4 +228,22 @@ describe('board list presentation', () => {
       'board-skeleton__count',
     );
   });
+
+  it.each([false, true])(
+    'replaces the new-list action with its inline entry, empty=%s',
+    (empty) => {
+      const entry = createElement('input', { 'aria-label': 'new list name' });
+      const markup = render(
+        {},
+        {
+          ...(empty ? { columns: [] } : {}),
+          onAddList() {},
+          listCreation: entry,
+        },
+      );
+      expect(markup).toContain('aria-label="new list name"');
+      expect(markup).not.toContain('new list</button>');
+      expect(markup).not.toContain('board-surface__add-list');
+    },
+  );
 });

@@ -1,0 +1,49 @@
+.inline-list-create {
+  flex: none;
+  width: min(240px, calc(100cqi - 2 * var(--workspace-padding) - 16px));
+  min-width: 0;
+  padding: 0 14px;
+  align-self: flex-start;
+  color: var(--secondary);
+}
+.board-surface__empty .inline-list-create {
+  align-self: center;
+}
+.inline-list-create__field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: max(42px, var(--control-size));
+}
+.inline-list-create__field > .icon {
+  flex: none;
+  color: var(--icon);
+}
+.inline-list-create__field input {
+  min-width: 0;
+  flex: 1;
+  min-height: var(--field-height);
+  border: 0;
+  border-radius: 0;
+  padding: 4px 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: var(--field-font-size);
+}
+.inline-list-create__field input:focus-visible {
+  outline: none;
+  box-shadow: inset 0 -1px var(--green);
+}
+.inline-list-create__error {
+  padding: 6px 0 0 22px;
+  color: var(--rust);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.inline-list-create__error button {
+  border: 0;
+  padding: 3px 0;
+  background: none;
+  color: inherit;
+  text-decoration: underline;
+}

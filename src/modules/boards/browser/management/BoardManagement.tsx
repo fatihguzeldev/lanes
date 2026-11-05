@@ -5,11 +5,11 @@ import type { Board, BoardList } from '../../contracts/board';
 import type { BoardViewPreferences } from '../view/view-preferences';
 import type { Prompt } from '../../../operations/browser/submission/PromptDialog';
 import { BoardOptions } from '../board/BoardOptions';
-import { createListPrompt, deleteBoardPrompt } from '../board/prompts';
+import { deleteBoardPrompt } from '../board/prompts';
 import { useBoardCreation } from './useBoardCreation';
+import { useListCreation } from './useListCreation';
 import { ListOptions } from '../placement/ListOptions';
 import { DuplicateDialog } from '../placement/DuplicateDialog';
-import { TaskMovePicker } from '../placement/TaskMovePicker';
 import { useTaskPlacement } from '../placement/useTaskPlacement';
 
 type Submit = (
@@ -20,7 +20,6 @@ type Submit = (
 export function useBoardManagement(
   board: Board | null,
   submit: Submit,
-  onPrompt: (prompt: Prompt) => void,
   environment: {
     account: ConnectionSummary;
     clockOffset: number;
@@ -28,6 +27,7 @@ export function useBoardManagement(
     onNotice(message: string): void;
     onInspect(id: string): void;
     onBoardDraftChange?: ((dirty: boolean) => void) | undefined;
+    onListDraftChange?: ((dirty: boolean) => void) | undefined;
   },
 ) {
   const creation = useBoardCreation({
@@ -39,6 +39,15 @@ export function useBoardManagement(
     onDirtyChange: environment.onBoardDraftChange,
   });
   const placement = useTaskPlacement(environment);
+  const listCreation = useListCreation({
+    accountId: environment.account.id,
+    board,
+    clockOffset: environment.clockOffset,
+    onChanged: environment.onChanged,
+    onNotice: environment.onNotice,
+    onInspect: environment.onInspect,
+    onDirtyChange: environment.onListDraftChange,
+  });
   const [listMenuAnchor, setListMenuAnchor] = useState<HTMLElement | null>(null);
   const [boardMenuAnchor, setBoardMenuAnchor] = useState<HTMLElement | null>(null);
   const [listMenu, setListMenu] = useState<BoardList | null>(null);
@@ -48,6 +57,7 @@ export function useBoardManagement(
   >(null);
   return {
     creation,
+    listCreation,
     placement,
     listMenuAnchor,
     boardMenuAnchor,
@@ -61,7 +71,7 @@ export function useBoardManagement(
       creation.show();
     },
     createList() {
-      if (board) onPrompt(createListPrompt(board, submit));
+      if (board) listCreation.show(board);
     },
     openBoardMenu(anchor: HTMLElement) {
       setBoardMenuAnchor(anchor);
@@ -137,7 +147,6 @@ export function BoardManagement({
     boardMenuAnchor,
     listMenu,
     boardMenu,
-    placement,
     copying,
     setListMenu,
     setBoardMenu,
@@ -145,9 +154,6 @@ export function BoardManagement({
   } = controller;
   return (
     <>
-      {placement.selection && (
-        <TaskMovePicker key={placement.selection.task.id} controller={placement} />
-      )}
       {copying && (
         <DuplicateDialog
           account={account}
