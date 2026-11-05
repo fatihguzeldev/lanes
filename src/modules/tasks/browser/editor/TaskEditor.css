@@ -53,8 +53,9 @@
   letter-spacing: -0.17px;
 }
 .task-editor__notes {
-  min-height: 40px;
+  min-height: 32px;
   max-height: 280px;
+  resize: none;
   padding: 4px 0 10px;
   color: var(--secondary);
   font-size: 13px;

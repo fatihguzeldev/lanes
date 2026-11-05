@@ -43,6 +43,7 @@ export function TaskEditor(props: TaskEditorProps) {
 function EditorForm(props: TaskEditorProps) {
   const uid = useId();
   const titleInput = useRef<HTMLTextAreaElement>(null);
+  const notesInput = useRef<HTMLTextAreaElement>(null);
   const [snapshot, setSnapshot] = useState(() => ({
     accountId: props.accountId,
     task: props.task ? structuredClone(props.task) : null,
@@ -153,11 +154,12 @@ function EditorForm(props: TaskEditorProps) {
     titleInput.current?.select();
   }, []);
   useEffect(() => {
-    const input = titleInput.current;
-    if (!input) return;
-    input.style.height = 'auto';
-    input.style.height = `${input.scrollHeight}px`;
-  }, [draft.title]);
+    for (const input of [titleInput.current, notesInput.current]) {
+      if (!input) continue;
+      input.style.height = 'auto';
+      input.style.height = `${input.scrollHeight}px`;
+    }
+  }, [draft.title, draft.notes]);
   useEffect(() => {
     props.onDirtyChange?.(dirty);
   }, [dirty, props.onDirtyChange]);
@@ -393,9 +395,10 @@ function EditorForm(props: TaskEditorProps) {
           notes
         </label>
         <textarea
+          ref={notesInput}
           className="task-editor__notes"
           id={inputId('notes')}
-          rows={2}
+          rows={1}
           placeholder="details"
           value={draft.notes}
           onChange={(event) => set('notes', event.target.value)}
