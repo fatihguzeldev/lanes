@@ -13,6 +13,7 @@
   align-items: center;
   gap: 9px;
   width: 100%;
+  min-height: var(--control-size);
   padding: 8px 10px;
   border-radius: 5px;
   font-size: 13px;
@@ -34,14 +35,18 @@
   margin: 0 10px 8px;
   font-size: 11px;
   color: var(--muted);
+  flex: none;
 }
 .board-navigation__label button {
   display: grid;
   place-items: center;
   padding: 3px;
   border-radius: 4px;
+  width: var(--control-size);
+  height: var(--control-size);
 }
 .board-navigation__boards {
+  flex: 1;
   min-height: 0;
   overflow: auto;
 }
@@ -85,6 +90,7 @@
   color: var(--secondary);
   font-size: 13px;
   line-height: 17px;
+  min-height: var(--control-size);
 }
 .board-navigation__placeholder-name {
   display: flex;
@@ -101,10 +107,12 @@
   height: 8px;
 }
 .board-navigation__label--skeleton {
-  height: 20px;
+  min-height: var(--control-size);
 }
 .board-navigation__new-placeholder {
   display: grid;
   place-items: center;
   padding: 3px;
+  width: var(--control-size);
+  height: var(--control-size);
 }

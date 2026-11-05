@@ -5,7 +5,8 @@
   gap: 18px;
   min-height: 70px;
   flex: none;
-  padding: 12px var(--workspace-padding);
+  padding: max(12px, var(--safe-top)) max(var(--workspace-padding), var(--safe-right)) 12px
+    max(var(--workspace-padding), var(--safe-left));
   border-bottom: 1px solid var(--line);
 }
 .workspace__title {
@@ -31,8 +32,8 @@
   align-items: center;
   justify-content: center;
   flex: none;
-  width: 30px;
-  height: 30px;
+  width: var(--control-size);
+  height: var(--control-size);
   padding: 5px;
   border: 0;
   border-radius: 5px;
@@ -60,7 +61,7 @@
   gap: 8px;
   min-width: 0;
   flex: 1;
-  height: 34px;
+  height: var(--field-height);
   padding: 0 10px;
   border: 1px solid var(--line);
   border-radius: 6px;
@@ -77,7 +78,7 @@
   background: transparent;
   outline: 0;
   padding: 6px 0;
-  font-size: 13px;
+  font-size: var(--field-font-size);
 }
 .workspace__search input::placeholder {
   color: var(--muted);
@@ -91,6 +92,7 @@
 }
 .workspace__search-scope {
   max-width: 115px;
+  flex: none;
   font-size: 11px;
 }
 .workspace__search-scope .select__trigger {
@@ -109,12 +111,12 @@
 .workspace__mobile-menu {
   display: none;
 }
-@media (max-width: 1050px) {
+@container workspace (max-width: 900px) {
   .workspace__topbar {
     gap: 12px;
   }
 }
-@media (max-width: 880px) {
+@container workspace (max-width: 800px) {
   .workspace__topbar {
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 10px 16px;
@@ -128,7 +130,7 @@
     grid-row: 1;
   }
 }
-@media (max-width: 560px) {
+@media (max-width: 768px) {
   .workspace__mobile-menu {
     display: grid;
     place-items: center;
@@ -136,21 +138,35 @@
     background: none;
     padding: 5px 0;
     color: var(--secondary);
+    flex: none;
+    width: var(--control-size);
+    height: var(--control-size);
   }
   .workspace__title {
     gap: 8px;
   }
   .workspace__topbar {
-    padding-block: 10px;
+    padding-top: max(10px, var(--safe-top));
+    padding-bottom: 10px;
   }
   .workspace__search kbd {
     display: none;
   }
 }
-@media (pointer: coarse) {
-  .workspace__icon-button,
-  .popover__trigger.workspace__icon-button {
-    min-width: 44px;
-    min-height: 44px;
+@media (max-width: 359px) and (pointer: coarse) {
+  .workspace__topbar {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+  .workspace__title {
+    max-width: none;
+  }
+  .workspace__global-controls {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .workspace__search-controls {
+    grid-column: 1;
+    grid-row: 3;
   }
 }

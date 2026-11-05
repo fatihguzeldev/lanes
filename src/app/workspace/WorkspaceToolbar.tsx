@@ -4,6 +4,7 @@ import { WorkspaceViewMenu } from '../../modules/boards/browser/view/WorkspaceVi
 import { Skeleton } from '../../shared/ui/skeleton/Skeleton';
 import { Icon } from '../../shared/ui/icon/Icon';
 import { Select } from '../../shared/ui/select/Select';
+import { useWorkspaceHeader } from './useWorkspaceHeader';
 import './WorkspaceToolbar.css';
 
 interface Props {
@@ -38,8 +39,9 @@ export function WorkspaceToolbar({
   viewMenu,
   controls,
 }: Props) {
+  const header = useWorkspaceHeader();
   return (
-    <header className="workspace__topbar">
+    <header ref={header} className="workspace__topbar">
       <div className="workspace__title">
         <button
           ref={navigationTrigger}

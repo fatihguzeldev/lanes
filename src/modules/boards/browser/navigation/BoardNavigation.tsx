@@ -80,6 +80,7 @@ export function BoardNavigation({
           <button
             key={item.id}
             className={selectedBoardId === item.id ? 'active' : ''}
+            title={item.title || 'untitled board'}
             draggable={writable}
             onDragStart={(event) => {
               setDraggingBoard(item.id);

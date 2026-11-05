@@ -3,9 +3,11 @@
   display: grid;
   grid-template-columns: 192px minmax(0, 1fr);
   height: 100svh;
+  height: 100dvh;
   overflow: hidden;
 }
 .workspace__main {
+  container: workspace / inline-size;
   position: relative;
   isolation: isolate;
   display: flex;
@@ -52,6 +54,8 @@
 .workspace__connection > p,
 .workspace__notice > span {
   flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .workspace__connection button,
 .workspace__notice button {
@@ -87,13 +91,20 @@
   max-width: 390px;
   line-height: 1.8;
 }
-@media (max-width: 1050px) {
+@media (max-width: 1024px) {
   .workspace {
     grid-template-columns: 172px minmax(0, 1fr);
   }
 }
-@media (max-width: 560px) {
+@media (max-width: 768px) {
   .workspace {
     grid-template-columns: minmax(0, 1fr);
+  }
+  .workspace__connection,
+  .workspace__notice {
+    flex-wrap: wrap;
+  }
+  .workspace__empty {
+    padding: 24px var(--workspace-padding);
   }
 }

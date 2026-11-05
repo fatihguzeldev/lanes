@@ -4,8 +4,8 @@
   align-items: center;
   justify-content: center;
   flex: none;
-  width: 30px;
-  height: 30px;
+  width: var(--control-size);
+  height: var(--control-size);
   padding: 0;
   margin-left: 4px;
   border: 0;
@@ -62,9 +62,7 @@
 .account-menu .popover__item > span {
   flex: 1;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 .account-menu .popover__item > .icon {
   flex: none;
@@ -72,11 +70,4 @@
 }
 .account-menu .popover__item > .account-menu__selected-check {
   margin-left: auto;
-}
-@media (pointer: coarse) {
-  .account-menu__trigger,
-  .popover__trigger.account-menu__trigger {
-    min-width: 44px;
-    min-height: 44px;
-  }
 }

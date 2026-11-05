@@ -4,8 +4,8 @@
   align-items: center;
   justify-content: center;
   flex: none;
-  width: 30px;
-  height: 30px;
+  width: var(--control-size);
+  height: var(--control-size);
   padding: 5px;
   border: 0;
   border-radius: 5px;
@@ -19,13 +19,6 @@
 .sync-control[aria-expanded='true'] {
   color: var(--ink);
   background: var(--paper-hover);
-}
-@media (pointer: coarse) {
-  .sync-control,
-  .popover__trigger.sync-control {
-    min-width: 44px;
-    min-height: 44px;
-  }
 }
 .sync-control--syncing .icon {
   animation: sync-breathe 1.6s ease-in-out infinite;
@@ -71,6 +64,7 @@
   font-size: 12px;
   color: var(--secondary);
   line-height: 1.6;
+  overflow-wrap: anywhere;
 }
 @keyframes sync-breathe {
   50% {

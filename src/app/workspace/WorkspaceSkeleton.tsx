@@ -7,6 +7,7 @@ import { Icon } from '../../shared/ui/icon/Icon';
 import { BoardSkeleton } from '../../modules/boards/browser/board/BoardSkeleton';
 import { BoardNavigationSkeleton } from '../../modules/boards/browser/navigation/BoardNavigation';
 import type { ResolvedTheme } from '../theme/theme';
+import { useWorkspaceHeader } from './useWorkspaceHeader';
 import './Workspace.css';
 import './WorkspaceSkeleton.css';
 
@@ -17,6 +18,7 @@ export function WorkspaceSkeleton({
   theme?: ResolvedTheme;
   accountInitial?: string | null;
 }) {
+  const header = useWorkspaceHeader();
   return (
     <div
       className="workspace workspace-skeleton"
@@ -25,7 +27,9 @@ export function WorkspaceSkeleton({
       aria-busy="true"
     >
       <aside className="workspace__sidebar" aria-hidden="true" inert>
-        <Brand />
+        <div className="workspace__sidebar-heading">
+          <Brand />
+        </div>
         <nav className="workspace__navigation">
           <button type="button" tabIndex={-1}>
             <Icon name="sun" size={16} />
@@ -39,7 +43,7 @@ export function WorkspaceSkeleton({
         <BoardNavigationSkeleton />
       </aside>
       <main className="workspace__main" aria-hidden="true" inert>
-        <header className="workspace__topbar">
+        <header ref={header} className="workspace__topbar">
           <div className="workspace__title">
             <button type="button" tabIndex={-1} className="workspace__mobile-menu">
               <Icon name="menu" />

@@ -24,7 +24,17 @@ export function WorkspaceNavigation({ navigation, open, quick, onQuick, onClose,
         role={open ? 'dialog' : undefined}
         aria-modal={open || undefined}
       >
-        <Brand />
+        <div className="workspace__sidebar-heading">
+          <Brand />
+          <button
+            type="button"
+            className="workspace__sidebar-close"
+            aria-label="close navigation"
+            onClick={onClose}
+          >
+            <Icon name="close" />
+          </button>
+        </div>
         <nav className="workspace__navigation">
           <button className={quick === 'today' ? 'active' : ''} onClick={() => onQuick('today')}>
             <Icon name="sun" size={16} />
@@ -43,7 +53,9 @@ export function WorkspaceNavigation({ navigation, open, quick, onQuick, onClose,
       {open && (
         <button
           className="workspace__nav-backdrop"
-          aria-label="close navigation"
+          aria-hidden="true"
+          tabIndex={-1}
+          onPointerDown={(event) => event.preventDefault()}
           onClick={onClose}
         />
       )}
