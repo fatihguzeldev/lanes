@@ -493,22 +493,22 @@ export function Workspace({
             onMoreLists: () => void lists.loadMore(),
             onMoreLabels: () => void labels.loadMore(),
           }}
-          controls={
+          syncControl={<SyncControl {...syncControl} compact />}
+          desktopControls={
             <>
-              <SyncControl {...syncControl} compact />
-              <div className="workspace__desktop-utilities">
-                <ThemeToggle theme={theme} onTheme={onTheme} />
-                <WorkspaceSettings {...settings} />
-              </div>
-              <AccountMenu
-                account={account}
-                accounts={accounts}
-                onSelect={(id) => guardAccount(() => onSelectAccount(id))}
-                onConnect={() => guardAccount(() => onAuthorize('link'))}
-                onManage={() => guard(() => setAccountLifecycleOpen(true))}
-                onSignOut={() => guardAccount(onSignOut)}
-              />
+              <ThemeToggle theme={theme} onTheme={onTheme} />
+              <WorkspaceSettings {...settings} />
             </>
+          }
+          accountControl={
+            <AccountMenu
+              account={account}
+              accounts={accounts}
+              onSelect={(id) => guardAccount(() => onSelectAccount(id))}
+              onConnect={() => guardAccount(() => onAuthorize('link'))}
+              onManage={() => guard(() => setAccountLifecycleOpen(true))}
+              onSignOut={() => guardAccount(onSignOut)}
+            />
           }
         />
         {connection !== 'reachable' && (

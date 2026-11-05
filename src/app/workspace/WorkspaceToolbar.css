@@ -200,8 +200,10 @@
   }
   .workspace__board-trigger,
   .popover__trigger.workspace__board-trigger {
+    flex: 1;
     justify-content: flex-start;
     width: 100%;
+    max-width: 100%;
     padding-inline: 4px;
     font: inherit;
     letter-spacing: inherit;

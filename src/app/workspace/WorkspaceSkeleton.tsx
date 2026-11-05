@@ -71,13 +71,6 @@ export function WorkspaceSkeleton({
               <Icon name="more" />
             </button>
           </div>
-          <button
-            type="button"
-            tabIndex={-1}
-            className="workspace__icon-button workspace__search-launch"
-          >
-            <Icon name="search" />
-          </button>
           <div className="workspace__search-controls">
             <label className="workspace__search">
               <Icon name="search" size={16} />
@@ -91,6 +84,13 @@ export function WorkspaceSkeleton({
           <div className="workspace__global-controls">
             <button type="button" tabIndex={-1} className="workspace__icon-button">
               <Icon name="cloud" />
+            </button>
+            <button
+              type="button"
+              tabIndex={-1}
+              className="workspace__icon-button workspace__search-launch"
+            >
+              <Icon name="search" />
             </button>
             <div className="workspace__desktop-utilities">
               <button type="button" tabIndex={-1} className="workspace__icon-button">

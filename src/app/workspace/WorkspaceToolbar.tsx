@@ -21,7 +21,9 @@ interface Props {
   onQuery(value: string): void;
   onScope(value: 'board' | 'account'): void;
   viewMenu: ComponentProps<typeof WorkspaceViewMenu>;
-  controls: ReactNode;
+  syncControl: ReactNode;
+  desktopControls: ReactNode;
+  accountControl: ReactNode;
 }
 export function WorkspaceToolbar({
   navigationTrigger,
@@ -36,7 +38,9 @@ export function WorkspaceToolbar({
   onQuery,
   onScope,
   viewMenu,
-  controls,
+  syncControl,
+  desktopControls,
+  accountControl,
 }: Props) {
   const header = useWorkspaceHeader();
   const taskSearch = useWorkspaceSearch(query, onQuery);
@@ -105,15 +109,6 @@ export function WorkspaceToolbar({
           </button>
         )}
       </div>
-      <button
-        ref={taskSearch.trigger}
-        type="button"
-        className="workspace__icon-button workspace__search-launch"
-        aria-label="search tasks"
-        onClick={taskSearch.open}
-      >
-        <Icon name="search" />
-      </button>
       <div className="workspace__search-controls">
         <button
           type="button"
@@ -159,7 +154,20 @@ export function WorkspaceToolbar({
           <WorkspaceViewMenu {...viewMenu} />
         </span>
       </div>
-      <div className="workspace__global-controls">{controls}</div>
+      <div className="workspace__global-controls">
+        {syncControl}
+        <button
+          ref={taskSearch.trigger}
+          type="button"
+          className="workspace__icon-button workspace__search-launch"
+          aria-label="search tasks"
+          onClick={taskSearch.open}
+        >
+          <Icon name="search" />
+        </button>
+        <div className="workspace__desktop-utilities">{desktopControls}</div>
+        {accountControl}
+      </div>
     </header>
   );
 }
