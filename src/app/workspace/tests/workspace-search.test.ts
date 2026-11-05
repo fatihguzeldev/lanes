@@ -141,10 +141,19 @@ describe('workspace search', () => {
       [documentState.body, { metaKey: true }],
       [documentState.body, { ctrlKey: true }],
       [documentState.body, { altKey: true }],
-      [documentState.body, { shiftKey: true }],
       [documentState.body, { defaultPrevented: true }],
     ] as const)
       key(target, options);
+    expect(search.input.focus).not.toHaveBeenCalled();
+  });
+
+  it('opens when a keyboard layout needs Shift to type a slash', () => {
+    const search = mount();
+    expect(key(documentState.body, { shiftKey: true }).defaultPrevented).toBe(true);
+    expect(search.render().searching).toBe(true);
+    expect(documentState.activeElement).toBe(search.input);
+    search.input.focus.mockClear();
+    expect(key(documentState.body, { key: '?', shiftKey: true }).defaultPrevented).toBe(false);
     expect(search.input.focus).not.toHaveBeenCalled();
   });
 

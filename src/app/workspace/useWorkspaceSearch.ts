@@ -57,7 +57,6 @@ export function useWorkspaceSearch(query: string, onQuery: (value: string) => vo
         event.metaKey ||
         event.ctrlKey ||
         event.altKey ||
-        event.shiftKey ||
         (event.target instanceof HTMLElement &&
           event.target.closest(
             'input,textarea,select,[role=combobox],[contenteditable=true],dialog,[role=dialog],[popover]',
