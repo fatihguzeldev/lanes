@@ -13,6 +13,7 @@
 .workspace__sidebar .brand {
   font-size: 23px;
   gap: 9px;
+  line-height: 30px;
 }
 .workspace__sidebar .brand svg {
   width: 24px;
@@ -37,6 +38,7 @@
   padding: 8px 10px;
   border-radius: 5px;
   font-size: 13px;
+  line-height: 17px;
 }
 .workspace__navigation button:hover {
   color: var(--ink);
@@ -44,7 +46,10 @@
 }
 .workspace__navigation button.active {
   color: var(--ink);
-  background: var(--paper);
+  background: var(--active);
+}
+.workspace__navigation .icon {
+  color: var(--icon);
 }
 .workspace__nav-backdrop {
   display: none;

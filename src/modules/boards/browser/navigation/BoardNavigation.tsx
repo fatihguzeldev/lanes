@@ -3,6 +3,8 @@ import type { Board } from '../../contracts/board';
 import type { BoardCommand } from '../../contracts/commands';
 import { Icon } from '../../../../shared/ui/icon/Icon';
 import { Skeleton } from '../../../../shared/ui/skeleton/Skeleton';
+import type { BoardCreation } from '../management/useBoardCreation';
+import { InlineBoardCreate } from './InlineBoardCreate';
 import './BoardNavigation.css';
 
 interface Props {
@@ -16,16 +18,27 @@ interface Props {
   };
   selectedBoardId: string | null;
   writable: boolean;
+  creation?: BoardCreation | undefined;
   onCreate: () => void;
   onSelect: (board: Board) => void;
   onReorder: (command: Extract<BoardCommand, { kind: 'board.reorder' }>) => void;
 }
 function BoardNavigationPlaceholder() {
   return (
-    <div className="board-navigation__placeholder">
-      <Skeleton className="board-navigation__placeholder-symbol" />
-      <Skeleton className="board-navigation__placeholder-line" />
-    </div>
+    <button
+      type="button"
+      className="board-navigation__placeholder"
+      disabled
+      aria-hidden="true"
+      tabIndex={-1}
+    >
+      <span className="board-navigation__symbol">
+        <Skeleton className="board-navigation__placeholder-symbol" />
+      </span>
+      <span className="board-navigation__placeholder-name">
+        <Skeleton className="board-navigation__placeholder-line" />
+      </span>
+    </button>
   );
 }
 export function BoardNavigationSkeleton() {
@@ -37,7 +50,9 @@ export function BoardNavigationSkeleton() {
           <Icon name="plus" size={14} />
         </span>
       </div>
-      <BoardNavigationPlaceholder />
+      <nav className="board-navigation__boards" aria-hidden="true">
+        <BoardNavigationPlaceholder />
+      </nav>
     </>
   );
 }
@@ -45,6 +60,7 @@ export function BoardNavigation({
   resource,
   selectedBoardId,
   writable,
+  creation,
   onCreate,
   onSelect,
   onReorder,
@@ -59,6 +75,7 @@ export function BoardNavigation({
         </button>
       </div>
       <nav className="board-navigation__boards" aria-label="boards">
+        {creation?.open && <InlineBoardCreate controller={creation} writable={writable} />}
         {resource.items.map((item) => (
           <button
             key={item.id}
