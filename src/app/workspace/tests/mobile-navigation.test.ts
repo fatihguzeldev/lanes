@@ -14,6 +14,7 @@ class Element extends EventTarget {
   tabIndex = 0;
   children: Element[] = [];
   nestedSurface = false;
+  openPopover: Element | null = null;
   attributes = new Map<string, string>();
   focus = vi.fn(() => {
     documentState.activeElement = this;
@@ -23,6 +24,9 @@ class Element extends EventTarget {
   }
   querySelectorAll() {
     return this.children;
+  }
+  querySelector() {
+    return this.openPopover;
   }
   contains(element: unknown) {
     return element === this || this.children.includes(element as Element);
@@ -108,6 +112,22 @@ describe('compact navigation focus', () => {
     nested.nestedSurface = true;
     key('Escape', nested);
     expect(close).not.toHaveBeenCalled();
+  });
+
+  it('lets an open popover dismiss first when focus remains on its trigger', () => {
+    const { close, drawer, first, last } = mount();
+    drawer.openPopover = new Element();
+    const escape = key('Escape', first);
+    expect(escape.defaultPrevented).toBe(false);
+    expect(close).not.toHaveBeenCalled();
+
+    last.focus();
+    expect(key('Tab', last).defaultPrevented).toBe(true);
+    expect(documentState.activeElement).toBe(first);
+
+    drawer.openPopover = null;
+    expect(key('Escape', first).defaultPrevented).toBe(true);
+    expect(close).toHaveBeenCalledOnce();
   });
 
   it('closes at the desktop breakpoint without focusing a hidden mobile trigger', () => {

@@ -25,6 +25,8 @@ export function useMobileNavigation(open: boolean, onClose: () => void) {
         return;
       keyboard = true;
       if (event.key === 'Escape') {
+        if (event.defaultPrevented || drawer.current?.querySelector('[popover]:popover-open'))
+          return;
         event.preventDefault();
         onClose();
       }
