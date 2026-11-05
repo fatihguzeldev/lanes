@@ -1,24 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { SyncStepSchema, type SyncAdvance, type SyncStatus } from '../../contracts/sync';
+import { SyncForegroundSchema, type SyncChanges, type SyncStatus } from '../../contracts/sync';
 import { request } from '../../../../shared/browser/http/http';
-
-export interface SyncChanges {
-  topology: boolean;
-  tasks: boolean;
-}
-
-export function syncChanges(progress: Pick<SyncAdvance, 'phase' | 'errorCode'>): SyncChanges {
-  if (progress.errorCode) return { topology: false, tasks: false };
-  return {
-    topology: ['default', 'inventory', 'list_check'].includes(progress.phase),
-    tasks: ['tasks', 'list_check', 'task_check'].includes(progress.phase),
-  };
-}
 
 export function useWorkspaceSync(
   accountId: string,
   onChanged: (changes: SyncChanges) => void,
   retainedWorkspace = false,
+  clockOffset = 0,
+  onRefreshed?: (() => void) | undefined,
 ) {
   const [status, setStatus] = useState<SyncStatus | null>(null),
     [busy, setBusy] = useState(false),
@@ -28,8 +17,12 @@ export function useWorkspaceSync(
   const topologySeen = useRef(false);
   const callback = useRef(onChanged);
   callback.current = onChanged;
+  const refreshed = useRef(onRefreshed);
+  refreshed.current = onRefreshed;
   const retained = useRef(retainedWorkspace);
   retained.current = retainedWorkspace;
+  const offset = useRef(clockOffset);
+  offset.current = clockOffset;
   const pendingChanges = useRef<SyncChanges>({ topology: false, tasks: false });
   const observedWork = useRef({ pending: false, external: false });
   const generation = useRef(0),
@@ -60,12 +53,26 @@ export function useWorkspaceSync(
           observedWork.current = { pending: false, external: false };
         flushChanges();
       };
+      const finish = () => {
+        topologySeen.current = true;
+        setInitialTopologyReady(true);
+        setInitialForegroundSettled(true);
+        settleChanges();
+        setBusy(false);
+        flight.current = null;
+      };
       const advance = async (first: boolean): Promise<void> => {
         if (controller.signal.aborted || generation.current !== epoch) return;
+        if (document.visibilityState !== 'visible') {
+          settleChanges();
+          setBusy(false);
+          flight.current = null;
+          return;
+        }
         try {
           const progress = await request(
-            `${first ? base : `${base}/advance`}?status=1`,
-            SyncStepSchema,
+            `${first ? base : `${base}/advance`}?status=1&changes=1`,
+            SyncForegroundSchema,
             {
               method: 'POST',
               body: first ? { reason, visibleListIds } : {},
@@ -82,7 +89,7 @@ export function useWorkspaceSync(
           )
             observedWork.current.external = true;
           observedWork.current.pending = next.pending;
-          const changes = syncChanges(progress);
+          const changes = progress.changes;
           pendingChanges.current.topology ||= changes.topology;
           pendingChanges.current.tasks ||= changes.tasks;
           if (
@@ -99,20 +106,28 @@ export function useWorkspaceSync(
             next.nextAttemptAt !== null &&
             document.visibilityState === 'visible'
           ) {
-            const wait = Math.max(300, next.nextAttemptAt - Date.now());
+            const scheduledWait = next.nextAttemptAt - (Date.now() + offset.current);
+            const noProgress = ['idle', 'coalesced'].includes(progress.phase);
+            const wait = scheduledWait > 0 ? scheduledWait : noProgress ? 1000 : 0;
             // Long backoff is visible; a future return/manual refresh can resume it.
             if (wait <= 30_000) {
               if (Date.now() - lastInvalidatedAt >= 10_000) flushChanges();
-              timer.current = setTimeout(() => void advance(false), wait);
+              timer.current = setTimeout(() => {
+                timer.current = null;
+                void advance(false);
+              }, wait);
               return;
             }
           }
-          topologySeen.current = true;
-          setInitialTopologyReady(true);
-          setInitialForegroundSettled(true);
-          settleChanges();
-          setBusy(false);
-          flight.current = null;
+          const successful =
+            !next.pending &&
+            !progress.errorCode &&
+            !next.errorCode &&
+            document.visibilityState === 'visible';
+          if (successful && reason !== 'entry')
+            pendingChanges.current = { topology: true, tasks: true };
+          finish();
+          if (successful) refreshed.current?.();
         } catch (error) {
           if (!controller.signal.aborted && generation.current === epoch) {
             setError(error instanceof Error ? error.message : 'this account could not refresh.');

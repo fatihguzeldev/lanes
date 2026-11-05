@@ -48,10 +48,8 @@ import {
   type Prompt,
 } from '../../modules/operations/browser/submission/PromptDialog';
 import { useCommands } from '../../modules/operations/browser/submission/useCommands';
-import {
-  useWorkspaceSync,
-  type SyncChanges,
-} from '../../modules/tasks/browser/sync/useWorkspaceSync';
+import { useWorkspaceSync } from '../../modules/tasks/browser/sync/useWorkspaceSync';
+import type { SyncChanges } from '../../modules/tasks/contracts/sync';
 import {
   Confirmation,
   type ConfirmationChoice,
@@ -168,17 +166,17 @@ export function Workspace({
   const movingTasks = moveQueue.busy;
   const commands = useCommands(account.id, clockOffset, changed);
   const repeatWork = useRecurrenceWork(account.id, account.state === 'connected', changed);
-  const syncChanged = useCallback(
-    ({ topology, tasks }: SyncChanges) => {
-      if (topology) setTopologyVersion((value) => value + 1);
-      if (tasks) {
-        setVersion((value) => value + 1);
-        void repeatWork.run();
-      }
-    },
-    [repeatWork.run],
+  const syncChanged = useCallback(({ topology, tasks }: SyncChanges) => {
+    if (topology) setTopologyVersion((value) => value + 1);
+    if (tasks) setVersion((value) => value + 1);
+  }, []);
+  const sync = useWorkspaceSync(
+    account.id,
+    syncChanged,
+    account.state === 'connected',
+    clockOffset,
+    repeatWork.run,
   );
-  const sync = useWorkspaceSync(account.id, syncChanged, account.state === 'connected');
   const boardData = useBoardData({
     accountId: account.id,
     version: topologyVersion,
