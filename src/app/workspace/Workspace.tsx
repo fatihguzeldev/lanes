@@ -58,6 +58,7 @@ import { useRecurrenceWork } from '../../modules/tasks/browser/planning/useRecur
 import { AccountMenu } from '../../modules/accounts/browser/identity/AccountMenu';
 import { ThemeToggle } from '../theme/ThemeToggle';
 import { WorkspaceSettings } from './WorkspaceSettings';
+import { useAccountPreferences } from '../../modules/accounts/browser/preferences/AccountPreferences';
 import { SyncControl } from '../../modules/tasks/browser/sync/SyncControl';
 import { TaskMoveError } from '../../modules/tasks/browser/movement/save-task-move';
 import { useTaskMoveQueue } from '../../modules/tasks/browser/movement/useTaskMoveQueue';
@@ -356,6 +357,53 @@ export function Workspace({
     metadataFailed: Boolean(boards.error || lists.error || labels.error || failedBoardLookup),
     viewRequired: Boolean(board) && lists.status !== 'error',
   });
+  const preferences = useAccountPreferences({
+    account,
+    clockOffset,
+    onChanged: () => {
+      changed();
+      onAccountsChanged();
+    },
+  });
+  const settings = {
+    preferences,
+    onTransfer: () =>
+      guard(() => {
+        setNavOpen(false);
+        transferDialog.show();
+      }),
+    onTemplates: () =>
+      guard(() => {
+        setNavOpen(false);
+        templateDialog.show();
+      }),
+  };
+  const syncControl = {
+    unfinished: unfinished.items,
+    moreUnfinished: !!unfinished.nextCursor,
+    unfinishedLoading: unfinished.status === 'loading',
+    unfinishedError: unfinished.error,
+    onMoreUnfinished: () => void unfinished.loadMore(),
+    onRetryUnfinished: () => void unfinished.reload(),
+    onInspectChange: inspection.inspect,
+    onNavigate: closeNavigation,
+    connected: account.state === 'connected',
+    reachable: connection === 'reachable',
+    busy:
+      sync.busy ||
+      commands.busy ||
+      repeatWork.busy ||
+      movingTasks ||
+      boardManagement.placement.busy ||
+      boardManagement.creation.busy,
+    error: sync.error,
+    status: sync.status,
+    onRefresh: () =>
+      void sync.refresh(
+        'manual',
+        lists.items.map((list) => list.id),
+      ),
+  };
   return (
     <div
       className={`workspace${navOpen ? ' workspace--nav-open' : ''}${!revealed ? ' workspace--loading' : ''}`}
@@ -380,6 +428,15 @@ export function Workspace({
           })
         }
         onClose={() => setNavOpen(false)}
+        utilities={
+          <>
+            <SyncControl {...syncControl} labelled />
+            <div className="workspace__utility-pair">
+              <ThemeToggle theme={theme} onTheme={onTheme} labelled />
+              <WorkspaceSettings {...settings} labelled />
+            </div>
+          </>
+        }
         boards={{
           resource: boards,
           selectedBoardId:
@@ -457,46 +514,11 @@ export function Workspace({
           }}
           controls={
             <>
-              <SyncControl
-                unfinished={unfinished.items}
-                moreUnfinished={!!unfinished.nextCursor}
-                unfinishedLoading={unfinished.status === 'loading'}
-                unfinishedError={unfinished.error}
-                onMoreUnfinished={() => void unfinished.loadMore()}
-                onRetryUnfinished={() => void unfinished.reload()}
-                onInspectChange={(id) => {
-                  inspection.inspect(id);
-                }}
-                connected={account.state === 'connected'}
-                reachable={connection === 'reachable'}
-                busy={
-                  sync.busy ||
-                  commands.busy ||
-                  repeatWork.busy ||
-                  movingTasks ||
-                  boardManagement.placement.busy ||
-                  boardManagement.creation.busy
-                }
-                error={sync.error}
-                status={sync.status}
-                onRefresh={() =>
-                  void sync.refresh(
-                    'manual',
-                    lists.items.map((list) => list.id),
-                  )
-                }
-              />
-              <ThemeToggle theme={theme} onTheme={onTheme} />
-              <WorkspaceSettings
-                account={account}
-                clockOffset={clockOffset}
-                onChanged={() => {
-                  changed();
-                  onAccountsChanged();
-                }}
-                onTransfer={() => guard(() => transferDialog.show())}
-                onTemplates={() => guard(() => templateDialog.show())}
-              />
+              <SyncControl {...syncControl} compact />
+              <div className="workspace__desktop-utilities">
+                <ThemeToggle theme={theme} onTheme={onTheme} />
+                <WorkspaceSettings {...settings} />
+              </div>
               <AccountMenu
                 account={account}
                 accounts={accounts}

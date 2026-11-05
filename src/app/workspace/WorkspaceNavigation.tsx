@@ -1,4 +1,4 @@
-import type { ComponentProps } from 'react';
+import type { ComponentProps, ReactNode } from 'react';
 import { Brand } from '../../shared/ui/brand/Brand';
 import { Icon } from '../../shared/ui/icon/Icon';
 import { BoardNavigation } from '../../modules/boards/browser/navigation/BoardNavigation';
@@ -12,9 +12,18 @@ interface Props {
   onQuick(value: 'today' | 'starred'): void;
   onClose(): void;
   boards: ComponentProps<typeof BoardNavigation>;
+  utilities: ReactNode;
 }
 
-export function WorkspaceNavigation({ navigation, open, quick, onQuick, onClose, boards }: Props) {
+export function WorkspaceNavigation({
+  navigation,
+  open,
+  quick,
+  onQuick,
+  onClose,
+  boards,
+  utilities,
+}: Props) {
   return (
     <>
       <aside
@@ -49,6 +58,7 @@ export function WorkspaceNavigation({ navigation, open, quick, onQuick, onClose,
           </button>
         </nav>
         <BoardNavigation {...boards} />
+        <div className="workspace__mobile-utilities">{utilities}</div>
       </aside>
       {open && (
         <button
