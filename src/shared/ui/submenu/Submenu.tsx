@@ -48,12 +48,12 @@ export function Submenu(props: Props) {
       data-submenu=""
       onPointerEnter={(event) => {
         cancelClose();
-        if (event.pointerType === 'touch') return;
+        if (event.pointerType === 'touch' || !window.matchMedia('(hover: hover)').matches) return;
         pointerMode.current = true;
         if (!open) change(true);
       }}
       onPointerLeave={(event) => {
-        if (event.pointerType === 'touch') return;
+        if (event.pointerType === 'touch' || !window.matchMedia('(hover: hover)').matches) return;
         if (event.relatedTarget instanceof Node && region.current?.contains(event.relatedTarget))
           return;
         if (pointerMode.current) timeout.current = setTimeout(close, 220);

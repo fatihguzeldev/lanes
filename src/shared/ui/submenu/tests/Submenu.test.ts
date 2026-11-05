@@ -76,6 +76,7 @@ describe('cascading submenu interaction', () => {
     vi.useFakeTimers();
     vi.stubGlobal('Node', Element);
     vi.stubGlobal('Element', Element);
+    vi.stubGlobal('window', { matchMedia: vi.fn(() => ({ matches: true })) });
   });
   afterEach(() => {
     vi.useRealTimers();
@@ -127,6 +128,28 @@ describe('cascading submenu interaction', () => {
     menu.trigger.props.onClick({ detail: 1 });
     expect(menu.trigger.props['aria-expanded']).toBe(false);
     expect(menu.trigger.props.popoverTarget).toBeUndefined();
+  });
+
+  it('waits for a click on non-hover devices even when the pointer reports mouse events', () => {
+    vi.mocked(window.matchMedia).mockReturnValue({ matches: false } as MediaQueryList);
+    const menu = mount();
+    menu.wrapper.props.onPointerEnter(pointer());
+    expect(menu.trigger.props['aria-expanded']).toBe(false);
+    menu.trigger.props.onPointerDown(pointer());
+    menu.trigger.props.onClick({ detail: 1 });
+    expect(menu.trigger.props['aria-expanded']).toBe(true);
+    menu.wrapper.props.onPointerLeave(pointer());
+    vi.advanceTimersByTime(500);
+    expect(menu.trigger.props['aria-expanded']).toBe(true);
+
+    const content = (menu.panel as UI).props.children as UI;
+    const back = (content.props.children as UI[])[0]!;
+    back.props.onClick({ detail: 1 });
+    expect(menu.trigger.props['aria-expanded']).toBe(false);
+    menu.wrapper.props.onPointerEnter(pointer());
+    expect(menu.trigger.props['aria-expanded']).toBe(false);
+    menu.trigger.props.onClick({ detail: 1 });
+    expect(menu.trigger.props['aria-expanded']).toBe(true);
   });
 
   it('opens with Right and returns focus with Left without closing its parent', () => {
