@@ -7,16 +7,6 @@ type Submit = (
   identity?: string,
 ) => Promise<boolean>;
 
-export function createBoardPrompt(submit: Submit): Prompt {
-  return {
-    title: 'new board',
-    label: 'board name',
-    initial: '',
-    submit: (value, identity) =>
-      submit({ kind: 'board.create', input: { title: value } }, 'local', identity),
-  };
-}
-
 export function createListPrompt(board: Board, submit: Submit): Prompt {
   return {
     title: 'new list',

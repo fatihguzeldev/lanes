@@ -5,10 +5,12 @@ import type { Board, BoardList } from '../../contracts/board';
 import type { BoardViewPreferences } from '../view/view-preferences';
 import type { Prompt } from '../../../operations/browser/submission/PromptDialog';
 import { BoardOptions } from '../board/BoardOptions';
-import { createBoardPrompt, createListPrompt, deleteBoardPrompt } from '../board/prompts';
+import { createListPrompt, deleteBoardPrompt } from '../board/prompts';
+import { useBoardCreation } from './useBoardCreation';
 import { ListOptions } from '../placement/ListOptions';
 import { DuplicateDialog } from '../placement/DuplicateDialog';
-import { TaskMoveDialog } from '../placement/TaskMoveDialog';
+import { TaskMovePicker } from '../placement/TaskMovePicker';
+import { useTaskPlacement } from '../placement/useTaskPlacement';
 
 type Submit = (
   command: unknown,
@@ -19,28 +21,44 @@ export function useBoardManagement(
   board: Board | null,
   submit: Submit,
   onPrompt: (prompt: Prompt) => void,
+  environment: {
+    account: ConnectionSummary;
+    clockOffset: number;
+    onChanged(): void;
+    onNotice(message: string): void;
+    onInspect(id: string): void;
+    onBoardDraftChange?: ((dirty: boolean) => void) | undefined;
+  },
 ) {
+  const creation = useBoardCreation({
+    accountId: environment.account.id,
+    clockOffset: environment.clockOffset,
+    onChanged: environment.onChanged,
+    onNotice: environment.onNotice,
+    onInspect: environment.onInspect,
+    onDirtyChange: environment.onBoardDraftChange,
+  });
+  const placement = useTaskPlacement(environment);
   const [listMenuAnchor, setListMenuAnchor] = useState<HTMLElement | null>(null);
   const [boardMenuAnchor, setBoardMenuAnchor] = useState<HTMLElement | null>(null);
   const [listMenu, setListMenu] = useState<BoardList | null>(null);
   const [boardMenu, setBoardMenu] = useState(false);
-  const [movingTask, setMovingTask] = useState<Task | null>(null);
   const [copying, setCopying] = useState<
     { kind: 'list'; list: BoardList } | { kind: 'task'; task: Task; boardId: string } | null
   >(null);
   return {
+    creation,
+    placement,
     listMenuAnchor,
     boardMenuAnchor,
     listMenu,
     boardMenu,
-    movingTask,
     copying,
     setListMenu,
     setBoardMenu,
-    setMovingTask,
     setCopying,
     createBoard() {
-      onPrompt(createBoardPrompt(submit));
+      creation.show();
     },
     createList() {
       if (board) onPrompt(createListPrompt(board, submit));
@@ -59,7 +77,9 @@ export function useBoardManagement(
     duplicateTask(task: Task, boardId: string) {
       setCopying({ kind: 'task', task, boardId });
     },
-    moveTask: setMovingTask,
+    moveTask(task: Task, anchor: HTMLElement) {
+      placement.open(task, anchor, board?.id ?? null);
+    },
   };
 }
 interface Props {
@@ -117,24 +137,16 @@ export function BoardManagement({
     boardMenuAnchor,
     listMenu,
     boardMenu,
-    movingTask,
+    placement,
     copying,
     setListMenu,
     setBoardMenu,
-    setMovingTask,
     setCopying,
   } = controller;
   return (
     <>
-      {movingTask && board && (
-        <TaskMoveDialog
-          account={account}
-          task={movingTask}
-          initialBoardId={board.id}
-          clockOffset={clockOffset}
-          onChanged={onChanged}
-          onClose={() => setMovingTask(null)}
-        />
+      {placement.selection && (
+        <TaskMovePicker key={placement.selection.task.id} controller={placement} />
       )}
       {copying && (
         <DuplicateDialog

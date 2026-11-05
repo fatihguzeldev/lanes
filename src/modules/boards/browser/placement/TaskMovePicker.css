@@ -1,0 +1,76 @@
+.task-move-picker {
+  width: 280px;
+}
+.task-move-picker__label {
+  padding: 7px 10px;
+  color: var(--secondary);
+  font-size: 11px;
+}
+.task-move-picker__back {
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--fine);
+  border-radius: 0;
+  color: var(--secondary);
+}
+.task-move-picker .popover__item > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.task-move-picker .popover__item > span + .icon {
+  margin-left: auto;
+}
+.task-move-picker__destination {
+  display: flex;
+  min-width: 0;
+}
+.task-move-picker__destination > .popover__item {
+  flex: 1;
+  min-width: 0;
+}
+.task-move-picker__more {
+  display: grid;
+  place-items: center;
+  flex: 0 0 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: var(--secondary);
+}
+.task-move-picker__more:hover:not(:disabled) {
+  background: var(--paper-hover);
+  color: var(--green);
+}
+.task-move-picker__more:disabled {
+  opacity: 0.45;
+}
+.task-move-picker__message {
+  padding: 8px 10px;
+  color: var(--secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.task-move-picker__error {
+  padding: 8px 10px;
+  color: var(--rust);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.task-move-picker__error button {
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-decoration: underline;
+}
+.task-move-picker__loading {
+  display: grid;
+  gap: 22px;
+  padding: 12px 10px;
+}
+.task-move-picker__loading-line {
+  width: 70%;
+  height: 10px;
+}
