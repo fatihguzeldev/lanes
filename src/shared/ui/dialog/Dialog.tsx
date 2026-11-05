@@ -33,7 +33,13 @@ export function Dialog({
     return () => {
       if (dialog?.open) dialog.close();
       queueMicrotask(() => {
-        if (!dialog?.open && opener.current?.isConnected)
+        if (
+          !dialog?.open &&
+          opener.current?.isConnected &&
+          (document.activeElement === document.body ||
+            document.activeElement === opener.current ||
+            !!dialog?.contains(document.activeElement))
+        )
           restoreFocus(opener.current, keyboard.current);
       });
     };

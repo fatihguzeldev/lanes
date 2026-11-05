@@ -33,4 +33,21 @@ describe('returning focus after transient controls', () => {
     restoreFocus(element as unknown as HTMLElement, false);
     expect(element.focus).not.toHaveBeenCalled();
   });
+
+  it('clears a previous pointer suppression when returning with the keyboard', () => {
+    const element = target();
+    restoreFocus(element as unknown as HTMLElement, false);
+    restoreFocus(element as unknown as HTMLElement, true);
+    expect(element.removeAttribute).toHaveBeenCalledWith('data-pointer-focus');
+    element.removeAttribute.mockClear();
+    element.dispatchEvent(new Event('keydown'));
+    expect(element.removeAttribute).not.toHaveBeenCalled();
+  });
+
+  it('cleans up pointer suppression when focus leaves', () => {
+    const element = target();
+    restoreFocus(element as unknown as HTMLElement, false);
+    element.dispatchEvent(new Event('blur'));
+    expect(element.removeAttribute).toHaveBeenCalledWith('data-pointer-focus');
+  });
 });
