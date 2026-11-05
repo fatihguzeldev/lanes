@@ -1,5 +1,6 @@
 import type { Task } from '../../contracts/task';
 import { Icon } from '../../../../shared/ui/icon/Icon';
+import { Tooltip } from '../../../../shared/ui/tooltip/Tooltip';
 
 interface Props {
   blockedBy: readonly string[];
@@ -66,14 +67,16 @@ export function TaskDependencies({
                       : 'status unknown · retained'}
                   </small>
                 </span>
-                <button
-                  type="button"
-                  disabled={!localEnabled}
-                  onClick={() => onToggle(id)}
-                  aria-label={`remove ${blocker ? title(blocker) : 'unloaded blocker'}`}
-                >
-                  <Icon name="close" size={13} />
-                </button>
+                <Tooltip label="remove dependency">
+                  <button
+                    type="button"
+                    disabled={!localEnabled}
+                    onClick={() => onToggle(id)}
+                    aria-label={`remove ${blocker ? title(blocker) : 'unloaded blocker'}`}
+                  >
+                    <Icon name="close" size={13} />
+                  </button>
+                </Tooltip>
               </li>
             );
           })}

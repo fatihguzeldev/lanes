@@ -25,6 +25,7 @@ import {
 import { TaskRecurrence } from './TaskRecurrence';
 import { TaskDependants } from './TaskDependants';
 import { Select } from '../../../../shared/ui/select/Select';
+import { Tooltip } from '../../../../shared/ui/tooltip/Tooltip';
 import './TaskEditor.css';
 
 const title = (task: Task) => task.title.trim() || 'untitled task';
@@ -303,15 +304,17 @@ function EditorForm(props: TaskEditorProps) {
       >
         <div className="task-editor__heading">
           <span className="task-editor__context">{snapshot.list.title || 'untitled list'}</span>
-          <button
-            type="button"
-            className="task-editor__close"
-            aria-label="close task"
-            onClick={props.onClose}
-            disabled={pending && !props.submitted}
-          >
-            <Icon name="close" size={14} />
-          </button>
+          <Tooltip label="close task">
+            <button
+              type="button"
+              className="task-editor__close"
+              aria-label="close task"
+              onClick={props.onClose}
+              disabled={pending && !props.submitted}
+            >
+              <Icon name="close" size={14} />
+            </button>
+          </Tooltip>
         </div>
         {snapshot.parent && (
           <p className="task-editor__parent">
@@ -371,17 +374,19 @@ function EditorForm(props: TaskEditorProps) {
           </p>
         )}
         {task && props.onToggleComplete && (
-          <button
-            type="button"
-            className="task-editor__completion"
-            role="checkbox"
-            aria-checked={task.completed}
-            aria-label={`${task.completed ? 'reopen' : 'complete'} ${title(task)}`}
-            disabled={!providerEnabled}
-            onClick={() => props.onToggleComplete?.(task, !task.completed)}
-          >
-            {task.completed && <Icon name="check" size={11} />}
-          </button>
+          <Tooltip label={task.completed ? 'reopen task' : 'complete task'}>
+            <button
+              type="button"
+              className="task-editor__completion"
+              role="checkbox"
+              aria-checked={task.completed}
+              aria-label={`${task.completed ? 'reopen' : 'complete'} ${title(task)}`}
+              disabled={!providerEnabled}
+              onClick={() => props.onToggleComplete?.(task, !task.completed)}
+            >
+              {task.completed && <Icon name="check" size={11} />}
+            </button>
+          </Tooltip>
         )}
         <label className="sr-only" htmlFor={inputId('title')}>
           task title
@@ -434,27 +439,28 @@ function EditorForm(props: TaskEditorProps) {
               ...(!task?.parentId && task ? [['checklist', 'subtasks', 'checklist']] : []),
             ] as const
           ).map(([value, icon, label]) => (
-            <button
-              key={value}
-              type="button"
-              aria-label={label}
-              title={label}
-              aria-expanded={section === value}
-              onClick={() => setSection(section === value ? null : (value as typeof section))}
-            >
-              <Icon name={icon as IconName} size={16} />
-            </button>
+            <Tooltip key={value} label={label}>
+              <button
+                type="button"
+                aria-label={label}
+                aria-expanded={section === value}
+                onClick={() => setSection(section === value ? null : (value as typeof section))}
+              >
+                <Icon name={icon as IconName} size={16} />
+              </button>
+            </Tooltip>
           ))}
-          <button
-            type="button"
-            aria-label={draft.starred ? 'remove star' : 'star task'}
-            title={draft.starred ? 'remove star' : 'star task'}
-            aria-pressed={draft.starred}
-            disabled={!localEnabled}
-            onClick={() => set('starred', !draft.starred)}
-          >
-            <Icon name="star" size={16} />
-          </button>
+          <Tooltip label={draft.starred ? 'remove star' : 'star task'}>
+            <button
+              type="button"
+              aria-label={draft.starred ? 'remove star' : 'star task'}
+              aria-pressed={draft.starred}
+              disabled={!localEnabled}
+              onClick={() => set('starred', !draft.starred)}
+            >
+              <Icon name="star" size={16} />
+            </button>
+          </Tooltip>
         </div>
         {section === 'schedule' && (
           <TaskScheduleFields
@@ -695,15 +701,17 @@ function EditorForm(props: TaskEditorProps) {
         <footer className="task-editor__footer">
           <div className="task-editor__lifecycle">
             {task && props.onDelete && (
-              <button
-                type="button"
-                className="task-editor__delete"
-                aria-label="delete task"
-                disabled={!props.providerWritesEnabled || pending || !task.capabilities.canDelete}
-                onClick={() => props.onDelete?.(task)}
-              >
-                <Icon name="trash" size={15} />
-              </button>
+              <Tooltip label="delete task">
+                <button
+                  type="button"
+                  className="task-editor__delete"
+                  aria-label="delete task"
+                  disabled={!props.providerWritesEnabled || pending || !task.capabilities.canDelete}
+                  onClick={() => props.onDelete?.(task)}
+                >
+                  <Icon name="trash" size={15} />
+                </button>
+              </Tooltip>
             )}
           </div>
           <button

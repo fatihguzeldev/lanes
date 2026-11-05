@@ -1,6 +1,7 @@
 import type { Task } from '../../contracts/task';
 import type { TaskEditorProps } from './editor-contract';
 import { Icon } from '../../../../shared/ui/icon/Icon';
+import { Tooltip } from '../../../../shared/ui/tooltip/Tooltip';
 
 interface Props extends Pick<
   TaskEditorProps,
@@ -49,23 +50,25 @@ export function TaskChecklist({
         <ul>
           {children.map((child) => (
             <li key={child.id}>
-              <button
-                className="task-editor__complete"
-                type="button"
-                role="checkbox"
-                aria-checked={child.completed}
-                aria-label={`${child.completed ? 'reopen' : 'complete'} ${title(child)}`}
-                disabled={
-                  !onToggleComplete ||
-                  !providerWritesEnabled ||
-                  pending ||
-                  !child.capabilities.canEdit ||
-                  child.unsupportedHierarchy
-                }
-                onClick={() => onToggleComplete?.(child, !child.completed)}
-              >
-                {child.completed && <Icon name="check" size={10} />}
-              </button>
+              <Tooltip label={child.completed ? 'reopen subtask' : 'complete subtask'}>
+                <button
+                  className="task-editor__complete"
+                  type="button"
+                  role="checkbox"
+                  aria-checked={child.completed}
+                  aria-label={`${child.completed ? 'reopen' : 'complete'} ${title(child)}`}
+                  disabled={
+                    !onToggleComplete ||
+                    !providerWritesEnabled ||
+                    pending ||
+                    !child.capabilities.canEdit ||
+                    child.unsupportedHierarchy
+                  }
+                  onClick={() => onToggleComplete?.(child, !child.completed)}
+                >
+                  {child.completed && <Icon name="check" size={10} />}
+                </button>
+              </Tooltip>
               <button
                 type="button"
                 className={child.completed ? 'is-completed' : ''}
