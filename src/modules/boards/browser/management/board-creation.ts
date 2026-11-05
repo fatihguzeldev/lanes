@@ -1,8 +1,6 @@
 import { BoardCommandSchema } from '../../contracts/commands';
 import type { OperationSummary } from '../../../operations/contracts/receipt';
 
-export const defaultBoardName = 'new board';
-
 export function captureBoardCreation(title: string, identity: () => string) {
   const command = BoardCommandSchema.parse({ kind: 'board.create', input: { title } });
   return { command, identity: identity() };

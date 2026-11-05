@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { z } from 'zod';
 import { useCommands } from '../../../operations/browser/submission/useCommands';
 import { newOperationId } from '../../../operations/browser/submission/operation-identity';
-import { boardCreationRejected, captureBoardCreation, defaultBoardName } from './board-creation';
+import { boardCreationRejected, captureBoardCreation } from './board-creation';
 
 export function useBoardCreation(options: {
   accountId: string;
@@ -13,7 +13,7 @@ export function useBoardCreation(options: {
   onDirtyChange?: ((dirty: boolean) => void) | undefined;
 }) {
   const [open, setOpen] = useState(false),
-    [title, setTitle] = useState(defaultBoardName),
+    [title, setTitle] = useState(''),
     [validation, setValidation] = useState(''),
     [attempt, setAttempt] = useState<ReturnType<typeof captureBoardCreation> | null>(null);
   const commands = useCommands(options.accountId, options.clockOffset, options.onChanged);
@@ -26,16 +26,58 @@ export function useBoardCreation(options: {
     !!commands.errorDetails?.operationId,
   );
   const locked = attempt !== null && !rejected;
-  const dirty = attempt !== null || (open && title !== defaultBoardName);
+  const dirty = attempt !== null || (open && Boolean(title.trim()));
   useEffect(() => {
     dirtyCallback.current?.(dirty);
   }, [dirty]);
   useEffect(() => () => dirtyCallback.current?.(false), []);
+  const discard = () => {
+    setOpen(false);
+    setTitle('');
+    setAttempt(null);
+    setValidation('');
+    commands.clearError();
+  };
+  async function save() {
+    if (flight.current || commands.busy) return;
+    if (!locked && !title.trim()) {
+      discard();
+      return;
+    }
+    let captured: ReturnType<typeof captureBoardCreation>;
+    try {
+      captured =
+        locked && attempt
+          ? attempt
+          : captureBoardCreation(title, () => newOperationId(options.clockOffset));
+    } catch (error) {
+      setValidation(
+        error instanceof z.ZodError
+          ? (error.issues[0]?.message ?? 'check the board name.')
+          : 'check the board name.',
+      );
+      return;
+    }
+    setAttempt(captured);
+    setValidation('');
+    flight.current = true;
+    try {
+      const result = await commands.submit(captured.command, 'local', captured.identity);
+      if (result?.state === 'succeeded') discard();
+      else
+        options.onNotice(
+          'this board has not been confirmed yet. review its save before trying again.',
+        );
+    } finally {
+      flight.current = false;
+    }
+  }
   return {
     open,
     title,
     dirty,
     busy: commands.busy,
+    isSaving: () => flight.current,
     locked,
     error: validation || commands.error,
     show() {
@@ -44,13 +86,7 @@ export function useBoardCreation(options: {
     close() {
       setOpen(false);
     },
-    discard() {
-      setOpen(false);
-      setTitle(defaultBoardName);
-      setAttempt(null);
-      setValidation('');
-      commands.clearError();
-    },
+    discard,
     change(value: string) {
       if (locked || commands.busy) return;
       setTitle(value);
@@ -62,39 +98,10 @@ export function useBoardCreation(options: {
       const identity = commands.errorDetails?.operationId ?? attempt?.identity;
       if (identity) options.onInspect(identity);
     },
-    async save() {
-      if (flight.current || commands.busy) return;
-      let captured: ReturnType<typeof captureBoardCreation>;
-      try {
-        captured =
-          locked && attempt
-            ? attempt
-            : captureBoardCreation(title, () => newOperationId(options.clockOffset));
-      } catch (error) {
-        setValidation(
-          error instanceof z.ZodError
-            ? (error.issues[0]?.message ?? 'check the board name.')
-            : 'check the board name.',
-        );
-        return;
-      }
-      setAttempt(captured);
-      setValidation('');
-      flight.current = true;
-      try {
-        const result = await commands.submit(captured.command, 'local', captured.identity);
-        if (result?.state === 'succeeded') {
-          setOpen(false);
-          setTitle(defaultBoardName);
-          setAttempt(null);
-          commands.clearError();
-        } else
-          options.onNotice(
-            'this board has not been confirmed yet. reopen the board entry to check its save.',
-          );
-      } finally {
-        flight.current = false;
-      }
+    save,
+    finish() {
+      if (locked || commands.busy || validation || commands.error) return;
+      return save();
     },
   };
 }

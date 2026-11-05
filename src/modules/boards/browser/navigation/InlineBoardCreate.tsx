@@ -13,7 +13,6 @@ export function InlineBoardCreate({
   const input = useRef<HTMLInputElement>(null);
   useLayoutEffect(() => {
     input.current?.focus();
-    input.current?.select();
   }, []);
   return (
     <form
@@ -21,6 +20,10 @@ export function InlineBoardCreate({
       onSubmit={(event) => {
         event.preventDefault();
         if (writable) void controller.save();
+      }}
+      onBlur={(event) => {
+        if (writable && !event.currentTarget.contains(event.relatedTarget))
+          void controller.finish();
       }}
     >
       <div className="inline-board-create__row">
@@ -47,13 +50,6 @@ export function InlineBoardCreate({
           }}
           autoComplete="off"
         />
-        <button
-          type="submit"
-          aria-label="create board"
-          disabled={!writable || controller.busy || !controller.title.trim()}
-        >
-          <Icon name="check" size={14} />
-        </button>
       </div>
       {controller.error && (
         <div className="inline-board-create__error" role="alert">

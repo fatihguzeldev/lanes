@@ -6,9 +6,9 @@
   align-items: center;
   gap: 9px;
   min-height: var(--field-height);
-  padding: 0 4px 0 10px;
+  padding: 0 10px;
   border-radius: 5px;
-  background: var(--paper);
+  background: var(--paper-hover);
   color: var(--icon);
 }
 .inline-board-create__row > .icon {
@@ -22,24 +22,11 @@
   background: transparent;
   color: var(--ink);
   font-size: var(--field-font-size);
+  border-radius: 0;
 }
-.inline-board-create__row button {
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: var(--control-size);
-  height: var(--control-size);
-  padding: 4px;
-  border: 0;
-  border-radius: 4px;
-  background: none;
-  color: var(--green);
-}
-.inline-board-create__row button:hover:not(:disabled) {
-  background: var(--active);
-}
-.inline-board-create__row button:disabled {
-  opacity: 0.45;
+.inline-board-create__row input:focus-visible {
+  outline: none;
+  box-shadow: inset 0 -1px var(--green);
 }
 .inline-board-create__error {
   padding: 6px 10px;
