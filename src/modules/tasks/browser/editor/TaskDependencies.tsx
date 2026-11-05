@@ -34,16 +34,12 @@ export function TaskDependencies({
   remoteSearch,
 }: Props) {
   return (
-    <details
-      className="task-editor__disclosure task-editor__dependencies"
-      open={blockedBy.length > 0 || undefined}
-    >
-      <summary>
+    <div className="task-editor__dependencies">
+      <h3>
         <Icon name="link" size={13} />
         blocked by{' '}
         {blockedBy.length ? <span>{blockedBy.length}/50</span> : <span>add a dependency</span>}
-        <Icon name="down" size={12} />
-      </summary>
+      </h3>
       {blockedBy.length > 0 && (
         <ul className="task-editor__blockers">
           {blockedBy.map((id) => {
@@ -149,6 +145,6 @@ export function TaskDependencies({
           no loaded matches. existing blockers keep their identity until they can be checked.
         </p>
       )}
-    </details>
+    </div>
   );
 }
