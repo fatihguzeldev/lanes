@@ -19,7 +19,7 @@ interface Props {
   onOpenTask(task: Task): void;
   onToggleComplete(task: Task, completed: boolean): void;
   onDelete(task: Task): void;
-  onNotice(message: string): void;
+  onNotice(message: string, operationId?: string | null): void;
 }
 export function TaskEditorFlow({
   controller,
@@ -64,11 +64,14 @@ export function TaskEditorFlow({
           boardId={editorBoard}
           presented={id === session?.id}
           onBusyChange={(busy) => controller.setSaving(id, busy)}
-          onRetire={(hadWork, error) => {
+          onRetire={(hadWork, error, operationId) => {
             retire(id);
             if (hadWork) onChanged();
             if (error)
-              onNotice(`saving ${editor.task?.title || 'this task'} needs attention. ${error}`);
+              onNotice(
+                `saving ${editor.task?.title || 'this task'} needs attention. ${error}`,
+                operationId,
+              );
           }}
           labels={labels}
           version={version}
@@ -80,7 +83,7 @@ export function TaskEditorFlow({
             })
           }
           onSaved={() => {
-            controller.close(id);
+            controller.closeSaved(id);
             retire(id);
             onChanged();
             onAccountsChanged();

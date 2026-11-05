@@ -53,6 +53,9 @@ function mount() {
     close: vi.fn((id: number) => {
       if (current?.id === id) current = null;
     }),
+    closeSaved: vi.fn((id: number) => {
+      if (current?.id === id) current = null;
+    }),
     open: vi.fn(),
     create: vi.fn(),
     createSubtask: vi.fn(),
@@ -110,7 +113,7 @@ describe('task editor command lifetime', () => {
     expect(hidden!.key).toBe(editor!.key);
     expect(hidden!.props.presented).toBe(false);
     expect(flow.controller.setSaving).toHaveBeenCalledWith(1, true);
-    hidden!.props.onRetire(true, null);
+    hidden!.props.onRetire(true, null, null);
     expect(flow.render()).toEqual([]);
     expect(flow.controller.setSaving).toHaveBeenLastCalledWith(1, false);
   });
@@ -125,7 +128,7 @@ describe('task editor command lifetime', () => {
     expect(current!.props.presented).toBe(true);
     expect(current!.key).not.toBe(hidden!.key);
     old!.props.onSaved();
-    expect(flow.controller.close).toHaveBeenLastCalledWith(1);
+    expect(flow.controller.closeSaved).toHaveBeenLastCalledWith(1);
     expect(flow.controller.session?.id).toBe(2);
     const [remaining] = flow.render();
     expect(remaining!.key).toBe(current!.key);
@@ -138,9 +141,10 @@ describe('task editor command lifetime', () => {
     const flow = mount();
     const [old] = flow.render();
     flow.select(2);
-    old!.props.onRetire(true, 'google rejected this change.');
+    old!.props.onRetire(true, 'google rejected this change.', 'receipt-1');
     expect(flow.notice).toHaveBeenCalledWith(
       'saving task 1 needs attention. google rejected this change.',
+      'receipt-1',
     );
     expect(flow.changed).toHaveBeenCalledOnce();
     expect(flow.controller.session?.id).toBe(2);
@@ -151,7 +155,7 @@ describe('task editor command lifetime', () => {
     const flow = mount();
     const [editor] = flow.render();
     editor!.props.onClose();
-    editor!.props.onRetire(false, null);
+    editor!.props.onRetire(false, null, null);
     expect(flow.changed).not.toHaveBeenCalled();
     expect(flow.notice).not.toHaveBeenCalled();
   });

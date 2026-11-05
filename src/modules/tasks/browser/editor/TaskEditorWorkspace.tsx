@@ -22,7 +22,7 @@ interface Props {
   selection: EditorSelection;
   presented: boolean;
   onBusyChange(busy: boolean): void;
-  onRetire(hadWork: boolean, error: string | null): void;
+  onRetire(hadWork: boolean, error: string | null, operationId: string | null): void;
   boardId: string | null;
   labels: readonly Label[];
   version: number;
@@ -96,9 +96,10 @@ export function TaskEditorWorkspace({
   const [resolved, setResolved] = useState<Task[]>([]),
     [readError, setReadError] = useState('');
   const [identity, setIdentity] = useState(() => newOperationId(clockOffset));
+  const [submitting, setSubmitting] = useState(false);
   const commands = useCommands(account.id, clockOffset, onChanged);
   const submitted = commands.latest?.id === identity;
-  const pending = commands.busy || resumePending || repeatWork.busy;
+  const pending = submitting || commands.busy || resumePending || repeatWork.busy;
   const lifetime = useRef({ onBusyChange, onRetire });
   lifetime.current = { onBusyChange, onRetire };
   const hadWork = useRef(false),
@@ -106,11 +107,25 @@ export function TaskEditorWorkspace({
   useLayoutEffect(() => {
     if (pending) hadWork.current = true;
     lifetime.current.onBusyChange(pending);
-    if (!presented && !pending && commands.latest?.state !== 'succeeded' && !retired.current) {
+    if (!presented && !pending && !retired.current) {
       retired.current = true;
-      lifetime.current.onRetire(hadWork.current, commands.error || null);
+      const error = commands.latest?.state === 'succeeded' ? '' : commands.error;
+      lifetime.current.onRetire(
+        hadWork.current,
+        hadWork.current ? error || recurrenceError || repeatWork.error || null : null,
+        commands.errorDetails?.operationId ?? commands.latest?.id ?? null,
+      );
     }
-  }, [presented, pending, commands.error, commands.latest?.state]);
+  }, [
+    presented,
+    pending,
+    commands.error,
+    commands.latest?.state,
+    commands.latest?.id,
+    commands.errorDetails?.operationId,
+    recurrenceError,
+    repeatWork.error,
+  ]);
   useLayoutEffect(() => () => lifetime.current.onBusyChange(false), []);
   const retryFailed =
     submitted && commands.latest?.state === 'failed' && commands.latest.finished
@@ -273,10 +288,16 @@ export function TaskEditorWorkspace({
     ...new Map([...dependencies.page.items, ...resolved].map((task) => [task.id, task])).values(),
   ];
   const finish = async (command: unknown, category: 'local' | 'provider') => {
-    const result = await commands.submit(command, category, identity);
-    if (result?.state === 'succeeded') {
-      onDirtyChange(false);
-      onSaved();
+    setSubmitting(true);
+    try {
+      const result = await commands.submit(command, category, identity);
+      if (result?.state === 'succeeded') {
+        retired.current = true;
+        onDirtyChange(false);
+        onSaved();
+      }
+    } finally {
+      setSubmitting(false);
     }
   };
   const save = (value: TaskEditorSave) => {
