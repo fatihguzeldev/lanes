@@ -31,6 +31,7 @@ export function InlineListCreate({
         <input
           ref={input}
           aria-label="new list name"
+          maxLength={1024}
           value={controller.title}
           readOnly={controller.locked || controller.busy}
           disabled={!writable}

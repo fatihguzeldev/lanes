@@ -42,7 +42,7 @@ export function useListCreation(options: {
     setValidation('');
     commands.clearError();
   };
-  async function save() {
+  async function save(notifyValidation = false) {
     if (flight.current || commands.busy || !target || target.accountId !== options.accountId)
       return;
     if (!locked && !title.trim()) {
@@ -57,11 +57,12 @@ export function useListCreation(options: {
           ? attempt
           : captureListCreation(board, title, () => newOperationId(options.clockOffset));
     } catch (error) {
-      setValidation(
+      const message =
         error instanceof z.ZodError
           ? (error.issues[0]?.message ?? 'check the list name.')
-          : 'check the list name.',
-      );
+          : 'check the list name.';
+      setValidation(message);
+      if (notifyValidation) options.onNotice(message);
       return;
     }
     setAttempt(captured);
@@ -114,7 +115,7 @@ export function useListCreation(options: {
     save,
     finish() {
       if (locked || commands.busy || validation || commands.error) return;
-      return save();
+      return save(true);
     },
   };
 }

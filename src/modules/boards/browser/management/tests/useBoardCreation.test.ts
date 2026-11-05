@@ -30,13 +30,14 @@ vi.mock('../../../../operations/browser/submission/operation-identity', () => ({
   newOperationId: () => 'creation-identity',
 }));
 
+const notice = vi.fn();
 function render() {
   harness.cursor = 0;
   return useBoardCreation({
     accountId: 'account',
     clockOffset: 0,
     onChanged: vi.fn(),
-    onNotice: vi.fn(),
+    onNotice: notice,
     onInspect: vi.fn(),
   });
 }
@@ -51,6 +52,7 @@ describe('board entry completion', () => {
     command.latest = null;
     command.submit.mockReset();
     command.clearError.mockReset();
+    notice.mockReset();
     command.submit.mockResolvedValue({ state: 'succeeded' });
   });
 
@@ -63,6 +65,20 @@ describe('board entry completion', () => {
     entry = render();
     expect(entry).toMatchObject({ open: false, title: '', dirty: false });
     expect(command.submit).not.toHaveBeenCalled();
+  });
+
+  it('reports an invalid automatic save even when navigation can hide the entry', async () => {
+    render().show();
+    const title = 'x'.repeat(129);
+    render().change(title);
+    await render().finish();
+    const entry = render();
+    expect(entry).toMatchObject({ open: true, title, locked: false, dirty: true });
+    expect(entry.error).toContain('128');
+    expect(notice).toHaveBeenCalledExactlyOnceWith(entry.error);
+    expect(command.submit).not.toHaveBeenCalled();
+    await entry.finish();
+    expect(notice).toHaveBeenCalledOnce();
   });
 
   it('commits a nonblank name on blur and does not double-submit a following Enter', async () => {

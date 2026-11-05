@@ -79,6 +79,26 @@ describe('list entry completion', () => {
     expect(render()).toMatchObject({ open: false, title: '', dirty: false });
   });
 
+  it('reports an invalid automatic save without dropping its original destination', async () => {
+    render().show(board);
+    const title = 'x'.repeat(1025);
+    render().change(title);
+    await render().finish();
+    const entry = render({ ...board, id: 'elsewhere' });
+    expect(entry).toMatchObject({
+      open: true,
+      boardId: board.id,
+      title,
+      locked: false,
+      dirty: true,
+    });
+    expect(entry.error).toContain('1,024');
+    expect(notice).toHaveBeenCalledExactlyOnceWith(entry.error);
+    expect(command.submit).not.toHaveBeenCalled();
+    await entry.finish();
+    expect(notice).toHaveBeenCalledOnce();
+  });
+
   it('creates on blur with one captured command when Enter also fires', async () => {
     let finish!: (value: { state: string }) => void;
     command.submit.mockImplementation(() => new Promise((resolve) => (finish = resolve)));

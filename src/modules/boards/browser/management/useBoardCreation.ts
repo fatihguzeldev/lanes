@@ -38,7 +38,7 @@ export function useBoardCreation(options: {
     setValidation('');
     commands.clearError();
   };
-  async function save() {
+  async function save(notifyValidation = false) {
     if (flight.current || commands.busy) return;
     if (!locked && !title.trim()) {
       discard();
@@ -51,11 +51,12 @@ export function useBoardCreation(options: {
           ? attempt
           : captureBoardCreation(title, () => newOperationId(options.clockOffset));
     } catch (error) {
-      setValidation(
+      const message =
         error instanceof z.ZodError
           ? (error.issues[0]?.message ?? 'check the board name.')
-          : 'check the board name.',
-      );
+          : 'check the board name.';
+      setValidation(message);
+      if (notifyValidation) options.onNotice(message);
       return;
     }
     setAttempt(captured);
@@ -101,7 +102,7 @@ export function useBoardCreation(options: {
     save,
     finish() {
       if (locked || commands.busy || validation || commands.error) return;
-      return save();
+      return save(true);
     },
   };
 }
