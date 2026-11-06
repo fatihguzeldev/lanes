@@ -1,0 +1,61 @@
+.github-stars {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  gap: 9px;
+  color: var(--color-ink);
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  border: 1px solid var(--color-line);
+  border-radius: 7px;
+  padding: 0 12px;
+  background: var(--color-paper);
+  transition: background-color 160ms ease-out;
+}
+
+.github-stars__mark {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+.github-stars__count {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  min-width: 33px;
+  margin-left: 3px;
+  padding-left: 11px;
+  border-left: 1px solid var(--color-line);
+  color: var(--color-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.github-stars__count svg {
+  width: 15px;
+  height: 15px;
+}
+
+.github-stars:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 4px;
+}
+
+@media (hover: hover) {
+  .github-stars:hover {
+    background: var(--color-soft);
+  }
+}
+
+@media (pointer: coarse) {
+  .github-stars {
+    min-height: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .github-stars {
+    transition: none;
+  }
+}
