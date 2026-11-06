@@ -60,4 +60,9 @@ describe('browser board preferences', () => {
     expect(readStartBoard('a', denied)).toBeNull();
     expect(() => saveBoardView('a', 'b', defaultBoardView, denied)).not.toThrow();
   });
+  it('does not restore a legacy completed screen as the board layout', () => {
+    const storage = store();
+    storage.setItem('lanes.boards:["a","b"]', '{"view":"completed","showNotes":false}');
+    expect(readBoardView('a', 'b', storage)).toMatchObject({ view: 'board', showNotes: false });
+  });
 });

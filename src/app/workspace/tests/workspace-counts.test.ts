@@ -150,6 +150,7 @@ const completed = () =>
       version: 0,
       clockOffset: 0,
       onOpenTask: noop,
+      onReturn: noop,
     }),
   );
 

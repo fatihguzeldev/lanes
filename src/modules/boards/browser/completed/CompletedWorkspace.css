@@ -14,6 +14,21 @@
   align-items: flex-start;
   flex-wrap: wrap;
 }
+.completed-workspace__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--control-size);
+  padding: 4px 0;
+  margin-bottom: 12px;
+  border: 0;
+  background: none;
+  color: var(--icon);
+  font-size: 12px;
+}
+.completed-workspace__back:hover {
+  color: var(--green);
+}
 .completed-workspace__header h2 {
   font-size: 22px;
   font-weight: 550;

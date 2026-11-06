@@ -23,6 +23,7 @@ export interface CompletedWorkspaceProps {
   version: number;
   clockOffset: number;
   onOpenTask: (task: Task) => void;
+  onReturn(): void;
   onTaskMenu?: (task: Task, anchor: HTMLButtonElement) => void;
   onInitialReady?: (state: InitialViewReadiness) => void;
 }
@@ -43,6 +44,7 @@ export function CompletedWorkspace({
   version,
   clockOffset,
   onOpenTask,
+  onReturn,
   onTaskMenu,
   onInitialReady,
 }: CompletedWorkspaceProps) {
@@ -122,6 +124,9 @@ export function CompletedWorkspace({
     <section className="completed-workspace" aria-label="completed tasks">
       <header className="completed-workspace__header">
         <div>
+          <button type="button" className="completed-workspace__back" onClick={onReturn}>
+            <Icon name="left" size={14} /> back to board
+          </button>
           <h2>completed</h2>
         </div>
         <div className="completed-workspace__filters">

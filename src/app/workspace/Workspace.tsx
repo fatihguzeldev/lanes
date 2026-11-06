@@ -187,10 +187,11 @@ export function Workspace({
     onNotice: setNotice,
   });
   const { boards, board, lists, boardId, startBoardId, failedBoardLookup } = boardData;
-  const { preferences: viewPreferences, update: updateBoardView } = useBoardViewPreferences(
-    account.id,
-    board?.id ?? null,
-  );
+  const {
+    preferences: viewPreferences,
+    update: updateBoardView,
+    returnToBoard: leaveCompleted,
+  } = useBoardViewPreferences(account.id, board?.id ?? null);
   const view = viewPreferences.view;
   const setView = (next: BoardViewPreferences['view']) =>
     guard(() => updateBoardView({ view: next }));
@@ -440,6 +441,7 @@ export function Workspace({
           onCreate: boardManagement.createBoard,
           onSelect: (item) =>
             guard(() => {
+              leaveCompleted();
               boardData.selectBoard(item);
               setQuick('all');
               setSearchScope('board');
@@ -607,6 +609,7 @@ export function Workspace({
           onInitialReady={onInitialReady}
           actions={{
             onChanged: changed,
+            onReturnToBoard: () => guard(leaveCompleted),
             onAddList: boardManagement.createList,
             onAddTask: (list) => {
               if (list.accountId !== account.id) return;
@@ -620,6 +623,7 @@ export function Workspace({
             onListMenu: boardManagement.openListMenu,
             onOpenBoard: (id) =>
               guard(() => {
+                leaveCompleted();
                 boardData.selectBoardId(id);
                 setQuick('all');
                 setSearchScope('board');
@@ -844,6 +848,7 @@ export function Workspace({
           void readListPlacement(account.id, id)
             .then((placement) =>
               guard(() => {
+                leaveCompleted();
                 boardData.selectBoardId(placement.boardId);
                 setQuick('all');
                 inspection.close();

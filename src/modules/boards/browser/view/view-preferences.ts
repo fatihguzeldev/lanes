@@ -50,7 +50,7 @@ export function readBoardView(
     if (!value || typeof value !== 'object') return { ...defaultBoardView };
     const record = value as Record<string, unknown>;
     return {
-      view: ['board', 'list', 'calendar', 'completed'].includes(String(record.view))
+      view: ['board', 'list', 'calendar'].includes(String(record.view))
         ? (record.view as BoardViewPreferences['view'])
         : 'board',
       showCounts: typeof record.showCounts === 'boolean' ? record.showCounts : true,

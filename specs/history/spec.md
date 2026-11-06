@@ -60,6 +60,8 @@ task history uses stable lanes identity and survives an in-app cross-list move. 
 
 completed-task browsing queries task state, not the activity log. show current completed tasks from the selected board's lists, grouped into today, yesterday, this week, and earlier without overlapping groups. include completion time, parent context, and list.
 
+completed browsing is a temporary review screen with a visible return to the board. returning or choosing a board in navigation exits review and restores that board's regular layout. do not persist completed review as its default layout.
+
 allow text search over task, parent, and list names, list filtering, and a seven-day summary by day and list. use the account zone and configured week start. count current completed tasks once, including subtasks; label the counting rule. reopening removes a task from these counts.
 
 return pagination and provider coverage. hidden completed tasks must be requested deliberately. if older completed content has not been loaded, say so instead of showing a supposedly complete total. deleted tasks remain events where recorded, but are no longer current completed tasks.
