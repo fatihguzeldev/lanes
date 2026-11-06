@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import type { Board, BoardList } from '../../contracts/board';
-import type { Prompt } from '../../../operations/browser/submission/PromptDialog';
+import { InlineField } from '../../../../shared/ui/inline-field/InlineField';
+import { ColorPicker, ColorPreview } from '../../../../shared/ui/color-picker/ColorPicker';
 import { Icon } from '../../../../shared/ui/icon/Icon';
 import { AnchoredPopover } from '../../../../shared/ui/popover/Popover';
 import { Submenu } from '../../../../shared/ui/submenu/Submenu';
@@ -19,7 +21,7 @@ interface Props {
     identity?: string,
   ) => Promise<boolean>;
   guard: (action: () => void) => void;
-  onPrompt: (prompt: Prompt) => void;
+  onColor(color: string): Promise<boolean>;
   onClose: () => void;
   onDuplicate: (list: BoardList) => void;
   onDeleteCompleted: (list: BoardList) => void;
@@ -35,71 +37,70 @@ export function ListOptions({
   localWritable,
   submit,
   guard,
-  onPrompt,
+  onColor,
   onClose,
   onDuplicate,
   onDeleteCompleted,
   onDelete,
 }: Props) {
+  const [renaming, setRenaming] = useState(false);
   return (
     <AnchoredPopover
       anchor={anchor}
       label={selectedList.title || 'list options'}
       onClose={() => onClose()}
     >
-      <div className="dialog__actions">
-        <button
-          disabled={!writable}
-          onClick={() => {
-            const list = selectedList;
-            onClose();
-            onPrompt({
-              title: 'rename list',
-              label: 'list name',
-              initial: list.title,
-              submit: (value, identity) =>
-                submit(
+      <div className="popover__menu">
+        {renaming ? (
+          <div className="list-options__rename">
+            <Icon name="pen" size={16} />
+            <InlineField
+              value={selectedList.title}
+              label="list name"
+              autoFocus
+              maxLength={1024}
+              disabled={!writable}
+              onCommit={async (title) => {
+                const done = await submit(
                   {
                     kind: 'list.rename',
-                    listId: list.id,
-                    revision: list.revision,
-                    title: value,
+                    listId: selectedList.id,
+                    revision: selectedList.revision,
+                    title,
                   },
                   'provider',
-                  identity,
-                ),
-            });
-          }}
-        >
-          <Icon name="pen" size={16} />
-          rename
-        </button>
-        <button
+                );
+                if (done) onClose();
+                return done;
+              }}
+            />
+          </div>
+        ) : (
+          <button
+            type="button"
+            className="popover__item"
+            disabled={!writable}
+            onClick={() => setRenaming(true)}
+          >
+            <Icon name="pen" size={16} /> rename
+          </button>
+        )}
+        <Submenu
+          label="list color"
           disabled={!localWritable}
-          onClick={() => {
-            const list = selectedList;
-            onClose();
-            onPrompt({
-              title: 'list color',
-              label: 'hex color',
-              initial: list.color,
-              submit: (value, identity) =>
-                submit(
-                  {
-                    kind: 'list.appearance',
-                    listId: list.id,
-                    revision: list.membershipRevision,
-                    color: value,
-                  },
-                  'local',
-                  identity,
-                ),
-            });
-          }}
+          trigger={
+            <>
+              <Icon name="palette" size={16} />
+              <span>color</span>
+              <span className="list-options__color-preview">
+                <ColorPreview value={selectedList.color} />
+              </span>
+            </>
+          }
+          className="list-options__colors"
         >
-          <Icon name="palette" size={16} />
-          color
-        </button>
+          <ColorPicker value={selectedList.color} disabled={!localWritable} onChange={onColor} />
+        </Submenu>
         <Submenu
           label="move to board"
           trigger={
@@ -139,6 +140,8 @@ export function ListOptions({
             ))}
         </Submenu>
         <button
+          type="button"
+          className="popover__item"
           disabled={!localWritable || lists.findIndex((list) => list.id === selectedList.id) <= 0}
           onClick={() => {
             const list = selectedList;
@@ -158,6 +161,8 @@ export function ListOptions({
           move column left
         </button>
         <button
+          type="button"
+          className="popover__item"
           disabled={
             !localWritable ||
             lists.findIndex((list) => list.id === selectedList.id) === loadedListCount - 1
@@ -180,6 +185,8 @@ export function ListOptions({
           move column right
         </button>
         <button
+          type="button"
+          className="popover__item"
           disabled={!writable}
           onClick={() => {
             onDuplicate(selectedList);
@@ -190,7 +197,7 @@ export function ListOptions({
           duplicate
         </button>
         <button
-          className="danger"
+          className="popover__item danger"
           onClick={() => {
             onDeleteCompleted(selectedList);
             onClose();
@@ -200,7 +207,7 @@ export function ListOptions({
           delete completed tasks
         </button>
         <button
-          className="danger"
+          className="popover__item danger"
           disabled={!writable || selectedList.isDefault}
           onClick={() => guard(() => void onDelete(selectedList))}
         >

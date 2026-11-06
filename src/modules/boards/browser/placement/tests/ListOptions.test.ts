@@ -6,12 +6,18 @@ import { ListOptions } from '../ListOptions';
 import { Submenu } from '../../../../../shared/ui/submenu/Submenu';
 import type { Board, BoardList } from '../../../contracts/board';
 
+vi.mock('react', async (original) => ({
+  ...(await original<typeof import('react')>()),
+  useState: (value: unknown) => [value, vi.fn()],
+}));
+
 const list = {
   id: 'list',
   accountId: 'account',
   boardId: 'main',
   title: 'todo',
   membershipRevision: 7,
+  color: '#f1f0e9',
 } as BoardList;
 const boards = [
   { id: 'main', accountId: 'account', title: 'main' },
@@ -29,7 +35,7 @@ function props() {
     localWritable: true,
     submit: vi.fn(async () => true),
     guard: (action: () => void) => action(),
-    onPrompt: vi.fn(),
+    onColor: vi.fn(async () => true),
     onClose: vi.fn(),
     onDuplicate: vi.fn(),
     onDeleteCompleted: vi.fn(),
@@ -40,7 +46,7 @@ type UI = ReactElement<Record<string, any>>;
 function destination(options: ReturnType<typeof props>) {
   const root = ListOptions(options) as UI;
   const items = (root.props.children as UI).props.children as UI[];
-  return items.find((item) => item.type === Submenu)!;
+  return items.find((item) => item.type === Submenu && item.props.label === 'move to board')!;
 }
 
 describe('list destination submenu', () => {

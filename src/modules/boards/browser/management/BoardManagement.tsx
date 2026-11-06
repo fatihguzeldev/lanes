@@ -215,16 +215,21 @@ export function BoardManagement({
       )}
       {listMenu && listMenuAnchor && (
         <ListOptions
-          list={listMenu}
+          list={lists.find((list) => list.id === listMenu.id) ?? listMenu}
           anchor={listMenuAnchor}
           boards={boards}
           lists={lists}
           loadedListCount={loadedListCount}
-          writable={writable}
-          localWritable={localWritable}
+          writable={writable && !busy && !controller.appearance.pending}
+          localWritable={localWritable && !busy && !controller.appearance.pending}
           submit={submit}
           guard={guard}
-          onPrompt={onPrompt}
+          onColor={(color) =>
+            controller.appearance.updateListColor(
+              lists.find((list) => list.id === listMenu.id) ?? listMenu,
+              color,
+            )
+          }
           onClose={() => setListMenu(null)}
           onDuplicate={(list) => setCopying({ kind: 'list', list })}
           onDeleteCompleted={onDeleteCompleted}
