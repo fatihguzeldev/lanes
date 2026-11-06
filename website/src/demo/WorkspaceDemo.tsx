@@ -36,7 +36,6 @@ const icons = {
   close: 'm6 6 12 12M18 6 6 18',
   play: 'm9 5 11 7-11 7Z',
   pause: 'M9 5v14M15 5v14',
-  replay: 'M3 10a9 9 0 1 1 2 8M3 4v6h6',
   clock: 'M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0',
 };
 
@@ -319,39 +318,41 @@ export function WorkspaceDemo({ suspended = false }: { suspended?: boolean }) {
   const playback = useShowcasePlayback({
     rootRef: showcase,
     suspended,
-    onReplay() {
-      flushSync(() => {
-        automatedDraft.current = false;
-        setWorkspaces(demoWorkspaces);
-        setAccountId('personal');
-        setView('board');
-        setScope('all');
-        setQuery('');
-        setNavigationOpen(false);
-        setSearchOpen(false);
-      });
-    },
     async run(context: PlaybackContext) {
       const root = showcase.current;
       if (!root) return;
       const motion = createShowcaseMotion(root, context.signal, context.registerAnimation);
       const task = () => latest.current.tasks.find((item) => item.id === 'website')!;
       try {
-        await playWorkspaceStory({
-          context,
-          motion,
-          task,
-          edit: () =>
-            flushSync(() => {
-              automatedDraft.current = true;
-              latest.current.editor.open(task());
-            }),
-          notes: (notes) => flushSync(() => latest.current.editor.patch({ notes })),
-          save: () => flushSync(() => latest.current.editor.save()),
-          view: (value) => flushSync(() => setView(value)),
-          completeSubtask: (index) =>
-            flushSync(() => latest.current.editor.completeSubtask(task(), index, true)),
-        });
+        while (!context.signal.aborted) {
+          await playWorkspaceStory({
+            context,
+            motion,
+            task,
+            edit: () =>
+              flushSync(() => {
+                automatedDraft.current = true;
+                latest.current.editor.open(task());
+              }),
+            notes: (notes) => flushSync(() => latest.current.editor.patch({ notes })),
+            save: () => flushSync(() => latest.current.editor.save()),
+            view: (value) => flushSync(() => setView(value)),
+            completeSubtask: (index) =>
+              flushSync(() => latest.current.editor.completeSubtask(task(), index, true)),
+          });
+          await context.wait(2400);
+          await motion.transition(
+            () => {
+              context.checkpoint();
+              flushSync(() => {
+                automatedDraft.current = false;
+                setWorkspaces(demoWorkspaces);
+                setView('board');
+              });
+            },
+            { duration: 680 },
+          );
+        }
       } finally {
         motion.dispose();
       }
@@ -450,44 +451,6 @@ export function WorkspaceDemo({ suspended = false }: { suspended?: boolean }) {
       onWheelCapture={takeOver}
     >
       <div className="demo-showcase-toolbar">
-        <button
-          type="button"
-          className="demo-playback"
-          data-showcase-control
-          aria-label={
-            playback.status === 'playing'
-              ? 'pause demo'
-              : playback.status === 'paused'
-                ? 'resume demo'
-                : playback.status === 'waiting'
-                  ? 'play demo'
-                  : 'replay demo'
-          }
-          title={
-            playback.status === 'playing'
-              ? 'pause demo'
-              : playback.status === 'paused'
-                ? 'resume demo'
-                : 'replay demo'
-          }
-          onClick={() => {
-            if (playback.status === 'playing') playback.pause();
-            else if (playback.status === 'paused') playback.resume();
-            else if (playback.status === 'waiting') playback.start();
-            else editor.navigate(() => playback.replay());
-          }}
-        >
-          <DemoIcon
-            name={
-              playback.status === 'playing'
-                ? 'pause'
-                : playback.status === 'paused' || playback.status === 'waiting'
-                  ? 'play'
-                  : 'replay'
-            }
-            size={15}
-          />
-        </button>
         <div className="demo-view-controls" role="group" aria-label="preview layout">
           {(['board', 'list', 'calendar'] as const).map((layout) => (
             <button
@@ -678,6 +641,18 @@ export function WorkspaceDemo({ suspended = false }: { suspended?: boolean }) {
           </div>
         </div>
       </div>
+      {scripted && (
+        <button
+          type="button"
+          className="demo-playback"
+          data-showcase-control
+          aria-label={playback.status === 'playing' ? 'pause demo' : 'resume demo'}
+          title={playback.status === 'playing' ? 'pause demo' : 'resume demo'}
+          onClick={() => (playback.status === 'playing' ? playback.pause() : playback.resume())}
+        >
+          <DemoIcon name={playback.status === 'playing' ? 'pause' : 'play'} size={14} />
+        </button>
+      )}
       {editor.dialogs}
     </div>
   );
