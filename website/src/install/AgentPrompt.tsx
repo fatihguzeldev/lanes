@@ -8,7 +8,7 @@ export function AgentPrompt() {
         then ask your coding agent:
       </label>
       <div className="agent-prompt">
-        <textarea id="setup-prompt" value={AGENT_PROMPT} readOnly rows={4} spellCheck={false} />
+        <textarea id="setup-prompt" value={AGENT_PROMPT} readOnly rows={3} spellCheck={false} />
         <div className="agent-prompt__actions">
           <CopyButton key={AGENT_PROMPT} text={AGENT_PROMPT} label="copy setup prompt" />
         </div>

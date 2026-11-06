@@ -11,7 +11,7 @@ export function SelfHosting() {
         <div className="self-host-intro">
           <h2 id="self-host-title">host your own lanes</h2>
           <p>deploy to your cloudflare account.</p>
-          <a className="button self-host-button" href={GUIDE}>
+          <a className="button button--primary self-host-button" href={GUIDE}>
             read the setup guide
           </a>
         </div>
