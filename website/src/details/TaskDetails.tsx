@@ -7,10 +7,21 @@ import './TaskDetails.css';
 
 export function TaskDetails() {
   const [tasks, setTasks] = useState<WorkbenchTask[]>(() =>
-    workbenchTasks.map((task) => ({
+    workbenchTasks.map((task, index) => ({
       ...task,
       id: `details-${task.id}`,
-      blockedBy: task.blockedBy.map((id) => `details-${id}`),
+      blockedBy: [],
+      ...(index
+        ? {
+            notes: '',
+            labels: [],
+            priority: 'none' as const,
+            day: '',
+            time: '',
+            subtasks: [],
+            starred: false,
+          }
+        : {}),
     })),
   );
   const frame = useRef<HTMLDivElement>(null);
@@ -20,8 +31,18 @@ export function TaskDetails() {
   const editor = usePreviewTaskEditor(tasks, (id, patch) =>
     setTasks((current) => current.map((task) => (task.id === id ? { ...task, ...patch } : task))),
   );
-  const task = tasks[0]!;
-  const card = <TaskCard task={task} tasks={tasks} editor={editor} initialExpanded />;
+  const open = tasks.filter((task) => !task.completed);
+  const completed = tasks.filter((task) => task.completed);
+  const showingCompleted = completedOpen || completed.some((task) => task.id === editor.editingId);
+  const card = (task: WorkbenchTask) => (
+    <TaskCard
+      key={task.id}
+      task={task}
+      tasks={tasks}
+      editor={editor}
+      initialExpanded={task.id === tasks[0]!.id}
+    />
+  );
   useLayoutEffect(() => {
     const previous = focused.current;
     if (
@@ -30,15 +51,23 @@ export function TaskDetails() {
       document.activeElement !== document.body
     )
       return;
+    const taskId = previous.closest<HTMLElement>('[data-task-id]')?.dataset.taskId;
+    const sameTask = taskId
+      ? frame.current?.querySelector<HTMLElement>(
+          `[data-task-id="${CSS.escape(taskId)}"] .workbench-check`,
+        )
+      : null;
     const target =
+      (sameTask?.getClientRects().length ? sameTask : null) ||
       [
         ...(frame.current?.querySelectorAll<HTMLElement>(
           '.workbench-check, .task-story__completed > button',
         ) ?? []),
-      ].find((control) => control.getClientRects().length) || frame.current;
+      ].find((control) => control.getClientRects().length) ||
+      frame.current;
     if (target?.getClientRects().length) target.focus({ preventScroll: true });
     focused.current = null;
-  }, [task.completed, editor.editingId, completedOpen]);
+  }, [tasks, editor.editingId, showingCompleted]);
 
   return (
     <section
@@ -53,30 +82,29 @@ export function TaskDetails() {
         <header className="task-story__header">
           <WorkbenchIcon name="list" size={18} />
           <h3>in progress</h3>
-          <span>{task.completed ? 0 : 1}</span>
+          <span>{open.length}</span>
         </header>
-        {!task.completed ? (
-          <div role="list" aria-label="task details">
-            {card}
-          </div>
-        ) : (
+        <div role="list" aria-label="task details">
+          {open.map(card)}
+        </div>
+        {completed.length > 0 && (
           <div className="task-story__completed">
             <button
               type="button"
-              aria-expanded={completedOpen}
+              aria-expanded={showingCompleted}
               aria-controls={completedId}
-              onClick={() => editor.navigate(() => setCompletedOpen(!completedOpen))}
+              onClick={() => editor.navigate(() => setCompletedOpen(!showingCompleted))}
             >
-              <WorkbenchIcon name={completedOpen ? 'down' : 'right'} size={12} />
-              completed<span>1</span>
+              <WorkbenchIcon name={showingCompleted ? 'down' : 'right'} size={12} />
+              completed<span>{completed.length}</span>
             </button>
             <div
               id={completedId}
-              hidden={!completedOpen}
+              hidden={!showingCompleted}
               role="list"
               aria-label="completed task details"
             >
-              {card}
+              {completed.map(card)}
             </div>
           </div>
         )}
