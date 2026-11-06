@@ -168,15 +168,17 @@ function EditorForm(props: TaskEditorProps) {
   }
   useLayoutEffect(resizeFields, [draft.title, draft.notes]);
   useEffect(() => {
-    const form = titleInput.current?.form;
-    if (!form) return;
-    let width = form.clientWidth;
+    const fields = [titleInput.current, notesInput.current].filter((input) => input !== null);
+    let widths = fields.map((input) => input.clientWidth);
     const observer = new ResizeObserver(() => {
-      if (form.clientWidth === width) return;
-      width = form.clientWidth;
+      const next = fields.map((input) => input.clientWidth);
+      if (next.every((width, index) => width === widths[index])) return;
+      widths = next;
       resizeFields();
     });
-    observer.observe(form);
+    fields.forEach((input) => observer.observe(input));
+    // The surface attaches its portal host after the fields' first layout effect.
+    resizeFields();
     return () => observer.disconnect();
   }, []);
   useEffect(() => {
