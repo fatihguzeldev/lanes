@@ -289,6 +289,7 @@ export function TaskEditorWorkspace({
   ];
   const finish = async (command: unknown, category: 'local' | 'provider') => {
     setSubmitting(true);
+    lifetime.current.onBusyChange(true);
     try {
       const result = await commands.submit(command, category, identity);
       if (result?.state === 'succeeded') {

@@ -262,15 +262,16 @@ export function Workspace({
   });
   const guard = useCallback(
     (action: () => void) => {
-      if (editorDirty || templateDirty || transferDirty || inlineDirty) setDiscard(() => action);
+      if (taskEditor.isDirty() || templateDirty || transferDirty || inlineDirty)
+        setDiscard(() => action);
       else action();
     },
-    [editorDirty, templateDirty, transferDirty, inlineDirty],
+    [taskEditor, templateDirty, transferDirty, inlineDirty],
   );
   const guardAccount = (action: () => void) => {
     if (
       movingTasks ||
-      taskEditor.saving ||
+      taskEditor.isSaving() ||
       boardManagement.placement.busy ||
       boardManagement.creation.isSaving() ||
       boardManagement.listCreation.isSaving()

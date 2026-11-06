@@ -14,6 +14,8 @@ export function useTaskEditor(
   const [session, setSession] = useState<TaskEditorSession | null>(null);
   const [dirty, changeDirty] = useState(false);
   const [saves, setSaves] = useState<ReadonlySet<number>>(() => new Set());
+  const dirtyNow = useRef(false);
+  const savingNow = useRef(saves);
   const nextId = useRef(0);
   const intent = useRef(0);
   const current = useRef(session);
@@ -22,6 +24,7 @@ export function useTaskEditor(
     const selected = { id: ++nextId.current, selection: next };
     current.current = selected;
     setSession(selected);
+    dirtyNow.current = false;
     changeDirty(false);
   };
   const resolve = (
@@ -47,6 +50,7 @@ export function useTaskEditor(
     if (current.current?.id !== id) return;
     current.current = null;
     setSession(null);
+    dirtyNow.current = false;
     changeDirty(false);
   };
   return {
@@ -54,17 +58,21 @@ export function useTaskEditor(
     selection: session?.selection ?? null,
     dirty,
     saving: saves.size > 0,
+    isDirty: () => dirtyNow.current,
+    isSaving: () => savingNow.current.size > 0,
     setDirty(value: boolean, id = current.current?.id) {
-      if (current.current?.id === id) changeDirty(value);
+      if (current.current?.id === id) {
+        dirtyNow.current = value;
+        changeDirty(value);
+      }
     },
     setSaving(id: number, busy: boolean) {
-      setSaves((previous) => {
-        if (previous.has(id) === busy) return previous;
-        const next = new Set(previous);
-        if (busy) next.add(id);
-        else next.delete(id);
-        return next;
-      });
+      if (savingNow.current.has(id) === busy) return;
+      const next = new Set(savingNow.current);
+      if (busy) next.add(id);
+      else next.delete(id);
+      savingNow.current = next;
+      setSaves(next);
     },
     open(task: Task, loaded?: EditorLocation) {
       resolve(

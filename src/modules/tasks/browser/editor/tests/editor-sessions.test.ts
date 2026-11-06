@@ -91,6 +91,25 @@ describe('task editor session ownership', () => {
     expect(render().saving).toBe(false);
   });
 
+  it('exposes dirty changes to a guard from the same pointer event', () => {
+    render().open(task('first'), location);
+    const current = render();
+    current.setDirty(true);
+    expect(current.isDirty()).toBe(true);
+    current.setDirty(false);
+    expect(current.isDirty()).toBe(false);
+  });
+
+  it('exposes save admission before a following account action can unmount it', () => {
+    render().open(task('first'), location);
+    const current = render();
+    const id = current.session!.id;
+    current.setSaving(id, true);
+    expect(current.isSaving()).toBe(true);
+    current.setSaving(id, false);
+    expect(current.isSaving()).toBe(false);
+  });
+
   it('does not replace a newer dirty editor when an older location lookup finishes', async () => {
     let resolve!: (value: EditorLocation) => void;
     readLocation.mockImplementation(() => new Promise((done) => (resolve = done)));
