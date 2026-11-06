@@ -5,16 +5,17 @@ import {
   type CalendarCreateIntent,
   type CalendarScope,
 } from './calendar-model';
-import { Dialog } from '../../../../shared/ui/dialog/Dialog';
+import { AnchoredPopover } from '../../../../shared/ui/popover/Popover';
 import { Icon } from '../../../../shared/ui/icon/Icon';
 import { request } from '../../../../shared/browser/http/http';
 import { BoardListPageSchema, BoardPageSchema } from '../../contracts/query';
 import { usePagedResource } from '../../../../shared/browser/resources/usePagedResource';
 import { useServerConnection } from '../../../../shared/browser/connectivity/useServerConnection';
 import { Select } from '../../../../shared/ui/select/Select';
-import './CalendarDestinationDialog.css';
+import './CalendarDestinationMenu.css';
 
-export function CalendarDestinationDialog({
+export function CalendarDestinationMenu({
+  anchor,
   accountId,
   board,
   scope,
@@ -24,6 +25,7 @@ export function CalendarDestinationDialog({
   onChoose,
   onClose,
 }: {
+  anchor: HTMLElement;
   accountId: string;
   board: Board;
   scope: CalendarScope;
@@ -69,12 +71,14 @@ export function CalendarDestinationDialog({
     (item) => item.accountId === accountId && item.boardId === boardId,
   );
   return (
-    <Dialog title="choose a list" onClose={onClose}>
-      <div className="dialog__body calendar-destination">
-        <p>
-          {scheduledDay ? `new task on ${scheduledDay}` : 'new unscheduled task'} · choose where it
-          belongs before writing.
-        </p>
+    <AnchoredPopover
+      anchor={anchor}
+      label="choose a list"
+      onClose={onClose}
+      className="calendar-destination"
+    >
+      <div>
+        <h3>{scheduledDay ? `new task on ${scheduledDay}` : 'new task'}</h3>
         {scope === 'account' && (
           <>
             <label>
@@ -175,6 +179,6 @@ export function CalendarDestinationDialog({
           </button>
         </footer>
       </div>
-    </Dialog>
+    </AnchoredPopover>
   );
 }
