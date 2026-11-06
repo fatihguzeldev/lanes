@@ -10,10 +10,15 @@ import {
 import { ConnectionSummarySchema } from '../../contracts/connection';
 import { oauthLandingError } from './landing';
 import { clearAccountInitial, readAccountInitial, rememberAccountInitial } from './account-initial';
+import { documentClockOffset } from './entry-bootstrap';
 
-export function useOwnerSession(initialAccountId: () => string | null) {
-  const [session, setSession] = useState<SessionSnapshot | null>(null);
-  const [error, setError] = useState('');
+export function useOwnerSession(
+  initialAccountId: () => string | null,
+  initialSession: SessionSnapshot | null = null,
+  initialError = '',
+) {
+  const [session, setSession] = useState<SessionSnapshot | null>(initialSession);
+  const [error, setError] = useState(initialError);
   const [authorizationError, setAuthorizationError] = useState(oauthLandingError);
   const [pending, setPending] = useState(false);
   const [accountId, setAccountId] = useState<string | null>(() => {
@@ -25,19 +30,34 @@ export function useOwnerSession(initialAccountId: () => string | null) {
       return null;
     }
   });
+  const initialSelection = useRef({ accountId, active: true });
   const selectedAccountId = useRef(accountId);
-  const [loadingInitial, setLoadingInitial] = useState(() => readAccountInitial(accountId));
+  const [loadingInitial, setLoadingInitial] = useState(() => {
+    if (!initialSession) return readAccountInitial(accountId);
+    if (!initialSession.authenticated) return null;
+    const selected =
+      initialSession.accounts?.items.find((item) => item.id === accountId) ??
+      (!accountId || !initialSession.accounts?.nextCursor
+        ? initialSession.accounts?.items[0]
+        : undefined);
+    return selected ? rememberAccountInitial(selected) : null;
+  });
   selectedAccountId.current = accountId;
   const channel = useRef<BroadcastChannel | null>(null);
   const sessionFlight = useRef<AbortController | null>(null);
-  const [clockOffset, setClockOffset] = useState(0);
-  const load = useCallback(async () => {
+  const [clockOffset, setClockOffset] = useState(() =>
+    initialSession ? documentClockOffset(initialSession.serverTime) : 0,
+  );
+  const load = useCallback(async (snapshot?: SessionSnapshot) => {
     sessionFlight.current?.abort();
     const flight = new AbortController();
     sessionFlight.current = flight;
     setError('');
     try {
-      const next = await request('/api/session', SessionSnapshotSchema, { signal: flight.signal });
+      const next = snapshot
+        ? SessionSnapshotSchema.parse(snapshot)
+        : await request('/api/session', SessionSnapshotSchema, { signal: flight.signal });
+      const offset = snapshot ? documentClockOffset(next.serverTime) : next.serverTime - Date.now();
       let removedId: string | null = null;
       if (
         next.authenticated &&
@@ -71,7 +91,7 @@ export function useOwnerSession(initialAccountId: () => string | null) {
         clearAccountInitial();
         setLoadingInitial(null);
       }
-      setClockOffset(next.serverTime - Date.now());
+      setClockOffset(offset);
       setSession((previous) =>
         next.authenticated && next.accounts && previous?.authenticated && previous.accounts
           ? {
@@ -96,9 +116,19 @@ export function useOwnerSession(initialAccountId: () => string | null) {
     }
   }, []);
   useEffect(() => {
-    void load();
+    if (accountId !== initialSelection.current.accountId) initialSelection.current.active = false;
+    if (initialSession && initialSelection.current.active) {
+      if (!initialSession.authenticated) {
+        clearAccountInitial();
+        return;
+      }
+      if (!accountId || initialSession.accounts?.items.some((item) => item.id === accountId))
+        return;
+      // Resolve a remembered account beyond the first page without repeating the session read.
+      void load(initialSession);
+    } else if (!initialError || !initialSelection.current.active) void load();
     return () => sessionFlight.current?.abort();
-  }, [load, accountId]);
+  }, [load, accountId, initialSession, initialError]);
   useEffect(() => {
     const clearPrivate = () => {
       sessionFlight.current?.abort();
@@ -194,7 +224,7 @@ export function useOwnerSession(initialAccountId: () => string | null) {
   };
   const selected =
     session?.accounts?.items.find((account) => account.id === accountId) ??
-    session?.accounts?.items[0];
+    (accountId && session?.accounts?.nextCursor ? undefined : session?.accounts?.items[0]);
   const loadMoreAccounts = () => {
     if (!session?.accounts?.nextCursor) return;
     void request(
