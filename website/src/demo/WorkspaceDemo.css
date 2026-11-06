@@ -1,22 +1,16 @@
 /* Hallmark · component: lanes workspace · theme: source product · v2.0.0 */
 /* The preview follows current task-card, board, stacked-list and calendar surfaces. */
 .workspace-showcase {
-  position: relative;
   container: workspace-preview / inline-size;
   min-width: 0;
   width: 100%;
-}
-.demo-showcase-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  margin-bottom: 12px;
 }
 .demo-view-controls {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 4px;
+  margin-bottom: 12px;
 }
 .demo-view-controls button {
   display: inline-flex;
@@ -28,7 +22,7 @@
   border: 0;
   border-radius: 5px;
   background: transparent;
-  color: var(--color-muted);
+  color: inherit;
   font-size: 13px;
   line-height: 20px;
 }
@@ -49,7 +43,7 @@
   display: grid;
   grid-template-columns: 192px minmax(0, 1fr);
   min-width: 0;
-  height: 400px;
+  height: 500px;
   overflow: clip;
   border: 1px solid var(--color-line);
   border-radius: 10px;
@@ -394,7 +388,7 @@
 }
 @media (hover: hover) {
   .demo-view-controls button:hover:not([aria-pressed='true']) {
-    background-color: var(--color-soft);
+    background-color: color-mix(in srgb, currentColor 12%, transparent);
   }
   .demo-shortcuts button:hover,
   .demo-boards button:hover {

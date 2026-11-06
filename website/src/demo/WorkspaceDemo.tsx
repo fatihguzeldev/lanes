@@ -1,8 +1,4 @@
 import { useId, useLayoutEffect, useRef, useState } from 'react';
-import { flushSync } from 'react-dom';
-import { useShowcasePlayback, type PlaybackContext } from './playback/useShowcasePlayback';
-import { createShowcaseMotion } from './motion/showcase-motion';
-import { playWorkspaceStory } from './showcase-story';
 import {
   demoAccounts,
   demoToday,
@@ -61,14 +57,12 @@ function DemoColumn({
   allTasks,
   editor,
   focalId,
-  scripted,
 }: {
   list: string;
   tasks: DemoTask[];
   allTasks: DemoTask[];
   editor: PreviewTaskEditor;
   focalId: string;
-  scripted: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const column = useRef<HTMLElement>(null);
@@ -106,8 +100,6 @@ function DemoColumn({
       tasks={allTasks}
       editor={editor}
       initialExpanded={task.id === focalId}
-      focusOnEdit={!scripted}
-      {...(task.id === focalId ? { showcaseKey: 'focal-title' } : {})}
     />
   );
   return (
@@ -167,7 +159,6 @@ function DemoBoard({
   editor,
   view,
   focalId,
-  scripted,
 }: {
   tasks: DemoTask[];
   allTasks: DemoTask[];
@@ -175,7 +166,6 @@ function DemoBoard({
   editor: PreviewTaskEditor;
   view: 'board' | 'list';
   focalId: string;
-  scripted: boolean;
 }) {
   return (
     <div
@@ -197,7 +187,6 @@ function DemoBoard({
             allTasks={allTasks}
             editor={editor}
             focalId={focalId}
-            scripted={scripted}
           />
         ))
       )}
@@ -249,15 +238,7 @@ function DemoCalendar({ tasks }: { tasks: DemoTask[] }) {
                         data-task-id={task.id}
                       >
                         <div className="demo-calendar__event-top">
-                          <span
-                            data-showcase-key={
-                              task.id === 'website' || task.id === 'release'
-                                ? 'focal-title'
-                                : undefined
-                            }
-                          >
-                            {task.title}
-                          </span>
+                          <span>{task.title}</span>
                           {task.starred && (
                             <span className="demo-calendar__star" role="img" aria-label="starred">
                               <DemoIcon name="star" size={11} />
@@ -283,112 +264,22 @@ function DemoCalendar({ tasks }: { tasks: DemoTask[] }) {
   );
 }
 
-export function WorkspaceDemo({ suspended = false }: { suspended?: boolean }) {
+export function WorkspaceDemo() {
   const [view, setView] = useState<View>('board');
   const [accountId, setAccountId] = useState<DemoAccountId>('personal');
   const [workspaces, setWorkspaces] = useState(demoWorkspaces);
   const account = demoAccounts[accountId];
   const tasks = workspaces[accountId];
-  const automatedDraft = useRef(false);
-  const rawEditor = usePreviewTaskEditor(
-    tasks,
-    (id, patch) => setWorkspaces((current) => updateDemoTask(current, accountId, id, patch)),
-    { shouldGuardDraft: () => !automatedDraft.current },
+  const editor = usePreviewTaskEditor(tasks, (id, patch) =>
+    setWorkspaces((current) => updateDemoTask(current, accountId, id, patch)),
   );
-  const editor: PreviewTaskEditor = {
-    ...rawEditor,
-    patch(value) {
-      automatedDraft.current = false;
-      rawEditor.patch(value);
-    },
-    open(task) {
-      rawEditor.open(task);
-      automatedDraft.current = false;
-    },
-  };
   const [scope, setScope] = useState<DemoScope>('all');
   const [query, setQuery] = useState('');
   const [navigationOpen, setNavigationOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  const showcase = useRef<HTMLDivElement>(null);
-  const latest = useRef({ editor: rawEditor, tasks, view });
-  latest.current = { editor: rawEditor, tasks, view };
-  const pendingView = useRef<(() => void) | null>(null);
-  useLayoutEffect(() => {
-    pendingView.current?.();
-  }, [view]);
-  // Measurement belongs after React's commit, including the calendar's local scroll.
-  const commitView = (next: View, signal: AbortSignal) => {
-    signal.throwIfAborted();
-    if (latest.current.view === next) return Promise.resolve();
-    return new Promise<void>((resolve, reject) => {
-      const cleanup = () => {
-        signal.removeEventListener('abort', abort);
-        if (pendingView.current === finish) pendingView.current = null;
-      };
-      const finish = () => {
-        cleanup();
-        resolve();
-      };
-      const abort = () => {
-        cleanup();
-        reject(signal.reason);
-      };
-      pendingView.current = finish;
-      signal.addEventListener('abort', abort, { once: true });
-      setView(next);
-    });
-  };
-  const playback = useShowcasePlayback({
-    rootRef: showcase,
-    suspended,
-    async run(context: PlaybackContext) {
-      const root = showcase.current;
-      if (!root) return;
-      const motion = createShowcaseMotion(root, context.signal, context.registerAnimation);
-      const task = () => latest.current.tasks.find((item) => item.id === 'website')!;
-      try {
-        while (!context.signal.aborted) {
-          await playWorkspaceStory({
-            context,
-            motion,
-            task,
-            edit: () =>
-              flushSync(() => {
-                automatedDraft.current = true;
-                latest.current.editor.open(task());
-              }),
-            notes: (notes) => flushSync(() => latest.current.editor.patch({ notes })),
-            save: () => flushSync(() => latest.current.editor.save()),
-            view: (value) => commitView(value, context.signal),
-            completeSubtask: (index) =>
-              flushSync(() => latest.current.editor.completeSubtask(task(), index, true)),
-          });
-          await context.wait(2400);
-          await motion.transition(
-            () => {
-              context.checkpoint();
-              flushSync(() => {
-                automatedDraft.current = false;
-                setWorkspaces(demoWorkspaces);
-              });
-              return commitView('board', context.signal);
-            },
-            { duration: 680 },
-          );
-        }
-      } finally {
-        motion.dispose();
-      }
-    },
-  });
-  const scripted = playback.status === 'playing' || playback.status === 'paused';
-  const takeOver = playback.takeOver;
+  const preview = useRef<HTMLDivElement>(null);
   const [compact, setCompact] = useState(true);
   const measuredCompact = useRef(true);
-  const measuredWidth = useRef<number | null>(null);
-  const onResize = useRef(playback.takeOver);
-  onResize.current = playback.takeOver;
   const navigationTrigger = useRef<HTMLButtonElement>(null);
   const navigationClose = useRef<HTMLButtonElement>(null);
   const navigation = useRef<HTMLElement>(null);
@@ -398,7 +289,6 @@ export function WorkspaceDemo({ suspended = false }: { suspended?: boolean }) {
   const pendingSearchFocus = useRef<'input' | 'trigger' | null>(null);
   const navigationId = useId();
   const searchId = useId();
-  const playbackHintId = useId();
   const searching = searchOpen || Boolean(query);
   const visible = selectDemoTasks(tasks, scope, query);
   const closeNavigation = () => {
@@ -437,12 +327,9 @@ export function WorkspaceDemo({ suspended = false }: { suspended?: boolean }) {
         ?.focus({ preventScroll: true });
   }, [compact, navigationOpen]);
   useLayoutEffect(() => {
-    const surface = showcase.current;
+    const surface = preview.current;
     if (!surface) return;
     const resize = (width: number) => {
-      if (measuredWidth.current !== null && Math.abs(width - measuredWidth.current) > 1)
-        onResize.current();
-      measuredWidth.current = width;
       const next = width <= 768;
       if (next === measuredCompact.current) return;
       measuredCompact.current = next;
@@ -461,44 +348,19 @@ export function WorkspaceDemo({ suspended = false }: { suspended?: boolean }) {
   }, []);
 
   return (
-    <div
-      ref={showcase}
-      className="workspace-showcase"
-      data-playback={playback.status}
-      onPointerDownCapture={() => {
-        if (playback.status !== 'waiting') takeOver();
-      }}
-      onClickCapture={takeOver}
-      onInputCapture={takeOver}
-      onKeyDownCapture={takeOver}
-      onFocusCapture={takeOver}
-      onWheelCapture={() => {
-        if (playback.status !== 'waiting') takeOver();
-      }}
-    >
-      <div className="demo-showcase-toolbar">
-        <p className="visually-hidden" id={playbackHintId}>
-          choosing a view stops the automatic demo.
-        </p>
-        <div
-          className="demo-view-controls"
-          role="group"
-          aria-label="preview layout"
-          aria-describedby={playbackHintId}
-        >
-          {(['board', 'list', 'calendar'] as const).map((layout) => (
-            <button
-              type="button"
-              key={layout}
-              data-showcase-view-button={layout}
-              aria-pressed={view === layout}
-              onClick={() => editor.navigate(() => setView(layout))}
-            >
-              <DemoIcon name={layout} size={15} />
-              {layout}
-            </button>
-          ))}
-        </div>
+    <div ref={preview} className="workspace-showcase">
+      <div className="demo-view-controls" role="group" aria-label="preview layout">
+        {(['board', 'list', 'calendar'] as const).map((layout) => (
+          <button
+            type="button"
+            key={layout}
+            aria-pressed={view === layout}
+            onClick={() => editor.navigate(() => setView(layout))}
+          >
+            <DemoIcon name={layout} size={15} />
+            {layout}
+          </button>
+        ))}
       </div>
       <div
         className={
@@ -656,7 +518,7 @@ export function WorkspaceDemo({ suspended = false }: { suspended?: boolean }) {
               }}
             />
           </header>
-          <div className="demo-content" data-view={view} data-showcase-view>
+          <div className="demo-content" data-view={view}>
             <div key={accountId + view}>
               {view === 'calendar' ? (
                 <DemoCalendar tasks={visible} />
@@ -667,7 +529,6 @@ export function WorkspaceDemo({ suspended = false }: { suspended?: boolean }) {
                   lists={account.lists}
                   editor={editor}
                   view={view}
-                  scripted={scripted}
                   focalId={tasks[0]!.id}
                 />
               )}
