@@ -1,0 +1,167 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Task } from '../../../contracts/task';
+import type { TaskActionContext } from '../task-actions';
+import { useTaskActions } from '../useTaskActions';
+
+const state = vi.hoisted(() => ({
+  cursor: 0,
+  slots: [] as unknown[],
+  effects: [] as Array<() => void | (() => void)>,
+  read: vi.fn(),
+  submit: vi.fn(),
+}));
+vi.mock('react', async (original) => ({
+  ...(await original<typeof import('react')>()),
+  useState(initial: unknown) {
+    const index = state.cursor++;
+    if (!(index in state.slots))
+      state.slots[index] = typeof initial === 'function' ? initial() : initial;
+    return [
+      state.slots[index],
+      (value: unknown) => {
+        state.slots[index] = value;
+      },
+    ];
+  },
+  useRef(initial: unknown) {
+    return (state.slots[state.cursor++] ??= { current: initial });
+  },
+  useEffect(effect: () => void | (() => void)) {
+    state.effects.push(effect);
+  },
+}));
+vi.mock('../../../../operations/browser/submission/useCommands', () => ({
+  useCommands: () => ({ submit: state.submit }),
+}));
+vi.mock('../../../../../shared/browser/http/http', () => ({ request: state.read }));
+vi.mock('../../../../operations/browser/submission/operation-identity', () => ({
+  newOperationId: () => 'quick-receipt',
+}));
+const task = {
+  id: 'task',
+  accountId: 'account',
+  revision: 7,
+  starred: false,
+  completed: false,
+  repeatRule: null,
+  seriesId: null,
+} as Task;
+let current: Task;
+let context: TaskActionContext;
+function render() {
+  state.cursor = 0;
+  return useTaskActions(context, 0);
+}
+beforeEach(() => {
+  state.slots = [];
+  state.cursor = 0;
+  state.effects = [];
+  current = { ...task };
+  context = {
+    accountId: 'account',
+    submit: vi.fn(),
+    confirm: vi.fn(),
+    onNotice: vi.fn(),
+    onChanged: vi.fn(),
+    onRepeat: vi.fn(),
+    onReopen: vi.fn(),
+    onTaskDeleted: vi.fn(),
+    onListDeleteReady: vi.fn(),
+  };
+  state.read.mockReset().mockImplementation(async (path: string) =>
+    path.endsWith('/consequences')
+      ? {
+          taskId: current.id,
+          revision: current.revision,
+          coverageComplete: true,
+          openSubtaskCount: 0,
+          openBlockerCount: 0,
+          openBlockedSubtaskCount: 0,
+          unknownBlockerCount: 0,
+        }
+      : { ...current },
+  );
+  state.submit.mockReset().mockImplementation(async (command) => {
+    current = {
+      ...current,
+      revision: current.revision + 1,
+      ...(command.kind === 'task.patch'
+        ? command.patch
+        : { completed: command.kind === 'task.complete' }),
+    };
+    return { id: 'quick-receipt', state: 'succeeded' };
+  });
+});
+
+describe('queued task actions', () => {
+  it('reads the revision produced by the preceding star before capturing completion', async () => {
+    let finish!: () => void;
+    const blocked = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    const save = state.submit.getMockImplementation()!;
+    state.submit.mockImplementationOnce(async (...args) => {
+      await blocked;
+      return save(...args);
+    });
+    const actions = render();
+    const star = actions.toggleStar(task, true);
+    const completion = actions.toggleComplete(task, true);
+    const unstar = actions.toggleStar(task, false);
+    await vi.waitFor(() => expect(state.submit).toHaveBeenCalledOnce());
+    expect(state.read).toHaveBeenCalledOnce();
+    expect(render().busy).toBe(true);
+    finish();
+    expect(await Promise.all([star, completion, unstar])).toEqual([true, true, true]);
+    expect(state.submit.mock.calls.map(([command]) => command)).toEqual([
+      { kind: 'task.patch', taskId: 'task', expectedRevision: 7, patch: { starred: true } },
+      { kind: 'task.complete', taskId: 'task', revision: 8, confirmOpenSubtaskCount: 0 },
+      { kind: 'task.patch', taskId: 'task', expectedRevision: 9, patch: { starred: false } },
+    ]);
+    expect(current).toMatchObject({ revision: 10, starred: false, completed: true });
+    expect(context.submit).not.toHaveBeenCalled();
+    expect(render().busy).toBe(false);
+  });
+
+  it('preserves the receipt and rolls back dependent queued intents after uncertainty', async () => {
+    state.submit.mockResolvedValue({ id: 'quick-receipt', state: 'uncertain', error: null });
+    const actions = render();
+    expect(
+      await Promise.all([actions.toggleStar(task, true), actions.toggleComplete(task, true)]),
+    ).toEqual([false, false]);
+    expect(state.submit).toHaveBeenCalledOnce();
+    expect(context.onNotice).toHaveBeenCalledWith(
+      expect.stringContaining('check its save'),
+      'quick-receipt',
+    );
+    expect(context.onChanged).toHaveBeenCalled();
+  });
+
+  it('refreshes a stale row after a queued action is already satisfied without another write', async () => {
+    current.starred = true;
+    expect(await render().toggleStar(task, true)).toBe(true);
+    expect(state.submit).not.toHaveBeenCalled();
+    expect(context.onChanged).toHaveBeenCalledOnce();
+  });
+
+  it('does not dispatch a stale account read after cleanup and strict-mode replay', async () => {
+    let finish!: (value: Task) => void;
+    state.read.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const actions = render();
+    const effect = state.effects[0]!;
+    const cleanup = effect()!;
+    const saving = actions.toggleStar(task, true);
+    cleanup();
+    effect();
+    finish(task);
+    expect(await saving).toBe(false);
+    expect(state.submit).not.toHaveBeenCalled();
+    expect(await render().toggleStar({ ...task, accountId: 'other' }, true)).toBe(false);
+    expect(await render().toggleStar(task, true)).toBe(true);
+  });
+});

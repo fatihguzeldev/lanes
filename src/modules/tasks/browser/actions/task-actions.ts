@@ -13,7 +13,7 @@ export interface TaskActionContext {
   accountId: string;
   submit: (command: unknown, category: 'local' | 'provider', identity?: string) => Promise<boolean>;
   confirm: (choice: ConfirmationChoice) => void;
-  onNotice: (message: string) => void;
+  onNotice: (message: string, operationId?: string | null) => void;
   onChanged: () => void;
   onRepeat: () => Promise<unknown>;
   onReopen: (selection: { task: Task; preview: ReopenPreview }) => void;
