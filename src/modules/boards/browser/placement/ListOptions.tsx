@@ -97,7 +97,7 @@ export function ListOptions({
             });
           }}
         >
-          <Icon name="leaf" size={16} />
+          <Icon name="palette" size={16} />
           color
         </button>
         <Submenu
