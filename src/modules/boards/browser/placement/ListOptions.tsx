@@ -154,6 +154,7 @@ export function ListOptions({
             });
           }}
         >
+          <Icon name="left" size={16} />
           move column left
         </button>
         <button
@@ -175,6 +176,7 @@ export function ListOptions({
             });
           }}
         >
+          <Icon name="right" size={16} />
           move column right
         </button>
         <button
