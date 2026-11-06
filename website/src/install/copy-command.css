@@ -23,7 +23,7 @@
   user-select: all;
 }
 
-.copy-command__button {
+.install-copy-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -35,7 +35,7 @@
   border: 1px solid var(--color-host-line);
   border-radius: 7px;
   background: var(--color-transparent);
-  color: var(--color-host-paper);
+  color: inherit;
   font-size: 13px;
   line-height: 1;
   transition:
@@ -43,22 +43,22 @@
     transform 150ms ease-out;
 }
 
-.copy-command__button svg {
+.install-copy-button svg {
   width: 17px;
   height: 17px;
 }
 
-.copy-command__button:focus-visible {
-  outline: 2px solid var(--color-host-paper);
+.install-copy-button:focus-visible {
+  outline: 2px solid currentColor;
   outline-offset: 4px;
 }
 
-.copy-command__button:disabled {
+.install-copy-button:disabled {
   cursor: wait;
   opacity: 0.65;
 }
 
-.copy-command__status {
+.install-copy-status {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -69,19 +69,19 @@
 }
 
 @media (hover: hover) {
-  .copy-command__button:not(:disabled):hover {
-    background: var(--color-field-deep);
+  .install-copy-button:not(:disabled):hover {
+    opacity: 0.8;
   }
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .copy-command__button:not(:disabled):active {
+  .install-copy-button:not(:disabled):active {
     transform: scale(0.96);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .copy-command__button {
+  .install-copy-button {
     transition: none;
   }
 }
@@ -94,7 +94,7 @@
     padding: 16px;
   }
 
-  .copy-command__button {
+  .copy-command > .install-copy-button {
     align-self: flex-end;
   }
 }
