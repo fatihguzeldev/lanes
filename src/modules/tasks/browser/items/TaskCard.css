@@ -21,7 +21,7 @@
   transition: background 130ms ease;
 }
 .task-card:hover::before,
-.task-card:focus-within::before {
+.task-card:has(:focus-visible:not([data-pointer-focus]))::before {
   background: var(--paper-hover);
 }
 .task-card__main {
@@ -125,9 +125,13 @@
   opacity: 0;
 }
 .task-card__main:hover .task-card__actions :is(.task-card__menu, .task-star-button),
-.task-card__main:focus-within .task-card__actions :is(.task-card__menu, .task-star-button),
+.task-card__main:has(:focus-visible:not([data-pointer-focus]))
+  .task-card__actions
+  :is(.task-card__menu, .task-star-button),
 .task-card__child:hover > .task-card__actions :is(.task-card__menu, .task-star-button),
-.task-card__child:focus-within > .task-card__actions :is(.task-card__menu, .task-star-button),
+.task-card__child:has(:focus-visible:not([data-pointer-focus]))
+  > .task-card__actions
+  :is(.task-card__menu, .task-star-button),
 .task-card__actions .task-star-button[aria-pressed='true'] {
   opacity: 1;
   color: var(--green);
