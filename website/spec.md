@@ -47,7 +47,7 @@ npm run check
 
 ## implementation
 
-use the existing react, typescript, vite and vitest dependencies. use semantic html and native controls before abstractions. for example, a demo task uses `<button type="button" aria-pressed={completed}>` with a visible task name. colors and fonts come from site tokens; component styles remain local.
+use the existing react, typescript, vite and vitest dependencies. use semantic html and native controls before abstractions. for example, a demo task uses a labelled `<input type="checkbox" checked={completed}>` with a visible task name. colors and fonts come from site tokens; component styles remain local.
 
 ## verification
 

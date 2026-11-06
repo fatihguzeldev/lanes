@@ -20,6 +20,6 @@ development uses `http://127.0.0.1:5174`; preview serves the production build at
 
 `src/` owns the introduction, product demonstrations, github link, and maker footer. demonstrations use sample content and do not access a visitor's tasks. `public/` contains the site's independently served assets, including the existing lanes mark and licensed dm sans font.
 
-the site and personal lanes instance deploy independently. building or deploying the workspace application does not build or serve the website. the website needs only its static build output; it does not need the application's private deployment configuration.
+the site and personal lanes instance deploy independently. the application never serves or deploys the website output. full repository checks build both entries, including checks run before an application deployment. the website needs only its static build output; it does not need the application's private deployment configuration.
 
 see [the website spec](spec.md) for behavior and acceptance criteria.
