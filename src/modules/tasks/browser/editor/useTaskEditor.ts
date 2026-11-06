@@ -18,9 +18,11 @@ export function useTaskEditor(
   const savingNow = useRef(saves);
   const nextId = useRef(0);
   const intent = useRef(0);
+  const afterCapture = useRef<{ id: number; action(): void } | null>(null);
   const current = useRef(session);
   current.current = session;
   const select = (next: EditorSelection) => {
+    afterCapture.current = null;
     const selected = { id: ++nextId.current, selection: next };
     current.current = selected;
     setSession(selected);
@@ -48,6 +50,7 @@ export function useTaskEditor(
   };
   const dismiss = (id: number | undefined) => {
     if (current.current?.id !== id) return;
+    afterCapture.current = null;
     current.current = null;
     setSession(null);
     dirtyNow.current = false;
@@ -60,10 +63,28 @@ export function useTaskEditor(
     saving: saves.size > 0,
     isDirty: () => dirtyNow.current,
     isSaving: () => savingNow.current.size > 0,
+    deferCreateExit(action: () => void) {
+      const selected = current.current;
+      if (
+        !selected?.selection.inlineCreate ||
+        !dirtyNow.current ||
+        !savingNow.current.has(selected.id)
+      )
+        return false;
+      afterCapture.current = { id: selected.id, action };
+      return true;
+    },
     setDirty(value: boolean, id = current.current?.id) {
       if (current.current?.id === id) {
         dirtyNow.current = value;
         changeDirty(value);
+        const deferred = afterCapture.current;
+        if (!value && deferred && deferred.id === id) {
+          afterCapture.current = null;
+          queueMicrotask(() => {
+            if (nextId.current === id && !dirtyNow.current) deferred.action();
+          });
+        }
       }
     },
     setSaving(id: number, busy: boolean) {
@@ -73,6 +94,7 @@ export function useTaskEditor(
       else next.delete(id);
       savingNow.current = next;
       setSaves(next);
+      if (!busy && dirtyNow.current && afterCapture.current?.id === id) afterCapture.current = null;
     },
     open(task: Task, loaded?: EditorLocation) {
       resolve(
@@ -89,6 +111,10 @@ export function useTaskEditor(
         (location) => select({ task: null, ...location, initialDay }),
         'the selected list could not be opened.',
       );
+    },
+    createInline(location: EditorLocation) {
+      intent.current++;
+      select({ task: null, ...location, inlineCreate: true });
     },
     createSubtask(task: Task) {
       const selection = current.current?.selection;

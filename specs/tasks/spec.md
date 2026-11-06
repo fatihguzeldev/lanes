@@ -17,7 +17,7 @@ lanes metadata is stored separately from task notes. do not insert hidden syntax
 
 ## create and edit
 
-create ordinary tasks inline in their destination list. a title and enter are sufficient; successful creation leaves the input ready for another task. escape closes the input without silently discarding an unsent draft. additional fields belong to task details. there is no global create action that silently chooses a list.
+the list's add-a-task action opens a new row with its task editor already expanded: focus the empty title and expose notes and optional detail controls in the same place. it has no separate approval button. enter in the title, its close control, or an outside click submits a nonblank draft once and closes after admission captures its receipt. a pristine empty entry closes without creating a task; escape cancels an unsubmitted creation draft. validation or failed admission keeps the draft available for correction. nested menus and dialogs remain part of the editor. there is no global create action that silently chooses a list.
 
 open a task in its row, with its title selected for editing and notes immediately available. schedule, metadata, dependencies, and checklist controls reveal their own fields when requested. keep a retained non-modal editor when its card is outside the current view; changing presentation must not remount its draft or abandon a submitted save. closing or navigating away still applies the unsent-draft guard.
 
@@ -136,3 +136,4 @@ validation leaves the draft intact. stale revision conflicts offer refresh and e
 
 - `tasks-14`: opening task details edits the existing row without a modal. optional fields appear on request; failed saves keep the same draft, including when its card leaves the visible collection.
 - `tasks-15`: outside dismissal preserves the unsent-draft guard and nested menus; an admitted hidden save continues independently without closing or clearing a newer editor.
+- `tasks-16`: adding a task opens its full editor in the list, without an approval control. enter or leaving captures one creation with all chosen fields; empty entries make no request, invalid input survives, and failed admission cannot lose its draft to the same outside navigation.

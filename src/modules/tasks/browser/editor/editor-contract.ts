@@ -9,6 +9,7 @@ export interface EditorLocation {
 }
 export interface EditorSelection extends EditorLocation {
   task: Task | null;
+  inlineCreate?: boolean;
   initialDay?: string | null;
   parent?: Task | null;
 }
@@ -33,6 +34,7 @@ export interface TaskEditorProps {
   accountId: string;
   accountLabel?: string;
   task: Task | null;
+  inlineCreate?: boolean;
   list: TaskList;
   labels: readonly Label[];
   relatedTasks: readonly Task[];

@@ -27,6 +27,7 @@ import { TaskDependants } from './TaskDependants';
 import { Select } from '../../../../shared/ui/select/Select';
 import { Tooltip } from '../../../../shared/ui/tooltip/Tooltip';
 import { useOutsideDismiss } from '../../../../shared/ui/dismiss/useOutsideDismiss';
+import { useTaskCreateExit } from './useTaskCreateExit';
 import './TaskEditor.css';
 
 const title = (task: Task) => task.title.trim() || 'untitled task';
@@ -79,7 +80,7 @@ function EditorForm(props: TaskEditorProps) {
   >(null);
   const task = snapshot.task,
     pending = props.pending ?? false;
-  useOutsideDismiss(surface, props.onClose, { enabled: !pending || !!props.submitted });
+  const inlineCreate = !!props.inlineCreate && !task;
   const dirty = editorDraftIsDirty(draft, task, options);
   const contextChanged =
     props.accountId !== snapshot.accountId ||
@@ -225,26 +226,25 @@ function EditorForm(props: TaskEditorProps) {
     }));
   const invalid = (field: string) => !!errors[field];
   const inputId = (field: string) => `${uid}-${field}`;
-  function submit(event: FormEvent) {
-    event.preventDefault();
-    if (pending || contextChanged) return;
+  function commit() {
+    if (pending || contextChanged || (inlineCreate && !saveEnabled)) return false;
     const prepared = prepareEditorSubmission(draft, { ...options, task });
     if (!prepared.ok) {
       setLocalErrors(prepared.fields);
-      return;
+      return false;
     }
     if (clearingSchedule && !clearConfirmed) {
       setLocalErrors({
         scheduledDay: 'confirm that removing the day also clears its time and repeat rule',
       });
-      return;
+      return false;
     }
-    if (prepared.kind === 'unchanged') return;
+    if (prepared.kind === 'unchanged') return false;
     if (prepared.kind === 'create') {
-      if (!providerEnabled || !localEnabled || !createParentValid) return;
+      if (!providerEnabled || !localEnabled || !createParentValid) return false;
       if (prepared.input.blockedBy.length && snapshot.graphRevision === undefined) {
         setLocalErrors({ blockedBy: 'load the dependency graph before creating these blockers' });
-        return;
+        return false;
       }
       props.onCreate({
         accountId: snapshot.accountId,
@@ -257,10 +257,10 @@ function EditorForm(props: TaskEditorProps) {
     } else {
       const hasProvider = providerFields.some((field) => field in prepared.patch),
         hasLocal = Object.keys(prepared.patch).some((field) => !providerFields.includes(field));
-      if ((hasProvider && !providerEnabled) || (hasLocal && !localEnabled) || !task) return;
+      if ((hasProvider && !providerEnabled) || (hasLocal && !localEnabled) || !task) return false;
       if (prepared.patch.blockedBy !== undefined && snapshot.graphRevision === undefined) {
         setLocalErrors({ blockedBy: 'load the dependency graph before saving these blockers' });
-        return;
+        return false;
       }
       props.onSave({
         accountId: snapshot.accountId,
@@ -273,6 +273,22 @@ function EditorForm(props: TaskEditorProps) {
         patch: prepared.patch,
       });
     }
+    return true;
+  }
+  const requestClose = useTaskCreateExit({
+    enabled: inlineCreate,
+    dirty,
+    pending,
+    submitted: !!props.submitted,
+    failed: !!props.error,
+    onSubmit: commit,
+    onClose: props.onClose,
+  });
+  useOutsideDismiss(surface, requestClose, { enabled: !pending || !!props.submitted });
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    if (inlineCreate) requestClose();
+    else commit();
   }
   function reapply() {
     if (!task || !latest || pending) return;
@@ -313,7 +329,7 @@ function EditorForm(props: TaskEditorProps) {
               type="button"
               className="task-editor__close"
               aria-label="close task"
-              onClick={props.onClose}
+              onClick={requestClose}
               disabled={pending && !props.submitted}
             >
               <Icon name="close" size={14} />
@@ -336,7 +352,7 @@ function EditorForm(props: TaskEditorProps) {
             open the task again.
           </p>
         )}
-        {props.submitted && !props.error && (
+        {!inlineCreate && props.submitted && !props.error && (
           <p className="task-editor__notice" role="status">
             saving…
           </p>
@@ -392,6 +408,7 @@ function EditorForm(props: TaskEditorProps) {
             </button>
           </Tooltip>
         )}
+        {inlineCreate && <span className="task-editor__completion" aria-hidden="true" />}
         <label className="sr-only" htmlFor={inputId('title')}>
           task title
         </label>
@@ -702,36 +719,40 @@ function EditorForm(props: TaskEditorProps) {
             </button>
           </div>
         )}
-        <footer className="task-editor__footer">
-          <div className="task-editor__lifecycle">
-            {task && props.onDelete && (
-              <Tooltip label="delete task">
-                <button
-                  type="button"
-                  className="task-editor__delete"
-                  aria-label="delete task"
-                  disabled={!props.providerWritesEnabled || pending || !task.capabilities.canDelete}
-                  onClick={() => props.onDelete?.(task)}
-                >
-                  <Icon name="trash" size={15} />
-                </button>
-              </Tooltip>
-            )}
-          </div>
-          <button
-            type="button"
-            className="task-editor__cancel"
-            onClick={props.onClose}
-            disabled={pending && !props.submitted}
-          >
-            {props.submitted ? 'close' : 'cancel'}
-          </button>
-          <button type="submit" className="task-editor__save" disabled={!saveEnabled}>
-            {pending ? 'saving…' : task ? 'save' : 'add task'}
-            {!pending && <Icon name="arrow" size={14} />}
-          </button>
-        </footer>
-        {(pending || (!props.providerWritesEnabled && providerChanges)) && (
+        {!inlineCreate && (
+          <footer className="task-editor__footer">
+            <div className="task-editor__lifecycle">
+              {task && props.onDelete && (
+                <Tooltip label="delete task">
+                  <button
+                    type="button"
+                    className="task-editor__delete"
+                    aria-label="delete task"
+                    disabled={
+                      !props.providerWritesEnabled || pending || !task.capabilities.canDelete
+                    }
+                    onClick={() => props.onDelete?.(task)}
+                  >
+                    <Icon name="trash" size={15} />
+                  </button>
+                </Tooltip>
+              )}
+            </div>
+            <button
+              type="button"
+              className="task-editor__cancel"
+              onClick={props.onClose}
+              disabled={pending && !props.submitted}
+            >
+              {props.submitted ? 'close' : 'cancel'}
+            </button>
+            <button type="submit" className="task-editor__save" disabled={!saveEnabled}>
+              {pending ? 'saving…' : task ? 'save' : 'add task'}
+              {!pending && <Icon name="arrow" size={14} />}
+            </button>
+          </footer>
+        )}
+        {!inlineCreate && (pending || (!props.providerWritesEnabled && providerChanges)) && (
           <p className="task-editor__save-note" role="status">
             {pending
               ? 'saving your changes… your draft stays here.'

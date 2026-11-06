@@ -97,6 +97,14 @@ describe('direct task editing', () => {
     expect(html).toContain('take notes');
     expect(html).toContain('your draft is still here. the task changed');
   });
+  it('opens a new inline task with its details available and no approval footer', () => {
+    const html = render({ task: null, inlineCreate: true });
+    expect(html).toContain('aria-label="new task"');
+    expect(html).toContain('placeholder="details"');
+    expect(html).toContain('aria-label="schedule"');
+    expect(html).not.toContain('task-editor__footer');
+    expect(html).not.toContain('type="submit"');
+  });
   it('keeps subtask scope clear without offering a nested checklist', () => {
     const html = render({ task: { ...task, parentId: 'parent' } });
     expect(html).not.toContain('aria-label="checklist"');

@@ -352,6 +352,7 @@ export function TaskEditorWorkspace({
         accountId={account.id}
         accountLabel={account.email}
         task={latest}
+        {...(selection.inlineCreate ? { inlineCreate: true } : {})}
         list={selection.list}
         labels={labels}
         relatedTasks={related}

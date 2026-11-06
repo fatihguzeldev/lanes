@@ -262,6 +262,7 @@ export function Workspace({
   });
   const guard = useCallback(
     (action: () => void) => {
+      if (taskEditor.deferCreateExit(action)) return;
       if (taskEditor.isDirty() || templateDirty || transferDirty || inlineDirty)
         setDiscard(() => action);
       else action();

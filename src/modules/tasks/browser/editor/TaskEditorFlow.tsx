@@ -77,11 +77,10 @@ export function TaskEditorFlow({
           version={version}
           clockOffset={clockOffset}
           onChanged={onChanged}
-          onClose={() =>
-            guard(() => {
-              controller.close(id);
-            })
-          }
+          onClose={() => {
+            if (editor.inlineCreate) controller.close(id);
+            else guard(() => controller.close(id));
+          }}
           onSaved={() => {
             controller.closeSaved(id);
             retire(id);

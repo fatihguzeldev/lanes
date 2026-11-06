@@ -110,6 +110,36 @@ describe('task editor session ownership', () => {
     expect(current.isSaving()).toBe(false);
   });
 
+  it('continues an outside navigation after an inline create has captured its receipt', async () => {
+    render().createInline(location);
+    const current = render();
+    const id = current.session!.id;
+    current.setDirty(true);
+    current.setSaving(id, true);
+    const navigate = vi.fn();
+    expect(current.deferCreateExit(navigate)).toBe(true);
+    expect(navigate).not.toHaveBeenCalled();
+    current.setDirty(false);
+    current.close(id);
+    await Promise.resolve();
+    expect(navigate).toHaveBeenCalledOnce();
+  });
+
+  it('keeps an unadmitted failed create and drops its deferred navigation', async () => {
+    render().createInline(location);
+    const current = render();
+    const id = current.session!.id;
+    current.setDirty(true);
+    current.setSaving(id, true);
+    const navigate = vi.fn();
+    current.deferCreateExit(navigate);
+    current.setSaving(id, false);
+    current.setDirty(false);
+    await Promise.resolve();
+    expect(navigate).not.toHaveBeenCalled();
+    expect(render().selection?.inlineCreate).toBe(true);
+  });
+
   it('does not replace a newer dirty editor when an older location lookup finishes', async () => {
     let resolve!: (value: EditorLocation) => void;
     readLocation.mockImplementation(() => new Promise((done) => (resolve = done)));
