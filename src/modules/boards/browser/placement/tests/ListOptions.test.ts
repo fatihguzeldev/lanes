@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react';
-import { createElement } from 'react';
+import { Children, createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import { ListOptions } from '../ListOptions';
@@ -28,6 +28,13 @@ function props() {
   return {
     list,
     boards,
+    boardPage: {
+      nextCursor: null as string | null,
+      status: 'ready' as 'loading' | 'ready' | 'error',
+      error: '',
+      loadMore: vi.fn(async () => {}),
+      reload: vi.fn(async () => {}),
+    },
     lists: [list],
     anchor: {} as HTMLElement,
     loadedListCount: 1,
@@ -60,7 +67,7 @@ describe('list destination submenu', () => {
 
   it('preserves account scope and skips the current board', () => {
     const menu = destination(props());
-    const choices = menu.props.children as UI[];
+    const choices = Children.toArray(menu.props.children) as UI[];
     expect(choices).toHaveLength(2);
     expect(choices[0]!.props.disabled).toBe(true);
     expect(choices[1]!.props.disabled).toBe(false);
@@ -71,7 +78,7 @@ describe('list destination submenu', () => {
 
   it('submits a revision-guarded placement and dismisses only when confirmed', async () => {
     const options = props();
-    const choices = destination(options).props.children as UI[];
+    const choices = Children.toArray(destination(options).props.children) as UI[];
     choices[1]!.props.onClick();
     expect(options.submit).toHaveBeenCalledWith({
       kind: 'list.placement',
@@ -86,5 +93,27 @@ describe('list destination submenu', () => {
     choices[1]!.props.onClick();
     await Promise.resolve();
     expect(options.onClose).not.toHaveBeenCalled();
+  });
+
+  it('keeps the existing board paging and retry controls inside the destination menu', () => {
+    const options = props();
+    options.boardPage.nextCursor = 'next-board-page';
+    let choices = Children.toArray(destination(options).props.children) as UI[];
+    const more = choices.find((item) => item.props['aria-label'] === 'more boards');
+    expect(more).toBeDefined();
+    more!.props.onClick();
+    expect(options.boardPage.loadMore).toHaveBeenCalledOnce();
+
+    options.boardPage.status = 'loading';
+    choices = Children.toArray(destination(options).props.children) as UI[];
+    expect(choices.find((item) => item.props['aria-label'] === 'more boards')!.props.disabled).toBe(
+      true,
+    );
+
+    options.boardPage.status = 'error';
+    options.boardPage.error = 'could not read boards';
+    choices = Children.toArray(destination(options).props.children) as UI[];
+    choices.find((item) => item.props['aria-label'] === 'retry boards')!.props.onClick();
+    expect(options.boardPage.reload).toHaveBeenCalledOnce();
   });
 });

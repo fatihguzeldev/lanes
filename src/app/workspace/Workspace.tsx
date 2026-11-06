@@ -743,6 +743,7 @@ export function Workspace({
         account={account}
         board={displayedBoard}
         boards={displayedBoards}
+        boardPage={boards}
         lists={displayedLists}
         clockOffset={clockOffset}
         preferences={viewPreferences}

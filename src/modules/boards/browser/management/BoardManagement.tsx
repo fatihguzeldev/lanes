@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ComponentProps } from 'react';
 import type { ConnectionSummary } from '../../../accounts/contracts/connection';
 import type { Task, TaskList } from '../../../tasks/contracts/task';
 import type { Board, BoardList } from '../../contracts/board';
@@ -110,6 +110,7 @@ interface Props {
   account: ConnectionSummary;
   board: Board | null;
   boards: readonly Board[];
+  boardPage: ComponentProps<typeof ListOptions>['boardPage'];
   lists: readonly BoardList[];
   clockOffset: number;
   preferences: BoardViewPreferences;
@@ -136,6 +137,7 @@ export function BoardManagement({
   account,
   board,
   boards,
+  boardPage,
   lists,
   clockOffset,
   preferences,
@@ -218,6 +220,7 @@ export function BoardManagement({
           list={lists.find((list) => list.id === listMenu.id) ?? listMenu}
           anchor={listMenuAnchor}
           boards={boards}
+          boardPage={boardPage}
           lists={lists}
           loadedListCount={loadedListCount}
           writable={writable && !busy && !controller.appearance.pending}

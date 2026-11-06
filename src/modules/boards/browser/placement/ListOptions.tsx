@@ -5,12 +5,17 @@ import { ColorPicker, ColorPreview } from '../../../../shared/ui/color-picker/Co
 import { Icon } from '../../../../shared/ui/icon/Icon';
 import { AnchoredPopover } from '../../../../shared/ui/popover/Popover';
 import { Submenu } from '../../../../shared/ui/submenu/Submenu';
+import type { useBoardData } from '../navigation/useBoardData';
 import './ListOptions.css';
 
 interface Props {
   list: BoardList;
   anchor: HTMLElement;
   boards: readonly Board[];
+  boardPage: Pick<
+    ReturnType<typeof useBoardData>['boards'],
+    'nextCursor' | 'status' | 'error' | 'loadMore' | 'reload'
+  >;
   lists: readonly BoardList[];
   loadedListCount: number;
   writable: boolean;
@@ -31,6 +36,7 @@ export function ListOptions({
   list: selectedList,
   anchor,
   boards,
+  boardPage,
   lists,
   loadedListCount,
   writable,
@@ -138,6 +144,27 @@ export function ListOptions({
                 {item.id === selectedList.boardId && <Icon name="check" size={14} />}
               </button>
             ))}
+          {!!boardPage.error && (
+            <button
+              type="button"
+              className="popover__item"
+              aria-label="retry boards"
+              onClick={() => void boardPage.reload()}
+            >
+              retry boards
+            </button>
+          )}
+          {boardPage.nextCursor && (
+            <button
+              type="button"
+              className="popover__item"
+              aria-label="more boards"
+              disabled={boardPage.status === 'loading'}
+              onClick={() => void boardPage.loadMore()}
+            >
+              more boards <Icon name="down" size={13} />
+            </button>
+          )}
         </Submenu>
         <button
           type="button"
