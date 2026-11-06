@@ -168,6 +168,85 @@ describe('seeded owner session', () => {
       '/api/session',
     ]);
   });
+  it('removes a non-selected account when a complete session refresh no longer contains it', async () => {
+    const seed = snapshot([first, second]);
+    vi.mocked(request).mockResolvedValue(snapshot([first]));
+    await render(seed).load();
+    const owner = render(seed);
+    expect(owner.selected?.id).toBe(first.id);
+    expect(owner.session?.accounts?.items).toEqual([first]);
+  });
+  it('keeps previously loaded later pages when the refreshed first page is still partial', async () => {
+    const seed = snapshot([first, second], 'more');
+    const refreshed = { ...first, displayName: 'updated first', revision: 2 };
+    vi.mocked(request).mockResolvedValue(snapshot([refreshed], 'more'));
+    await render(seed).load();
+    expect(render(seed).session?.accounts?.items).toEqual([refreshed, second]);
+  });
+  it('ignores a stale account page after an authoritative session refresh', async () => {
+    const seed = snapshot([first], 'more');
+    let finish!: (page: NonNullable<SessionSnapshot['accounts']>) => void;
+    vi.mocked(request).mockImplementation((path) =>
+      path.startsWith('/api/accounts?')
+        ? new Promise((resolve) => {
+            finish = resolve;
+          })
+        : Promise.resolve(snapshot([first])),
+    );
+    const owner = render(seed);
+    owner.loadMoreAccounts();
+    await owner.load();
+    finish(snapshot([second]).accounts!);
+    await settle();
+    expect(render(seed).session?.accounts?.items).toEqual([first]);
+    expect(vi.mocked(request).mock.calls[0]?.[2]?.signal?.aborted).toBe(true);
+  });
+  it('coalesces repeated requests for the same pending account page', async () => {
+    const seed = snapshot([first], 'more');
+    let finish!: (page: NonNullable<SessionSnapshot['accounts']>) => void;
+    vi.mocked(request).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const owner = render(seed);
+    owner.loadMoreAccounts();
+    owner.loadMoreAccounts();
+    expect(request).toHaveBeenCalledOnce();
+    finish(snapshot([second]).accounts!);
+    await settle();
+    expect(render(seed).session?.accounts?.items).toEqual([first, second]);
+  });
+  it('does not open an old account page while its session refresh is pending', async () => {
+    const seed = snapshot([first], 'more');
+    let finish!: (next: SessionSnapshot) => void;
+    vi.mocked(request).mockImplementation((path) =>
+      path === '/api/session'
+        ? new Promise((resolve) => {
+            finish = resolve;
+          })
+        : Promise.resolve(snapshot([second]).accounts!),
+    );
+    const owner = render(seed);
+    const loading = owner.load();
+    owner.loadMoreAccounts();
+    finish(snapshot([first]));
+    await loading;
+    await settle();
+    expect(vi.mocked(request).mock.calls.map(([path]) => path)).toEqual(['/api/session']);
+    expect(render(seed).session?.accounts?.items).toEqual([first]);
+  });
+  it('allows account pagination again once the current session refresh has settled', async () => {
+    const seed = snapshot([first], 'more');
+    vi.mocked(request).mockImplementation(async (path) =>
+      path === '/api/session' ? seed : snapshot([second]).accounts!,
+    );
+    await render(seed).load();
+    render(seed).loadMoreAccounts();
+    await settle();
+    expect(render(seed).session?.accounts?.items).toEqual([first, second]);
+  });
   it('keeps a server entry error visible until explicit retry', async () => {
     vi.mocked(request).mockResolvedValue(anonymous);
     const owner = render(null, 'try again');

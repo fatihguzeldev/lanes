@@ -45,10 +45,13 @@ export function useOwnerSession(
   selectedAccountId.current = accountId;
   const channel = useRef<BroadcastChannel | null>(null);
   const sessionFlight = useRef<AbortController | null>(null);
+  const pageFlight = useRef<AbortController | null>(null);
   const [clockOffset, setClockOffset] = useState(() =>
     initialSession ? documentClockOffset(initialSession.serverTime) : 0,
   );
   const load = useCallback(async (snapshot?: SessionSnapshot) => {
+    pageFlight.current?.abort();
+    pageFlight.current = null;
     sessionFlight.current?.abort();
     const flight = new AbortController();
     sessionFlight.current = flight;
@@ -93,7 +96,11 @@ export function useOwnerSession(
       }
       setClockOffset(offset);
       setSession((previous) =>
-        next.authenticated && next.accounts && previous?.authenticated && previous.accounts
+        next.authenticated &&
+        next.accounts &&
+        next.accounts.nextCursor !== null &&
+        previous?.authenticated &&
+        previous.accounts
           ? {
               ...next,
               accounts: {
@@ -113,6 +120,8 @@ export function useOwnerSession(
     } catch (error) {
       if (!flight.signal.aborted)
         setError(error instanceof Error ? error.message : 'lanes could not load this workspace.');
+    } finally {
+      if (sessionFlight.current === flight) sessionFlight.current = null;
     }
   }, []);
   useEffect(() => {
@@ -131,6 +140,8 @@ export function useOwnerSession(
   }, [load, accountId, initialSession, initialError]);
   useEffect(() => {
     const clearPrivate = () => {
+      pageFlight.current?.abort();
+      pageFlight.current = null;
       sessionFlight.current?.abort();
       setSession(null);
       clearAccountInitial();
@@ -158,6 +169,8 @@ export function useOwnerSession(
       };
     }
     return () => {
+      pageFlight.current?.abort();
+      pageFlight.current = null;
       window.removeEventListener('lanes.session-expired', expired);
       channel.current?.close();
       channel.current = null;
@@ -226,14 +239,17 @@ export function useOwnerSession(
     session?.accounts?.items.find((account) => account.id === accountId) ??
     (accountId && session?.accounts?.nextCursor ? undefined : session?.accounts?.items[0]);
   const loadMoreAccounts = () => {
-    if (!session?.accounts?.nextCursor) return;
+    if (!session?.accounts?.nextCursor || sessionFlight.current || pageFlight.current) return;
+    const flight = new AbortController();
+    pageFlight.current = flight;
     void request(
       '/api/accounts?cursor=' + encodeURIComponent(session.accounts!.nextCursor!),
       AccountPageSchema,
+      { signal: flight.signal },
     )
       .then((page) =>
         setSession((previous) =>
-          previous?.accounts
+          !flight.signal.aborted && previous?.accounts
             ? {
                 ...previous,
                 accounts: {
@@ -251,9 +267,13 @@ export function useOwnerSession(
             : previous,
         ),
       )
-      .catch((error) =>
-        setError(error instanceof Error ? error.message : 'accounts could not load.'),
-      );
+      .catch((error) => {
+        if (!flight.signal.aborted)
+          setError(error instanceof Error ? error.message : 'accounts could not load.');
+      })
+      .finally(() => {
+        if (pageFlight.current === flight) pageFlight.current = null;
+      });
   };
   const dismissError = () => {
     setError('');
