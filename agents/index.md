@@ -11,3 +11,4 @@
 | [self-hosting](self-hosting.md) | account requirements, deployment, google permissions, configuration, and updates                            |
 | [contributing](contributing.md) | focused changes, pull requests, and review                                                                  |
 | [security](security.md)         | owner access, connected accounts, credentials, external data, and private reporting                         |
+| [website](../website/README.md) | public introduction, independent static build, local preview, and website ownership                         |

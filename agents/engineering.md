@@ -22,9 +22,13 @@ prefer the platform and the dependencies already in use. a new dependency should
 
 avoid speculative provider frameworks, event buses, package splits, and abstractions with no current consumer.
 
+## public website
+
+`website/` owns the public introduction and its browser-only demonstrations. it has an independent vite configuration and static build, sharing root package dependencies without importing application modules or worker code. see [the website guide](../website/README.md) for commands and deployment boundaries.
+
 ## verification
 
-`npm run check` runs formatting, type checking, ownership checks, tests, and the production build. `npm run format` applies the repository's prettier configuration. keep generated files and byte-sensitive fixtures out of formatting changes.
+`npm run check` runs formatting, type checking, ownership checks, tests, and the application and website production builds. `npm run format` applies the repository's prettier configuration. keep generated files and byte-sensitive fixtures out of formatting changes.
 
 choose checks for the behavior at risk:
 
