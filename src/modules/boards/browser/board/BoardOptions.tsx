@@ -85,6 +85,8 @@ export function BoardOptions({
         >
           <Icon name="history" size={15} /> history
         </button>
+      </div>
+      <div className="popover__menu board-options__section">
         <button
           type="button"
           className="popover__item"
