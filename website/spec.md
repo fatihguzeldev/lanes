@@ -2,52 +2,41 @@
 
 ## purpose
 
-introduce lanes as an open-source, self-hosted workspace for google tasks. help a visitor understand the workspace and reach the repository's self-hosting guide. the public site is intended for `lanes.fatihguzel.dev`; a personal installation is separate.
+introduce lanes as an open-source, self-hosted workspace for google tasks. help a visitor understand the product and reach the repository's self-hosting guide. the public site is intended for `lanes.fatihguzel.dev`; the personal installation is separate and is never linked as a public service.
 
 ## ownership
 
-`website/` owns a static react entry, local presentation and motion, sample product demonstrations, a public github star link, and a maker footer. it shares the root dependency installation and imports no application, worker, database, session, or google credential code. application builds and deployments remain independent.
+`website/` owns a static react entry, presentation, local product demonstrations, the public github star link and maker footer. it shares the root dependency installation and imports no application, worker, database, session or google credential code. application builds and deployments remain independent.
 
-```text
-website/
-  index.html
-  public/
-  src/
-    demo/
-    github/
-    main.tsx
-  vite.config.ts
-  tsconfig.json
-```
+styles, behavior and tests stay beside their owner. shared site tokens carry dm sans, the existing tilted three-lane mark, forest green and a light sage ground. product previews keep lanes' neutral surfaces, compact type, icons, colored labels and inline editing treatment.
 
-styles, local behavior and tests stay beside the component that owns them. shared site tokens carry the existing dm sans font, warm neutral surfaces, green accents and tilted three-lane mark.
+## page
 
-the page uses an open, light sage surface. forest green marks the identity, primary actions and selection. the workspace keeps the application's neutral surfaces and readable text scale.
+- public copy is lowercase, including accessible names and metadata. preserve the case of filenames, commands and identifiers where it affects their meaning. the browser title is `lanes`.
+- a forest-green header and hero form one continuous field. the header contains the existing mark and a working github link with its real star count. loading and failure never invent a count.
+- the hero pairs the google tasks headline with a short description and `make it yours`. the workspace spans the content width beneath them. do not shrink a full workspace into a small illustration beside the headline.
+- the hero preview contains board, list and calendar views, search, navigation and accounts. its personal board starts with three lists and seven tasks, including completed tasks; its work account remains separate. three controls above the frame select the view. no internal layout dropdown, fake cursor, autoplay, replay control or floating text snapshots.
+- `a task is rarely just a title.` introduces a focused task close-up. its rich card shows notes, schedule, colored labels, priority, star and an expanded checklist. opening it uses the same inline editor as the hero. other local tasks remain available as dependency candidates.
+- `each account in its own lane.` introduces a wider account workspace. the actual avatar menu switches the board, lists and tasks together. each account has two lists and four tasks. the task close-up and account workspace have different compositions; do not squeeze them into equal feature cards.
+- each demonstration owns its state. editing or completing something in one preview does not change another. account changes remain with their account and survive switching away and back.
+- `make it yours` links to `#self-host` in the same page. the setup section contains a clone command, `then ask your coding agent:` with a separately copyable static prompt, and a setup-guide link. it is normal document content, not a dialog. copy confirmations persist and failures remain truthful and retryable.
+- the footer is a quiet maker credit linking to fatih güzel's website. omit repeated repository links, sample notices, licensing and oauth explanations, progress summaries and redundant instructions. setup details remain in the linked guide.
 
-## experience
+## product interactions
 
-- public copy is lowercase, including sample content, accessible names and metadata. preserve the exact case of filenames, commands and identifiers where it affects their meaning.
+- task cards, stars, labels, list headers, completed groups and account menus follow their owning application sources. only expose controls with implemented behavior.
+- opening a task replaces its card with the inline editor. metadata stays in a draft until save; task and checklist completion apply immediately through existing completion rules. omit unsupported recurrence and management controls.
+- closing a dirty editor or changing its task, account, view, scope or query asks whether to discard its draft. keeping it preserves its owner, editor and selection. page clicks, scrolling and touch pans do not dismiss it or open confirmation.
+- each preview scopes focus restoration to itself. removing a focused task from an open list returns focus to its visible checkbox, completed group or list. a draft dialog never focuses another preview's editor. product dialogs establish their own neutral color tokens even inside the dark hero.
+- preserve visible keyboard focus and quiet pointer focus. hover is distinct on github, primary actions, copy controls and view choices. motion only accompanies user actions; reduced motion disables nonessential transitions and smooth scrolling.
 
-- the hero pairs a short google tasks introduction and self-hosting action with one interactive workspace. on wide screens they sit side by side; when the workspace would become too narrow, they stack. preserve readable product text rather than shrinking the interface.
-- the upper right contains a working github repository link with its real star count. loading or failure never invents a count; the link remains usable.
-- the hero's workspace is the only product scene. it demonstrates boards, grouped lists, calendar, task details and account separation through local fixtures. do not repeat it in feature cards or separate task and account previews below the hero.
-- each fixture account has two lists and three tasks: one rich focal task and two simple tasks. the focal card shows notes, schedule, labels and an expanded checklist immediately; its editor starts closed. cards, stars, labels, completed groups and account organization follow the current application components. never add invented product copy or controls that cannot perform their shown action.
-- board, list and calendar are selected through three showcase buttons above the preview, outside the application frame. selected, hover and keyboard-focus states stay distinct; do not add an internal layout dropdown.
-- at a preview width of 768px or less, workspace navigation opens in a contained drawer and search replaces the toolbar contents without adding another row. the preview's width owns this transition, independently of the page viewport. escape and the visible back control close search; a query survives resizing. closing the drawer restores focus to its trigger.
-- the toolbar's avatar opens the application's account-menu treatment with two sample accounts. switching accounts changes the board, lists and tasks together. edits and completion state remain separate for each account and survive switching away and back. the preview never connects a visitor's google account.
-- opening a task replaces its card contents with the application's inline editor. labels use a searchable anchored picker; priority uses its own menu. metadata stays in a draft until save, while task and checklist completion apply immediately through the existing completion rules. omit unsupported management and recurrence controls.
-- closing a dirty editor or changing the task, account, view, scope or query asks whether to discard its draft. keeping the draft preserves the current editor and selection. an untouched automated draft may be discarded silently; the first visitor edit gives it the normal draft guard. page clicks, scrolling and touch pans do not dismiss the editor or open a draft confirmation. explicit close, cancel and save return to the same card; the focal checklist remains expanded.
-- the preview shares the hero with the introduction, so navigation does not repeat a link to it. the github link and hero action have distinct hover and keyboard-focus states. omit captions, sample notices, progress summaries and account-selection instructions that repeat what the interface already shows.
-- the page describes only capabilities in the product guide. setup requirements, oauth expiry, quotas and licensing details remain in the linked repository guides rather than the public introduction.
-- the hero action opens installation in a native dialog, rather than repeating the hero's composition in another page section. the dialog provides the clone command, a separately copyable coding-agent prompt and a setup-guide link. escape or its close button returns focus to the action that opened it. copy confirmations persist while the dialog remains mounted; failures remain truthful and retryable. the prompt is static text, not an ai request form.
-- the footer is a quiet maker credit linking to fatih güzel's website. the header owns the repository link and star count.
-- one short demonstration starts when at least 95% of the showcase is visible. it edits and saves the focal task's note in board view, completes a subtask in list view, and carries the same task and schedule into calendar view. the calendar holds before a gentle transition restores the local fixtures for the next cycle. user interaction ends the cycle permanently until the page is reloaded.
-- the existing board, list and calendar buttons stop autoplay and leave the visitor in the selected view. do not add playback or replay chrome over the product. the group describes this behavior to assistive technology. elapsed waits and registered web animations pause together when the page is hidden, the showcase is entirely outside the viewport, or installation is open.
-- pointer, click, keyboard, input, focus and wheel interaction with the showcase give the visitor control immediately. while waiting to start, page scrolling may bring the stage into view without taking control; activating a product control still ends autoplay. resizing its width also ends playback. cancellation removes the cursor and temporary text layers, restores the real elements and prevents later scripted writes. the demonstration never moves dom focus or opens a mobile keyboard.
-- reduced motion starts with the readable board and suppresses autoplay. changing to reduced motion during playback stops it. stage geometry stays fixed across views; animation uses transforms and opacity rather than animated height or scroll-driven state. content and useful links remain available without javascript.
-- at 320px through wide desktop sizes, headings and controls remain readable and reachable. only an explicitly identified workspace canvas may scroll sideways.
-- compact board columns leave a glimpse of the next column. list layout reflows without horizontal scrolling; calendar scrolling stays inside its canvas. preview actions provide 44px touch targets on devices with a coarse pointer, including hybrid inputs; text-entry fields use at least 16px text there.
-- the calendar opens with the current demo day visible inside its own scroller. it does not scroll the page or reset the visitor's position during a resize.
+## responsive behavior
+
+- support 320px through wide desktop without document-level horizontal overflow. only an identified workspace canvas may scroll sideways.
+- at a hero preview width of 768px or less, navigation becomes a contained drawer and search replaces the compact toolbar rather than adding a row. closing the drawer or search restores focus. a query survives resizing.
+- board columns fit the canvas on wide screens and leave a glimpse of the next column on narrow screens. lists and forms reflow; calendar scrolling stays inside its canvas and opens with the current demo day visible.
+- feature close-ups stack when their content needs space. preserve readable product text and controls rather than scaling the interface. setup commands and prompt text wrap inside their container.
+- coarse-pointer targets are at least 44px and editable text is at least 16px. menus stay inside the visible viewport. short viewports retain access to every action through local scrolling.
 
 ## commands
 
@@ -56,26 +45,19 @@ from the repository root:
 ```sh
 npm run website:dev
 npm run website:typecheck
+npm run website:test
 npm run website:build
-npm run website:preview
-npm test -- website/src
 npm run check
 ```
 
-## implementation
-
-use the existing react, typescript, vite and vitest dependencies. use semantic html and native controls before abstractions. for example, a demo task uses a labelled `<input type="checkbox" checked={completed}>` with a visible task name. colors and fonts come from site tokens; component styles remain local.
-
-view changes acknowledge react's layout commit before motion measures their destination, including the calendar's local scroll. shared title snapshots translate at their real text sizes; the destination stays hidden until the handoff. cancellation also rejects a pending commit acknowledgement.
+check the expected port before starting a process and reuse a matching server.
 
 ## verification
 
-unit tests cover public github response validation and failures, clipboard payloads and failures, account-separated task changes, editor drafts and navigation guards, active-time playback, lifecycle cancellation, measured motion and the task's progression across views. type checking and production builds verify the separate entry. browser checks cover the full demonstration, automatic suspension, visitor takeover, the interactive preview, clipboard confirmation, keyboard controls, responsive layout and reduced motion. compare product treatments against their owning application source before claiming fidelity. full repository checks verify that the website does not break the application.
+focused tests cover github validation, clipboard behavior, account isolation, task edits, completion and draft guards. type checking and production builds verify the separate entry. full repository checks verify that the website does not break the application.
 
-for compact search, enter a query in a wide preview, move focus away, resize the preview below 769px, then clear and replace the query. the input must remain visible and focused while editing; closing search returns focus to its trigger. check this when the preview is a narrow hero column on a wide page as well as on a narrow viewport.
-
-edit and complete tasks in each account, switch away and return, and verify that changes remain with their account. open a dirty editor and attempt account, view, scope and query changes; keeping the draft must preserve its context, and discarding must perform the requested navigation.
+browser checks cover manual views and search, the focused task's edit and completion flows, account switching and retained edits, draft cancellation with multiple previews open, the setup anchor and copy controls, responsive layout and reduced motion. compare product treatments with the current application source before claiming fidelity.
 
 ## boundaries
 
-preserve the existing application and unrelated working-tree edits. keep sample data separate from real product claims. never include deployment credentials, connect visitor google accounts, or present the personal instance as a public hosted service. work on the `website` branch in small logical commits; publication, deployment and push are outside this change.
+preserve unrelated working-tree changes and the existing application. fixtures never connect visitor google accounts. work on `website` in small logical commits. push, publication and deployment are outside this change.

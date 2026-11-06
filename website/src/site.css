@@ -2,17 +2,6 @@
 @import url('./base.css');
 @import url('./product-preview.css');
 
-#root {
-  display: flex;
-  flex-direction: column;
-  min-height: 100svh;
-}
-.site-main {
-  flex: 1;
-  display: grid;
-  align-content: center;
-}
-
 .skip-link {
   position: fixed;
   z-index: var(--z-sticky-nav);
@@ -24,6 +13,19 @@
 }
 .skip-link:focus-visible {
   transform: translateY(0);
+}
+.site-header-field,
+.hero {
+  --color-ink: #edf2e7;
+  --color-muted: #e0e8d9;
+  --color-accent: #edf2e7;
+  --color-on-accent: #3d5847;
+  --color-line: #8a9c83;
+  --color-soft: #526f59;
+  --color-focus: #edf2e7;
+  --color-primary-hover: #d4e2ca;
+  background: #3d5847;
+  color: var(--color-ink);
 }
 .site-header {
   display: flex;
@@ -74,48 +76,43 @@
 .site-brand__mark i:nth-child(3) {
   height: 24px;
 }
-.hero-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(692px, 1.55fr);
-  align-items: center;
-  gap: 64px;
-  padding-block: 48px;
+.hero {
+  padding-block-end: 64px;
 }
 .hero__intro {
-  container: hero-copy / inline-size;
-  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 0.42fr);
+  align-items: end;
+  gap: var(--space-2xl);
+  padding-block: 40px 56px;
 }
 .hero h1 {
-  max-width: 13ch;
-  color: var(--color-ink);
-  font-size: clamp(2.75rem, 12cqi, 3.5rem);
-  line-height: 1.1;
+  max-width: 18ch;
+  font-size: clamp(3rem, 6.2vw, 5.25rem);
+  line-height: 1.06;
   letter-spacing: -0.05em;
 }
 .hero h1 > span {
   display: block;
-}
-.hero h1 > span:last-child {
-  color: var(--color-accent);
 }
 .hero__summary {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: var(--space-lg);
-  margin-block-start: 28px;
+  padding-block-end: 4px;
 }
 .hero__description {
-  max-width: 29ch;
-  color: var(--color-muted);
-  font-size: 18px;
+  max-width: 25ch;
+  color: var(--color-ink);
+  font-size: var(--text-lead);
   line-height: 1.55;
 }
 .button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-xs);
+  gap: var(--space-sm);
   min-height: 48px;
   padding-inline: var(--space-lg);
   border: 1px solid transparent;
@@ -139,8 +136,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 64px;
-  padding-block: 20px;
+  min-height: 96px;
+  padding-block: 24px;
 }
 .site-footer p {
   color: var(--color-muted);
@@ -155,59 +152,41 @@
     text-decoration: underline;
   }
 }
-@media (max-width: 1100px) {
-  .hero-layout {
-    gap: 40px;
-  }
-}
-@media (max-width: 1120px) {
-  .site-main {
-    display: block;
-  }
-  .hero-layout {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 40px;
-    padding-block: 40px;
-  }
-  .hero h1 {
-    max-width: 20ch;
-    font-size: clamp(3rem, 6.2vw, 4rem);
-  }
-  .hero__summary {
-    flex-direction: row;
-    align-items: center;
+@media (max-width: 900px) {
+  .hero__intro {
     gap: 32px;
-    margin-block-start: 24px;
-  }
-  .hero__summary .button {
-    flex-shrink: 0;
-  }
-  .hero__description {
-    max-width: 27ch;
+    grid-template-columns: minmax(0, 1fr) minmax(220px, 0.5fr);
   }
 }
-@media (max-width: 640px) {
+@media (max-width: 680px) {
   .site-header {
     min-height: 76px;
     gap: var(--space-sm);
   }
-  .site-header > .github-stars {
-    margin-inline-start: auto;
+  .hero {
+    padding-block-end: 40px;
   }
-  .hero-layout {
+  .hero__intro {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
     padding-block: 32px;
-    gap: 32px;
   }
   .hero h1 {
-    font-size: clamp(2.5rem, 7.2vw + 0.5rem, 3.25rem);
+    font-size: clamp(2.5rem, 7.2vw + 0.5rem, 3.8rem);
+    max-width: 19ch;
   }
   .hero__summary {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 20px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
   }
   .hero__description {
-    font-size: 17px;
+    max-width: 24ch;
+    font-size: 16px;
+  }
+  .hero__summary .button {
+    flex-shrink: 0;
   }
 }
 @media (max-width: 420px) {
@@ -216,5 +195,12 @@
   }
   .site-brand__mark {
     scale: 0.9;
+  }
+  .hero__summary {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .hero__description {
+    max-width: 29ch;
   }
 }
