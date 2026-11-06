@@ -78,8 +78,7 @@ export const workbenchTasks: WorkbenchTask[] = [
   {
     id: 'website',
     title: 'build the website',
-    notes:
-      'a small home for the things i’m making.\nkeep the words simple. let the workspace do the talking.',
+    notes: 'screenshots, a short walkthrough, and the setup guide.',
     priority: 'high',
     labels: ['design', 'launch'],
     day: '2026-11-12',

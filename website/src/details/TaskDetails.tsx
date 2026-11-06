@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { WorkbenchEditor } from './WorkbenchEditor';
 import { WorkbenchIcon } from './WorkbenchIcon';
 import {
@@ -7,109 +7,62 @@ import {
   setWorkbenchSubtaskCompletion,
   workbenchLabels,
   workbenchTasks,
-  type WorkbenchDraft,
   type WorkbenchTask,
 } from './workbench-data';
 import './TaskDetails.css';
 
 export function TaskDetails() {
   const [tasks, setTasks] = useState(workbenchTasks);
-  const [selected, setSelected] = useState<string | null>('website');
-  const [draft, setDraft] = useState(() => workbenchDraft(workbenchTasks[0]!));
-  const [pendingSelection, setPendingSelection] = useState<string | null>();
-  const [focusEditor, setFocusEditor] = useState(false);
-  const [expanded, setExpanded] = useState<string[]>([]);
-  const [pendingCompletion, setPendingCompletion] = useState<WorkbenchTask | null>(null);
-  const editor = useRef<HTMLDivElement>(null);
-  const confirm = useRef<HTMLDialogElement>(null);
-  const completionConfirm = useRef<HTMLDialogElement>(null);
-  const titles = useRef(new Map<string, HTMLButtonElement>());
-  const returnFocus = useRef<string | null>(null);
-  const pendingRestoreFocus = useRef(true);
-  const task = tasks.find((item) => item.id === selected);
-  const dirty = !!task && JSON.stringify(draft) !== JSON.stringify(workbenchDraft(task));
-  const orderedTasks = [
-    ...tasks.filter((item) => !item.completed),
-    ...tasks.filter((item) => item.completed),
-  ];
-  const changeTask = (id: string, patch: Partial<WorkbenchTask>) =>
-    setTasks((current) => current.map((item) => (item.id === id ? { ...item, ...patch } : item)));
+  const task = tasks[0]!;
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(() => workbenchDraft(task));
+  const [expanded, setExpanded] = useState(true);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const [confirmCompletion, setConfirmCompletion] = useState(false);
+  const discardDialog = useRef<HTMLDialogElement>(null);
+  const completionDialog = useRef<HTMLDialogElement>(null);
+  const titleButton = useRef<HTMLButtonElement>(null);
+  const returnFocus = useRef(false);
+  const dirty = editing && JSON.stringify(draft) !== JSON.stringify(workbenchDraft(task));
+  const openBlockers = tasks.filter((item) => task.blockedBy.includes(item.id) && !item.completed);
+  const changeTask = (patch: Partial<WorkbenchTask>) =>
+    setTasks((current) =>
+      current.map((item) => (item.id === task.id ? { ...item, ...patch } : item)),
+    );
 
-  function completeTask(item: WorkbenchTask, completed: boolean) {
-    if (
-      completed &&
-      (item.subtasks.some((child) => !child.completed) ||
-        item.blockedBy.some((id) => !tasks.find((candidate) => candidate.id === id)?.completed))
-    ) {
-      setPendingCompletion(item);
+  function finishEditing() {
+    returnFocus.current = true;
+    setExpanded(true);
+    setEditing(false);
+  }
+  function closeEditor() {
+    if (dirty) setConfirmDiscard(true);
+    else finishEditing();
+  }
+  function completeTask(completed: boolean) {
+    if (completed && (task.subtasks.some((child) => !child.completed) || openBlockers.length)) {
+      setConfirmCompletion(true);
       return;
     }
-    setTasks((current) =>
-      current.map((value) =>
-        value.id === item.id ? setWorkbenchCompletion(value, completed) : value,
-      ),
-    );
+    changeTask(setWorkbenchCompletion(task, completed));
   }
-  function completeSubtask(id: string, index: number, completed: boolean) {
-    setTasks((current) =>
-      current.map((value) =>
-        value.id === id ? setWorkbenchSubtaskCompletion(value, index, completed) : value,
-      ),
-    );
-  }
-
-  function selectTask(id: string | null, restoreFocus = true) {
-    returnFocus.current = selected && restoreFocus ? selected : null;
-    const next = tasks.find((item) => item.id === id);
-    if (next) setDraft(workbenchDraft(next));
-    setFocusEditor(true);
-    setSelected(id);
-  }
-  function requestSelection(id: string | null, restoreFocus = true) {
-    if (id === selected) return;
-    if (dirty) {
-      pendingRestoreFocus.current = restoreFocus;
-      setPendingSelection(id);
-    } else selectTask(id, restoreFocus);
+  function completeSubtask(index: number, completed: boolean) {
+    changeTask(setWorkbenchSubtaskCompletion(task, index, completed));
   }
 
   useLayoutEffect(() => {
-    if (selected || !returnFocus.current) return;
-    titles.current.get(returnFocus.current)?.focus({ preventScroll: true });
-    returnFocus.current = null;
-  }, [selected]);
-
+    if (editing || !returnFocus.current) return;
+    titleButton.current?.focus({ preventScroll: true });
+    returnFocus.current = false;
+  }, [editing]);
   useEffect(() => {
-    if (pendingSelection !== undefined) confirm.current?.showModal();
-    else confirm.current?.close();
-  }, [pendingSelection]);
-
+    if (confirmDiscard) discardDialog.current?.showModal();
+    else discardDialog.current?.close();
+  }, [confirmDiscard]);
   useEffect(() => {
-    if (pendingCompletion) completionConfirm.current?.showModal();
-    else completionConfirm.current?.close();
-  }, [pendingCompletion]);
-
-  useEffect(() => {
-    if (!task) return;
-    const outside = (event: MouseEvent) => {
-      const target = event.target;
-      if (
-        event.button !== 0 ||
-        !(target instanceof Element) ||
-        editor.current?.contains(target) ||
-        target.closest('[popover]:popover-open, dialog[open], .details-task__title')
-      )
-        return;
-      if (dirty) {
-        event.preventDefault();
-        event.stopPropagation();
-      }
-      requestSelection(null, false);
-    };
-    // a pan starts with pointerdown; only a completed click should collapse this preview.
-    document.addEventListener('click', outside, true);
-    return () => document.removeEventListener('click', outside, true);
-  });
+    if (confirmCompletion) completionDialog.current?.showModal();
+    else completionDialog.current?.close();
+  }, [confirmCompletion]);
 
   return (
     <section className="details-section container" aria-labelledby="details-title">
@@ -123,179 +76,158 @@ export function TaskDetails() {
               <WorkbenchIcon name="list" size={18} />
             </span>
             <h3>in progress</h3>
-            <span>{tasks.filter((item) => !item.completed).length}</span>
           </header>
-          {orderedTasks.map((item, index) => (
-            <Fragment key={item.id}>
-              {item.completed && (index === 0 || !orderedTasks[index - 1]?.completed) && (
-                <h4 className="details-completed-heading">
-                  completed <span>{tasks.filter((value) => value.completed).length}</span>
-                </h4>
-              )}
-              <article className="details-task" key={item.id}>
-                {item.id === selected ? (
-                  <div ref={editor}>
-                    <WorkbenchEditor
-                      key={item.id}
-                      task={item}
-                      tasks={tasks}
-                      draft={draft}
-                      onDraftChange={(patch: Partial<WorkbenchDraft>) =>
-                        setDraft((current) => ({ ...current, ...patch }))
-                      }
-                      dirty={dirty}
-                      focusOnMount={focusEditor}
-                      onCompletionChange={(completed) => completeTask(item, completed)}
-                      onSubtaskChange={(index, completed) =>
-                        completeSubtask(item.id, index, completed)
-                      }
-                      onClose={() => requestSelection(null)}
-                      onSave={() => {
-                        changeTask(item.id, { ...draft, title: draft.title.trim() });
-                        selectTask(null);
+          {task.completed && <h4 className="details-completed-heading">completed</h4>}
+          <article className="details-task">
+            {editing ? (
+              <WorkbenchEditor
+                task={task}
+                tasks={tasks}
+                draft={draft}
+                onDraftChange={(patch) => setDraft((current) => ({ ...current, ...patch }))}
+                dirty={dirty}
+                focusOnMount
+                onCompletionChange={completeTask}
+                onSubtaskChange={completeSubtask}
+                onClose={closeEditor}
+                onSave={() => {
+                  changeTask({ ...draft, title: draft.title.trim() });
+                  finishEditing();
+                }}
+              />
+            ) : (
+              <>
+                <div className="details-task__main">
+                  <div className="details-task__top">
+                    <button
+                      className="workbench-check"
+                      type="button"
+                      role="checkbox"
+                      aria-checked={task.completed}
+                      aria-label={`${task.completed ? 'reopen' : 'complete'} ${task.title}`}
+                      onClick={() => completeTask(!task.completed)}
+                    >
+                      {task.completed && <WorkbenchIcon name="check" />}
+                    </button>
+                    <button
+                      ref={titleButton}
+                      className={`details-task__title${task.completed ? ' is-completed' : ''}`}
+                      type="button"
+                      onClick={() => {
+                        setDraft(workbenchDraft(task));
+                        setEditing(true);
                       }}
-                    />
-                  </div>
-                ) : (
-                  <>
-                    <div className="details-task__main">
-                      <div className="details-task__top">
-                        <button
-                          className="workbench-check"
-                          type="button"
-                          role="checkbox"
-                          aria-checked={item.completed}
-                          aria-label={`${item.completed ? 'reopen' : 'complete'} ${item.title}`}
-                          onClick={() => completeTask(item, !item.completed)}
-                        >
-                          {item.completed && <WorkbenchIcon name="check" />}
-                        </button>
-                        <button
-                          ref={(element) => {
-                            if (element) titles.current.set(item.id, element);
-                            else titles.current.delete(item.id);
-                          }}
-                          className={`details-task__title${item.completed ? ' is-completed' : ''}`}
-                          type="button"
-                          onClick={() => requestSelection(item.id)}
-                        >
-                          {item.title}
-                        </button>
-                        {item.priority !== 'none' && (
-                          <span
-                            className={`details-task__priority details-task__priority--${item.priority}`}
-                          >
-                            <span aria-hidden="true">
-                              {item.priority === 'high'
-                                ? '!!'
-                                : item.priority === 'medium'
-                                  ? '!'
-                                  : '↓'}
-                            </span>
-                            <span className="visually-hidden">{item.priority} priority</span>
-                          </span>
-                        )}
-                        <button
-                          type="button"
-                          className="details-task__star"
-                          aria-label={`${item.starred ? 'unstar' : 'star'} ${item.title}`}
-                          aria-pressed={item.starred}
-                          onClick={() => changeTask(item.id, { starred: !item.starred })}
-                        >
-                          <WorkbenchIcon name="star" />
-                        </button>
-                      </div>
-                      <p className="details-task__notes">{item.notes}</p>
-                      <div className="details-task__meta">
-                        {item.day && (
-                          <span>
-                            <WorkbenchIcon name="calendar" />
-                            {new Intl.DateTimeFormat('en', {
-                              month: 'short',
-                              day: 'numeric',
-                              timeZone: 'UTC',
-                            })
-                              .format(new Date(`${item.day}T12:00:00Z`))
-                              .toLowerCase()}
-                            {item.time && ` · ${item.time}`}
-                          </span>
-                        )}
-                        {workbenchLabels
-                          .filter((label) => item.labels.includes(label.id))
-                          .map((label) => (
-                            <span
-                              className="details-task__label"
-                              style={{ '--label-color': label.color } as CSSProperties}
-                              key={label.id}
-                            >
-                              <span className="workbench-label-dot" />
-                              {label.name}
-                            </span>
-                          ))}
-                        <button
-                          className="details-task__subtasks-toggle"
-                          type="button"
-                          aria-label={`subtasks of ${item.title}`}
-                          aria-expanded={expanded.includes(item.id)}
-                          onClick={() =>
-                            setExpanded((current) =>
-                              current.includes(item.id)
-                                ? current.filter((id) => id !== item.id)
-                                : [...current, item.id],
-                            )
-                          }
-                        >
-                          <WorkbenchIcon name="subtasks" />
-                          {item.subtasks.filter((child) => child.completed).length}/
-                          {item.subtasks.length}
-                        </button>
-                      </div>
-                    </div>
-                    {expanded.includes(item.id) && (
-                      <div className="details-task__children">
-                        {item.subtasks.map((child, index) => (
-                          <label className="workbench-subtask" key={child.title}>
-                            <input
-                              type="checkbox"
-                              checked={child.completed}
-                              onChange={(event) =>
-                                completeSubtask(item.id, index, event.target.checked)
-                              }
-                            />
-                            <span>{child.title}</span>
-                          </label>
-                        ))}
-                      </div>
+                    >
+                      {task.title}
+                    </button>
+                    {task.priority !== 'none' && (
+                      <span
+                        className={`details-task__priority details-task__priority--${task.priority}`}
+                      >
+                        <span aria-hidden="true">
+                          {task.priority === 'high' ? '!!' : task.priority === 'medium' ? '!' : '↓'}
+                        </span>
+                        <span className="visually-hidden">{task.priority} priority</span>
+                      </span>
                     )}
-                  </>
-                )}
-              </article>
-            </Fragment>
-          ))}
+                    <button
+                      type="button"
+                      className="details-task__star"
+                      aria-label={`${task.starred ? 'unstar' : 'star'} ${task.title}`}
+                      aria-pressed={task.starred}
+                      onClick={() => changeTask({ starred: !task.starred })}
+                    >
+                      <WorkbenchIcon name="star" />
+                    </button>
+                  </div>
+                  <p className="details-task__notes">{task.notes}</p>
+                  <div className="details-task__meta">
+                    {task.day && (
+                      <span>
+                        <WorkbenchIcon name="calendar" />
+                        {new Intl.DateTimeFormat('en', {
+                          month: 'short',
+                          day: 'numeric',
+                          timeZone: 'UTC',
+                        })
+                          .format(new Date(`${task.day}T12:00:00Z`))
+                          .toLowerCase()}
+                        {task.time && ` · ${task.time}`}
+                      </span>
+                    )}
+                    {workbenchLabels
+                      .filter((label) => task.labels.includes(label.id))
+                      .map((label) => (
+                        <span
+                          className="details-task__label"
+                          style={{ '--label-color': label.color } as CSSProperties}
+                          key={label.id}
+                        >
+                          <span className="workbench-label-dot" />
+                          {label.name}
+                        </span>
+                      ))}
+                    {openBlockers.length > 0 && (
+                      <span
+                        className="details-task__blocked"
+                        title={openBlockers.map((item) => item.title).join(', ')}
+                      >
+                        <WorkbenchIcon name="link" />
+                        {openBlockers.length} {openBlockers.length === 1 ? 'blocker' : 'blockers'}
+                      </span>
+                    )}
+                    <button
+                      className="details-task__subtasks-toggle"
+                      type="button"
+                      aria-label={`subtasks of ${task.title}`}
+                      aria-expanded={expanded}
+                      aria-controls="details-checklist"
+                      onClick={() => setExpanded((current) => !current)}
+                    >
+                      <WorkbenchIcon name="subtasks" />
+                      {task.subtasks.filter((child) => child.completed).length}/
+                      {task.subtasks.length}
+                    </button>
+                  </div>
+                </div>
+                <div className="details-task__children" id="details-checklist" hidden={!expanded}>
+                  {task.subtasks.map((child, index) => (
+                    <label className="workbench-subtask" key={child.title}>
+                      <input
+                        type="checkbox"
+                        checked={child.completed}
+                        onChange={(event) => completeSubtask(index, event.target.checked)}
+                      />
+                      <span>{child.title}</span>
+                    </label>
+                  ))}
+                </div>
+              </>
+            )}
+          </article>
         </div>
       </div>
       <dialog
-        ref={confirm}
+        ref={discardDialog}
         className="workbench-confirm"
         aria-labelledby="workbench-confirm-title"
         onCancel={(event) => {
           event.preventDefault();
-          setPendingSelection(undefined);
+          setConfirmDiscard(false);
         }}
       >
         <h2 id="workbench-confirm-title">leave this draft?</h2>
         <p>your unsaved changes will be discarded.</p>
         <div>
-          <button type="button" onClick={() => setPendingSelection(undefined)}>
+          <button type="button" onClick={() => setConfirmDiscard(false)}>
             keep editing
           </button>
           <button
             type="button"
             onClick={() => {
-              const next = pendingSelection ?? null;
-              confirm.current?.close();
-              setPendingSelection(undefined);
-              selectTask(next, pendingRestoreFocus.current);
+              discardDialog.current?.close();
+              setConfirmDiscard(false);
+              finishEditing();
             }}
           >
             discard draft
@@ -303,38 +235,30 @@ export function TaskDetails() {
         </div>
       </dialog>
       <dialog
-        ref={completionConfirm}
+        ref={completionDialog}
         className="workbench-confirm"
         aria-labelledby="workbench-completion-title"
         onCancel={(event) => {
           event.preventDefault();
-          setPendingCompletion(null);
+          setConfirmCompletion(false);
         }}
       >
         <h2 id="workbench-completion-title">complete this task?</h2>
-        {pendingCompletion && (
-          <p>
-            {pendingCompletion.subtasks.filter((child) => !child.completed).length} open subtasks
-            will also be completed.
-            {pendingCompletion.blockedBy.some(
-              (id) => !tasks.find((item) => item.id === id)?.completed,
-            ) && ' this task still has open blockers.'}
-          </p>
-        )}
+        <p>
+          {task.subtasks.filter((child) => !child.completed).length} open subtasks will also be
+          completed.
+          {openBlockers.length > 0 && ' this task still has open blockers.'}
+        </p>
         <div>
-          <button type="button" onClick={() => setPendingCompletion(null)}>
+          <button type="button" onClick={() => setConfirmCompletion(false)}>
             cancel
           </button>
           <button
             type="button"
             onClick={() => {
-              if (!pendingCompletion) return;
-              const id = pendingCompletion.id;
-              completionConfirm.current?.close();
-              setPendingCompletion(null);
-              setTasks((current) =>
-                current.map((item) => (item.id === id ? setWorkbenchCompletion(item, true) : item)),
-              );
+              completionDialog.current?.close();
+              setConfirmCompletion(false);
+              changeTask(setWorkbenchCompletion(task, true));
             }}
           >
             complete task
