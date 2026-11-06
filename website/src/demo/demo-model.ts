@@ -36,7 +36,7 @@ export const demoAccounts = {
     displayName: 'fatih',
     email: 'fatih@personal.example',
     board: 'a little side project',
-    lists: ['in progress', 'ideas'],
+    lists: ['ideas', 'in progress', 'done'],
   },
   work: {
     id: 'work',
@@ -65,7 +65,11 @@ export const demoTasks: DemoTask[] = [
     labels: ['design'],
   },
   task('small-start', 'sketch the first version', 'ideas'),
+  task('long-way', 'take the long way home', 'ideas'),
   task('playlist', 'make a playlist for late nights', 'ideas'),
+  task('board-layout', 'try the board layout', 'in progress', { day: '2026-11-13', time: '10:00' }),
+  task('domain', 'register a domain', 'done', { completed: true }),
+  task('name', 'pick a name', 'done', { completed: true }),
 ];
 
 export const demoWorkspaces: DemoWorkspace = {

@@ -10,30 +10,20 @@ import {
 } from '../demo-model';
 
 describe('interactive workspace preview', () => {
-  it('starts each account with one rich task and two plain tasks across two lists', () => {
+  it('shows a populated board while preserving a distinct work account', () => {
+    expect(demoAccounts.personal.lists).toEqual(['ideas', 'in progress', 'done']);
+    expect(demoTasks).toHaveLength(7);
+    expect(demoTasks.filter((task) => task.list === 'ideas')).toHaveLength(3);
+    expect(demoTasks.filter((task) => task.list === 'in progress')).toHaveLength(2);
+    expect(demoTasks.filter((task) => task.list === 'done' && task.completed)).toHaveLength(2);
+    expect(demoTasks[0]!.subtasks).toHaveLength(3);
+    expect(demoWorkspaces.work).toHaveLength(3);
+    expect(demoAccounts.work.lists).toEqual(['in progress', 'up next']);
     for (const account of Object.values(demoAccounts)) {
-      const tasks = demoWorkspaces[account.id];
-      expect(account.lists).toHaveLength(2);
-      expect(tasks).toHaveLength(3);
-      expect(tasks.filter((task) => task.list === account.lists[0])).toHaveLength(1);
-      expect(tasks.filter((task) => task.list === account.lists[1])).toHaveLength(2);
-      expect(tasks.some((task) => task.completed)).toBe(false);
-      expect(tasks[0]!.subtasks).toHaveLength(3);
-      expect(tasks[0]!.priority).toBe('none');
-      for (const task of tasks.slice(1)) {
-        expect(task).toMatchObject({
-          notes: '',
-          labels: [],
-          day: '',
-          time: '',
-          priority: 'none',
-          subtasks: [],
-        });
-      }
+      expect(demoWorkspaces[account.id].every((task) => account.lists.includes(task.list))).toBe(
+        true,
+      );
     }
-    expect(demoAccounts.personal.lists).toEqual(['in progress', 'ideas']);
-    expect(demoTasks.map((task) => task.id)).toEqual(['website', 'small-start', 'playlist']);
-    expect(demoTasks[0]!.labels).toEqual(['design']);
   });
 
   it('uses the same ISO dates for the editor, shortcuts and calendar', () => {
@@ -104,6 +94,7 @@ describe('interactive workspace preview', () => {
     expect(selectDemoTasks(demoTasks, 'all', 'design').map((task) => task.id)).toEqual(['website']);
     expect(selectDemoTasks(demoTasks, 'all', 'ideas').map((task) => task.id)).toEqual([
       'small-start',
+      'long-way',
       'playlist',
     ]);
     expect(selectDemoTasks(demoTasks, 'starred', 'ideas')).toEqual([]);
