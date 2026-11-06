@@ -178,4 +178,10 @@ describe('hidden editor retirement', () => {
     editor.render(false);
     expect(editor.retire).toHaveBeenCalledWith(false, null, null);
   });
+
+  it('locks an ambiguous submission when its receipt reference is known but unreadable', () => {
+    const editor = mount();
+    state.commands.errorDetails = { operationId: 'receipt' };
+    expect(editor.render()!.props.children.props.submitted).toBe(true);
+  });
 });

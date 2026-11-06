@@ -98,7 +98,8 @@ export function TaskEditorWorkspace({
   const [identity, setIdentity] = useState(() => newOperationId(clockOffset));
   const [submitting, setSubmitting] = useState(false);
   const commands = useCommands(account.id, clockOffset, onChanged);
-  const submitted = commands.latest?.id === identity;
+  const submitted =
+    commands.latest?.id === identity || commands.errorDetails?.operationId === identity;
   const pending = submitting || commands.busy || resumePending || repeatWork.busy;
   const lifetime = useRef({ onBusyChange, onRetire });
   lifetime.current = { onBusyChange, onRetire };
@@ -346,7 +347,11 @@ export function TaskEditorWorkspace({
   };
   if (!presented) return null;
   return (
-    <TaskEditorSurface accountId={account.id} taskId={selection.task?.id ?? null}>
+    <TaskEditorSurface
+      accountId={account.id}
+      taskId={selection.task?.id ?? null}
+      {...(selection.inlineCreate ? { createListId: selection.list.id } : {})}
+    >
       <TaskEditor
         open
         accountId={account.id}

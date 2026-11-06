@@ -39,7 +39,6 @@ import { WorkspaceSkeleton } from './WorkspaceSkeleton';
 import { Icon } from '../../shared/ui/icon/Icon';
 import { Dialog } from '../../shared/ui/dialog/Dialog';
 import type { ConnectionSummary } from '../../modules/accounts/contracts/connection';
-import { type Board, type BoardList } from '../../modules/boards/contracts/board';
 import { type Task, type TaskFilter, type TaskSort } from '../../modules/tasks/contracts/task';
 import { checkServerConnection } from '../../shared/browser/http/http';
 import { useServerConnection } from '../../shared/browser/connectivity/useServerConnection';
@@ -116,13 +115,8 @@ export function Workspace({
   const [searchScope, setSearchScope] = useState<'board' | 'account'>('board');
   const [navOpen, setNavOpen] = useState(false);
   const historyDialog = useHistoryDialog();
-  const [inlineDirty, setInlineDirty] = useState(false);
   const [boardCreationDirty, setBoardCreationDirty] = useState(false);
   const [listCreationDirty, setListCreationDirty] = useState(false);
-  const [draftContext, setDraftContext] = useState<{ board: Board; lists: BoardList[] } | null>(
-    null,
-  );
-  const [resetInlineDrafts, setResetInlineDrafts] = useState(0);
   const closeNavigation = useCallback(() => setNavOpen(false), []);
   const navigation = useMobileNavigation(navOpen, closeNavigation);
   const [prompt, setPrompt] = useState<Prompt | null>(null);
@@ -190,7 +184,6 @@ export function Workspace({
   const boardData = useBoardData({
     accountId: account.id,
     version: topologyVersion,
-    retainedBoard: draftContext?.board ?? null,
     onNotice: setNotice,
   });
   const { boards, board, lists, boardId, startBoardId, failedBoardLookup } = boardData;
@@ -201,17 +194,7 @@ export function Workspace({
   const view = viewPreferences.view;
   const setView = (next: BoardViewPreferences['view']) =>
     guard(() => updateBoardView({ view: next }));
-  const visibleLists =
-    inlineDirty && draftContext && draftContext.board.id === board?.id
-      ? [
-          ...draftContext.lists.map(
-            (saved) => lists.items.find((item) => item.id === saved.id) ?? saved,
-          ),
-          ...lists.items.filter(
-            (item) => !draftContext.lists.some((saved) => saved.id === item.id),
-          ),
-        ]
-      : lists.items;
+  const visibleLists = lists.items;
   const unfinished = useUnfinishedChanges(account.id, version);
   const labels = useLabels(account.id, localVersion);
   const activeFilter = useMemo<TaskFilter>(
@@ -263,11 +246,10 @@ export function Workspace({
   const guard = useCallback(
     (action: () => void) => {
       if (taskEditor.deferCreateExit(action)) return;
-      if (taskEditor.isDirty() || templateDirty || transferDirty || inlineDirty)
-        setDiscard(() => action);
+      if (taskEditor.isDirty() || templateDirty || transferDirty) setDiscard(() => action);
       else action();
     },
-    [taskEditor, templateDirty, transferDirty, inlineDirty],
+    [taskEditor, templateDirty, transferDirty],
   );
   const guardAccount = (action: () => void) => {
     if (
@@ -294,7 +276,6 @@ export function Workspace({
         editorDirty ||
         templateDirty ||
         transferDirty ||
-        inlineDirty ||
         boardCreationDirty ||
         listCreationDirty ||
         movingTasks ||
@@ -311,7 +292,6 @@ export function Workspace({
     editorDirty,
     templateDirty,
     transferDirty,
-    inlineDirty,
     boardCreationDirty,
     listCreationDirty,
     movingTasks,
@@ -498,10 +478,7 @@ export function Workspace({
             boardManagement.openBoardMenu(anchor);
           }}
           query={query}
-          onQuery={(value) => {
-            if (inlineDirty && searchScope === 'account') guard(() => setQuery(value));
-            else setQuery(value);
-          }}
+          onQuery={setQuery}
           onScope={(value) => guard(() => setSearchScope(value))}
           viewMenu={{
             allowLayout: quick === 'all' && !(searchScope === 'account' && search),
@@ -621,7 +598,6 @@ export function Workspace({
           writable={writable}
           pendingTaskIds={commands.pendingTaskIds}
           moveQueue={moveQueue}
-          resetInlineDrafts={resetInlineDrafts}
           listCreation={
             boardManagement.listCreation.open &&
             boardManagement.listCreation.boardId === board?.id ? (
@@ -632,11 +608,11 @@ export function Workspace({
           actions={{
             onChanged: changed,
             onAddList: boardManagement.createList,
-            onInspect: inspection.inspect,
-            onDraftChange: (dirty) => {
-              if (dirty && board) setDraftContext({ board, lists: visibleLists });
-              if (!dirty) setDraftContext(null);
-              setInlineDirty(dirty);
+            onAddTask: (list) => {
+              if (list.accountId !== account.id) return;
+              guard(() =>
+                taskEditor.createInline({ list, ...(board ? { boardId: board.id } : {}) }),
+              );
             },
             onOpenTask: openTask,
             onToggleComplete: (task, completed) => void toggleComplete(task, completed),
@@ -785,7 +761,6 @@ export function Workspace({
                 onClick={() => {
                   const next = discard;
                   setDiscard(null);
-                  setInlineDirty(false);
                   if (!boardManagement.creation.isSaving() && !boardManagement.creation.locked)
                     boardManagement.creation.discard();
                   if (
@@ -795,7 +770,6 @@ export function Workspace({
                     boardManagement.listCreation.discard();
                     setListCreationDirty(false);
                   }
-                  setResetInlineDrafts((value) => value + 1);
                   templateDialog.setDirty(false);
                   transferDialog.setDirty(false);
                   taskEditor.close();

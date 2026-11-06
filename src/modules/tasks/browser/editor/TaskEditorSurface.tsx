@@ -6,17 +6,22 @@ import { applyViewport, observeViewport } from '../../../../shared/ui/viewport/v
 interface Props {
   accountId: string;
   taskId: string | null;
+  createListId?: string;
   children: ReactNode;
 }
 
-function findSlot(accountId: string, taskId: string | null) {
-  return [...document.querySelectorAll<HTMLElement>('[data-task-editor-host]')].find(
-    (item) => item.dataset.taskEditorHost === taskId && item.dataset.accountId === accountId,
+function findSlot(accountId: string, taskId: string | null, createListId?: string) {
+  const selector = createListId ? '[data-task-create-host]' : '[data-task-editor-host]';
+  return [...document.querySelectorAll<HTMLElement>(selector)].find(
+    (item) =>
+      (createListId
+        ? item.dataset.taskCreateHost === createListId
+        : item.dataset.taskEditorHost === taskId) && item.dataset.accountId === accountId,
   );
 }
 
 /** Moving this host preserves the draft when its card is refreshed or leaves the view. */
-export function TaskEditorSurface({ accountId, taskId, children }: Props) {
+export function TaskEditorSurface({ accountId, taskId, createListId, children }: Props) {
   const [host] = useState(() =>
     typeof document === 'undefined' ? null : document.createElement('div'),
   );
@@ -38,10 +43,12 @@ export function TaskEditorSurface({ accountId, taskId, children }: Props) {
     host.className = 'task-editor-surface';
     const stopViewport = observeViewport((bounds) => applyViewport(host, bounds));
     const place = () => {
-      const slot = findSlot(accountId, taskId);
-      const title = slot?.parentElement?.querySelector<HTMLElement>(
-        '.task-card__title, .task-card__child-title',
-      );
+      const slot = findSlot(accountId, taskId, createListId);
+      const title =
+        !createListId &&
+        slot?.parentElement?.querySelector<HTMLElement>(
+          '.task-card__title, .task-card__child-title',
+        );
       if (title) opener.current = title;
       const parent = slot ?? document.body;
       host.classList.toggle('task-editor-surface--detached', !slot);
@@ -73,6 +80,6 @@ export function TaskEditorSurface({ accountId, taskId, children }: Props) {
           restoreFocus(target, keyboard.current);
       });
     };
-  }, [accountId, taskId, host]);
+  }, [accountId, taskId, createListId, host]);
   return host ? createPortal(children, host) : children;
 }

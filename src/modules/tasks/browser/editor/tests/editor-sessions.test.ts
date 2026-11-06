@@ -140,6 +140,20 @@ describe('task editor session ownership', () => {
     expect(render().selection?.inlineCreate).toBe(true);
   });
 
+  it('does not run a deferred create exit over a newer editor choice', async () => {
+    render().createInline(location);
+    const current = render();
+    current.setDirty(true);
+    current.setSaving(current.session!.id, true);
+    const navigate = vi.fn();
+    current.deferCreateExit(navigate);
+    current.setDirty(false);
+    current.open(task('newer'), location);
+    await Promise.resolve();
+    expect(navigate).not.toHaveBeenCalled();
+    expect(render().selection?.task?.id).toBe('newer');
+  });
+
   it('does not replace a newer dirty editor when an older location lookup finishes', async () => {
     let resolve!: (value: EditorLocation) => void;
     readLocation.mockImplementation(() => new Promise((done) => (resolve = done)));

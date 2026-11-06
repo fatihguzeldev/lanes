@@ -161,11 +161,6 @@ export interface BoardWorkspaceProps extends Omit<
   sort: TaskSort;
   version: number;
   providerActionsEnabled?: boolean;
-  clockOffset?: number;
-  resetDrafts?: number;
-  onTaskCreated: () => void;
-  onDraftChange?: (dirty: boolean) => void;
-  onInspectCreate?: (identity: string) => void;
   onInitialReady?: (state: InitialViewReadiness) => void;
   moveQueue: TaskMoveQueue;
 }
@@ -179,18 +174,12 @@ export function BoardWorkspace({
   sort,
   version,
   providerActionsEnabled = account.state === 'connected',
-  clockOffset = 0,
-  resetDrafts = 0,
-  onTaskCreated,
-  onDraftChange,
-  onInspectCreate,
   onInitialReady,
   moveQueue,
   ...props
 }: BoardWorkspaceProps) {
   const [data, setData] = useState<Record<string, BoardColumn>>({}),
     [completed, setCompleted] = useState<Set<string>>(() => new Set());
-  const dirtyLists = useRef(new Set<string>());
   const [readiness, setReadiness] = useState<Record<string, InitialViewReadiness>>({});
   const onReady = useCallback((id: string, next: InitialViewReadiness) => {
     setReadiness((previous) => {
@@ -214,9 +203,6 @@ export function BoardWorkspace({
       failed: current.some((state) => state?.version === version && state.failed),
     });
   }, [lists, readiness, version, onInitialReady]);
-  const created = useCallback(() => {
-    onTaskCreated();
-  }, [onTaskCreated]);
   const actions = useRef(new Map<string, Actions>());
   const onData = useCallback(
     (id: string, column: BoardColumn) => setData((previous) => ({ ...previous, [id]: column })),
@@ -282,18 +268,10 @@ export function BoardWorkspace({
         providerActionsEnabled={providerActionsEnabled}
         renderTaskCreate={(list) => (
           <InlineTaskCreate
-            key={`${account.id}:${list.id}:${resetDrafts}`}
             accountId={account.id}
-            list={list}
-            clockOffset={clockOffset}
-            enabled={providerActionsEnabled}
-            onCreated={created}
-            onDirtyChange={(dirty) => {
-              if (dirty) dirtyLists.current.add(list.id);
-              else dirtyLists.current.delete(list.id);
-              onDraftChange?.(dirtyLists.current.size > 0);
-            }}
-            {...(onInspectCreate ? { onInspect: onInspectCreate } : {})}
+            listId={list.id}
+            enabled={providerActionsEnabled && !!props.onAddTask}
+            onCreate={() => props.onAddTask?.(list)}
           />
         )}
         onLoadMore={(list, section) => {

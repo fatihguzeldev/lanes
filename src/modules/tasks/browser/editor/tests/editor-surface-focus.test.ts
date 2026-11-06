@@ -23,7 +23,7 @@ class Element extends EventTarget {
   child: Element | null = null;
   className = '';
   classList = { toggle: vi.fn() };
-  dataset = { taskEditorHost: 'task', accountId: 'account' };
+  dataset = { taskEditorHost: 'task', taskCreateHost: '', accountId: 'account' };
   matches() {
     return true;
   }
@@ -50,13 +50,18 @@ const dom = Object.assign(new EventTarget(), {
 });
 let cleanup: (() => void) | undefined;
 
-function mount() {
+function mount(createListId?: string) {
   const opener = new Element();
   const card = new Element();
   card.child = opener;
   dom.slot.parentElement = card;
   dom.activeElement = opener;
-  TaskEditorSurface({ accountId: 'account', taskId: 'task', children: null });
+  TaskEditorSurface({
+    accountId: 'account',
+    taskId: createListId ? null : 'task',
+    ...(createListId ? { createListId } : {}),
+    children: null,
+  });
   cleanup = effects.at(-1)!() || undefined;
   return { opener, host: dom.host! };
 }
@@ -77,6 +82,7 @@ describe('editor focus after dismissal', () => {
   beforeEach(() => {
     effects.length = 0;
     dom.host = null;
+    dom.slot.dataset = { taskEditorHost: 'task', taskCreateHost: '', accountId: 'account' };
     vi.stubGlobal('document', dom);
     vi.stubGlobal('HTMLElement', Element);
     vi.stubGlobal('Node', Element);
@@ -115,5 +121,19 @@ describe('editor focus after dismissal', () => {
     host.dispatchEvent(new Event('keydown'));
     await close();
     expect(restoreFocus).toHaveBeenCalledWith(opener, true);
+  });
+
+  it('places a new editor in the selected list creation slot', () => {
+    dom.slot.dataset.taskCreateHost = 'list';
+    const { host } = mount('list');
+    expect(host.parentNode).toBe(dom.slot);
+    expect(host.classList.toggle).toHaveBeenCalledWith('task-editor-surface--detached', false);
+  });
+
+  it('never places a creation draft into another account’s matching list slot', () => {
+    dom.slot.dataset.taskCreateHost = 'list';
+    dom.slot.dataset.accountId = 'another-account';
+    const { host } = mount('list');
+    expect(host.parentNode).toBe(dom.body);
   });
 });

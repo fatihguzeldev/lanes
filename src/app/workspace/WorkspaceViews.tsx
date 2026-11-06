@@ -1,7 +1,13 @@
 import type { ComponentProps, ReactNode } from 'react';
 import type { ConnectionSummary } from '../../modules/accounts/contracts/connection';
 import type { Board, BoardList } from '../../modules/boards/contracts/board';
-import type { Label, Task, TaskFilter, TaskSort } from '../../modules/tasks/contracts/task';
+import type {
+  Label,
+  Task,
+  TaskFilter,
+  TaskList,
+  TaskSort,
+} from '../../modules/tasks/contracts/task';
 import type { BoardViewPreferences } from '../../modules/boards/browser/view/view-preferences';
 import type { useBoardData } from '../../modules/boards/browser/navigation/useBoardData';
 import type { TaskMoveQueue } from '../../modules/tasks/browser/movement/useTaskMoveQueue';
@@ -16,8 +22,7 @@ import { Icon } from '../../shared/ui/icon/Icon';
 interface ViewActions {
   onChanged(): void;
   onAddList(): void;
-  onInspect(id: string): void;
-  onDraftChange(dirty: boolean): void;
+  onAddTask(list: TaskList): void;
   onOpenTask(task: Task): void;
   onToggleComplete(task: Task, completed: boolean): void;
   onTaskMenu(task: Task, anchor: HTMLButtonElement): void;
@@ -49,7 +54,6 @@ interface Props {
   writable: boolean;
   pendingTaskIds: ReadonlySet<string>;
   moveQueue: TaskMoveQueue;
-  resetInlineDrafts: number;
   listCreation: ReactNode;
   onInitialReady(state: InitialViewReadiness): void;
   actions: ViewActions;
@@ -77,7 +81,6 @@ export function WorkspaceViews({
   writable,
   pendingTaskIds,
   moveQueue,
-  resetInlineDrafts,
   listCreation,
   onInitialReady,
   actions,
@@ -116,13 +119,7 @@ export function WorkspaceViews({
             onAddList={actions.onAddList}
             listCreation={listCreation}
             {...(lists.nextCursor ? { onLoadMoreLists: () => void lists.loadMore() } : {})}
-            clockOffset={clockOffset}
-            onTaskCreated={actions.onChanged}
-            onDraftChange={actions.onDraftChange}
-            resetDrafts={resetInlineDrafts}
-            onInspectCreate={(id) => {
-              actions.onInspect(id);
-            }}
+            onAddTask={actions.onAddTask}
             onOpenTask={actions.onOpenTask}
             onToggleComplete={actions.onToggleComplete}
             onTaskMenu={actions.onTaskMenu}

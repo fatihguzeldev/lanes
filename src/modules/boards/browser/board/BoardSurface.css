@@ -353,3 +353,6 @@
 .board-skeleton__add-list {
   pointer-events: none;
 }
+.board-column:has([data-task-create-host] > .task-editor-surface) .board-column__empty {
+  display: none;
+}

@@ -8,12 +8,10 @@ import { readStartBoard, saveStartBoard } from '../view/view-preferences';
 export function useBoardData({
   accountId,
   version,
-  retainedBoard,
   onNotice,
 }: {
   accountId: string;
   version: number;
-  retainedBoard: Board | null;
   onNotice: (message: string) => void;
 }) {
   const [boardId, setBoardId] = useState<string | null>(() => readStartBoard(accountId));
@@ -34,9 +32,8 @@ export function useBoardData({
   );
   const board = boardId
     ? (boards.items.find((item) => item.id === boardId) ??
-      (resolvedBoard?.id === boardId ? resolvedBoard : null) ??
-      (retainedBoard?.id === boardId ? retainedBoard : null))
-    : (boards.items.find((item) => item.isMain) ?? (retainedBoard?.isMain ? retainedBoard : null));
+      (resolvedBoard?.id === boardId ? resolvedBoard : null))
+    : (boards.items.find((item) => item.isMain) ?? null);
   useEffect(() => {
     if (!boardId) {
       setResolvedBoard(null);

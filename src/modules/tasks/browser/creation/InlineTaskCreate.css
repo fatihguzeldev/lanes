@@ -18,65 +18,12 @@
 .inline-task-create__open:disabled {
   opacity: 0.5;
 }
-.inline-task-create {
-  padding: 5px 10px 8px;
+.inline-task-create:has(> .task-editor-surface) {
+  margin: 4px 7px 8px;
+  padding: 0 7px;
+  border-radius: 6px;
+  background: var(--paper-hover);
 }
-.inline-task-create__field {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  min-width: 0;
-  padding: 6px 4px;
-  color: var(--secondary);
-}
-.inline-task-create__field input {
-  min-width: 0;
-  flex: 1;
-  min-height: var(--field-height);
-  padding: 4px 0;
-  border: 0;
-  background: transparent;
-  color: var(--ink);
-  font-size: 13px;
-}
-.inline-task-create__field input:focus-visible {
-  outline: none;
-  border-radius: 0;
-  box-shadow: inset 0 -1px var(--green);
-}
-.inline-task-create__field button {
-  display: grid;
-  place-items: center;
-  width: var(--control-size);
-  height: var(--control-size);
-  flex: none;
-  border: 0;
-  border-radius: 4px;
-  background: none;
-  color: var(--green);
-}
-.inline-task-create__field button:disabled {
-  opacity: 0.45;
-}
-.inline-task-create__error {
-  padding: 0 4px 4px;
-  color: var(--rust);
-  font-size: 12px;
-  line-height: 1.5;
-}
-.inline-task-create__error p {
-  margin: 0;
-}
-.inline-task-create__error button {
-  padding: 4px 0;
-  border: 0;
-  background: none;
-  color: inherit;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-@media (pointer: coarse) {
-  .inline-task-create__field input {
-    font-size: 16px;
-  }
+.inline-task-create:has(> .task-editor-surface) > .inline-task-create__open {
+  display: none;
 }
