@@ -123,4 +123,23 @@ describe('command submission recovery', () => {
     expect(commands.getErrorDetails()).toBe(failure);
     expect(state.read).toHaveBeenCalledOnce();
   });
+
+  it('uses the server clock offset when continuing a provider operation', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_730_000_000_000);
+    state.read
+      .mockResolvedValueOnce(
+        receipt({
+          state: 'accepted',
+          confirmedSteps: 0,
+          finished: false,
+          nextAttemptAt: Date.now() + 120_000,
+        }),
+      )
+      .mockResolvedValueOnce(receipt());
+    const saving = render(120_000).submit({ kind: 'task.complete' }, 'provider', identity);
+    await vi.advanceTimersByTimeAsync(350);
+    expect(await saving).toMatchObject({ state: 'succeeded' });
+    expect(state.read).toHaveBeenCalledTimes(2);
+  });
 });

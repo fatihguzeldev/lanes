@@ -74,13 +74,14 @@ export function useCommands(accountId: string, clockOffset: number, onChanged: (
     signal: AbortSignal,
   ): Promise<OperationSummary> {
     const deadline = Date.now() + 30_000;
+    const serverNow = () => Date.now() + clockOffset;
     while (
       progressing.has(operation.state) &&
       !operation.finished &&
       Date.now() < deadline &&
       !signal.aborted
     ) {
-      if (operation.nextAttemptAt && operation.nextAttemptAt - Date.now() > 2_000) break;
+      if (operation.nextAttemptAt && operation.nextAttemptAt - serverNow() > 2_000) break;
       await new Promise<void>((resolve, reject) => {
         const done = () => {
           clearTimeout(timer);
@@ -91,7 +92,7 @@ export function useCommands(accountId: string, clockOffset: number, onChanged: (
           clearTimeout(timer);
           reject(new DOMException('aborted', 'AbortError'));
         };
-        const timer = setTimeout(done, Math.max(350, (operation.nextAttemptAt ?? 0) - Date.now()));
+        const timer = setTimeout(done, Math.max(350, (operation.nextAttemptAt ?? 0) - serverNow()));
         signal.addEventListener('abort', cancel, { once: true });
       });
       operation = await request(
