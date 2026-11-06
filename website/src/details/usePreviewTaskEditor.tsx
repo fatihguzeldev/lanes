@@ -13,7 +13,6 @@ export type PreviewTaskEditor = ReturnType<typeof usePreviewTaskEditor>;
 export function usePreviewTaskEditor(
   tasks: readonly WorkbenchTask[],
   onChange: (id: string, patch: Partial<WorkbenchTask>) => void,
-  { shouldGuardDraft = () => true }: { shouldGuardDraft?: () => boolean } = {},
 ) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<WorkbenchDraft | null>(null);
@@ -35,7 +34,7 @@ export function usePreviewTaskEditor(
       finishEditing();
       action();
     };
-    if (dirty && shouldGuardDraft()) setPendingAction(() => leave);
+    if (dirty) setPendingAction(() => leave);
     else leave();
   }
   function complete(item: WorkbenchTask, completed: boolean) {
@@ -65,7 +64,7 @@ export function usePreviewTaskEditor(
       setDraft((current) => (current ? { ...current, ...value } : current));
     },
     close() {
-      if (dirty && shouldGuardDraft()) setPendingAction(() => finishEditing);
+      if (dirty) setPendingAction(() => finishEditing);
       else finishEditing();
     },
     save() {

@@ -36,11 +36,6 @@
   color: var(--color-muted);
   text-decoration: line-through;
 }
-.details-task__title > span {
-  display: block;
-  width: fit-content;
-  max-width: 100%;
-}
 .details-task__star {
   display: grid;
   place-items: center;

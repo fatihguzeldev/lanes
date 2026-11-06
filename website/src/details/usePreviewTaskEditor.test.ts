@@ -23,9 +23,9 @@ let tasks: WorkbenchTask[];
 const change = vi.fn((id: string, patch: Partial<WorkbenchTask>) => {
   tasks = tasks.map((task) => (task.id === id ? { ...task, ...patch } : task));
 });
-function render(shouldGuardDraft?: () => boolean) {
+function render() {
   hooks.index = 0;
-  return usePreviewTaskEditor(tasks, change, shouldGuardDraft ? { shouldGuardDraft } : {});
+  return usePreviewTaskEditor(tasks, change);
 }
 function dialogs() {
   return (
@@ -71,26 +71,6 @@ describe('preview task editor ownership', () => {
 
     expect(change).not.toHaveBeenCalled();
     expect(render().editingId).toBe(tasks[0]!.id);
-  });
-
-  it('lets visitors leave an automated draft and guards it after they edit', () => {
-    let automated = true;
-    const guard = () => !automated;
-    render(guard).open(tasks[0]!);
-    render(guard).patch({ notes: 'an automated draft' });
-    const navigate = vi.fn();
-    render(guard).navigate(navigate);
-    expect(navigate).toHaveBeenCalledOnce();
-    expect(render(guard).editingId).toBeNull();
-    expect(change).not.toHaveBeenCalled();
-
-    render(guard).open(tasks[0]!);
-    render(guard).patch({ notes: 'visitor edits' });
-    automated = false;
-    render(guard).close();
-    expect(render(guard).editingId).toBe(tasks[0]!.id);
-    dialogs().onKeepEditing();
-    expect(render(guard).draft?.notes).toBe('visitor edits');
   });
 
   it('runs clean navigation immediately and closes the editor', () => {

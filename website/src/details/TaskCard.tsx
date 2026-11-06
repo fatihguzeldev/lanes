@@ -10,8 +10,6 @@ type Props = {
   tasks: readonly WorkbenchTask[];
   editor: PreviewTaskEditor;
   initialExpanded?: boolean;
-  focusOnEdit?: boolean;
-  showcaseKey?: string;
 };
 const date = new Intl.DateTimeFormat('en', {
   month: 'short',
@@ -19,14 +17,7 @@ const date = new Intl.DateTimeFormat('en', {
   timeZone: 'UTC',
 });
 
-export function TaskCard({
-  task,
-  tasks,
-  editor,
-  initialExpanded = false,
-  focusOnEdit = true,
-  showcaseKey,
-}: Props) {
+export function TaskCard({ task, tasks, editor, initialExpanded = false }: Props) {
   const checklistId = useId();
   const [expanded, setExpanded] = useState(initialExpanded);
   const titleButton = useRef<HTMLButtonElement>(null);
@@ -38,11 +29,11 @@ export function TaskCard({
   useLayoutEffect(() => {
     if (wasEditing.current && !editing) {
       setExpanded(true);
-      if (focusOnEdit && document.activeElement === document.body)
+      if (document.activeElement === document.body)
         titleButton.current?.focus({ preventScroll: true });
     }
     wasEditing.current = editing;
-  }, [editing, focusOnEdit]);
+  }, [editing]);
 
   return (
     <article className="details-task" role="listitem" data-task-id={task.id}>
@@ -53,7 +44,7 @@ export function TaskCard({
           draft={editor.draft}
           onDraftChange={editor.patch}
           dirty={editor.dirty}
-          focusOnMount={focusOnEdit}
+          focusOnMount
           onCompletionChange={(completed) => editor.complete(task, completed)}
           onSubtaskChange={(index, completed) => editor.completeSubtask(task, index, completed)}
           onClose={editor.close}
@@ -79,7 +70,7 @@ export function TaskCard({
                 type="button"
                 onClick={() => editor.open(task)}
               >
-                <span data-showcase-key={showcaseKey}>{task.title}</span>
+                {task.title}
               </button>
               {task.priority !== 'none' && (
                 <span className={`details-task__priority details-task__priority--${task.priority}`}>
