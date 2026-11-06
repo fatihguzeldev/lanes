@@ -1,0 +1,102 @@
+/* Hallmark · component: SelfHosting · genre: modern-minimal · theme: inherited lanes · v2.0.0 */
+/* Critique: source-based product presentation with native controls and local state. */
+.self-host-section {
+  --color-focus: var(--color-host-paper);
+  margin-top: var(--section-gap);
+  padding-block: var(--space-3xl) var(--space-xl);
+  background: var(--color-field);
+  color: var(--color-host-paper);
+  scroll-margin-top: 0;
+}
+.self-host-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  gap: var(--space-2xl) var(--space-3xl);
+}
+.self-host-intro h2 {
+  max-width: 10ch;
+  font-size: clamp(3rem, 4.8vw, 4rem);
+}
+.self-host-intro > p:first-of-type {
+  max-width: 31ch;
+  margin-top: var(--space-lg);
+  color: var(--color-host-muted);
+  font-size: var(--text-md);
+}
+.self-host-button {
+  margin-top: 32px;
+  background: var(--color-host-paper);
+  color: var(--color-field-deep);
+}
+.self-host-license {
+  margin-top: var(--space-md);
+  color: var(--color-host-muted);
+  font-size: var(--text-xs);
+}
+.self-host-instructions {
+  align-self: center;
+  min-width: 0;
+}
+.self-host-instructions__lead {
+  margin-bottom: var(--space-md);
+}
+.self-host-instructions__prompt-label {
+  margin-top: 32px;
+  margin-bottom: var(--space-md);
+  color: var(--color-host-muted);
+  font-size: var(--text-sm);
+}
+.install-prompt {
+  margin: 0;
+  padding-left: var(--space-lg);
+  border-left: 2px solid var(--color-host-line);
+  font-size: var(--text-md);
+  line-height: 1.75;
+}
+.install-prompt code {
+  font-family: var(--font-code);
+  font-size: 0.85em;
+}
+.self-host-instructions__note {
+  margin-top: var(--space-md);
+  color: var(--color-host-muted);
+  font-size: var(--text-sm);
+}
+.self-host-footnotes {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-lg);
+  grid-column: 1 / -1;
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--color-host-line);
+  color: var(--color-host-muted);
+  font-size: var(--text-xs);
+}
+@media (max-width: 850px) {
+  .self-host-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-xl);
+  }
+  .self-host-intro h2 {
+    max-width: 14ch;
+  }
+  .self-host-intro > p:first-of-type {
+    max-width: 45ch;
+  }
+  .self-host-footnotes {
+    flex-direction: column;
+    gap: var(--space-xs);
+  }
+}
+@media (max-width: 560px) {
+  .self-host-section {
+    padding-block: var(--space-2xl) var(--space-xl);
+  }
+}
+
+.self-host-intro h2 {
+  text-wrap: balance;
+}
+.self-host-button {
+  white-space: nowrap;
+}
