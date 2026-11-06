@@ -150,14 +150,16 @@ function workflow(
       throw new Error(`unexpected task action request: ${call.method} ${call.path}`);
     }),
   );
-  const submit = vi.fn(async (command: unknown, category: 'provider', operationId = identity) => {
-    events.push('submit');
-    const receipt = await request(`${base}/commands/${category}`, OperationSummarySchema, {
-      method: 'POST',
-      body: { operationId, command },
-    });
-    return receipt.state === 'succeeded';
-  });
+  const submit = vi.fn(
+    async (command: unknown, category: 'provider' | 'local', operationId = identity) => {
+      events.push('submit');
+      const receipt = await request(`${base}/commands/${category}`, OperationSummarySchema, {
+        method: 'POST',
+        body: { operationId, command },
+      });
+      return receipt.state === 'succeeded';
+    },
+  );
   const onNotice = vi.fn();
   const onChanged = vi.fn();
   const onRepeat = vi.fn(async () => {
@@ -458,5 +460,29 @@ describe('calendar date changes', () => {
       'provider',
       identity,
     );
+  });
+});
+
+describe('quick task stars', () => {
+  it('submits only a local star patch with the captured revision', async () => {
+    const flow = workflow();
+    flow.submit.mockResolvedValue(true);
+    expect(await flow.toggleStar(task, true)).toBe(true);
+    expect(flow.submit).toHaveBeenCalledExactlyOnceWith(
+      { kind: 'task.patch', taskId: task.id, expectedRevision: 7, patch: { starred: true } },
+      'local',
+    );
+  });
+  it('does not write unchanged stars or cross-account tasks', async () => {
+    const flow = workflow();
+    expect(await flow.toggleStar(task, false)).toBe(true);
+    expect(await flow.toggleStar({ ...task, accountId: 'other' }, true)).toBe(false);
+    expect(flow.submit).not.toHaveBeenCalled();
+  });
+  it('reports failed star requests to the workspace', async () => {
+    const flow = workflow();
+    flow.submit.mockRejectedValue(new Error('connection lost'));
+    expect(await flow.toggleStar(task, true)).toBe(false);
+    expect(flow.onNotice).toHaveBeenCalledWith('connection lost');
   });
 });

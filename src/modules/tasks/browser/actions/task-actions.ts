@@ -11,7 +11,7 @@ import {
 
 export interface TaskActionContext {
   accountId: string;
-  submit: (command: unknown, category: 'provider', identity?: string) => Promise<boolean>;
+  submit: (command: unknown, category: 'local' | 'provider', identity?: string) => Promise<boolean>;
   confirm: (choice: ConfirmationChoice) => void;
   onNotice: (message: string) => void;
   onChanged: () => void;
@@ -33,6 +33,24 @@ export function createTaskActions({
   onListDeleteReady,
 }: TaskActionContext) {
   const base = `/api/accounts/${encodeURIComponent(accountId)}`;
+  const toggleStar = async (task: Task, starred: boolean) => {
+    if (task.accountId !== accountId) return false;
+    if (task.starred === starred) return true;
+    try {
+      return await submit(
+        {
+          kind: 'task.patch',
+          taskId: task.id,
+          expectedRevision: task.revision,
+          patch: { starred },
+        },
+        'local',
+      );
+    } catch (error) {
+      onNotice(error instanceof Error ? error.message : 'couldn’t save this star.');
+      return false;
+    }
+  };
   const toggleComplete = async (task: Task, completed: boolean) => {
     if (!completed) {
       if (task.repeatRule || task.seriesId) {
@@ -233,5 +251,5 @@ export function createTaskActions({
     }
   };
 
-  return { toggleComplete, deleteTask, deleteList, reschedule };
+  return { toggleStar, toggleComplete, deleteTask, deleteList, reschedule };
 }
