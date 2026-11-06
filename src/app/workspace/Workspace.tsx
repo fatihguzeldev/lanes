@@ -33,7 +33,7 @@ import { readTask, readTaskList } from '../../modules/tasks/browser/queries/refe
 import { readListPlacement } from '../../modules/boards/browser/placement/queries';
 import { useLabels } from '../../modules/tasks/browser/labels/useLabels';
 import { useUnfinishedChanges } from '../../modules/operations/browser/queries/useUnfinishedChanges';
-import { createTaskActions } from '../../modules/tasks/browser/actions/task-actions';
+import { useTaskActions } from '../../modules/tasks/browser/actions/useTaskActions';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { WorkspaceSkeleton } from './WorkspaceSkeleton';
 import { Icon } from '../../shared/ui/icon/Icon';
@@ -249,6 +249,30 @@ export function Workspace({
   const displayedBoard = boardManagement.appearance.board(board);
   const displayedBoards = boards.items.map((item) => boardManagement.appearance.board(item)!);
   const displayedLists = visibleLists.map(boardManagement.appearance.list);
+  const {
+    toggleStar,
+    toggleComplete,
+    deleteTask,
+    deleteList,
+    reschedule,
+    busy: quickActionsBusy,
+  } = useTaskActions(
+    {
+      accountId: account.id,
+      submit,
+      confirm: setConfirmation,
+      onNotice: setNotice,
+      onChanged: changed,
+      onRepeat: repeatWork.run,
+      onReopen: completion.openReopen,
+      onTaskDeleted: () => {
+        taskEditor.close();
+        taskMenu.close();
+      },
+      onListDeleteReady: boardManagement.closeListMenu,
+    },
+    clockOffset,
+  );
   const guard = useCallback(
     (action: () => void) => {
       if (taskEditor.deferCreateExit(action)) return;
@@ -260,6 +284,7 @@ export function Workspace({
   const guardAccount = (action: () => void) => {
     if (
       movingTasks ||
+      quickActionsBusy ||
       taskEditor.isSaving() ||
       boardManagement.placement.busy ||
       boardManagement.creation.isSaving() ||
@@ -286,6 +311,7 @@ export function Workspace({
         boardCreationDirty ||
         listCreationDirty ||
         movingTasks ||
+        quickActionsBusy ||
         taskEditor.saving ||
         boardManagement.placement.busy
       ) {
@@ -302,6 +328,7 @@ export function Workspace({
     boardCreationDirty,
     listCreationDirty,
     movingTasks,
+    quickActionsBusy,
     taskEditor.saving,
     boardManagement.placement.busy,
   ]);
@@ -309,20 +336,6 @@ export function Workspace({
     const list = lists.items.find((item) => item.id === task.listId);
     guard(() => taskEditor.open(task, list ? { list, boardId: list.boardId } : undefined));
   };
-  const { toggleStar, toggleComplete, deleteTask, deleteList, reschedule } = createTaskActions({
-    accountId: account.id,
-    submit,
-    confirm: setConfirmation,
-    onNotice: setNotice,
-    onChanged: changed,
-    onRepeat: repeatWork.run,
-    onReopen: completion.openReopen,
-    onTaskDeleted: () => {
-      taskEditor.close();
-      taskMenu.close();
-    },
-    onListDeleteReady: boardManagement.closeListMenu,
-  });
 
   const awaitingBoard =
     !board &&
@@ -386,6 +399,7 @@ export function Workspace({
     busy:
       sync.busy ||
       commands.busy ||
+      quickActionsBusy ||
       repeatWork.busy ||
       movingTasks ||
       taskEditor.saving ||
@@ -604,7 +618,7 @@ export function Workspace({
           version={version}
           clockOffset={clockOffset}
           writable={writable}
-          localWritable={localWritable && !commands.busy}
+          localWritable={localWritable}
           pendingTaskIds={commands.pendingTaskIds}
           moveQueue={moveQueue}
           listCreation={
@@ -636,7 +650,7 @@ export function Workspace({
               );
             },
             onOpenTask: openTask,
-            onToggleComplete: (task, completed) => void toggleComplete(task, completed),
+            onToggleComplete: toggleComplete,
             onToggleStar: toggleStar,
             onTaskMenu: taskMenu.open,
             onListMenu: boardManagement.openListMenu,
@@ -678,7 +692,7 @@ export function Workspace({
         onAccountsChanged={onAccountsChanged}
         onInspect={inspection.inspect}
         onOpenTask={openTask}
-        onToggleComplete={(task, completed) => void toggleComplete(task, completed)}
+        onToggleComplete={toggleComplete}
         onDelete={(task) => void deleteTask(task)}
       />
       <TaskCompletionDialogs
@@ -817,7 +831,7 @@ export function Workspace({
         controller={taskMenu}
         writable={writable}
         localWritable={localWritable}
-        submit={submit}
+        onToggleStar={toggleStar}
         onHistory={(task) => {
           historyDialog.open(task);
         }}

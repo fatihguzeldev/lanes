@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TaskSchema, type Task } from '../../../contracts/task';
 import { TaskStarButton } from '../TaskStarButton';
 import { TaskCard } from '../TaskCard';
+import { useTaskToggle } from '../useTaskToggle';
 
 const harness = vi.hoisted(() => ({
   cursor: 0,
@@ -92,7 +93,7 @@ beforeEach(() => {
   toggle.mockReset().mockResolvedValue(true);
 });
 describe('quick task star', () => {
-  it('previews immediately and waits for a fresh revision before another write', async () => {
+  it('previews immediately without disabling the next click', async () => {
     let finish!: (saved: boolean) => void;
     toggle.mockImplementation(
       () =>
@@ -102,19 +103,59 @@ describe('quick task star', () => {
     );
     const before = render();
     before.props.onClick();
-    before.props.onClick();
     expect(toggle).toHaveBeenCalledExactlyOnceWith(task, true);
     expect(render().props['aria-pressed']).toBe(true);
-    expect(render().props.disabled).toBe(true);
+    expect(render().props.disabled).toBe(false);
     finish(true);
     await settle();
-    expect(render().props.disabled).toBe(true);
+    expect(render().props.disabled).toBe(false);
     render({ ...task, revision: 8, starred: true });
     const confirmed = render({ ...task, revision: 8, starred: true });
     expect(confirmed.props.disabled).toBe(false);
     expect(confirmed.props['aria-label']).toBe('unstar prepare the talk');
     confirmed.props.onClick();
     expect(toggle).toHaveBeenLastCalledWith({ ...task, revision: 8, starred: true }, false);
+  });
+
+  it('retains the newest rapid toggle while earlier saves settle', async () => {
+    const replies: Array<(saved: boolean) => void> = [];
+    toggle.mockImplementation(() => new Promise((resolve) => replies.push(resolve)));
+    render().props.onClick();
+    render().props.onClick();
+    render().props.onClick();
+    expect(toggle.mock.calls.map(([, value]) => value)).toEqual([true, false, true]);
+    replies[0]!(true);
+    replies[1]!(false);
+    await settle();
+    expect(render().props['aria-pressed']).toBe(true);
+    replies[2]!(true);
+    await settle();
+    expect(render().props['aria-pressed']).toBe(true);
+    render({ ...task, revision: 10, starred: true });
+    expect(render({ ...task, revision: 10, starred: true }).props.disabled).toBe(false);
+  });
+
+  it('keeps a completion checkbox responsive while its clicks await the queue', async () => {
+    const replies: Array<(saved: boolean) => void> = [];
+    const complete = vi.fn(() => new Promise<boolean>((resolve) => replies.push(resolve)));
+    const renderCompletion = () => {
+      harness.cursor = 0;
+      harness.effects = [];
+      const control = useTaskToggle(task, 'completed', false, complete);
+      harness.effects.forEach((effect) => effect());
+      return control;
+    };
+    void renderCompletion().toggle();
+    expect(renderCompletion().value).toBe(true);
+    void renderCompletion().toggle();
+    expect(renderCompletion().value).toBe(false);
+    expect(complete.mock.calls).toHaveLength(2);
+    replies[0]!(true);
+    await settle();
+    expect(renderCompletion().value).toBe(false);
+    replies[1]!(false);
+    await settle();
+    expect(renderCompletion().value).toBe(false);
   });
   it.each([false, new Error('offline')])(
     'restores the confirmed star after a failed write (%s)',

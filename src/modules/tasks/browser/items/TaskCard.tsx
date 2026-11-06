@@ -6,6 +6,7 @@ import { addCalendarDays } from '../../model/planning';
 import './TaskCard.css';
 import type { SubtaskSummary } from '../../contracts/query';
 import { TaskStarButton, type ToggleTaskStar } from './TaskStarButton';
+import { useTaskToggle, type ToggleTaskField } from './useTaskToggle';
 
 export interface TaskCardProps {
   task: Task;
@@ -29,7 +30,7 @@ export interface TaskCardProps {
   showNotes?: boolean;
   layout?: 'column' | 'row';
   onOpen: (task: Task) => void;
-  onToggleComplete: (task: Task, completed: boolean) => void;
+  onToggleComplete: ToggleTaskField;
   onMenu?: (task: Task, anchor: HTMLButtonElement) => void;
 }
 
@@ -80,18 +81,19 @@ function CompletionButton({
   disabled: boolean;
   onToggle: TaskCardProps['onToggleComplete'];
 }) {
+  const { value: completed, toggle } = useTaskToggle(task, 'completed', disabled, onToggle);
   return (
     <button
-      className={`task-card__check${task.completed ? ' task-card__check--completed' : ''}`}
+      className={`task-card__check${completed ? ' task-card__check--completed' : ''}`}
       type="button"
       role="checkbox"
-      aria-checked={task.completed}
-      aria-label={`${task.completed ? 'reopen' : 'complete'} ${taskTitle(task)}`}
+      aria-checked={completed}
+      aria-label={`${completed ? 'reopen' : 'complete'} ${taskTitle(task)}`}
       title={disabled ? 'completion is unavailable; open the task for details' : undefined}
       disabled={disabled}
-      onClick={() => onToggle(task, !task.completed)}
+      onClick={() => void toggle()}
     >
-      {task.completed && <Icon name="check" size={11} />}
+      {completed && <Icon name="check" size={11} />}
     </button>
   );
 }

@@ -26,7 +26,7 @@ interface ViewActions {
   onAddList(): void;
   onAddTask(list: TaskList): void;
   onOpenTask(task: Task): void;
-  onToggleComplete(task: Task, completed: boolean): void;
+  onToggleComplete(task: Task, completed: boolean): Promise<boolean>;
   onToggleStar(task: Task, starred: boolean): Promise<boolean>;
   onTaskMenu(task: Task, anchor: HTMLButtonElement): void;
   onListMenu(list: BoardList | null, anchor: HTMLButtonElement): void;

@@ -35,7 +35,7 @@ interface Props {
   sort: TaskSort;
   version: number;
   onOpenTask: (task: Task) => void;
-  onToggleComplete: (task: Task, completed: boolean) => void;
+  onToggleComplete: (task: Task, completed: boolean) => Promise<boolean> | void;
   onToggleStar?: ToggleTaskStar | undefined;
   localActionsEnabled?: boolean;
   pendingTaskIds?: ReadonlySet<string> | undefined;

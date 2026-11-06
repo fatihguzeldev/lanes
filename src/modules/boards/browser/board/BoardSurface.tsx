@@ -62,7 +62,7 @@ export interface BoardSurfaceProps {
   listCreation?: ReactNode;
   onLoadMoreLists?: (() => void) | undefined;
   onOpenTask: (task: Task) => void;
-  onToggleComplete: (task: Task, completed: boolean) => void;
+  onToggleComplete: TaskCardProps['onToggleComplete'];
   onTaskMenu: (task: Task, anchor: HTMLButtonElement) => void;
   onAddTask?: ((list: TaskList) => void) | undefined;
   renderTaskCreate?: ((list: TaskList) => ReactNode) | undefined;
