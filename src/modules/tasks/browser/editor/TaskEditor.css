@@ -746,6 +746,7 @@
   gap: 4px;
   padding-top: 4px;
 }
+.task-editor__tools > button,
 .task-editor__tools > .tooltip > button,
 .task-editor__tools > .tooltip > .popover > button {
   display: grid;
@@ -763,6 +764,12 @@
 .task-editor__tools > .tooltip > .popover > button[aria-expanded='true'] {
   color: var(--green);
   background: var(--green-soft);
+}
+.task-editor__tools > button[aria-pressed='true'] {
+  color: var(--green);
+}
+.task-editor__tools > button[aria-pressed='true'] > .icon {
+  fill: color-mix(in srgb, var(--green) 24%, transparent);
 }
 .task-editor-surface--detached .task-editor {
   padding-left: 0;
@@ -888,6 +895,9 @@
 }
 
 @media (hover: hover) {
+  .task-editor__tools > button:hover:not(:disabled) {
+    color: var(--green);
+  }
   .task-editor__tools > .tooltip > button:hover:not(:disabled),
   .task-editor__tools > .tooltip > .popover > button:hover:not(:disabled) {
     background: var(--paper-hover);
