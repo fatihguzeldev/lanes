@@ -35,6 +35,7 @@ vi.mock('react', async (original) => ({
 }));
 
 let intersect: (ratio: number) => void;
+let observerThreshold: IntersectionObserverInit['threshold'];
 let page: EventTarget & { hidden: boolean };
 let motion: EventTarget & { matches: boolean };
 const rootRef = { current: {} as HTMLElement };
@@ -68,7 +69,8 @@ describe('showcase playback lifecycle', () => {
     vi.stubGlobal(
       'IntersectionObserver',
       class {
-        constructor(callback: IntersectionObserverCallback) {
+        constructor(callback: IntersectionObserverCallback, options: IntersectionObserverInit) {
+          observerThreshold = options.threshold;
           intersect = (ratio) =>
             callback(
               [
@@ -94,12 +96,13 @@ describe('showcase playback lifecycle', () => {
     vi.unstubAllGlobals();
   });
 
-  it('autoplays once at 55% visibility and keeps its finished state on re-entry', async () => {
+  it('autoplays once at 95% visibility and keeps its finished state on re-entry', async () => {
     render();
-    intersect(0.54);
+    expect(observerThreshold).toEqual([0, 0.95]);
+    intersect(0.94);
     await vi.advanceTimersByTimeAsync(0);
     expect(run).not.toHaveBeenCalled();
-    intersect(0.55);
+    intersect(0.95);
     await vi.advanceTimersByTimeAsync(0);
     expect(run).toHaveBeenCalledOnce();
     expect(render().status).toBe('finished');
@@ -116,7 +119,7 @@ describe('showcase playback lifecycle', () => {
       write();
     });
     render();
-    intersect(0.8);
+    intersect(0.95);
     await vi.advanceTimersByTimeAsync(400);
     hidden(true);
     expect(render().status).toBe('paused');
@@ -136,7 +139,7 @@ describe('showcase playback lifecycle', () => {
       write();
     });
     render();
-    intersect(0.8);
+    intersect(0.95);
     await vi.advanceTimersByTimeAsync(400);
     intersect(0);
     await vi.advanceTimersByTimeAsync(5000);
@@ -179,7 +182,7 @@ describe('showcase playback lifecycle', () => {
       write();
     });
     render();
-    intersect(0.8);
+    intersect(0.95);
     await vi.advanceTimersByTimeAsync(400);
     render().pause();
     hidden(true);

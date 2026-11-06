@@ -110,10 +110,10 @@ export function useShowcasePlayback({ rootRef, run, onReplay, suspended = false 
       ([entry]) => {
         if (!entry) return;
         flags.intersecting = entry.isIntersecting;
-        flags.eligible = entry.isIntersecting && entry.intersectionRatio >= 0.55;
+        flags.eligible = entry.isIntersecting && entry.intersectionRatio >= 0.95;
         synchronize();
       },
-      { threshold: [0, 0.55] },
+      { threshold: [0, 0.95] },
     );
     if (rootRef.current) observer.observe(rootRef.current);
     document.addEventListener('visibilitychange', visibility);
