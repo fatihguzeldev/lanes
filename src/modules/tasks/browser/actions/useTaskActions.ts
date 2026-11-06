@@ -35,10 +35,12 @@ export function useTaskActions(context: TaskActionContext, clockOffset: number) 
             const result = await commands.submit(command, category, identity);
             if (signal.aborted) return false;
             if (result?.state === 'succeeded') return true;
+            const failure = commands.getErrorDetails();
             current.onNotice(
               result?.error?.message ??
+                failure?.message ??
                 'couldn’t confirm this change. check its save before trying again.',
-              identity,
+              result?.id ?? failure?.operationId ?? null,
             );
             current.onChanged();
             return false;

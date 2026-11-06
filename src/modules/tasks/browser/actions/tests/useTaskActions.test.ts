@@ -9,6 +9,7 @@ const state = vi.hoisted(() => ({
   effects: [] as Array<() => void | (() => void)>,
   read: vi.fn(),
   submit: vi.fn(),
+  failure: null as { message: string; operationId?: string } | null,
 }));
 vi.mock('react', async (original) => ({
   ...(await original<typeof import('react')>()),
@@ -31,7 +32,7 @@ vi.mock('react', async (original) => ({
   },
 }));
 vi.mock('../../../../operations/browser/submission/useCommands', () => ({
-  useCommands: () => ({ submit: state.submit }),
+  useCommands: () => ({ submit: state.submit, getErrorDetails: () => state.failure }),
 }));
 vi.mock('../../../../../shared/browser/http/http', () => ({ request: state.read }));
 vi.mock('../../../../operations/browser/submission/operation-identity', () => ({
@@ -56,6 +57,7 @@ beforeEach(() => {
   state.slots = [];
   state.cursor = 0;
   state.effects = [];
+  state.failure = null;
   current = { ...task };
   context = {
     accountId: 'account',
@@ -142,6 +144,13 @@ describe('queued task actions', () => {
     expect(await render().toggleStar(task, true)).toBe(true);
     expect(state.submit).not.toHaveBeenCalled();
     expect(context.onChanged).toHaveBeenCalledOnce();
+  });
+
+  it('shows a definite admission error without linking an operation that was never admitted', async () => {
+    state.failure = { message: 'this task changed. refresh it.' };
+    state.submit.mockResolvedValue(null);
+    expect(await render().toggleStar(task, true)).toBe(false);
+    expect(context.onNotice).toHaveBeenCalledWith('this task changed. refresh it.', null);
   });
 
   it('does not dispatch a stale account read after cleanup and strict-mode replay', async () => {
