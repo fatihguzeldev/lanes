@@ -219,7 +219,7 @@ function ListColumn({
     >
       <header className="board-column__header">
         <span className="board-column__symbol">
-          <Icon name={column.icon ?? 'list'} size={16} />
+          <Icon name={column.icon ?? 'list'} size={18} />
         </span>
         <h2 id={headingId}>{title(list)}</h2>
         {options.showCounts !== false &&

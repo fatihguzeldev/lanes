@@ -27,7 +27,8 @@ describe('workspace loading shell', () => {
     expect(html).toContain('aria-label="loading workspace" aria-busy="true"');
     expect(html).toContain('class="workspace__main" aria-hidden="true" inert=""');
     expect(html).toContain('<span class="account-menu__avatar">F</span>');
-    expect(html).toContain('placeholder="search tasks"');
+    expect(html).toContain('type="search" placeholder="search tasks"');
+    expect(html).toContain('workspace__desktop-view');
   });
   it('keeps the mounted workspace inert until its coherent initial reveal', () => {
     const html = renderToStaticMarkup(

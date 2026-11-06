@@ -69,7 +69,7 @@ export function Icon({ name, size = 18, title, className, ...props }: IconProps)
       height={size}
       fill="none"
       stroke="currentColor"
-      strokeWidth={name === 'more' ? 3.2 : 1.65}
+      strokeWidth={name === 'more' ? 3.2 : name === 'board' || name === 'list' ? 2 : 1.65}
       strokeLinecap="round"
       strokeLinejoin="round"
       focusable="false"

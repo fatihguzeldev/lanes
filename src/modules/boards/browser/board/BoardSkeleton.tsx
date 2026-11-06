@@ -28,7 +28,7 @@ export function BoardSkeleton({
         <div className="board-column board-column--skeleton" key={id} aria-hidden="true">
           <div className="board-column__header">
             <span className="board-column__symbol">
-              <Icon name="list" size={16} />
+              <Icon name="list" size={18} />
             </span>
             <Skeleton className="board-skeleton__list-title" />
             {showCounts && <Skeleton className="board-skeleton__count" />}

@@ -82,6 +82,21 @@ const completedTask = TaskSchema.parse({
 });
 
 describe('board list presentation', () => {
+  it('keeps the known list symbol identical while names and counts are unknown', () => {
+    const symbol = (markup: string) =>
+      markup.match(/<span class="board-column__symbol">([\s\S]*?)<\/span>/)?.[1];
+    const ready = symbol(render());
+    const loading = renderToStaticMarkup(
+      createElement(BoardSurface, { ...base, status: 'loading' }),
+    );
+    expect(ready).toContain('width="18" height="18"');
+    expect(symbol(loading)).toBe(ready);
+    expect(symbol(render({}, { layout: 'stacked' }))).toBe(ready);
+    expect(ready).not.toContain('skeleton');
+    expect(loading).toContain('skeleton board-skeleton__list-title');
+    expect(loading).toContain('skeleton board-skeleton__count');
+  });
+
   const first = {
     ...completedTask,
     id: 'first',

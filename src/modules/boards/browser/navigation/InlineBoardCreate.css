@@ -11,9 +11,6 @@
   background: var(--paper-hover);
   color: var(--icon);
 }
-.inline-board-create__row > .icon {
-  flex: none;
-}
 .inline-board-create__row input {
   width: 100%;
   min-width: 0;
