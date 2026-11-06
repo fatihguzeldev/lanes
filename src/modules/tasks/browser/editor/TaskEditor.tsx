@@ -275,7 +275,7 @@ function EditorForm(props: TaskEditorProps) {
     }
     return true;
   }
-  const requestClose = useTaskCreateExit({
+  const creationExit = useTaskCreateExit({
     enabled: inlineCreate,
     dirty,
     pending,
@@ -284,10 +284,14 @@ function EditorForm(props: TaskEditorProps) {
     onSubmit: commit,
     onClose: props.onClose,
   });
+  const requestClose = creationExit.close;
+  const discardCreate =
+    inlineCreate && !props.submitted && (!!props.error || Object.keys(localErrors).length > 0);
+  const closeLabel = discardCreate ? 'discard task' : 'close task';
   useOutsideDismiss(surface, requestClose, { enabled: !pending || !!props.submitted });
   function submit(event: FormEvent) {
     event.preventDefault();
-    if (inlineCreate) requestClose();
+    if (inlineCreate) creationExit.submit();
     else commit();
   }
   function reapply() {
@@ -324,12 +328,12 @@ function EditorForm(props: TaskEditorProps) {
       >
         <div className="task-editor__heading">
           <span className="task-editor__context">{snapshot.list.title || 'untitled list'}</span>
-          <Tooltip label="close task">
+          <Tooltip label={closeLabel}>
             <button
               type="button"
               className="task-editor__close"
-              aria-label="close task"
-              onClick={requestClose}
+              aria-label={closeLabel}
+              onClick={discardCreate ? props.onClose : requestClose}
               disabled={pending && !props.submitted}
             >
               <Icon name="close" size={14} />
@@ -676,6 +680,11 @@ function EditorForm(props: TaskEditorProps) {
                 <Icon name="arrow" size={12} />
               </button>
             )}
+            {inlineCreate && props.error && !props.submitted && (
+              <button className="task-editor__text-button" type="submit" disabled={pending}>
+                try again
+              </button>
+            )}
             {props.onRefresh && (
               <button
                 className="task-editor__text-button"
@@ -683,7 +692,7 @@ function EditorForm(props: TaskEditorProps) {
                 onClick={props.onRefresh}
                 disabled={pending}
               >
-                refresh the confirmed task
+                {task ? 'refresh the confirmed task' : 'refresh this list'}
                 <Icon name="sync" size={12} />
               </button>
             )}

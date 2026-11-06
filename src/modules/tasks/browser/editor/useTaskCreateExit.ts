@@ -21,7 +21,7 @@ export function useTaskCreateExit(options: Options) {
       options.onClose();
     }
   }, [options.enabled, options.submitted, options.failed, options.onClose]);
-  return () => {
+  const leave = (explicit: boolean) => {
     if (!options.enabled) {
       options.onClose();
       return;
@@ -30,7 +30,11 @@ export function useTaskCreateExit(options: Options) {
       if (options.submitted) options.onClose();
       return;
     }
-    if (options.failed || options.submitted || leaving.current) return;
+    if (options.submitted) {
+      options.onClose();
+      return;
+    }
+    if ((options.failed && !explicit) || leaving.current) return;
     if (!options.dirty) {
       options.onClose();
       return;
@@ -38,4 +42,5 @@ export function useTaskCreateExit(options: Options) {
     leaving.current = true;
     if (!options.onSubmit()) leaving.current = false;
   };
+  return { close: () => leave(false), submit: () => leave(true) };
 }

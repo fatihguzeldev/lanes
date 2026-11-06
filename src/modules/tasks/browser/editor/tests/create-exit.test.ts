@@ -31,7 +31,7 @@ describe('inline task creation on exit', () => {
   });
   it('submits once and dismisses only after admission has a receipt', () => {
     const { props, render } = mount();
-    const close = render();
+    const close = render().close;
     close();
     close();
     expect(props.onSubmit).toHaveBeenCalledOnce();
@@ -46,39 +46,55 @@ describe('inline task creation on exit', () => {
   it('discards a pristine empty entry without creating a task', () => {
     const { props, render } = mount();
     props.dirty = false;
-    render()();
+    render().close();
     expect(props.onSubmit).not.toHaveBeenCalled();
     expect(props.onClose).toHaveBeenCalledOnce();
   });
   it('keeps invalid input available for correction', () => {
     const { props, render } = mount();
     props.onSubmit.mockReturnValue(false);
-    render()();
+    render().close();
     expect(props.onClose).not.toHaveBeenCalled();
     props.onSubmit.mockReturnValue(true);
-    render()();
+    render().close();
     expect(props.onSubmit).toHaveBeenCalledTimes(2);
   });
   it('keeps a failed admission visible and never retries it on another outside click', () => {
     const { props, render } = mount();
-    render()();
+    render().close();
     props.failed = true;
-    render()();
+    render().close();
     expect(props.onSubmit).toHaveBeenCalledOnce();
     expect(props.onClose).not.toHaveBeenCalled();
+  });
+  it('allows an explicit corrected retry after a known rejected admission', () => {
+    const { props, render } = mount();
+    props.failed = true;
+    render().close();
+    expect(props.onSubmit).not.toHaveBeenCalled();
+    render().submit();
+    expect(props.onSubmit).toHaveBeenCalledOnce();
   });
   it('lets an admitted save continue after another close request', () => {
     const { props, render } = mount();
     props.pending = true;
     props.submitted = true;
-    render()();
+    render().close();
+    expect(props.onSubmit).not.toHaveBeenCalled();
+    expect(props.onClose).toHaveBeenCalledOnce();
+  });
+  it('closes a captured failed receipt without sending its create again', () => {
+    const { props, render } = mount();
+    props.submitted = true;
+    props.failed = true;
+    render().submit();
     expect(props.onSubmit).not.toHaveBeenCalled();
     expect(props.onClose).toHaveBeenCalledOnce();
   });
   it('preserves the supplied guarded close for existing-task editing', () => {
     const { props, render } = mount();
     props.enabled = false;
-    render()();
+    render().close();
     expect(props.onSubmit).not.toHaveBeenCalled();
     expect(props.onClose).toHaveBeenCalledOnce();
   });
