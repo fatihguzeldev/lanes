@@ -80,6 +80,13 @@
   border-color: var(--color-line);
   color: var(--color-accent);
 }
+@media (hover: hover) {
+  .agent-prompt .install-copy-button:not(:disabled):hover {
+    border-color: var(--color-accent);
+    background: var(--color-accent);
+    color: var(--color-on-accent);
+  }
+}
 @media (max-width: 850px) {
   .self-host-layout {
     grid-template-columns: minmax(0, 1fr);
