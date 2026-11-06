@@ -414,103 +414,108 @@ export function WorkspaceDemo() {
   };
 
   return (
-    <div
-      className={
-        'workspace-demo product-preview' + (navigationOpen ? ' workspace-demo--nav-open' : '')
-      }
-      aria-label="interactive lanes workspace"
-      data-slot="workspace"
-      onKeyDown={(event) => {
-        if (navigationOpen && event.key === 'Escape') {
-          event.preventDefault();
-          event.stopPropagation();
-          closeNavigation();
+    <div className="workspace-showcase">
+      <div className="demo-view-controls" role="group" aria-label="preview layout">
+        {(['board', 'list', 'calendar'] as const).map((layout) => (
+          <button
+            type="button"
+            key={layout}
+            aria-pressed={view === layout}
+            onClick={() => setView(layout)}
+          >
+            <DemoIcon name={layout} size={15} />
+            {layout}
+          </button>
+        ))}
+      </div>
+      <div
+        className={
+          'workspace-demo product-preview' + (navigationOpen ? ' workspace-demo--nav-open' : '')
         }
-      }}
-    >
-      <aside className="demo-sidebar" id={navigationId} aria-label="workspace navigation">
-        <button
-          type="button"
-          className="demo-sidebar__close"
-          aria-label="close workspace navigation"
-          onClick={closeNavigation}
-        >
-          <DemoIcon name="close" />
-        </button>
-        <nav className="demo-shortcuts" aria-label="quick views">
+        aria-label="interactive lanes workspace"
+        data-slot="workspace"
+        onKeyDown={(event) => {
+          if (navigationOpen && event.key === 'Escape') {
+            event.preventDefault();
+            event.stopPropagation();
+            closeNavigation();
+          }
+        }}
+      >
+        <aside className="demo-sidebar" id={navigationId} aria-label="workspace navigation">
           <button
             type="button"
-            aria-pressed={scope === 'today'}
-            onClick={() => selectScope('today')}
+            className="demo-sidebar__close"
+            aria-label="close workspace navigation"
+            onClick={closeNavigation}
           >
-            <DemoIcon name="sun" />
-            today
+            <DemoIcon name="close" />
           </button>
-          <button
-            type="button"
-            aria-pressed={scope === 'starred'}
-            onClick={() => selectScope('starred')}
-          >
-            <DemoIcon name="star" />
-            starred
-          </button>
-        </nav>
-        <p className="demo-sidebar__heading">your boards</p>
-        <nav className="demo-boards" aria-label="boards">
-          <button type="button" aria-pressed={scope === 'all'} onClick={() => selectScope('all')}>
-            <span className="demo-boards__symbol">
-              <DemoIcon name="board" size={15} />
-            </span>
-            <span>a little side project</span>
-          </button>
-        </nav>
-      </aside>
-      <div className="demo-workspace">
-        <header className="demo-toolbar">
-          <div className="demo-toolbar__title">
+          <nav className="demo-shortcuts" aria-label="quick views">
             <button
-              ref={navigationTrigger}
               type="button"
-              className="demo-navigation-toggle"
-              aria-label="open workspace navigation"
-              aria-expanded={navigationOpen}
-              aria-controls={navigationId}
-              onClick={() => (navigationOpen ? closeNavigation() : setNavigationOpen(true))}
+              aria-pressed={scope === 'today'}
+              onClick={() => selectScope('today')}
             >
-              <DemoIcon name="menu" />
+              <DemoIcon name="sun" />
+              today
             </button>
-            <h2>{scope === 'all' ? 'a little side project' : scope}</h2>
+            <button
+              type="button"
+              aria-pressed={scope === 'starred'}
+              onClick={() => selectScope('starred')}
+            >
+              <DemoIcon name="star" />
+              starred
+            </button>
+          </nav>
+          <p className="demo-sidebar__heading">your boards</p>
+          <nav className="demo-boards" aria-label="boards">
+            <button type="button" aria-pressed={scope === 'all'} onClick={() => selectScope('all')}>
+              <span className="demo-boards__symbol">
+                <DemoIcon name="board" size={15} />
+              </span>
+              <span>a little side project</span>
+            </button>
+          </nav>
+        </aside>
+        <div className="demo-workspace">
+          <header className="demo-toolbar">
+            <div className="demo-toolbar__title">
+              <button
+                ref={navigationTrigger}
+                type="button"
+                className="demo-navigation-toggle"
+                aria-label="open workspace navigation"
+                aria-expanded={navigationOpen}
+                aria-controls={navigationId}
+                onClick={() => (navigationOpen ? closeNavigation() : setNavigationOpen(true))}
+              >
+                <DemoIcon name="menu" />
+              </button>
+              <h2>{scope === 'all' ? 'a little side project' : scope}</h2>
+            </div>
+            <label className="demo-search">
+              <DemoIcon name="search" />
+              <input
+                type="search"
+                placeholder="search tasks"
+                aria-label="search preview tasks"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Escape' && !navigationOpen) setQuery('');
+                }}
+              />
+            </label>
+          </header>
+          <div className="demo-content" data-view={view}>
+            {view === 'calendar' ? (
+              <DemoCalendar tasks={visible} />
+            ) : (
+              <DemoBoard tasks={visible} onToggle={toggle} onToggleStar={toggleStar} view={view} />
+            )}
           </div>
-          <label className="demo-search">
-            <DemoIcon name="search" />
-            <input
-              type="search"
-              placeholder="search tasks"
-              aria-label="search preview tasks"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Escape' && !navigationOpen) setQuery('');
-              }}
-            />
-          </label>
-          <select
-            className="demo-layout"
-            aria-label="workspace layout"
-            value={view}
-            onChange={(event) => setView(event.target.value as View)}
-          >
-            <option value="board">board</option>
-            <option value="list">list</option>
-            <option value="calendar">calendar</option>
-          </select>
-        </header>
-        <div className="demo-content" data-view={view}>
-          {view === 'calendar' ? (
-            <DemoCalendar tasks={visible} />
-          ) : (
-            <DemoBoard tasks={visible} onToggle={toggle} onToggleStar={toggleStar} view={view} />
-          )}
         </div>
       </div>
     </div>

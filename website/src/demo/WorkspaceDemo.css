@@ -1,5 +1,39 @@
 /* Hallmark · component: lanes workspace · theme: source product · v2.0.0 */
 /* The preview follows current task-card, board, stacked-list and calendar surfaces. */
+.workspace-showcase {
+  min-width: 0;
+}
+.demo-view-controls {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+.demo-view-controls button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--color-host-muted);
+  font-size: 13px;
+  line-height: 20px;
+}
+.demo-view-controls button[aria-pressed='true'] {
+  background: var(--color-host-paper);
+  color: var(--color-brand-surface);
+}
+.demo-view-controls button:focus-visible {
+  outline: none;
+  background-image: linear-gradient(currentColor, currentColor);
+  background-position: center calc(100% - 4px);
+  background-size: calc(100% - 20px) 2px;
+  background-repeat: no-repeat;
+}
 .workspace-demo {
   position: relative;
   display: grid;
@@ -15,14 +49,14 @@
   font-size: 14px;
   text-align: left;
 }
-.workspace-demo :is(button, input, select) {
+.workspace-demo :is(button, input) {
   font: inherit;
   color: inherit;
 }
 .workspace-demo button {
   cursor: pointer;
 }
-.workspace-demo :is(button, input, select, [tabindex]):focus-visible {
+.workspace-demo :is(button, input, [tabindex]):focus-visible {
   outline: 2px solid var(--color-focus);
   outline-offset: 2px;
 }
@@ -95,7 +129,7 @@
 }
 .demo-toolbar {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(120px, 240px) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(120px, 240px);
   align-items: center;
   gap: 16px;
   min-height: 70px;
@@ -146,15 +180,6 @@
 }
 .workspace-demo .demo-search input:focus-visible {
   outline: 0;
-}
-.demo-layout {
-  min-height: 34px;
-  max-width: 105px;
-  padding: 5px 25px 5px 8px;
-  border: 1px solid var(--color-line);
-  border-radius: 5px;
-  background: var(--color-paper);
-  font-size: 12px;
 }
 .demo-content {
   min-width: 0;
@@ -555,6 +580,10 @@
   font-size: 12px;
 }
 @media (hover: hover) {
+  .demo-view-controls button:hover:not([aria-pressed='true']) {
+    background-color: var(--color-header-hover);
+    color: var(--color-host-paper);
+  }
   .demo-shortcuts button:hover,
   .demo-boards button:hover {
     background: var(--color-soft);
@@ -590,13 +619,8 @@
     grid-template-columns: 172px minmax(0, 1fr);
   }
   .demo-toolbar {
-    grid-template-columns: minmax(0, 1fr) auto;
     gap: 10px 16px;
     padding-inline: 18px;
-  }
-  .demo-search {
-    grid-column: 1 / -1;
-    grid-row: 2;
   }
   .demo-board {
     padding-inline: 18px;
@@ -634,6 +658,7 @@
     margin-bottom: 12px;
   }
   .demo-toolbar {
+    grid-template-columns: minmax(0, 1fr);
     padding-inline: 16px;
   }
   .demo-toolbar__title h2 {
@@ -648,10 +673,10 @@
   }
 }
 @media (pointer: coarse) {
+  .demo-view-controls button,
   .demo-shortcuts button,
   .demo-boards button,
   .demo-completed__toggle,
-  .demo-layout,
   .demo-sidebar__close,
   .demo-navigation-toggle {
     min-height: 44px;
