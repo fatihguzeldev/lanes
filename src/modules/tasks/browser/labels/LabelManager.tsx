@@ -1,5 +1,5 @@
 import { CoverageSchema } from '../../../../shared/contracts/coverage';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { z } from 'zod';
 import { Dialog } from '../../../../shared/ui/dialog/Dialog';
 import { Icon } from '../../../../shared/ui/icon/Icon';
@@ -16,6 +16,9 @@ import { useServerConnection } from '../../../../shared/browser/connectivity/use
 import { usePagedResource } from '../../../../shared/browser/resources/usePagedResource';
 import { newOperationId } from '../../../operations/browser/submission/operation-identity';
 import { useCommands } from '../../../operations/browser/submission/useCommands';
+import { ColorPicker, ColorPreview } from '../../../../shared/ui/color-picker/ColorPicker';
+import { Popover } from '../../../../shared/ui/popover/Popover';
+import { InlineField } from '../../../../shared/ui/inline-field/InlineField';
 import './LabelManager.css';
 
 const deletionPage = z
@@ -36,8 +39,26 @@ export function LabelManager({ account, version, clockOffset, onChanged, onClose
   const [form, setForm] = useState<Label | null | false>(false),
     [confirmation, setConfirmation] = useState<ConfirmationChoice | null>(null);
   const [readError, setReadError] = useState('');
+  const [colorChange, setColorChange] = useState<{
+    source: Label;
+    color: string;
+    confirmed: boolean;
+  } | null>(null);
+  const colorFlight = useRef(false);
+  const nameFlight = useRef(false);
+  const closeRequested = useRef(false);
   const connection = useServerConnection();
   const commands = useCommands(account.id, clockOffset, onChanged);
+  useEffect(() => {
+    if (closeRequested.current && !commands.busy && !colorFlight.current && !nameFlight.current) {
+      closeRequested.current = false;
+      if (!commands.error) onClose();
+    }
+  }, [commands.busy, commands.error, onClose]);
+  const close = () => {
+    if (commands.busy || colorFlight.current || nameFlight.current) closeRequested.current = true;
+    else onClose();
+  };
   const base = `/api/accounts/${encodeURIComponent(account.id)}/labels`;
   const labels = usePagedResource(
     `${account.id}:manage-labels`,
@@ -60,8 +81,43 @@ export function LabelManager({ account, version, clockOffset, onChanged, onClose
     version,
   );
   const pending = new Set(jobs.items.map((job) => job.labelId));
+  useEffect(() => {
+    if (!colorChange?.confirmed) return;
+    const current = labels.items.find((label) => label.id === colorChange.source.id);
+    if (
+      (current && current.revision > colorChange.source.revision) ||
+      (!current && labels.loaded && labels.status !== 'loading' && !labels.error)
+    )
+      setColorChange(null);
+  }, [colorChange, labels.items, labels.loaded, labels.status, labels.error]);
   const writable =
     !['disconnected', 'disconnecting'].includes(account.state) && connection === 'reachable';
+  async function changeColor(label: Label, color: string) {
+    if (colorFlight.current || colorChange || commands.busy || !writable || form !== false)
+      return false;
+    if (label.color === color) return true;
+    colorFlight.current = true;
+    setColorChange({ source: label, color, confirmed: false });
+    try {
+      const result = await commands.submit(
+        {
+          kind: 'label.update',
+          labelId: label.id,
+          expectedRevision: label.revision,
+          input: { color },
+        },
+        'local',
+      );
+      if (result?.state === 'succeeded') {
+        setColorChange((current) => (current ? { ...current, confirmed: true } : null));
+        return true;
+      }
+      setColorChange(null);
+      return false;
+    } finally {
+      colorFlight.current = false;
+    }
+  }
   const review = async () => {
     if (!form) return false;
     setReadError('');
@@ -118,7 +174,7 @@ export function LabelManager({ account, version, clockOffset, onChanged, onClose
     });
   return (
     <>
-      <Dialog title="labels" onClose={onClose} wide pending={commands.busy}>
+      <Dialog title="labels" onClose={close} wide>
         <div className="dialog__body label-manager">
           <p>labels belong to this google account. use them across its boards.</p>
           {connection !== 'reachable' && (
@@ -140,11 +196,11 @@ export function LabelManager({ account, version, clockOffset, onChanged, onClose
             </p>
           )}
           {form !== false ? (
-            <LabelForm
+            <LabelDraft
               key={form?.id ?? 'new'}
               label={form}
               clockOffset={clockOffset}
-              pending={commands.busy}
+              pending={commands.busy || !!colorChange}
               writable={writable}
               error={commands.error || readError}
               onReview={review}
@@ -158,17 +214,20 @@ export function LabelManager({ account, version, clockOffset, onChanged, onClose
                       input: { name, color },
                     }
                   : { kind: 'label.create', input: { name, color } };
-                const result = await commands.submit(command, 'local', identity);
-                if (result?.state === 'succeeded') {
-                  setForm(false);
-                  onChanged();
+                nameFlight.current = true;
+                try {
+                  const result = await commands.submit(command, 'local', identity);
+                  if (result?.state === 'succeeded') setForm(false);
+                  return result?.state === 'succeeded';
+                } finally {
+                  nameFlight.current = false;
                 }
               }}
             />
           ) : (
             <button
               className="label-manager__new"
-              disabled={!writable || commands.busy}
+              disabled={!writable || commands.busy || !!colorChange}
               onClick={() => setForm(null)}
             >
               <Icon name="plus" size={14} />
@@ -178,21 +237,47 @@ export function LabelManager({ account, version, clockOffset, onChanged, onClose
           <ul className="label-manager__labels">
             {labels.items.map((label) => (
               <li key={label.id}>
-                <span className="label-manager__swatch" style={{ backgroundColor: label.color }} />
+                <Popover
+                  label={`${label.name} color`}
+                  disabled={
+                    !writable ||
+                    commands.busy ||
+                    !!colorChange ||
+                    pending.has(label.id) ||
+                    form !== false
+                  }
+                  trigger={
+                    <ColorPreview
+                      value={colorChange?.source.id === label.id ? colorChange.color : label.color}
+                    />
+                  }
+                >
+                  {(close) => (
+                    <ColorPicker
+                      value={colorChange?.source.id === label.id ? colorChange.color : label.color}
+                      disabled={commands.busy || !!colorChange}
+                      onChange={async (color) => {
+                        const done = await changeColor(label, color);
+                        if (done) close();
+                        return done;
+                      }}
+                    />
+                  )}
+                </Popover>
                 <strong>{label.name}</strong>
                 {pending.has(label.id) ? (
                   <small>deleting…</small>
                 ) : (
                   <>
                     <button
-                      disabled={!writable || commands.busy}
+                      disabled={!writable || commands.busy || !!colorChange}
                       onClick={() => setForm(label)}
                       aria-label={`edit ${label.name}`}
                     >
                       <Icon name="pen" size={14} />
                     </button>
                     <button
-                      disabled={!writable || commands.busy}
+                      disabled={!writable || commands.busy || !!colorChange}
                       onClick={() => remove(label)}
                       aria-label={`delete ${label.name}`}
                     >
@@ -206,7 +291,7 @@ export function LabelManager({ account, version, clockOffset, onChanged, onClose
           {labels.status === 'loading' && <p>loading labels…</p>}
           {labels.error && (
             <p role="alert" className="error">
-              {labels.error}
+              {labels.error} <button onClick={() => void labels.reload()}>retry</button>
             </p>
           )}
           {labels.loaded && !labels.items.length && <p>no labels yet.</p>}
@@ -224,7 +309,7 @@ export function LabelManager({ account, version, clockOffset, onChanged, onClose
                     {job.labelName} · {job.removedAssociations} tasks detached
                   </span>
                   <button
-                    disabled={!writable || commands.busy}
+                    disabled={!writable || commands.busy || !!colorChange}
                     onClick={() =>
                       void continueJob(job.id).catch((error) =>
                         setReadError(
@@ -262,7 +347,7 @@ export function LabelManager({ account, version, clockOffset, onChanged, onClose
     </>
   );
 }
-function LabelForm({
+function LabelDraft({
   label,
   clockOffset,
   pending,
@@ -278,32 +363,27 @@ function LabelForm({
   writable: boolean;
   error: string;
   onReview: () => Promise<boolean>;
-  onSubmit: (name: string, color: string, identity: string) => Promise<void>;
+  onSubmit: (name: string, color: string, identity: string) => Promise<boolean>;
   onCancel: () => void;
 }) {
-  const [name, setName] = useState(label?.name ?? ''),
-    [color, setColor] = useState(() =>
-      label?.color.length === 4
-        ? '#' + [...label.color.slice(1)].map((value) => value + value).join('')
-        : (label?.color ?? '#65734f'),
-    ),
-    [identity, setIdentity] = useState(() => newOperationId(clockOffset));
+  const [identity, setIdentity] = useState(() => newOperationId(clockOffset));
   return (
-    <form
-      className="label-manager__form"
-      onSubmit={(event) => {
-        event.preventDefault();
-        if (writable && !pending) void onSubmit(name, color, identity);
-      }}
-    >
-      <label>
-        name
-        <input value={name} onChange={(event) => setName(event.target.value)} required autoFocus />
-      </label>
-      <label>
-        color
-        <input type="color" value={color} onChange={(event) => setColor(event.target.value)} />
-      </label>
+    <div className="label-manager__draft">
+      <InlineField
+        value={label?.name ?? ''}
+        label="label name"
+        placeholder="label name"
+        maxLength={128}
+        autoFocus
+        disabled={pending || !writable}
+        onCancel={onCancel}
+        onCommit={(name) => {
+          const parsed = LabelSchema.shape.name.safeParse(name);
+          if (!parsed.success)
+            throw new Error(parsed.error.issues[0]?.message ?? 'check this label name.');
+          return onSubmit(parsed.data, label?.color ?? '#82966f', identity);
+        }}
+      />
       {error && (
         <p className="error" role="alert">
           {error}
@@ -322,14 +402,6 @@ function LabelForm({
           review current revision and keep these fields
         </button>
       )}
-      <footer>
-        <button type="button" onClick={onCancel} disabled={pending}>
-          cancel
-        </button>
-        <button className="primary" disabled={pending || !writable} type="submit">
-          {pending ? 'saving…' : label ? 'save label' : 'create label'}
-        </button>
-      </footer>
-    </form>
+    </div>
   );
 }

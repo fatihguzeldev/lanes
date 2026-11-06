@@ -78,6 +78,8 @@ account-to-account movement is outside this command. offer the explicit source-p
 
 ## labels, priorities, and stars
 
+label names use inline editing: enter or leaving a changed nonblank name saves it, and escape cancels the draft. label colors apply from the shared picker without a save form. retain submitted writes when the labels view closes; failures keep the draft and explain the error.
+
 labels belong to an account. each has a name and a color; tasks may carry up to 20. require a trimmed name of 1–64 characters and compare names case-insensitively for uniqueness within that account. preserve the chosen spelling. renaming a label keeps its identity; deleting it removes associations without deleting tasks. this per-task bound keeps editing, rendering, and import requests bounded.
 
 priority is one of none, low, medium, or high. starring is an independent boolean. both are lanes metadata and do not claim to set google's native star. default to no priority, no labels, and not starred.

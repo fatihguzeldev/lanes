@@ -28,7 +28,8 @@
   flex: 1;
   overflow-wrap: anywhere;
 }
-.label-manager__labels button {
+.label-manager__labels > li > button,
+.label-manager__labels > li > .popover > .popover__trigger {
   min-width: var(--control-size);
   min-height: var(--control-size);
   border: 0;
@@ -41,36 +42,13 @@
   color: var(--secondary);
   font-size: 11px;
 }
-.label-manager__swatch {
-  width: 9px;
-  height: 9px;
-  border-radius: 3px;
-  flex: none;
-}
-.label-manager__form {
-  margin-top: 18px;
-  padding: 16px;
-  border: 1px solid var(--line);
-  background: var(--canvas);
-  border-radius: 7px;
+.label-manager__draft {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 66px;
-  gap: 12px;
+  gap: 8px;
+  margin-top: 18px;
 }
-.label-manager__form label {
-  margin: 0;
-}
-.label-manager__form input {
-  background: var(--paper);
-  height: 40px;
-}
-.label-manager__form input[type='color'] {
-  padding: 5px;
-}
-.label-manager__form footer,
-.label-manager__form .error {
-  grid-column: 1/-1;
-  margin: 0;
+.label-manager__draft > .error {
+  grid-column: 1 / -1;
 }
 .label-manager__jobs {
   margin-top: 24px;
