@@ -598,6 +598,9 @@ export function WorkspaceDemo() {
                   placeholder="search tasks"
                   aria-label="search preview tasks"
                   value={query}
+                  onFocus={() => {
+                    if (compact) setSearchOpen(true);
+                  }}
                   onChange={(event) => setQuery(event.target.value)}
                   onKeyDown={(event) => {
                     if (event.key === 'Escape') {
