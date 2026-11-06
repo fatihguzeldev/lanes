@@ -45,7 +45,7 @@ export function App() {
               aria-label="explore the lanes workspace"
             >
               <h2 className="visually-hidden">explore the workspace</h2>
-              <WorkspaceDemo />
+              <WorkspaceDemo suspended={setupOpen} />
             </div>
           </div>
         </section>

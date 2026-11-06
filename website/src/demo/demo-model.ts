@@ -60,6 +60,7 @@ export const demoTasks: DemoTask[] = [
   {
     ...workbenchTasks[0]!,
     list: 'in progress',
+    notes: 'screenshots and a setup guide.',
     priority: 'none',
     labels: ['design'],
   },

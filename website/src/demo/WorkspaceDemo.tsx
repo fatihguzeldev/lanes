@@ -1,4 +1,8 @@
-import { useId, useLayoutEffect, useRef, useState } from 'react';
+import { useId, useLayoutEffect, useRef, useState, type SyntheticEvent } from 'react';
+import { flushSync } from 'react-dom';
+import { useShowcasePlayback, type PlaybackContext } from './playback/useShowcasePlayback';
+import { createShowcaseMotion } from './motion/showcase-motion';
+import { playWorkspaceStory } from './showcase-story';
 import {
   demoAccounts,
   demoToday,
@@ -30,6 +34,9 @@ const icons = {
   menu: 'M4 6h16M4 12h16M4 18h16',
   more: 'M12 5h.01M12 12h.01M12 19h.01',
   close: 'm6 6 12 12M18 6 6 18',
+  play: 'm9 5 11 7-11 7Z',
+  pause: 'M9 5v14M15 5v14',
+  replay: 'M3 10a9 9 0 1 1 2 8M3 4v6h6',
   clock: 'M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0',
 };
 
@@ -57,12 +64,14 @@ function DemoColumn({
   allTasks,
   editor,
   focalId,
+  scripted,
 }: {
   list: string;
   tasks: DemoTask[];
   allTasks: DemoTask[];
   editor: PreviewTaskEditor;
   focalId: string;
+  scripted: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const column = useRef<HTMLElement>(null);
@@ -100,6 +109,8 @@ function DemoColumn({
       tasks={allTasks}
       editor={editor}
       initialExpanded={task.id === focalId}
+      focusOnEdit={!scripted}
+      {...(task.id === focalId ? { showcaseKey: 'focal-title' } : {})}
     />
   );
   return (
@@ -159,6 +170,7 @@ function DemoBoard({
   editor,
   view,
   focalId,
+  scripted,
 }: {
   tasks: DemoTask[];
   allTasks: DemoTask[];
@@ -166,6 +178,7 @@ function DemoBoard({
   editor: PreviewTaskEditor;
   view: 'board' | 'list';
   focalId: string;
+  scripted: boolean;
 }) {
   return (
     <div
@@ -187,6 +200,7 @@ function DemoBoard({
             allTasks={allTasks}
             editor={editor}
             focalId={focalId}
+            scripted={scripted}
           />
         ))
       )}
@@ -238,7 +252,15 @@ function DemoCalendar({ tasks }: { tasks: DemoTask[] }) {
                         data-task-id={task.id}
                       >
                         <div className="demo-calendar__event-top">
-                          <span>{task.title}</span>
+                          <span
+                            data-showcase-key={
+                              task.id === 'website' || task.id === 'release'
+                                ? 'focal-title'
+                                : undefined
+                            }
+                          >
+                            {task.title}
+                          </span>
                           {task.starred && (
                             <span className="demo-calendar__star" role="img" aria-label="starred">
                               <DemoIcon name="star" size={11} />
@@ -264,22 +286,87 @@ function DemoCalendar({ tasks }: { tasks: DemoTask[] }) {
   );
 }
 
-export function WorkspaceDemo() {
+export function WorkspaceDemo({ suspended = false }: { suspended?: boolean }) {
   const [view, setView] = useState<View>('board');
   const [accountId, setAccountId] = useState<DemoAccountId>('personal');
   const [workspaces, setWorkspaces] = useState(demoWorkspaces);
   const account = demoAccounts[accountId];
   const tasks = workspaces[accountId];
-  const editor = usePreviewTaskEditor(tasks, (id, patch) =>
-    setWorkspaces((current) => updateDemoTask(current, accountId, id, patch)),
+  const automatedDraft = useRef(false);
+  const rawEditor = usePreviewTaskEditor(
+    tasks,
+    (id, patch) => setWorkspaces((current) => updateDemoTask(current, accountId, id, patch)),
+    { shouldGuardDraft: () => !automatedDraft.current },
   );
+  const editor: PreviewTaskEditor = {
+    ...rawEditor,
+    patch(value) {
+      automatedDraft.current = false;
+      rawEditor.patch(value);
+    },
+    open(task) {
+      rawEditor.open(task);
+      automatedDraft.current = false;
+    },
+  };
   const [scope, setScope] = useState<DemoScope>('all');
   const [query, setQuery] = useState('');
   const [navigationOpen, setNavigationOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const showcase = useRef<HTMLDivElement>(null);
+  const latest = useRef({ editor: rawEditor, tasks });
+  latest.current = { editor: rawEditor, tasks };
+  const playback = useShowcasePlayback({
+    rootRef: showcase,
+    suspended,
+    onReplay() {
+      flushSync(() => {
+        automatedDraft.current = false;
+        setWorkspaces(demoWorkspaces);
+        setAccountId('personal');
+        setView('board');
+        setScope('all');
+        setQuery('');
+        setNavigationOpen(false);
+        setSearchOpen(false);
+      });
+    },
+    async run(context: PlaybackContext) {
+      const root = showcase.current;
+      if (!root) return;
+      const motion = createShowcaseMotion(root, context.signal, context.registerAnimation);
+      const task = () => latest.current.tasks.find((item) => item.id === 'website')!;
+      try {
+        await playWorkspaceStory({
+          context,
+          motion,
+          task,
+          edit: () =>
+            flushSync(() => {
+              automatedDraft.current = true;
+              latest.current.editor.open(task());
+            }),
+          notes: (notes) => flushSync(() => latest.current.editor.patch({ notes })),
+          save: () => flushSync(() => latest.current.editor.save()),
+          view: (value) => flushSync(() => setView(value)),
+          completeSubtask: (index) =>
+            flushSync(() => latest.current.editor.completeSubtask(task(), index, true)),
+        });
+      } finally {
+        motion.dispose();
+      }
+    },
+  });
+  const scripted = playback.status === 'playing' || playback.status === 'paused';
+  const takeOver = (event: SyntheticEvent) => {
+    if ((event.target as Element).closest('[data-showcase-control]')) return;
+    playback.takeOver();
+  };
   const [compact, setCompact] = useState(true);
   const measuredCompact = useRef(true);
+  const measuredWidth = useRef<number | null>(null);
+  const onResize = useRef(playback.takeOver);
+  onResize.current = playback.takeOver;
   const navigationTrigger = useRef<HTMLButtonElement>(null);
   const navigationClose = useRef<HTMLButtonElement>(null);
   const navigation = useRef<HTMLElement>(null);
@@ -330,6 +417,9 @@ export function WorkspaceDemo() {
     const surface = showcase.current;
     if (!surface) return;
     const resize = (width: number) => {
+      if (measuredWidth.current !== null && Math.abs(width - measuredWidth.current) > 1)
+        onResize.current();
+      measuredWidth.current = width;
       const next = width <= 768;
       if (next === measuredCompact.current) return;
       measuredCompact.current = next;
@@ -348,19 +438,70 @@ export function WorkspaceDemo() {
   }, []);
 
   return (
-    <div ref={showcase} className="workspace-showcase">
-      <div className="demo-view-controls" role="group" aria-label="preview layout">
-        {(['board', 'list', 'calendar'] as const).map((layout) => (
-          <button
-            type="button"
-            key={layout}
-            aria-pressed={view === layout}
-            onClick={() => editor.navigate(() => setView(layout))}
-          >
-            <DemoIcon name={layout} size={15} />
-            {layout}
-          </button>
-        ))}
+    <div
+      ref={showcase}
+      className="workspace-showcase"
+      data-playback={playback.status}
+      onPointerDownCapture={takeOver}
+      onClickCapture={takeOver}
+      onInputCapture={takeOver}
+      onKeyDownCapture={takeOver}
+      onFocusCapture={takeOver}
+      onWheelCapture={takeOver}
+    >
+      <div className="demo-showcase-toolbar">
+        <button
+          type="button"
+          className="demo-playback"
+          data-showcase-control
+          aria-label={
+            playback.status === 'playing'
+              ? 'pause demo'
+              : playback.status === 'paused'
+                ? 'resume demo'
+                : playback.status === 'waiting'
+                  ? 'play demo'
+                  : 'replay demo'
+          }
+          title={
+            playback.status === 'playing'
+              ? 'pause demo'
+              : playback.status === 'paused'
+                ? 'resume demo'
+                : 'replay demo'
+          }
+          onClick={() => {
+            if (playback.status === 'playing') playback.pause();
+            else if (playback.status === 'paused') playback.resume();
+            else if (playback.status === 'waiting') playback.start();
+            else editor.navigate(() => playback.replay());
+          }}
+        >
+          <DemoIcon
+            name={
+              playback.status === 'playing'
+                ? 'pause'
+                : playback.status === 'paused' || playback.status === 'waiting'
+                  ? 'play'
+                  : 'replay'
+            }
+            size={15}
+          />
+        </button>
+        <div className="demo-view-controls" role="group" aria-label="preview layout">
+          {(['board', 'list', 'calendar'] as const).map((layout) => (
+            <button
+              type="button"
+              key={layout}
+              data-showcase-view-button={layout}
+              aria-pressed={view === layout}
+              onClick={() => editor.navigate(() => setView(layout))}
+            >
+              <DemoIcon name={layout} size={15} />
+              {layout}
+            </button>
+          ))}
+        </div>
       </div>
       <div
         className={
@@ -518,7 +659,7 @@ export function WorkspaceDemo() {
               }}
             />
           </header>
-          <div className="demo-content" data-view={view}>
+          <div className="demo-content" data-view={view} data-showcase-view>
             <div key={accountId + view}>
               {view === 'calendar' ? (
                 <DemoCalendar tasks={visible} />
@@ -529,6 +670,7 @@ export function WorkspaceDemo() {
                   lists={account.lists}
                   editor={editor}
                   view={view}
+                  scripted={scripted}
                   focalId={tasks[0]!.id}
                 />
               )}

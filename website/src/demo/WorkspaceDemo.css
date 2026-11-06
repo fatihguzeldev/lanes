@@ -1,16 +1,39 @@
 /* Hallmark · component: lanes workspace · theme: source product · v2.0.0 */
 /* The preview follows current task-card, board, stacked-list and calendar surfaces. */
 .workspace-showcase {
+  position: relative;
   container: workspace-preview / inline-size;
   min-width: 0;
   width: 100%;
+}
+.demo-showcase-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.demo-playback {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  padding: 0;
+  border: 1px solid var(--color-line);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-accent);
+}
+.demo-playback:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
 }
 .demo-view-controls {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 4px;
-  margin-bottom: 12px;
 }
 .demo-view-controls button {
   display: inline-flex;
@@ -43,6 +66,7 @@
   display: grid;
   grid-template-columns: 192px minmax(0, 1fr);
   min-width: 0;
+  height: 400px;
   overflow: clip;
   border: 1px solid var(--color-line);
   border-radius: 10px;
@@ -126,6 +150,7 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
+  min-height: 0;
 }
 .demo-toolbar {
   display: grid;
@@ -191,6 +216,10 @@
   container: demo-content / inline-size;
   min-width: 0;
   flex: 1;
+  min-height: 0;
+  overflow: auto;
+  overflow-anchor: none;
+  scrollbar-width: thin;
 }
 .demo-board {
   display: flex;
@@ -353,7 +382,8 @@
   line-height: 1.5;
 }
 .demo-calendar__event-top > span:first-child {
-  flex: 1;
+  width: fit-content;
+  max-width: 100%;
   min-width: 0;
   overflow-wrap: anywhere;
 }
@@ -380,6 +410,11 @@
   font-size: 12px;
 }
 @media (hover: hover) {
+  .demo-playback:hover {
+    border-color: var(--color-accent);
+    background: var(--color-accent);
+    color: var(--color-on-accent);
+  }
   .demo-view-controls button:hover:not([aria-pressed='true']) {
     background-color: var(--color-soft);
   }
@@ -496,6 +531,13 @@
   }
 }
 @media (any-pointer: coarse) {
+  .workspace-demo {
+    height: 480px;
+  }
+  .demo-playback {
+    width: 44px;
+    height: 44px;
+  }
   .demo-view-controls button,
   .demo-shortcuts button,
   .demo-boards button,
