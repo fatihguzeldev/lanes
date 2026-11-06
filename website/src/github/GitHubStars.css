@@ -56,7 +56,7 @@
   }
 }
 
-@media (pointer: coarse) {
+@media (any-pointer: coarse) {
   .github-stars {
     min-height: 44px;
   }

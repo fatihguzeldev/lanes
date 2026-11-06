@@ -65,7 +65,7 @@ export function TaskDetails() {
   }, [confirmCompletion]);
 
   return (
-    <section className="details-section container" aria-labelledby="details-title">
+    <section className="details-section" aria-labelledby="details-title">
       <header className="details-intro">
         <h2 id="details-title">a task is rarely just a title.</h2>
       </header>

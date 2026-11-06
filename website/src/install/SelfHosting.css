@@ -112,7 +112,7 @@
   }
 }
 
-@media (pointer: coarse) {
+@media (any-pointer: coarse) {
   .agent-prompt textarea {
     font-size: 16px;
   }

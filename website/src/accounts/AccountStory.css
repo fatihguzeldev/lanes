@@ -1,19 +1,10 @@
 /* Hallmark · component: account workspace · theme: inherited lanes · v2.0.0 */
 /* Critique: account switching changes the board and its grouped lists in one continuous workspace. */
 .account-story {
-  margin-top: var(--section-gap);
-}
-.account-story__intro {
-  margin-bottom: var(--space-xl);
-}
-.account-story__intro h2 {
-  max-width: 22ch;
-}
-.account-story__intro p {
-  margin-top: var(--space-md);
-  color: var(--color-muted);
+  min-width: 0;
 }
 .account-story__workspace {
+  container: account-workspace / inline-size;
   min-width: 0;
   overflow: clip;
   border: 1px solid var(--color-line);
@@ -24,13 +15,15 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-lg);
-  min-height: 68px;
-  padding: var(--space-sm) var(--space-lg);
+  gap: var(--space-sm);
+  min-height: 52px;
+  padding: var(--space-xs) var(--space-sm);
   border-bottom: 1px solid var(--color-line);
 }
 .account-story__switcher {
   display: flex;
+  flex-wrap: wrap;
+  min-width: 0;
   gap: var(--space-2xs);
 }
 .account-story__switcher button {
@@ -54,8 +47,10 @@
   display: flex;
   align-items: center;
   gap: var(--space-xs);
+  min-width: 0;
   color: var(--color-muted);
   font-size: 12px;
+  overflow-wrap: anywhere;
 }
 .account-story__board-symbol {
   display: grid;
@@ -70,7 +65,8 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 .account-story__list {
-  padding: var(--space-lg) 32px 32px;
+  min-width: 0;
+  padding: var(--space-md);
 }
 .account-story__list + .account-story__list {
   border-left: 1px solid var(--color-line);
@@ -95,11 +91,16 @@
   display: flex;
   align-items: flex-start;
   gap: var(--space-xs);
+  min-width: 0;
   min-height: 48px;
   padding-block: var(--space-sm);
   font-size: 14px;
   line-height: 1.5;
   cursor: pointer;
+}
+.account-story__task > span:last-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .account-story__task input {
   position: absolute;
@@ -143,28 +144,23 @@
     background: var(--color-soft);
   }
 }
-@media (max-width: 680px) {
+@container account-workspace (max-width: 440px) {
   .account-story__toolbar {
     flex-wrap: wrap;
     gap: var(--space-xs);
-    padding-inline: var(--space-md);
   }
   .account-story__board-name {
     width: 100%;
-    padding: var(--space-xs) var(--space-sm);
   }
   .account-story__lists {
     grid-template-columns: minmax(0, 1fr);
-  }
-  .account-story__list {
-    padding: var(--space-lg);
   }
   .account-story__list + .account-story__list {
     border-left: 0;
     border-top: 1px solid var(--color-line);
   }
 }
-@media (pointer: coarse) {
+@media (any-pointer: coarse) {
   .account-story__switcher button {
     min-height: 44px;
   }

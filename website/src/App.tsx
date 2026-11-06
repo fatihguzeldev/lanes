@@ -48,8 +48,10 @@ export function App() {
             <WorkspaceDemo />
           </div>
         </section>
-        <TaskDetails />
-        <AccountStory />
+        <div className="product-stories container">
+          <TaskDetails />
+          <AccountStory />
+        </div>
         <SelfHosting />
       </main>
       <footer className="site-footer container">

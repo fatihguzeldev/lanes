@@ -740,7 +740,7 @@
     padding-inline: 0;
   }
 }
-@media (pointer: coarse) {
+@media (any-pointer: coarse) {
   .demo-view-controls button,
   .demo-shortcuts button,
   .demo-boards button,
@@ -812,7 +812,7 @@
     }
   }
 }
-@media (hover: none), (pointer: coarse) {
+@media (hover: none), (any-pointer: coarse) {
   .workspace-demo .demo-task__star,
   .workspace-demo .demo-task__menu {
     opacity: 1;

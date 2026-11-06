@@ -7,11 +7,11 @@ const accounts = {
     lists: [
       {
         name: 'weekend plans',
-        tasks: ['find a trail for saturday', 'book a table for two', 'take the long way home'],
+        tasks: ['find a trail for saturday', 'book a table for two'],
       },
       {
         name: 'life admin',
-        tasks: ['pick up the library books', 'renew the passport', 'plan the week over coffee'],
+        tasks: ['pick up the library books', 'renew the passport'],
       },
     ],
   },
@@ -20,19 +20,11 @@ const accounts = {
     lists: [
       {
         name: 'in progress',
-        tasks: [
-          'polish the welcome screen',
-          'write the launch notes',
-          'record a short walkthrough',
-        ],
+        tasks: ['polish the welcome screen', 'write the launch notes'],
       },
       {
         name: 'follow up',
-        tasks: [
-          'read through the feedback',
-          'check the release checklist',
-          'send a thank-you note',
-        ],
+        tasks: ['read through the feedback', 'check the release checklist'],
       },
     ],
   },
@@ -68,10 +60,9 @@ export function AccountStory() {
   const account = accounts[selected];
 
   return (
-    <section className="account-story container" aria-labelledby="accounts-title">
+    <section className="account-story" aria-labelledby="accounts-title">
       <header className="account-story__intro">
         <h2 id="accounts-title">each account in its own lane.</h2>
-        <p>switch google accounts without mixing their tasks.</p>
       </header>
       <div className="account-story__workspace product-preview">
         <div className="account-story__toolbar">
