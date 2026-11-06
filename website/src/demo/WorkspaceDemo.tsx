@@ -1,4 +1,4 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import { useId, useLayoutEffect, useRef, useState } from 'react';
 import {
   demoAccounts,
   demoWeek,
@@ -261,9 +261,9 @@ export function WorkspaceDemo() {
   const [query, setQuery] = useState('');
   const [navigationOpen, setNavigationOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [compact, setCompact] = useState(
-    () => typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches,
-  );
+  const showcase = useRef<HTMLDivElement>(null);
+  const [compact, setCompact] = useState(true);
+  const measuredCompact = useRef(true);
   const navigationTrigger = useRef<HTMLButtonElement>(null);
   const navigationClose = useRef<HTMLButtonElement>(null);
   const navigation = useRef<HTMLElement>(null);
@@ -301,26 +301,38 @@ export function WorkspaceDemo() {
     if (compact && navigationOpen) navigationClose.current?.focus({ preventScroll: true });
     else if (pendingNavigationFocus.current) {
       pendingNavigationFocus.current = false;
-      navigationTrigger.current?.focus({ preventScroll: true });
+      const target = compact
+        ? navigationTrigger.current
+        : navigation.current?.querySelector<HTMLButtonElement>('nav button');
+      target?.focus({ preventScroll: true });
     } else if (document.activeElement === navigationClose.current)
       navigation.current
         ?.querySelector<HTMLButtonElement>('nav button')
         ?.focus({ preventScroll: true });
   }, [compact, navigationOpen]);
-  useEffect(() => {
-    const media = window.matchMedia('(max-width: 768px)');
-    const resize = () => {
-      setCompact(media.matches);
-      if (media.matches && document.activeElement === searchInput.current) setSearchOpen(true);
-      if (!media.matches && document.activeElement === searchTrigger.current)
-        searchInput.current?.focus({ preventScroll: true });
+  useLayoutEffect(() => {
+    const surface = showcase.current;
+    if (!surface) return;
+    const resize = (width: number) => {
+      const next = width <= 768;
+      if (next === measuredCompact.current) return;
+      measuredCompact.current = next;
+      const active = document.activeElement;
+      if (next && active === searchInput.current) setSearchOpen(true);
+      if (!next && active === searchTrigger.current) pendingSearchFocus.current = 'input';
+      if (!next && active === navigationClose.current) pendingNavigationFocus.current = true;
+      setCompact(next);
     };
-    media.addEventListener('change', resize);
-    return () => media.removeEventListener('change', resize);
+    resize(surface.getBoundingClientRect().width);
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry) resize(entry.contentRect.width);
+    });
+    observer.observe(surface);
+    return () => observer.disconnect();
   }, []);
 
   return (
-    <div className="workspace-showcase">
+    <div ref={showcase} className="workspace-showcase">
       <div className="demo-view-controls" role="group" aria-label="preview layout">
         {(['board', 'list', 'calendar'] as const).map((layout) => (
           <button
@@ -491,7 +503,7 @@ export function WorkspaceDemo() {
             />
           </header>
           <div className="demo-content" data-view={view}>
-            <div className="demo-scene" key={accountId + view}>
+            <div key={accountId + view}>
               {view === 'calendar' ? (
                 <DemoCalendar tasks={visible} />
               ) : (

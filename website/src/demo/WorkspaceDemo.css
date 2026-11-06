@@ -1,7 +1,9 @@
 /* Hallmark · component: lanes workspace · theme: source product · v2.0.0 */
 /* The preview follows current task-card, board, stacked-list and calendar surfaces. */
 .workspace-showcase {
+  container: workspace-preview / inline-size;
   min-width: 0;
+  width: 100%;
 }
 .demo-view-controls {
   display: flex;
@@ -19,13 +21,13 @@
   border: 0;
   border-radius: 5px;
   background: transparent;
-  color: var(--color-host-muted);
+  color: var(--color-muted);
   font-size: 13px;
   line-height: 20px;
 }
 .demo-view-controls button[aria-pressed='true'] {
-  background: var(--color-host-paper);
-  color: var(--color-brand-surface);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
 }
 .demo-view-controls button:focus-visible {
   outline: none;
@@ -40,7 +42,6 @@
   display: grid;
   grid-template-columns: 192px minmax(0, 1fr);
   min-width: 0;
-  min-height: 430px;
   overflow: clip;
   border: 1px solid var(--color-line);
   border-radius: 10px;
@@ -379,8 +380,7 @@
 }
 @media (hover: hover) {
   .demo-view-controls button:hover:not([aria-pressed='true']) {
-    background-color: var(--color-header-hover);
-    color: var(--color-host-paper);
+    background-color: var(--color-soft);
   }
   .demo-shortcuts button:hover,
   .demo-boards button:hover {
@@ -391,7 +391,7 @@
     color: var(--color-accent);
   }
 }
-@media (max-width: 1024px) {
+@container workspace-preview (max-width: 1024px) {
   .workspace-demo {
     --demo-canvas-padding: 18px;
     grid-template-columns: 172px minmax(0, 1fr);
@@ -401,7 +401,7 @@
     padding-inline: 18px;
   }
 }
-@media (max-width: 768px) {
+@container workspace-preview (max-width: 768px) {
   .workspace-demo {
     --demo-canvas-padding: 16px;
     grid-template-columns: minmax(0, 1fr);
@@ -489,6 +489,10 @@
   .demo-search input {
     padding-inline: 0;
   }
+  .demo-toolbar .demo-account-menu__trigger {
+    width: 44px;
+    height: 44px;
+  }
 }
 @media (any-pointer: coarse) {
   .demo-view-controls button,
@@ -534,34 +538,7 @@
   padding-bottom: 4px;
 }
 @media (prefers-reduced-motion: no-preference) {
-  .demo-scene {
-    animation: demo-scene-in 180ms var(--ease-out);
-  }
-  .workspace-demo .details-task__children:not([hidden]),
-  .workspace-demo .workbench-editor {
-    animation: demo-detail-in 160ms var(--ease-out);
-  }
   .workspace-demo .workbench-subtask input:checked + span {
     transition: color 120ms var(--ease-out);
-  }
-}
-@keyframes demo-scene-in {
-  from {
-    opacity: 0;
-    transform: translateY(4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-@keyframes demo-detail-in {
-  from {
-    opacity: 0;
-    transform: translateY(-3px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
   }
 }
