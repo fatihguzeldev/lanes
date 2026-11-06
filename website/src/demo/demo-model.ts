@@ -36,14 +36,14 @@ export const demoAccounts = {
     displayName: 'fatih',
     email: 'fatih@personal.example',
     board: 'a little side project',
-    lists: ['in progress', 'ideas', 'done'],
+    lists: ['in progress', 'ideas'],
   },
   work: {
     id: 'work',
     displayName: 'fatih',
     email: 'fatih@work.example',
     board: 'the next release',
-    lists: ['in progress', 'up next', 'done'],
+    lists: ['in progress', 'up next'],
   },
 } satisfies Record<
   DemoAccountId,
@@ -57,30 +57,24 @@ export const demoAccounts = {
 >;
 
 export const demoTasks: DemoTask[] = [
-  { ...workbenchTasks[0]!, list: 'in progress' },
-  task('walkthrough', 'record a short walkthrough', 'in progress', {
-    day: '2026-11-13',
-    time: '14:00',
-    labels: ['launch'],
-  }),
-  task('small-start', 'sketch the first version', 'ideas', {
-    notes: 'keep it to a single page.',
+  {
+    ...workbenchTasks[0]!,
+    list: 'in progress',
+    priority: 'none',
     labels: ['design'],
-  }),
+  },
+  task('small-start', 'sketch the first version', 'ideas'),
   task('playlist', 'make a playlist for late nights', 'ideas'),
-  task('first-step', 'register a domain', 'done', { completed: true }),
-  task('perfect', 'pick a name', 'done', { completed: true }),
 ];
 
 export const demoWorkspaces: DemoWorkspace = {
   personal: demoTasks,
   work: [
     task('release', 'ship the next version', 'in progress', {
-      notes: 'review the changes, update the changelog, and tag v1.0.',
+      notes: 'review the changes and write the release notes.',
       day: demoToday,
       time: '16:00',
       labels: ['launch'],
-      priority: 'high',
       starred: true,
       subtasks: [
         { title: 'review the pull requests', completed: true },
@@ -88,10 +82,8 @@ export const demoWorkspaces: DemoWorkspace = {
         { title: 'tag the release', completed: false },
       ],
     }),
-    task('feedback', 'read through the feedback', 'in progress', { labels: ['design'] }),
-    task('welcome', 'polish the welcome screen', 'up next', { labels: ['design'] }),
-    task('docs', 'update the setup guide', 'up next', { labels: ['writing'] }),
-    task('checks', 'run the release checks', 'done', { completed: true }),
+    task('welcome', 'polish the welcome screen', 'up next'),
+    task('docs', 'update the setup guide', 'up next'),
   ],
 };
 

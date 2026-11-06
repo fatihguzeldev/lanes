@@ -63,7 +63,7 @@ function DemoColumn({
   editor: PreviewTaskEditor;
   focalId: string;
 }) {
-  const [expanded, setExpanded] = useState(list === 'done');
+  const [expanded, setExpanded] = useState(false);
   const column = useRef<HTMLElement>(null);
   const focused = useRef<HTMLElement | null>(null);
   const completedId = useId();
