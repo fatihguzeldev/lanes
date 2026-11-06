@@ -40,8 +40,8 @@ export function PreviewTaskDialogs({
     requestAnimationFrame(() => {
       const active = document.activeElement;
       if (active === document.body || discardDialog.current?.contains(active))
-        document
-          .querySelector<HTMLTextAreaElement>('.workbench-editor__title')
+        discardDialog.current?.parentElement
+          ?.querySelector<HTMLTextAreaElement>('.workbench-editor__title')
           ?.focus({ preventScroll: true });
     });
   }
@@ -50,7 +50,7 @@ export function PreviewTaskDialogs({
     <>
       <dialog
         ref={discardDialog}
-        className="workbench-confirm"
+        className="workbench-confirm product-preview"
         aria-labelledby={discardId}
         onCancel={(event) => {
           event.preventDefault();
@@ -76,7 +76,7 @@ export function PreviewTaskDialogs({
       </dialog>
       <dialog
         ref={completionDialog}
-        className="workbench-confirm"
+        className="workbench-confirm product-preview"
         aria-labelledby={completionId}
         onCancel={(event) => {
           event.preventDefault();
