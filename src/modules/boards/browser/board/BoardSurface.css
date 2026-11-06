@@ -60,9 +60,12 @@
   width: 20px;
   height: 20px;
   flex: none;
-  border-radius: 4px;
-  color: var(--green);
-  background: color-mix(in srgb, var(--list-color, var(--green-soft)) 35%, var(--paper));
+  color: color-mix(in srgb, var(--list-color, var(--green)) 35%, var(--green));
+}
+.board-column__symbol > .icon {
+  width: 18px;
+  height: 18px;
+  stroke-width: 2;
 }
 .board-column__count {
   color: var(--secondary, #697063);
