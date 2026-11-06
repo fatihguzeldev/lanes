@@ -235,6 +235,8 @@ export function Workspace({
   const boardManagement = useBoardManagement(board, submit, {
     account,
     clockOffset,
+    boards: boards.items,
+    lists: visibleLists,
     onChanged: changed,
     onNotice: setNotice,
     onInspect: inspection.inspect,
@@ -244,6 +246,9 @@ export function Workspace({
       if (taskMenu.task?.id === taskId) taskMenu.close();
     },
   });
+  const displayedBoard = boardManagement.appearance.board(board);
+  const displayedBoards = boards.items.map((item) => boardManagement.appearance.board(item)!);
+  const displayedLists = visibleLists.map(boardManagement.appearance.list);
   const guard = useCallback(
     (action: () => void) => {
       if (taskEditor.deferCreateExit(action)) return;
@@ -258,7 +263,8 @@ export function Workspace({
       taskEditor.isSaving() ||
       boardManagement.placement.busy ||
       boardManagement.creation.isSaving() ||
-      boardManagement.listCreation.isSaving()
+      boardManagement.listCreation.isSaving() ||
+      boardManagement.appearance.isSaving()
     )
       setNotice('wait for your changes to finish saving before leaving this account.');
     else if (boardCreationDirty || listCreationDirty) setDiscard(() => action);
@@ -433,7 +439,7 @@ export function Workspace({
           </>
         }
         boards={{
-          resource: boards,
+          resource: { ...boards, items: displayedBoards },
           selectedBoardId:
             quick === 'all' && !(searchScope === 'account' && search) ? (board?.id ?? null) : null,
           writable: localWritable,
@@ -455,11 +461,11 @@ export function Workspace({
         }}
       />
       <main className="workspace__main" inert={navOpen || undefined}>
-        {board?.backgroundUrl && (
+        {displayedBoard?.backgroundUrl && (
           <img
-            key={board.backgroundUrl}
+            key={displayedBoard.backgroundUrl}
             className="workspace__background"
-            src={board.backgroundUrl}
+            src={displayedBoard.backgroundUrl}
             alt=""
             aria-hidden="true"
             referrerPolicy="no-referrer"
@@ -475,7 +481,7 @@ export function Workspace({
           quick={quick}
           searchScope={searchScope}
           search={search}
-          board={board}
+          board={displayedBoard}
           onBoardOptions={(anchor) => {
             boardManagement.openBoardMenu(anchor);
           }}
@@ -579,13 +585,13 @@ export function Workspace({
         )}
         <WorkspaceViews
           account={account}
-          board={board}
+          board={displayedBoard}
           boardId={boardId}
           boardsError={boards.error}
           failedBoardLookup={failedBoardLookup}
           awaitingBoard={awaitingBoard}
           lists={lists}
-          visibleLists={visibleLists}
+          visibleLists={displayedLists}
           labels={labels.items}
           today={today}
           viewPreferences={viewPreferences}
@@ -718,15 +724,16 @@ export function Workspace({
       <BoardManagement
         controller={boardManagement}
         account={account}
-        board={board}
-        boards={boards.items}
-        lists={visibleLists}
+        board={displayedBoard}
+        boards={displayedBoards}
+        lists={displayedLists}
         clockOffset={clockOffset}
         preferences={viewPreferences}
         startBoardId={startBoardId}
         loadedListCount={lists.items.length}
         writable={writable}
         localWritable={localWritable}
+        busy={commands.busy}
         submit={submit}
         guard={guard}
         onPrompt={setPrompt}

@@ -65,9 +65,12 @@
 .board-navigation__symbol {
   display: grid;
   place-items: center;
-  width: 16px;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
   flex: none;
-  color: color-mix(in srgb, var(--board-color, var(--icon)) 25%, var(--icon));
+  color: var(--icon);
+  background: color-mix(in srgb, var(--board-color, var(--green-soft)) 35%, var(--paper));
 }
 .board-navigation__note {
   padding: 10px;

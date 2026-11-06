@@ -29,60 +29,6 @@
 .board-options__section[open] > summary > .board-options__chevron {
   transform: rotate(180deg);
 }
-.board-options__fields {
-  display: grid;
-  gap: 12px;
-  padding: 4px 10px 12px;
-}
-.board-options__fields fieldset {
-  display: grid;
-  gap: 12px;
-  padding: 0;
-  margin: 0;
-  border: 0;
-  min-width: 0;
-}
-.board-options__fields label {
-  display: grid;
-  gap: 5px;
-  min-width: 0;
-  color: var(--secondary);
-  font-size: 11px;
-}
-.board-options__fields input,
-.board-options__fields .select__trigger {
-  width: 100%;
-  min-width: 0;
-  padding: 7px 8px;
-  border: 1px solid var(--line);
-  border-radius: 5px;
-  background: var(--canvas);
-  color: var(--ink);
-  font-size: var(--field-font-size);
-  min-height: var(--field-height);
-}
-.board-options__fields small {
-  font-size: 10px;
-  line-height: 1.5;
-}
-.board-options__pair {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-.board-options__save {
-  min-height: var(--control-size);
-  justify-self: end;
-  padding: 7px 10px;
-  border: 0;
-  border-radius: 5px;
-  background: var(--green);
-  color: var(--paper);
-  font-size: 12px;
-}
-.board-options__save:disabled {
-  opacity: 0.45;
-}
 .board-options__checks {
   display: grid;
   gap: 10px;
@@ -103,12 +49,6 @@
 .board-options__checks input {
   margin: 0;
   accent-color: var(--green);
-}
-.board-options__error {
-  padding: 6px 10px;
-  color: var(--rust);
-  font-size: 12px;
-  line-height: 1.5;
 }
 .board-options__delete {
   border-top: 1px solid var(--fine);

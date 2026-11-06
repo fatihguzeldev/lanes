@@ -23,6 +23,10 @@ hover can reveal secondary controls, but keyboard focus must reveal them too. to
 
 inline board, list, and task creation use flat name fields in place. use the accent for their focus underline; avoid a second input box inside a row. task text keeps its color on hover, and close icons do not need a separate hover tile. icon-only editor actions show a tooltip on hover and keyboard focus.
 
+single-value edits use inline fields or anchored pickers. colors and emoji show the selected value and save on selection; names and custom image urls save on enter or blur. do not collect these edits behind a shared save button. preview immediate changes and restore confirmed values if saving fails. keep submitted writes alive when their menu closes.
+
+use anchored menus for navigation and destination choices. reserve modal confirmations for destructive changes, account access, unsaved drafts, and multi-step operations that need review. an html form for keyboard submission does not require a separate dialog or approval button.
+
 ## constrained surfaces
 
 menus stay anchored and fit inside the visible viewport. dialogs and detached panels keep their content and actions scrollable at short heights. account for display safe areas and viewport changes without replacing an open draft or submitted operation.

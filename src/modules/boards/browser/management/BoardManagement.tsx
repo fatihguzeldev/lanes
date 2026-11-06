@@ -11,6 +11,7 @@ import { useListCreation } from './useListCreation';
 import { ListOptions } from '../placement/ListOptions';
 import { DuplicateDialog } from '../placement/DuplicateDialog';
 import { useTaskPlacement } from '../placement/useTaskPlacement';
+import { useBoardAppearance } from '../appearance/useBoardAppearance';
 
 type Submit = (
   command: unknown,
@@ -23,6 +24,8 @@ export function useBoardManagement(
   environment: {
     account: ConnectionSummary;
     clockOffset: number;
+    boards: readonly Board[];
+    lists: readonly BoardList[];
     onChanged(): void;
     onNotice(message: string): void;
     onInspect(id: string): void;
@@ -31,6 +34,14 @@ export function useBoardManagement(
     onListDraftChange?: ((dirty: boolean) => void) | undefined;
   },
 ) {
+  const appearance = useBoardAppearance({
+    accountId: environment.account.id,
+    board,
+    boards: environment.boards,
+    lists: environment.lists,
+    submit,
+    onNotice: environment.onNotice,
+  });
   const creation = useBoardCreation({
     accountId: environment.account.id,
     clockOffset: environment.clockOffset,
@@ -57,6 +68,7 @@ export function useBoardManagement(
     { kind: 'list'; list: BoardList } | { kind: 'task'; task: Task; boardId: string } | null
   >(null);
   return {
+    appearance,
     creation,
     listCreation,
     placement,
@@ -105,6 +117,7 @@ interface Props {
   loadedListCount: number;
   writable: boolean;
   localWritable: boolean;
+  busy: boolean;
   submit: Submit;
   guard(action: () => void): void;
   onPrompt(prompt: Prompt): void;
@@ -130,6 +143,7 @@ export function BoardManagement({
   loadedListCount,
   writable,
   localWritable,
+  busy,
   submit,
   guard,
   onPrompt,
@@ -180,15 +194,16 @@ export function BoardManagement({
             setBoardMenu(false);
             onCompleted();
           }}
-          account={account}
           board={board}
           boards={boards}
-          clockOffset={clockOffset}
           preferences={preferences}
           startBoardId={startBoardId}
           onPreferences={onPreferences}
           onStartBoard={onStartBoard}
-          onChanged={onChanged}
+          writable={localWritable}
+          pending={busy || controller.appearance.pending}
+          submit={submit}
+          onChange={(patch) => controller.appearance.updateBoard(board, patch)}
           onClose={() => setBoardMenu(false)}
           onDelete={() =>
             guard(() => {
