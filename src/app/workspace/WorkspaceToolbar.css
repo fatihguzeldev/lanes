@@ -1,8 +1,9 @@
 .workspace__topbar {
+  --workspace-toolbar-gap: 18px;
   display: grid;
   grid-template-columns: minmax(115px, 1fr) minmax(220px, 440px) minmax(max-content, 1fr);
   align-items: center;
-  gap: 18px;
+  gap: var(--workspace-toolbar-gap);
   min-height: 70px;
   flex: none;
   padding: max(12px, var(--safe-top)) max(var(--workspace-padding), var(--safe-right)) 12px
@@ -53,6 +54,12 @@
   align-items: center;
   gap: 7px;
   min-width: 0;
+}
+.workspace__search-actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex: none;
 }
 .workspace__search {
   display: flex;
@@ -114,18 +121,35 @@
   align-items: center;
   gap: 4px;
 }
-.workspace__search-controls > .popover {
-  position: relative;
-}
 .workspace__mobile-menu {
   display: none;
 }
-@container workspace (max-width: 900px) {
+@container workspace (min-width: 861px) {
   .workspace__topbar {
-    gap: 12px;
+    /* the extra right track offsets navigation, centering the input on the window. */
+    grid-template-columns:
+      minmax(calc(4 * var(--control-size) + 12px), 1fr) minmax(220px, 400px)
+      calc(var(--workspace-navigation-width) - var(--workspace-toolbar-gap))
+      minmax(calc(4 * var(--control-size) + 12px), 1fr);
+  }
+  .workspace__search-controls {
+    position: relative;
+  }
+  .workspace__search-actions {
+    position: absolute;
+    left: calc(100% + 7px);
+  }
+  .workspace__global-controls {
+    grid-column: 3 / -1;
+    grid-row: 1;
   }
 }
-@container workspace (max-width: 800px) {
+@container workspace (max-width: 900px) {
+  .workspace__topbar {
+    --workspace-toolbar-gap: 12px;
+  }
+}
+@container workspace (max-width: 860px) {
   .workspace__topbar {
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 10px 16px;
@@ -236,6 +260,9 @@
   .workspace__topbar--searching .workspace__search-controls {
     display: flex;
     flex: 1;
+    gap: 4px;
+  }
+  .workspace__search-actions {
     gap: 4px;
   }
   .workspace__topbar--searching .workspace__desktop-view {

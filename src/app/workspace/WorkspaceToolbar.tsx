@@ -138,21 +138,23 @@ export function WorkspaceToolbar({
           />
           <kbd>/</kbd>
         </label>
-        {query && (
-          <Select
-            aria-label="search scope"
-            value={searchScope}
-            className="workspace__search-scope"
-            onChange={(value) => onScope(value as 'board' | 'account')}
-            options={[
-              { value: 'board', label: 'this board' },
-              { value: 'account', label: 'all boards' },
-            ]}
-          />
-        )}
-        <span className="workspace__desktop-view">
-          <WorkspaceViewMenu {...viewMenu} />
-        </span>
+        <div className="workspace__search-actions">
+          {query && (
+            <Select
+              aria-label="search scope"
+              value={searchScope}
+              className="workspace__search-scope"
+              onChange={(value) => onScope(value as 'board' | 'account')}
+              options={[
+                { value: 'board', label: 'this board' },
+                { value: 'account', label: 'all boards' },
+              ]}
+            />
+          )}
+          <span className="workspace__desktop-view">
+            <WorkspaceViewMenu {...viewMenu} />
+          </span>
+        </div>
       </div>
       <div className="workspace__global-controls">
         {syncControl}

@@ -1,7 +1,8 @@
 .workspace {
+  --workspace-navigation-width: 192px;
   position: relative;
   display: grid;
-  grid-template-columns: 192px minmax(0, 1fr);
+  grid-template-columns: var(--workspace-navigation-width) minmax(0, 1fr);
   height: 100svh;
   height: 100dvh;
   overflow: hidden;
@@ -93,11 +94,12 @@
 }
 @media (max-width: 1024px) {
   .workspace {
-    grid-template-columns: 172px minmax(0, 1fr);
+    --workspace-navigation-width: 172px;
   }
 }
 @media (max-width: 768px) {
   .workspace {
+    --workspace-navigation-width: 0px;
     grid-template-columns: minmax(0, 1fr);
   }
   .workspace__connection,
