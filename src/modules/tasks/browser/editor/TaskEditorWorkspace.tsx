@@ -101,13 +101,24 @@ export function TaskEditorWorkspace({
   const submitted =
     commands.latest?.id === identity || commands.errorDetails?.operationId === identity;
   const pending = submitting || commands.busy || resumePending || repeatWork.busy;
-  const lifetime = useRef({ onBusyChange, onRetire });
-  lifetime.current = { onBusyChange, onRetire };
+  const lifetime = useRef({ onBusyChange, onRetire, onSaved, onDirtyChange });
+  lifetime.current = { onBusyChange, onRetire, onSaved, onDirtyChange };
   const hadWork = useRef(false),
     retired = useRef(false);
   useLayoutEffect(() => {
     if (pending) hadWork.current = true;
     lifetime.current.onBusyChange(pending);
+    if (
+      selection.inlineCreate &&
+      !pending &&
+      commands.latest?.state === 'succeeded' &&
+      !retired.current
+    ) {
+      retired.current = true;
+      lifetime.current.onDirtyChange(false);
+      lifetime.current.onSaved();
+      return;
+    }
     if (!presented && !pending && !retired.current) {
       retired.current = true;
       const error = commands.latest?.state === 'succeeded' ? '' : commands.error;

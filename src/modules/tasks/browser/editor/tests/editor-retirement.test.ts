@@ -198,4 +198,17 @@ describe('hidden editor retirement', () => {
     editor.render(false);
     expect(editor.retire).toHaveBeenCalledWith(true, null, null);
   });
+
+  it('closes inline creation when a lost response recovers a confirmed successful receipt', () => {
+    const editor = mount(true);
+    state.commands.busy = true;
+    editor.render();
+    state.commands.busy = false;
+    state.commands.latest = { id: 'receipt', state: 'succeeded' };
+    state.commands.error = 'the original response was lost';
+    editor.render();
+    editor.render();
+    expect(editor.saved).toHaveBeenCalledOnce();
+    expect(editor.retire).not.toHaveBeenCalled();
+  });
 });
