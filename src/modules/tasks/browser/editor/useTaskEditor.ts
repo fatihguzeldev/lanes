@@ -13,7 +13,7 @@ export function useTaskEditor(
 ) {
   const [session, setSession] = useState<TaskEditorSession | null>(null);
   const [dirty, changeDirty] = useState(false);
-  const [saves, setSaves] = useState<ReadonlySet<number>>(() => new Set());
+  const [saves, setSaves] = useState<ReadonlySet<number | 'labels'>>(() => new Set());
   const dirtyNow = useRef(false);
   const savingNow = useRef(saves);
   const nextId = useRef(0);
@@ -87,7 +87,7 @@ export function useTaskEditor(
         }
       }
     },
-    setSaving(id: number, busy: boolean) {
+    setSaving(id: number | 'labels', busy: boolean) {
       if (savingNow.current.has(id) === busy) return;
       const next = new Set(savingNow.current);
       if (busy) next.add(id);

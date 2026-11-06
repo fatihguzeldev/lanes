@@ -54,6 +54,7 @@ function render() {
   harness.effects = [];
   const root = LabelManager({
     account: { id: 'account', state: 'connected' } as ConnectionSummary,
+    anchor: {} as HTMLElement,
     version: 0,
     clockOffset: 0,
     onChanged: vi.fn(),
@@ -115,7 +116,7 @@ it('finishes a name write before closing and preserves its captured revision', a
       }),
   );
   const pending = draft.props.onSubmit('books', '#82966f', 'same-receipt');
-  const dialog = nodes.find((node) => node.props.title === 'labels')!;
+  const dialog = nodes.find((node) => node.props.label === 'labels')!;
   expect(dialog.props.pending).toBeUndefined();
   dialog.props.onClose();
   expect(close).not.toHaveBeenCalled();
@@ -127,7 +128,7 @@ it('finishes a name write before closing and preserves its captured revision', a
       input: { name: 'books', color: '#82966f' },
     },
     'local',
-    'same-receipt',
+    expect.any(String),
   );
   finish({ state: 'succeeded' });
   await pending;
@@ -149,10 +150,17 @@ it('keeps a rejected name draft visible instead of completing its queued close',
   const pending = nodes
     .find((node) => node.props.onReview)!
     .props.onSubmit('books', '#82966f', 'receipt');
-  nodes.find((node) => node.props.title === 'labels')!.props.onClose();
+  nodes.find((node) => node.props.label === 'labels')!.props.onClose();
   harness.error = 'could not save';
   finish(null);
   await pending;
-  expect(render().find((node) => node.props.onReview)?.props.error).toBe('could not save');
+  render();
+  const recovered = render().find((node) => node.props.onReview)!;
+  expect(recovered.props.error).toBe('could not save');
+  expect(recovered.props.draftName).toBe('books');
+  const identity = harness.submit.mock.calls[0]![2];
+  harness.submit.mockResolvedValue({ state: 'succeeded' });
+  await recovered.props.onSubmit('books', '#82966f');
+  expect(harness.submit.mock.calls[1]![2]).toBe(identity);
   expect(close).not.toHaveBeenCalled();
 });

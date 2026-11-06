@@ -668,6 +668,7 @@ export function Workspace({
         account={account}
         boardId={board?.id ?? null}
         labels={labels.items}
+        labelPage={labels}
         version={version}
         clockOffset={clockOffset}
         guard={guard}

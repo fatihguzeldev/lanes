@@ -2,6 +2,7 @@ import type { Coverage } from '../../../../shared/contracts/http';
 import type { CreateTask, Label, Task, TaskList, TaskPatch } from '../../contracts/task';
 import type { RecurrenceStatus } from '../../contracts/recurrence';
 import type { TaskDependantsProps } from './TaskDependants';
+import type { LabelPickerPage } from '../labels/useLabels';
 
 export interface EditorLocation {
   list: TaskList;
@@ -37,6 +38,7 @@ export interface TaskEditorProps {
   inlineCreate?: boolean;
   list: TaskList;
   labels: readonly Label[];
+  labelPage?: LabelPickerPage | undefined;
   relatedTasks: readonly Task[];
   timeZone: string;
   weekStart?: 1 | 7;
@@ -76,7 +78,7 @@ export interface TaskEditorProps {
   onLoadMoreDependencies?(): void;
   onRefresh?(): void;
   onDelete?(task: Task): void;
-  onManageLabels?(): void;
+  onManageLabels?(anchor: HTMLElement, create?: boolean): void;
   recurrence?: {
     status: RecurrenceStatus | null;
     loading: boolean;
