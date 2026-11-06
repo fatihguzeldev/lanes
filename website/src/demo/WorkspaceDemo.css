@@ -15,7 +15,7 @@
 .demo-playback {
   position: absolute;
   z-index: 101;
-  right: 12px;
+  left: 12px;
   bottom: 12px;
   display: grid;
   place-items: center;
