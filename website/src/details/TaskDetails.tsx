@@ -91,7 +91,7 @@ export function TaskDetails() {
 
   useEffect(() => {
     if (!task) return;
-    const outside = (event: PointerEvent) => {
+    const outside = (event: MouseEvent) => {
       const target = event.target;
       if (
         event.button !== 0 ||
@@ -100,10 +100,15 @@ export function TaskDetails() {
         target.closest('[popover]:popover-open, dialog[open], .details-task__title')
       )
         return;
+      if (dirty) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
       requestSelection(null, false);
     };
-    document.addEventListener('pointerdown', outside, true);
-    return () => document.removeEventListener('pointerdown', outside, true);
+    // a pan starts with pointerdown; only a completed click should collapse this preview.
+    document.addEventListener('click', outside, true);
+    return () => document.removeEventListener('click', outside, true);
   });
 
   return (
