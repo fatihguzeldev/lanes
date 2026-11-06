@@ -27,6 +27,7 @@ export function createTaskMoveQueue(
           next.confirmed = true;
           publish();
         } catch (error) {
+          if (disposed) return;
           // Later unsent positions may depend on this one. Keep only confirmed work.
           moves = moves.filter((move) => move.confirmed);
           publish();
