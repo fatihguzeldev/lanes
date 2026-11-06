@@ -2,6 +2,8 @@ import type { SVGProps } from 'react';
 
 const paths = {
   plus: 'M12 5v14M5 12h14',
+  tag: 'M20 13 12 21 3 12V3h9l8 8a1.4 1.4 0 0 1 0 2ZM7.5 7.5h.01',
+  flag: 'M5 21V3h14l-3 4 3 4H5',
   close: 'm6 6 12 12M18 6 6 18',
   check: 'm5 12 4 4L19 6',
   'list-check': 'M10 6h10M10 12h10M10 18h10M3 6l1.5 1.5L7 4M3 12l1.5 1.5L7 10M3 18l1.5 1.5L7 16',

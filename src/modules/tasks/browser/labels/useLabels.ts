@@ -16,3 +16,8 @@ export function useLabels(accountId: string, version: number) {
     version,
   );
 }
+
+export type LabelPickerPage = Pick<
+  ReturnType<typeof useLabels>,
+  'nextCursor' | 'status' | 'error' | 'loadMore' | 'reload'
+>;

@@ -1,0 +1,13 @@
+.task-priority-picker {
+  width: 190px;
+}
+.task-priority-picker .popover__item > span {
+  flex: 1;
+}
+.task-priority-picker .popover__item[aria-pressed='true'] {
+  background: var(--green-soft);
+}
+.task-priority-picker__assigned {
+  color: var(--green);
+  fill: var(--green-soft);
+}

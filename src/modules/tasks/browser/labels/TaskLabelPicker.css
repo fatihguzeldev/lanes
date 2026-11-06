@@ -1,0 +1,119 @@
+.task-label-picker {
+  width: 260px;
+  padding: 8px;
+}
+.task-label-picker__search {
+  width: 100%;
+  min-width: 0;
+  min-height: var(--field-height);
+  margin-bottom: 5px;
+  padding: 6px 7px;
+  border: 0;
+  border-bottom: 1px solid var(--fine);
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: var(--field-font-size);
+}
+.task-label-picker__search:focus-visible {
+  outline: none;
+  border-bottom-color: var(--green);
+}
+.task-label-picker__choices {
+  display: grid;
+  max-height: 240px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.task-label-picker__choices > button,
+.task-label-picker__manage {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-height: var(--control-size);
+  padding: 8px 7px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  font-size: 12px;
+}
+.task-label-picker__choices > button > span:nth-child(2) {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.task-label-picker__choices > button > .icon {
+  flex: none;
+  color: var(--green);
+}
+.task-label-picker__choices small {
+  color: var(--secondary);
+  font-size: 10px;
+}
+.task-label-picker__choices > button[aria-checked='true'] {
+  background: var(--green-soft);
+}
+.task-label-picker__choices > p,
+.task-label-picker__limit {
+  margin: 0;
+  padding: 10px 7px;
+  color: var(--secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.task-label-picker__manage {
+  margin-top: 5px;
+  padding-top: 10px;
+  border-top: 1px solid var(--fine);
+  border-radius: 0;
+  color: var(--green);
+}
+.task-label-picker__dot {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--label-color);
+}
+.task-label-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 6px;
+}
+.task-label-chips > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  min-height: var(--control-size);
+  padding: 3px 7px;
+  border: 1px solid color-mix(in srgb, var(--label-color) 25%, var(--fine));
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--label-color) 10%, var(--paper));
+  color: var(--ink);
+  font-size: 11px;
+  line-height: 1.4;
+}
+.task-label-chips > button > span:nth-child(2) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+.task-label-chips > button > .icon {
+  flex: none;
+  color: var(--secondary);
+}
+@media (hover: hover) {
+  .task-label-picker__choices > button:hover:not(:disabled),
+  .task-label-picker__manage:hover:not(:disabled) {
+    background: var(--paper-hover);
+  }
+}
+.task-label-picker button:disabled,
+.task-label-chips button:disabled {
+  opacity: 0.45;
+}
