@@ -1,0 +1,28 @@
+.inline-field {
+  min-width: 0;
+}
+.inline-field > input {
+  width: 100%;
+  min-width: 0;
+  min-height: var(--field-height);
+  padding: 6px 0;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: var(--field-font-size);
+}
+.inline-field > input:focus-visible {
+  outline: none;
+  border-bottom-color: var(--green);
+}
+.inline-field > input[aria-invalid='true'] {
+  border-bottom-color: var(--rust);
+}
+.inline-field__error {
+  margin: 4px 0 0;
+  color: var(--rust);
+  font-size: 11px;
+  line-height: 1.5;
+}
