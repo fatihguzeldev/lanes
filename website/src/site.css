@@ -1,6 +1,6 @@
 /* Hallmark · shape: product workbench · genre: modern-minimal · theme: brand
- * paper: #f3f3f1 · accent: #3d5847 · display: DM Sans · body: DM Sans · hero: centered type above interactive workspace · nav: wordmark / anchors / github · footer: maker colophon · signature: a source-faithful Lanes board visitors can use
- * axes: light/grotesk-sans/cool · posture: restrained, green ownership field · contrast: checked in render sweep · fold: headline and actions visible · v2.0.0 */
+ * paper: #e3eadd · accent: #3d5847 · display: DM Sans · body: DM Sans · hero: centered type on a forest-green field above interactive workspace · nav: wordmark / anchors / github · footer: maker colophon · signature: a source-faithful Lanes board visitors can use
+ * axes: light/grotesk-sans/cool · posture: committed green fields and sage surfaces · fold: headline and actions visible · v2.0.0 */
 /* Hallmark · pre-emit critique: P4 H4 E4 S5 R4 V5 · weakest: authentic product material, built sample follows repository geometry and is explicitly labeled */
 /* Hallmark · waive 84 · owner-only OAuth prevents public product captures · the interactive workspace uses sample tasks, preserves the source geometry and clearly labels the preview */
 /* Hallmark · waive 44c · headline, sentence and action fit above the fold · the interactive workspace needs full-width task lists and sits directly below its introduction */
@@ -21,6 +21,31 @@
 }
 .skip-link:focus-visible {
   transform: translateY(0);
+}
+.site-header-field,
+.hero {
+  background: var(--color-brand-surface);
+  color: var(--color-host-paper);
+}
+.site-header-field,
+.hero__intro {
+  --color-ink: var(--color-host-paper);
+  --color-muted: var(--color-host-muted);
+  --color-accent: var(--color-host-paper);
+  --color-on-accent: var(--color-brand-surface);
+  --color-focus: var(--color-host-paper);
+}
+.site-header-field {
+  --color-paper: var(--color-brand-surface);
+  --color-line: var(--color-host-line);
+  --color-soft: var(--color-field-deep);
+}
+.hero {
+  padding-bottom: var(--space-2xl);
+}
+.hero .preview-notice,
+.hero .workspace-caption {
+  color: var(--color-host-muted);
 }
 .site-header {
   display: flex;
@@ -85,6 +110,7 @@
   text-decoration: none;
 }
 .hero__intro {
+  --color-muted: var(--color-brand-muted);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -207,6 +233,9 @@
   }
 }
 @media (max-width: 760px) {
+  .hero {
+    padding-bottom: var(--space-xl);
+  }
   .site-header {
     min-height: 72px;
   }

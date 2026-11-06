@@ -14,16 +14,18 @@ export function App() {
       <a className="skip-link" href="#main">
         skip to content
       </a>
-      <header className="site-header container">
-        <a className="brand-link" href="#" aria-label="lanes home">
-          <Brand />
-        </a>
-        <nav className="site-nav" aria-label="main navigation">
-          <a href="#workspace">the workspace</a>
-          <a href="#self-host">make it yours</a>
-        </nav>
-        <GitHubStars />
-      </header>
+      <div className="site-header-field">
+        <header className="site-header container">
+          <a className="brand-link" href="#" aria-label="lanes home">
+            <Brand />
+          </a>
+          <nav className="site-nav" aria-label="main navigation">
+            <a href="#workspace">the workspace</a>
+            <a href="#self-host">make it yours</a>
+          </nav>
+          <GitHubStars />
+        </header>
+      </div>
       <main id="main">
         <section className="hero" aria-labelledby="hero-title">
           <div className="hero__intro container">

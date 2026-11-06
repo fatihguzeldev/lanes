@@ -22,6 +22,8 @@ website/
 
 styles, local behavior and tests stay beside the component that owns them. shared site tokens carry the existing dm sans font, warm neutral surfaces, green accents and tilted three-lane mark.
 
+the public site extends that palette with a forest-green opening and sage-tinted page surfaces. inverse text and focus colors keep its controls readable.
+
 ## experience
 
 - public copy is lowercase, including sample content, accessible names and metadata. preserve the exact case of filenames, commands and identifiers where it affects their meaning.
