@@ -443,12 +443,16 @@ export function WorkspaceDemo({ suspended = false }: { suspended?: boolean }) {
       ref={showcase}
       className="workspace-showcase"
       data-playback={playback.status}
-      onPointerDownCapture={takeOver}
+      onPointerDownCapture={(event) => {
+        if (playback.status !== 'waiting') takeOver(event);
+      }}
       onClickCapture={takeOver}
       onInputCapture={takeOver}
       onKeyDownCapture={takeOver}
       onFocusCapture={takeOver}
-      onWheelCapture={takeOver}
+      onWheelCapture={(event) => {
+        if (playback.status !== 'waiting') takeOver(event);
+      }}
     >
       <div className="demo-showcase-toolbar">
         <div className="demo-view-controls" role="group" aria-label="preview layout">
