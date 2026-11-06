@@ -5,6 +5,7 @@ import { errorResponse, jsonResponse, pageOptions, requireSameOrigin } from './p
 import { authenticationRoute, signOutRoute } from './routes/auth';
 import { accountRoute } from './routes/account';
 import { databaseUsage } from './transport/database-usage';
+import { documentResponse } from './document';
 function parts(path: string): string[] {
   try {
     return path.split('/').filter(Boolean).map(decodeURIComponent);
@@ -15,6 +16,11 @@ function parts(path: string): string[] {
 export async function handleRequest(request: Request, env: Env): Promise<Response> {
   const requestId = crypto.randomUUID();
   const url = new URL(request.url);
+  if (
+    (request.method === 'GET' || request.method === 'HEAD') &&
+    ['/', '/index.html'].includes(url.pathname)
+  )
+    return documentResponse(request, env);
   if (!url.pathname.startsWith('/api/') && !url.pathname.startsWith('/auth/'))
     return env.ASSETS.fetch(request);
   try {

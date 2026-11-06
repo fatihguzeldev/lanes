@@ -6,6 +6,7 @@ import { initializeTaskWorkspace } from '../../modules/tasks/server/lifecycle/wo
 import type { Configuration } from '../configuration/env';
 import type { Services } from '../composition/services';
 import { jsonResponse, readJson } from '../protocol/http';
+import { readSessionSnapshot } from '../session';
 function redirect(origin: string, path: string, cookies: string[] = []): Response {
   const headers = new Headers({
     location: new URL(path, origin).href,
@@ -53,13 +54,7 @@ export async function authenticationRoute(
     }
   }
   if (url.pathname === '/api/session' && request.method === 'GET') {
-    const session = await accounts.sessions.getSession(request);
-    return jsonResponse({
-      configured: true,
-      authenticated: !!session,
-      serverTime: Date.now(),
-      ...(session ? { accounts: await accounts.connections.listConnectionSummaries(request) } : {}),
-    });
+    return jsonResponse(await readSessionSnapshot(request, accounts));
   }
   return null;
 }
