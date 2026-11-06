@@ -3,14 +3,14 @@
   min-height: 40px;
   align-items: center;
   gap: 8px;
-  color: var(--color-host-paper);
+  color: var(--color-accent);
   font-size: 13px;
   font-weight: 500;
   text-decoration: none;
   border: 1px solid var(--color-line);
-  border-radius: 7px;
+  border-radius: var(--radius-control);
   padding: 0 12px;
-  background: var(--color-paper);
+  background: transparent;
   transition:
     background-color var(--dur-micro) var(--ease-out),
     color var(--dur-micro) var(--ease-out),
@@ -28,9 +28,9 @@
   gap: 4px;
   align-items: center;
   min-width: 33px;
-  margin-left: 4px;
-  padding-left: 12px;
-  border-left: 1px solid var(--color-line);
+  margin-inline-start: 4px;
+  padding-inline-start: 12px;
+  border-inline-start: 1px solid var(--color-line);
   color: inherit;
   font-variant-numeric: tabular-nums;
 }
@@ -47,12 +47,12 @@
 
 @media (hover: hover) {
   .github-stars:hover {
-    background: var(--color-host-paper);
-    border-color: var(--color-host-paper);
-    color: var(--color-brand-surface);
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+    color: var(--color-on-accent);
   }
   .github-stars:hover .github-stars__count {
-    border-inline-start-color: var(--color-brand-surface);
+    border-inline-start-color: color-mix(in srgb, var(--color-on-accent) 45%, transparent);
   }
 }
 
