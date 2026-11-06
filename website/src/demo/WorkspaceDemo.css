@@ -144,7 +144,7 @@
 .demo-search input::placeholder {
   color: var(--color-muted);
 }
-.demo-search input:focus-visible {
+.workspace-demo .demo-search input:focus-visible {
   outline: 0;
 }
 .demo-layout {
