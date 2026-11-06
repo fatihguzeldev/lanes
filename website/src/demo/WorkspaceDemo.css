@@ -112,9 +112,7 @@
   flex: none;
   width: 20px;
   height: 20px;
-  border-radius: 4px;
-  color: var(--color-icon, var(--color-accent));
-  background: var(--color-soft);
+  color: color-mix(in srgb, #f1f0e9 35%, var(--color-accent));
 }
 .demo-boards button > span:last-child {
   min-width: 0;
@@ -217,12 +215,7 @@
   width: 20px;
   height: 20px;
   flex: none;
-  color: var(--color-accent);
-}
-.demo-column__symbol > svg {
-  width: 18px;
-  height: 18px;
-  stroke-width: 2;
+  color: color-mix(in srgb, #f8f6ef 35%, var(--color-accent));
 }
 .demo-column__header h3 {
   min-width: 0;
@@ -329,6 +322,9 @@
 .workspace-demo .demo-task__star[aria-pressed='true'] {
   color: var(--color-accent);
   opacity: 1;
+}
+.demo-task__star > svg {
+  fill: transparent;
 }
 .demo-task__star[aria-pressed='true'] svg {
   fill: color-mix(in srgb, var(--color-accent) 24%, transparent);
@@ -578,6 +574,21 @@
   margin-top: 5px;
   color: var(--color-muted);
   font-size: 12px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .demo-task__star:hover > svg {
+    fill: var(--color-accent);
+  }
+}
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .demo-task__star > svg {
+    transition:
+      fill 120ms ease,
+      transform 120ms ease;
+  }
+  .demo-task__star:hover > svg {
+    transform: scale(1.1);
+  }
 }
 @media (hover: hover) {
   .demo-view-controls button:hover:not([aria-pressed='true']) {

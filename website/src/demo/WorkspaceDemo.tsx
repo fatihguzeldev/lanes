@@ -35,7 +35,7 @@ function DemoIcon({ name, size = 16 }: { name: keyof typeof icons; size?: number
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.6"
+      strokeWidth={name === 'more' ? 3.2 : name === 'board' || name === 'list' ? 2 : 1.65}
       strokeLinecap="round"
       strokeLinejoin="round"
     >
@@ -253,7 +253,7 @@ function DemoColumn({
     <section ref={column} className="demo-column" aria-label={list + ' task list'} tabIndex={-1}>
       <header className="demo-column__header">
         <span className="demo-column__symbol">
-          <DemoIcon name="list" />
+          <DemoIcon name="list" size={18} />
         </span>
         <h3>{list}</h3>
         <span className="demo-column__count">{open.length}</span>
@@ -473,7 +473,7 @@ export function WorkspaceDemo() {
           <nav className="demo-boards" aria-label="boards">
             <button type="button" aria-pressed={scope === 'all'} onClick={() => selectScope('all')}>
               <span className="demo-boards__symbol">
-                <DemoIcon name="board" size={15} />
+                <DemoIcon name="board" size={18} />
               </span>
               <span>a little side project</span>
             </button>
