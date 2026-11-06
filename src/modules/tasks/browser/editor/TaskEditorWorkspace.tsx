@@ -111,9 +111,13 @@ export function TaskEditorWorkspace({
     if (!presented && !pending && !retired.current) {
       retired.current = true;
       const error = commands.latest?.state === 'succeeded' ? '' : commands.error;
+      const discardedBeforeCapture =
+        selection.inlineCreate && !commands.latest && !commands.errorDetails?.operationId;
       lifetime.current.onRetire(
         hadWork.current,
-        hadWork.current ? error || recurrenceError || repeatWork.error || null : null,
+        hadWork.current && !discardedBeforeCapture
+          ? error || recurrenceError || repeatWork.error || null
+          : null,
         commands.errorDetails?.operationId ?? commands.latest?.id ?? null,
       );
     }
@@ -126,6 +130,7 @@ export function TaskEditorWorkspace({
     commands.errorDetails?.operationId,
     recurrenceError,
     repeatWork.error,
+    selection.inlineCreate,
   ]);
   useLayoutEffect(() => () => lifetime.current.onBusyChange(false), []);
   const retryFailed =

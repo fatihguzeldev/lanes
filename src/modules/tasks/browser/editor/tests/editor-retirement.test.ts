@@ -68,12 +68,16 @@ vi.mock('../../../../../shared/browser/resources/usePagedResource', () => ({
   }),
 }));
 
-function mount() {
+function mount(inlineCreate = false) {
   const retire = vi.fn(),
     saved = vi.fn();
   const props = {
     account: { id: 'account', state: 'connected', planningZone: 'UTC' },
-    selection: { task: { id: 'task', blockedBy: [] }, list: { id: 'list' } },
+    selection: {
+      task: inlineCreate ? null : { id: 'task', blockedBy: [] },
+      list: { id: 'list' },
+      ...(inlineCreate ? { inlineCreate: true } : {}),
+    },
     presented: true,
     boardId: null,
     labels: [],
@@ -183,5 +187,15 @@ describe('hidden editor retirement', () => {
     const editor = mount();
     state.commands.errorDetails = { operationId: 'receipt' };
     expect(editor.render()!.props.children.props.submitted).toBe(true);
+  });
+
+  it('does not announce a deliberately discarded creation that was rejected before capture', () => {
+    const editor = mount(true);
+    state.commands.busy = true;
+    editor.render();
+    state.commands.busy = false;
+    state.commands.error = 'the name was rejected';
+    editor.render(false);
+    expect(editor.retire).toHaveBeenCalledWith(true, null, null);
   });
 });
