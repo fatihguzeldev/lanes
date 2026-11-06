@@ -34,11 +34,10 @@ export function WorkbenchEditor({
   onSave,
 }: Props) {
   const title = useRef<HTMLTextAreaElement>(null);
+  const focusWhenOpened = useRef(focusOnMount);
   const notes = useRef<HTMLTextAreaElement>(null);
   const labelsTool = useRef<HTMLDivElement>(null);
-  const [section, setSection] = useState<'schedule' | 'dependencies' | 'checklist' | null>(
-    focusOnMount ? null : 'checklist',
-  );
+  const [section, setSection] = useState<'schedule' | 'dependencies' | 'checklist' | null>(null);
   const [dependencyQuery, setDependencyQuery] = useState('');
   const [clearConfirmed, setClearConfirmed] = useState(false);
   const clearingTime = !!task.day && !!task.time && !draft.day;
@@ -51,11 +50,11 @@ export function WorkbenchEditor({
     });
 
   useLayoutEffect(() => {
-    if (focusOnMount) {
+    if (focusWhenOpened.current) {
       title.current?.focus({ preventScroll: true });
       title.current?.select();
     }
-  }, [focusOnMount]);
+  }, []);
   useLayoutEffect(() => {
     const inputs = [title.current, notes.current].filter(
       (input): input is HTMLTextAreaElement => !!input,

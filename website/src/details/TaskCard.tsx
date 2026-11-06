@@ -10,6 +10,8 @@ type Props = {
   tasks: readonly WorkbenchTask[];
   editor: PreviewTaskEditor;
   initialExpanded?: boolean;
+  focusOnEdit?: boolean;
+  showcaseKey?: string;
 };
 const date = new Intl.DateTimeFormat('en', {
   month: 'short',
@@ -17,7 +19,14 @@ const date = new Intl.DateTimeFormat('en', {
   timeZone: 'UTC',
 });
 
-export function TaskCard({ task, tasks, editor, initialExpanded = false }: Props) {
+export function TaskCard({
+  task,
+  tasks,
+  editor,
+  initialExpanded = false,
+  focusOnEdit = true,
+  showcaseKey,
+}: Props) {
   const checklistId = useId();
   const [expanded, setExpanded] = useState(initialExpanded);
   const titleButton = useRef<HTMLButtonElement>(null);
@@ -29,11 +38,11 @@ export function TaskCard({ task, tasks, editor, initialExpanded = false }: Props
   useLayoutEffect(() => {
     if (wasEditing.current && !editing) {
       setExpanded(true);
-      if (document.activeElement === document.body)
+      if (focusOnEdit && document.activeElement === document.body)
         titleButton.current?.focus({ preventScroll: true });
     }
     wasEditing.current = editing;
-  }, [editing]);
+  }, [editing, focusOnEdit]);
 
   return (
     <article className="details-task" role="listitem" data-task-id={task.id}>
@@ -44,7 +53,7 @@ export function TaskCard({ task, tasks, editor, initialExpanded = false }: Props
           draft={editor.draft}
           onDraftChange={editor.patch}
           dirty={editor.dirty}
-          focusOnMount
+          focusOnMount={focusOnEdit}
           onCompletionChange={(completed) => editor.complete(task, completed)}
           onSubtaskChange={(index, completed) => editor.completeSubtask(task, index, completed)}
           onClose={editor.close}
@@ -70,7 +79,7 @@ export function TaskCard({ task, tasks, editor, initialExpanded = false }: Props
                 type="button"
                 onClick={() => editor.open(task)}
               >
-                {task.title}
+                <span data-showcase-key={showcaseKey}>{task.title}</span>
               </button>
               {task.priority !== 'none' && (
                 <span className={`details-task__priority details-task__priority--${task.priority}`}>
