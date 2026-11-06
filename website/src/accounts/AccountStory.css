@@ -1,170 +1,163 @@
-/* Hallmark · component: AccountStory · genre: modern-minimal · theme: inherited lanes · v2.0.0 */
-/* Critique: source-based product presentation with native controls and local state. */
+/* Hallmark · component: account workspace · theme: inherited lanes · v2.0.0 */
+/* Critique: account switching changes the board and its grouped lists in one continuous workspace. */
 .account-story {
   margin-top: var(--section-gap);
 }
 .account-story__intro {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: var(--space-xl);
   margin-bottom: var(--space-xl);
 }
 .account-story__intro h2 {
-  max-width: 15ch;
+  max-width: 22ch;
 }
 .account-story__intro p {
-  max-width: 34ch;
-  padding-bottom: var(--space-2xs);
+  margin-top: var(--space-md);
   color: var(--color-muted);
-  font-size: var(--text-md);
-  line-height: 1.65;
 }
 .account-story__workspace {
+  min-width: 0;
   overflow: clip;
   border: 1px solid var(--color-line);
   border-radius: var(--radius-card);
   background: var(--color-paper);
 }
-.account-story__switcher {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  border-bottom: 1px solid var(--color-line);
-}
-.account-story__account {
+.account-story__toolbar {
   display: flex;
   align-items: center;
-  gap: var(--space-md);
-  min-height: 52px;
-  padding: var(--space-sm) 32px;
-  text-align: left;
-  border: 0;
-  border-bottom: 2px solid var(--color-transparent);
+  justify-content: space-between;
+  gap: var(--space-lg);
+  min-height: 68px;
+  padding: var(--space-sm) var(--space-lg);
+  border-bottom: 1px solid var(--color-line);
+}
+.account-story__switcher {
+  display: flex;
+  gap: var(--space-2xs);
+}
+.account-story__switcher button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  min-height: 36px;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--color-transparent);
+  border-radius: var(--radius-control);
   background: var(--color-transparent);
-  cursor: pointer;
+  color: var(--color-muted);
+  font-size: 13px;
 }
-.account-story__account + .account-story__account {
-  border-left: 1px solid var(--color-line);
-}
-.account-story__account[aria-pressed='true'] {
-  border-bottom-color: var(--color-accent);
+.account-story__switcher button[aria-pressed='true'] {
+  border-color: var(--color-line);
   background: var(--color-soft);
-}
-.account-story__avatar {
-  display: grid;
-  flex: none;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  border: 1px solid var(--color-line);
-  border-radius: 50%;
   color: var(--color-accent);
-  font-size: var(--text-sm);
-  font-weight: 500;
 }
-.account-story__account strong {
-  font-size: var(--text-md);
-  font-weight: 500;
-}
-.account-story__selection {
-  margin-left: auto;
-  color: var(--color-accent);
-  font-size: var(--text-xs);
-}
-.account-story__account:focus-visible {
-  z-index: 1;
-  outline: 2px solid var(--color-focus);
-  outline-offset: -5px;
+.account-story__board-name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  color: var(--color-muted);
+  font-size: 12px;
 }
 .account-story__lists {
-  padding: var(--space-md) 32px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
-.account-story__lists ul {
+.account-story__list {
+  padding: var(--space-lg) 32px 32px;
+}
+.account-story__list + .account-story__list {
+  border-left: 1px solid var(--color-line);
+}
+.account-story__list h3 {
+  margin-bottom: var(--space-sm);
+  color: var(--color-ink);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+.account-story__list ul {
   margin: 0;
   padding: 0;
   list-style: none;
 }
-.account-story__lists li {
-  display: grid;
-  grid-template-columns: 18px minmax(0, 1fr) minmax(120px, 22%);
-  align-items: center;
-  gap: var(--space-md);
-  min-height: 62px;
-  font-size: var(--text-sm);
-}
-.account-story__lists li + li {
+.account-story__list li + li {
   border-top: 1px solid var(--color-line);
 }
-.account-story__circle {
-  width: 16px;
-  height: 16px;
+.account-story__task {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-xs);
+  min-height: 48px;
+  padding-block: var(--space-sm);
+  font-size: 14px;
+  line-height: 1.5;
+  cursor: pointer;
+}
+.account-story__task input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  clip-path: inset(50%);
+}
+.account-story__check {
+  display: grid;
+  flex: 0 0 15px;
+  place-items: center;
+  height: 15px;
+  margin-top: 3px;
   border: 1px solid var(--color-muted);
-  border-radius: 50%;
+  border-radius: 4px;
+  color: var(--color-on-accent);
 }
-.account-story__list-name,
-.account-story__caption {
+.account-story__check svg {
+  width: 12px;
+  height: 12px;
+  visibility: hidden;
+}
+.account-story__task input:checked + .account-story__check {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+}
+.account-story__task input:checked + .account-story__check svg {
+  visibility: visible;
+}
+.account-story__task input:checked ~ span:last-child {
   color: var(--color-muted);
-  font-size: var(--text-xs);
+  text-decoration: line-through;
 }
-.account-story__caption {
-  margin-top: var(--space-md);
+.account-story__task:has(input:focus-visible),
+.account-story__switcher button:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 3px;
 }
 @media (hover: hover) {
-  .account-story__account:hover {
+  .account-story__switcher button:hover {
     background: var(--color-soft);
   }
 }
-@media (prefers-reduced-motion: no-preference) {
-  .account-story__lists ul {
-    animation: account-arrive var(--dur-long) var(--ease-out) both;
+@media (max-width: 680px) {
+  .account-story__toolbar {
+    flex-wrap: wrap;
+    gap: var(--space-xs);
+    padding-inline: var(--space-md);
   }
-  @keyframes account-arrive {
-    from {
-      opacity: 0;
-      transform: translateY(5px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-}
-@media (max-width: 760px) {
-  .account-story__intro {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--space-lg);
-  }
-  .account-story__account {
-    gap: var(--space-sm);
-    min-height: 52px;
-    padding: var(--space-sm) var(--space-md);
-  }
-  .account-story__selection {
-    display: none;
+  .account-story__board-name {
+    width: 100%;
+    padding: var(--space-xs) var(--space-sm);
   }
   .account-story__lists {
-    padding: var(--space-xs) var(--space-md);
+    grid-template-columns: minmax(0, 1fr);
   }
-  .account-story__lists li {
-    grid-template-columns: 16px minmax(0, 1fr);
-    row-gap: var(--space-2xs);
-    padding: var(--space-sm) 0;
+  .account-story__list {
+    padding: var(--space-lg);
   }
-  .account-story__list-name {
-    grid-column: 2;
+  .account-story__list + .account-story__list {
+    border-left: 0;
+    border-top: 1px solid var(--color-line);
   }
 }
-
-.account-story__account:active {
-  opacity: 0.8;
-}
-.account-story__account:disabled {
-  background: var(--color-canvas);
-  color: var(--color-muted);
-  cursor: default;
-  opacity: 0.55;
-}
-.account-story__intro h2 {
-  text-wrap: balance;
+@media (pointer: coarse) {
+  .account-story__switcher button {
+    min-height: 44px;
+  }
 }
