@@ -34,6 +34,15 @@ export function PreviewTaskDialogs({
     else completionDialog.current?.close();
   }, [completionTask]);
 
+  function keepEditing() {
+    discardDialog.current?.close();
+    onKeepEditing();
+    if (document.activeElement === document.body)
+      document
+        .querySelector<HTMLTextAreaElement>('.workbench-editor__title')
+        ?.focus({ preventScroll: true });
+  }
+
   return (
     <>
       <dialog
@@ -42,20 +51,13 @@ export function PreviewTaskDialogs({
         aria-labelledby={discardId}
         onCancel={(event) => {
           event.preventDefault();
-          discardDialog.current?.close();
-          onKeepEditing();
+          keepEditing();
         }}
       >
         <h2 id={discardId}>leave this draft?</h2>
         <p>your unsaved changes will be discarded.</p>
         <div>
-          <button
-            type="button"
-            onClick={() => {
-              discardDialog.current?.close();
-              onKeepEditing();
-            }}
-          >
+          <button type="button" onClick={keepEditing}>
             keep editing
           </button>
           <button
