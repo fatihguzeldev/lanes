@@ -112,9 +112,6 @@ function DemoBoard({ tasks, onToggle }: { tasks: DemoTask[]; onToggle: (id: stri
                 <DemoTaskItem key={task.id} task={task} onToggle={onToggle} />
               ))}
           </div>
-          <div className="demo-column__end" aria-hidden="true">
-            <span>+</span> room for what’s next
-          </div>
         </section>
       ))}
     </div>
@@ -177,36 +174,15 @@ function DemoCalendar({ tasks, onToggle }: { tasks: DemoTask[]; onToggle: (id: s
 export function WorkspaceDemo() {
   const [view, setView] = useState<View>('board');
   const [tasks, setTasks] = useState(demoTasks);
-  const completed = tasks.filter((task) => task.completed).length;
-  const changed = tasks.some((task, index) => task.completed !== demoTasks[index]?.completed);
   const toggle = (id: string) => setTasks((current) => toggleDemoTask(current, id));
 
   return (
     <div
-      className="workspace-demo"
+      className="workspace-demo product-preview"
       aria-label="interactive lanes sample workspace"
       data-slot="workspace"
     >
       <aside className="demo-sidebar" aria-label="sample workspace navigation">
-        <div className="demo-sidebar__brand">
-          <span className="demo-mark" aria-hidden="true">
-            <i />
-            <i />
-            <i />
-          </span>
-          <span>lanes</span>
-        </div>
-        <div className="demo-account">
-          <span className="demo-account__avatar" aria-hidden="true">
-            <DemoIcon name="sun" />
-          </span>
-          <span>
-            personal<span className="demo-account__detail">personal account</span>
-          </span>
-          <span className="demo-account__chevron" aria-hidden="true">
-            ⌄
-          </span>
-        </div>
         <div className="demo-sidebar__shortcuts" aria-hidden="true">
           <span>
             <DemoIcon name="sun" />
@@ -229,10 +205,6 @@ export function WorkspaceDemo() {
         <div className="demo-sidebar__board">
           <DemoIcon name="board" />
           <span>weekend plans</span>
-        </div>
-        <div className="demo-sidebar__bottom">
-          <DemoIcon name="repeat" />
-          <span>your google tasks workspace</span>
         </div>
       </aside>
       <div className="demo-workspace">
@@ -257,33 +229,10 @@ export function WorkspaceDemo() {
             ))}
           </div>
         </header>
-        {view !== 'list' && (
-          <p className="demo-scroll-hint">
-            scroll sideways to see {view === 'board' ? 'every list' : 'the week'}
-            <span aria-hidden="true">↔</span>
-          </p>
-        )}
         <div className="demo-content" data-view={view}>
           {view === 'board' && <DemoBoard tasks={tasks} onToggle={toggle} />}
           {view === 'list' && <DemoList tasks={tasks} onToggle={toggle} />}
           {view === 'calendar' && <DemoCalendar tasks={tasks} onToggle={toggle} />}
-        </div>
-        <div className="demo-status">
-          <span>
-            <DemoIcon name="check" />
-            <span aria-live="polite">
-              {completed} of {tasks.length} tasks completed
-            </span>
-          </span>
-          <button
-            type="button"
-            className="demo-reset"
-            onClick={() => setTasks(demoTasks)}
-            disabled={!changed}
-          >
-            <DemoIcon name="reset" />
-            reset preview
-          </button>
         </div>
       </div>
     </div>
