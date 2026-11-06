@@ -182,6 +182,24 @@ describe('task move destinations', () => {
     expect(html).toMatch(/disabled=""[^>]*>.*?in progress/s);
   });
 
+  it('allows choosing a known destination before reading the move preflight', () => {
+    const movement = controller();
+    movement.source = null;
+    const html = renderToStaticMarkup(
+      createElement(TaskMovePicker, {
+        controller: movement,
+        workspace: workspace(),
+        embedded: true,
+      }),
+    );
+    const destination = [...html.matchAll(/<button\b([^>]*)>(.*?)<\/button>/gs)].find((match) =>
+      match[2]?.includes('<span>in progress</span>'),
+    );
+    expect(destination).toBeDefined();
+    expect(destination![1]).not.toContain('disabled');
+    expect(resources.keys).toEqual([]);
+  });
+
   it('retains checklist confirmation rather than showing a fresh destination menu', () => {
     const movement = controller();
     movement.confirmation = {

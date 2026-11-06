@@ -29,49 +29,22 @@ export function useTaskPlacement(options: {
   } | null>(null);
   const [source, setSource] = useState<{ task: Task; preview: PlacementPreview } | null>(null);
   const [sourceLoading, setSourceLoading] = useState(false),
-    [error, setError] = useState(''),
-    [generation, setGeneration] = useState(0);
+    [error, setError] = useState('');
   const [attempt, setAttempt] = useState<PlacementAttempt | null>(null),
     [confirmation, setConfirmation] = useState<PlacementAttempt | null>(null);
   const commands = useCommands(options.account.id, options.clockOffset, options.onChanged);
   const connection = useServerConnection();
   const flight = useRef(false);
+  const sourceRead = useRef<AbortController | null>(null);
   const moved = useRef(options.onMoved);
   moved.current = options.onMoved;
-  const selectedId = selection?.task.id ?? null;
-  useEffect(() => {
-    setSource(null);
-    setError('');
-    if (!selectedId) {
-      setSourceLoading(false);
-      return;
-    }
-    const abort = new AbortController();
-    setSourceLoading(true);
-    const base = `/api/accounts/${encodeURIComponent(options.account.id)}/tasks/${encodeURIComponent(selectedId)}`;
-    void Promise.all([
-      request(base, TaskSchema, { signal: abort.signal }),
-      request(`${base}/consequences`, TaskConsequencesSchema, { signal: abort.signal }),
-    ])
-      .then(([task, preview]) => {
-        if (abort.signal.aborted) return;
-        if (
-          task.accountId !== options.account.id ||
-          preview.taskId !== task.id ||
-          preview.revision !== task.revision
-        )
-          throw new Error('this task changed while opening its destinations. try again.');
-        setSource({ task, preview });
-      })
-      .catch((error) => {
-        if (!abort.signal.aborted)
-          setError(error instanceof Error ? error.message : 'couldn’t read this task.');
-      })
-      .finally(() => {
-        if (!abort.signal.aborted) setSourceLoading(false);
-      });
-    return () => abort.abort();
-  }, [selectedId, options.account.id, generation]);
+  useEffect(
+    () => () => {
+      sourceRead.current?.abort();
+      sourceRead.current = null;
+    },
+    [options.account.id],
+  );
   const receipt = commands.latest?.id === attempt?.identity ? commands.latest : null;
   const rejected = placementAttemptRejected(
     receipt,
@@ -129,27 +102,64 @@ export function useTaskPlacement(options: {
         commands.clearError();
       }
       setConfirmation(null);
+      sourceRead.current?.abort();
+      sourceRead.current = null;
+      setSource(null);
+      setSourceLoading(false);
+      setError('');
       setSelection({ task, anchor, boardId });
-      setGeneration((value) => value + 1);
     },
     close() {
+      sourceRead.current?.abort();
+      sourceRead.current = null;
+      setSourceLoading(false);
       setSelection(null);
       setConfirmation(null);
     },
     reload() {
-      setGeneration((value) => value + 1);
+      setSource(null);
+      setError('');
     },
-    choose(choice: PlacementChoice) {
-      if (!source || !enabled || commands.busy || locked) return;
+    async choose(choice: PlacementChoice) {
+      if (!selection || !enabled || commands.busy || locked || flight.current || sourceRead.current)
+        return;
+      const abort = new AbortController();
+      sourceRead.current = abort;
+      setSourceLoading(true);
+      setError('');
+      let captured: PlacementAttempt;
       try {
-        const captured = captureTaskPlacement(source.task, source.preview, choice, () =>
+        const base = `/api/accounts/${encodeURIComponent(options.account.id)}/tasks/${encodeURIComponent(selection.task.id)}`;
+        const [task, preview] = await Promise.all([
+          request(base, TaskSchema, { signal: abort.signal }),
+          request(`${base}/consequences`, TaskConsequencesSchema, { signal: abort.signal }),
+        ]);
+        if (abort.signal.aborted) return;
+        if (
+          task.id !== selection.task.id ||
+          task.accountId !== options.account.id ||
+          preview.taskId !== task.id ||
+          preview.revision !== task.revision
+        )
+          throw new Error(
+            'this task changed while checking the move. choose the destination again.',
+          );
+        setSource({ task, preview });
+        captured = captureTaskPlacement(task, preview, choice, () =>
           newOperationId(options.clockOffset),
         );
-        if (captured.subtaskCount) setConfirmation(captured);
-        else void execute(captured);
       } catch (error) {
-        setError(error instanceof Error ? error.message : 'check this destination.');
+        if (!abort.signal.aborted)
+          setError(error instanceof Error ? error.message : 'check this destination.');
+        return;
+      } finally {
+        if (sourceRead.current === abort) {
+          sourceRead.current = null;
+          setSourceLoading(false);
+        }
       }
+      if (captured.subtaskCount) setConfirmation(captured);
+      else await execute(captured);
     },
     cancelConfirmation() {
       setConfirmation(null);

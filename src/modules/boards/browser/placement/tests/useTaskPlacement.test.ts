@@ -135,12 +135,9 @@ function render(onMoved = moved) {
 }
 async function open() {
   render().open(task, {} as HTMLElement, 'board');
-  render();
-  await Promise.resolve();
-  await Promise.resolve();
-  await Promise.resolve();
   const controller = render();
-  expect(controller.source?.task.id).toBe(task.id);
+  expect(controller.sourceLoading).toBe(false);
+  expect(controller.source).toBeNull();
   return controller;
 }
 async function settle() {
@@ -167,25 +164,117 @@ describe('confirmed task placement events', () => {
     for (const slot of harness.slots) (slot as { cleanup?: () => void } | undefined)?.cleanup?.();
   });
 
+  it('does not refetch the task or its consequences just to browse destinations', () => {
+    render().open(task, {} as HTMLElement, 'board');
+    render();
+    expect(read).not.toHaveBeenCalled();
+    expect(commands.submit).not.toHaveBeenCalled();
+  });
+
   it('notifies the source task only after the provider move is confirmed', async () => {
     const controller = await open();
-    controller.choose({ list, position: 'last' });
+    const saving = controller.choose({ list, position: 'last' });
     expect(moved).not.toHaveBeenCalled();
-    await settle();
+    await saving;
     expect(moved).toHaveBeenCalledExactlyOnceWith(task.id);
     expect(render().selection).toBeNull();
+  });
+
+  it('checks the current task revision only after a destination is chosen', async () => {
+    const controller = await open();
+    const fresh = { ...task, revision: 8 };
+    read.mockImplementation((path: string) =>
+      Promise.resolve(path.endsWith('/consequences') ? { ...preview, revision: 8 } : fresh),
+    );
+    await controller.choose({ list, position: 'last' });
+    expect(read.mock.calls.map(([path]) => path)).toEqual([
+      '/api/accounts/account/tasks/task',
+      '/api/accounts/account/tasks/task/consequences',
+    ]);
+    expect(commands.submit).toHaveBeenCalledWith(
+      expect.objectContaining({ revision: 8, listRevision: list.revision }),
+      'provider',
+      'placement-identity',
+    );
+  });
+
+  it('does not submit an incomplete or inconsistent task tree', async () => {
+    const controller = await open();
+    read.mockImplementation((path: string) =>
+      Promise.resolve(
+        path.endsWith('/consequences') ? { ...preview, coverageComplete: false } : task,
+      ),
+    );
+    await controller.choose({ list, position: 'last' });
+    expect(commands.submit).not.toHaveBeenCalled();
+    expect(render().error).toContain('refresh the source list');
+
+    read.mockImplementation((path: string) =>
+      Promise.resolve(path.endsWith('/consequences') ? { ...preview, revision: 9 } : task),
+    );
+    await render().choose({ list, position: 'last' });
+    expect(commands.submit).not.toHaveBeenCalled();
+    expect(render().error).toContain('this task changed');
+  });
+
+  it('confirms a checklist discovered during the selected move preflight', async () => {
+    const controller = await open();
+    read.mockImplementation((path: string) =>
+      Promise.resolve(path.endsWith('/consequences') ? { ...preview, subtaskCount: 2 } : task),
+    );
+    await controller.choose({ list, position: 'last' });
+    expect(commands.submit).not.toHaveBeenCalled();
+    expect(render().confirmation?.subtaskCount).toBe(2);
+    render().confirm();
+    await settle();
+    expect(commands.submit).toHaveBeenCalledOnce();
+  });
+
+  it('cancels a pending preflight when destinations close and ignores late replies', async () => {
+    const controller = await open();
+    let finish!: (value: typeof task) => void;
+    read.mockImplementation((path: string) =>
+      path.endsWith('/consequences')
+        ? Promise.resolve(preview)
+        : new Promise((resolve) => (finish = resolve)),
+    );
+    const pending = controller.choose({ list, position: 'last' });
+    void controller.choose({ list, position: 'first' });
+    expect(read).toHaveBeenCalledTimes(2);
+    expect(render().sourceLoading).toBe(true);
+    render().close();
+    expect((read.mock.calls[0]![2] as { signal: AbortSignal }).signal.aborted).toBe(true);
+    finish(task);
+    await pending;
+    expect(commands.submit).not.toHaveBeenCalled();
+    expect(render().selection).toBeNull();
+    expect(render().source).toBeNull();
+  });
+
+  it('retains the destination menu when a source read fails and permits a fresh choice', async () => {
+    const controller = await open();
+    read.mockRejectedValueOnce(new Error('couldn’t read this task.'));
+    await controller.choose({ list, position: 'last' });
+    expect(commands.submit).not.toHaveBeenCalled();
+    expect(render().selection?.task.id).toBe(task.id);
+    expect(render().sourceLoading).toBe(false);
+    expect(render().error).toBe('couldn’t read this task.');
+    await render().choose({ list, position: 'last' });
+    expect(commands.submit).toHaveBeenCalledOnce();
   });
 
   it('uses the latest menu callback after the move submenu has closed', async () => {
     let finish!: (result: { state: string }) => void;
     commands.submit.mockImplementation(() => new Promise((resolve) => (finish = resolve)));
     const controller = await open();
-    controller.choose({ list, position: 'last' });
+    const saving = controller.choose({ list, position: 'last' });
+    await settle();
+    expect(commands.submit).toHaveBeenCalledOnce();
     controller.close();
     const latest = vi.fn();
     render(latest);
     finish({ state: 'succeeded' });
-    await settle();
+    await saving;
     expect(moved).not.toHaveBeenCalled();
     expect(latest).toHaveBeenCalledExactlyOnceWith(task.id);
   });
@@ -195,8 +284,7 @@ describe('confirmed task placement events', () => {
     async (result) => {
       commands.submit.mockResolvedValue(result);
       const controller = await open();
-      controller.choose({ list, position: 'last' });
-      await settle();
+      await controller.choose({ list, position: 'last' });
       expect(moved).not.toHaveBeenCalled();
       expect(render().selection?.task.id).toBe(task.id);
       expect(notice).toHaveBeenCalledOnce();
@@ -206,8 +294,7 @@ describe('confirmed task placement events', () => {
   it('also closes a menu for a server-confirmed no-op receipt', async () => {
     commands.submit.mockResolvedValue({ state: 'succeeded', confirmedSteps: 0 });
     const controller = await open();
-    controller.choose({ list: { ...list, id: task.listId }, position: 'first' });
-    await settle();
+    await controller.choose({ list: { ...list, id: task.listId }, position: 'first' });
     expect(moved).toHaveBeenCalledExactlyOnceWith(task.id);
   });
 });

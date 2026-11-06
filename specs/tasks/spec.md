@@ -70,6 +70,8 @@ keep a confirmed move's displayed placement until fresh source and destination r
 
 moving a top-level task between columns moves it between google lists in the same account. confirm the destination account/list in the command. a subtask can move to another eligible parent or become top level; its destination parent must be in the destination list.
 
+the move menu reuses the workspace's loaded boards and current-board lists, including their paging controls. opening it does not refetch known destinations or wait for a task preflight. read an unvisited board's lists when its submenu opens. after a destination is chosen, validate the current task and its complete tree before capturing the move; closing the menu cancels an unfinished preflight, while an admitted save keeps running.
+
 moving a parent carries its subtasks. treat a provider move's descendant behavior as an integration check: verify the returned tree and mapping before claiming success. if google requires several requests, execute a resumable grouped operation and expose partial state. never implement movement as a silent copy followed by destructive deletion.
 
 preserve lanes identity, labels, priority, star, time, repeat rule, dependencies, and recorded history on movement. update list mappings and provider ids from confirmed responses. a move does not reset a task's scheduled day or completion.
@@ -143,3 +145,4 @@ validation leaves the draft intact. stale revision conflicts offer refresh and e
 - `tasks-14`: opening task details edits the existing row without a modal. optional fields appear on request; failed saves keep the same draft, including when its card leaves the visible collection.
 - `tasks-15`: outside dismissal preserves the unsent-draft guard and nested menus; an admitted hidden save continues independently without closing or clearing a newer editor.
 - `tasks-16`: adding a task opens its full editor in the list, without an approval control. enter or leaving captures one creation with all chosen fields; empty entries make no request, invalid input survives, and failed admission cannot lose its draft to the same outside navigation.
+- `tasks-17`: opening move destinations uses the workspace's loaded topology without duplicate reads or a source-validation wait. paging remains available; unvisited board lists load on demand. selecting a destination validates fresh source revisions and checklist coverage, and a cancelled preflight cannot submit from a late reply.

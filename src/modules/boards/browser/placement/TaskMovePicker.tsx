@@ -32,7 +32,7 @@ export function TaskMovePicker({
     task.unsupportedHierarchy ||
     controller.busy ||
     controller.sourceLoading ||
-    !controller.source?.preview.coverageComplete ||
+    (controller.source !== null && !controller.source.preview.coverageComplete) ||
     controller.locked;
   const body = (
     <div ref={content} className="popover__menu">
