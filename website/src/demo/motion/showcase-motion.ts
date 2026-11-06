@@ -165,10 +165,14 @@ export function createShowcaseMotion(
     }
     return items;
   }
-  async function transition(update: () => void, options: { duration?: number } = {}) {
+  async function transition(
+    update: () => void | Promise<void>,
+    options: { duration?: number } = {},
+  ) {
     checkpoint();
     if (reduced) {
-      update();
+      await update();
+      checkpoint();
       return;
     }
     const before = shared();
@@ -204,7 +208,8 @@ export function createShowcaseMotion(
         });
       }
       checkpoint();
-      update();
+      await update();
+      checkpoint();
       for (const [element, visibility] of hidden) element.style.visibility = visibility;
       hidden.clear();
       const after = shared();

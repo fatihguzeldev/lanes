@@ -71,6 +71,14 @@ function setup(reduced = false) {
 
 afterEach(() => vi.unstubAllGlobals());
 
+function deferred() {
+  let resolve!: () => void;
+  const promise = new Promise<void>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
+
 describe('showcase motion lifetime', () => {
   it('waits for registered native animation completion instead of a wall-clock timeout', async () => {
     const { registered, motion } = setup();
@@ -108,6 +116,97 @@ describe('showcase motion lifetime', () => {
     await rejected;
     expect(update).not.toHaveBeenCalled();
     expect(root.context.style.opacity).toBe('');
+  });
+
+  it('waits for the React commit before measuring and animating the destination context', async () => {
+    const { root, motion } = setup();
+    const previous = new TestElement();
+    const destination = new TestElement();
+    root.context = previous;
+    const requested = deferred();
+    const committed = deferred();
+    const started = deferred();
+    const createAnimation = destination.animate.bind(destination);
+    vi.spyOn(destination, 'animate').mockImplementation(() => {
+      const animation = createAnimation();
+      started.resolve();
+      return animation;
+    });
+    const reads = vi.spyOn(root, 'querySelectorAll');
+    let finished = false;
+    const switching = motion
+      .transition(() => {
+        requested.resolve();
+        return committed.promise;
+      })
+      .then(() => {
+        finished = true;
+      });
+    previous.animations[0]!.finish();
+    await requested.promise;
+    root.context = destination;
+    await Promise.resolve();
+
+    expect(finished).toBe(false);
+    expect(
+      reads.mock.calls.filter(([selector]) => selector === '[data-showcase-key]'),
+    ).toHaveLength(1);
+    expect(destination.animations).toHaveLength(0);
+
+    committed.resolve();
+    await started.promise;
+    expect(
+      reads.mock.calls.filter(([selector]) => selector === '[data-showcase-key]'),
+    ).toHaveLength(2);
+    expect(destination.animations).toHaveLength(1);
+    destination.animations[0]!.finish();
+    await switching;
+    expect(finished).toBe(true);
+    expect(previous.style.opacity).toBe('');
+    expect(destination.style.opacity).toBe('');
+    motion.dispose();
+  });
+
+  it.each([false, true])(
+    'does not measure or animate a late commit after abort (reduced motion: %s)',
+    async (reduced) => {
+      const { root, registered, motion, controller } = setup(reduced);
+      const committed = deferred();
+      const reads = vi.spyOn(root, 'querySelectorAll');
+      const switching = motion.transition(() => committed.promise);
+      const rejected = expect(switching).rejects.toMatchObject({ name: 'AbortError' });
+      controller.abort();
+      const destination = new TestElement();
+      root.context = destination;
+      committed.resolve();
+
+      await rejected;
+
+      expect(
+        reads.mock.calls.filter(([selector]) => selector === '[data-showcase-key]'),
+      ).toHaveLength(reduced ? 0 : 1);
+      expect(destination.animations).toHaveLength(0);
+      expect(destination.style.opacity).toBe('');
+      expect(registered).toHaveLength(0);
+    },
+  );
+
+  it('also awaits the React commit with reduced motion and no animation', async () => {
+    const { registered, motion } = setup(true);
+    const committed = deferred();
+    let finished = false;
+    const switching = motion
+      .transition(() => committed.promise)
+      .then(() => {
+        finished = true;
+      });
+    await Promise.resolve();
+    expect(finished).toBe(false);
+    committed.resolve();
+    await switching;
+    expect(finished).toBe(true);
+    expect(registered).toHaveLength(0);
+    motion.dispose();
   });
 
   it('keeps reduced-motion updates immediate with no cursor animations', async () => {
