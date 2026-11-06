@@ -72,9 +72,7 @@ function DemoTaskItem({
   compact?: boolean;
 }) {
   return (
-    <div
-      className={`demo-task${task.completed ? ' demo-task--done' : ''}${compact ? ' demo-task--compact' : ''}`}
-    >
+    <div className={`demo-task${task.completed ? ' demo-task--done' : ''}`}>
       <label className="demo-task__label">
         <input type="checkbox" checked={task.completed} onChange={() => onToggle(task.id)} />
         <span className="demo-task__check" aria-hidden="true">
@@ -82,7 +80,7 @@ function DemoTaskItem({
         </span>
         <span className="demo-task__title">{task.title}</span>
         {task.starred && (
-          <span className="demo-task__star" aria-label="Starred">
+          <span className="demo-task__star" role="img" aria-label="Starred">
             <DemoIcon name="star" />
           </span>
         )}
@@ -115,7 +113,7 @@ function DemoBoard({ tasks, onToggle }: { tasks: DemoTask[]; onToggle: (id: stri
               ))}
           </div>
           <div className="demo-column__end" aria-hidden="true">
-            <span>+</span> A little room for what’s next
+            <span>+</span> Room for what’s next
           </div>
         </section>
       ))}
@@ -127,7 +125,7 @@ function DemoList({ tasks, onToggle }: { tasks: DemoTask[]; onToggle: (id: strin
   return (
     <div className="demo-list" aria-label="Task list">
       <div className="demo-list__header">
-        <span>Your tasks, one at a time</span>
+        <span>All tasks</span>
         <span>List</span>
       </div>
       {tasks.map((task) => (
@@ -149,7 +147,7 @@ function DemoCalendar({ tasks, onToggle }: { tasks: DemoTask[]; onToggle: (id: s
     >
       <div className="demo-calendar__title">
         <span>November 2026</span>
-        <span>A week with room to breathe</span>
+        <span>Week view</span>
       </div>
       <div className="demo-calendar__week">
         {['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].map((day, index) => (
@@ -202,7 +200,7 @@ export function WorkspaceDemo() {
             <DemoIcon name="sun" />
           </span>
           <span>
-            Personal<span className="demo-account__detail">Your everyday things</span>
+            Personal<span className="demo-account__detail">Personal account</span>
           </span>
           <span className="demo-account__chevron" aria-hidden="true">
             ⌄
@@ -267,7 +265,7 @@ export function WorkspaceDemo() {
           <span>
             <DemoIcon name="check" />
             <span aria-live="polite">
-              {completed} of {tasks.length} little things, done.
+              {completed} of {tasks.length} tasks completed
             </span>
           </span>
           <button

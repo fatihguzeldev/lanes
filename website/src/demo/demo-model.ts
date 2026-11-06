@@ -13,10 +13,10 @@ export type DemoTask = {
 export const demoTasks: DemoTask[] = [
   {
     id: 'small-start',
-    title: 'Start with something small',
+    title: 'Sketch the first version',
     list: 'Ideas',
     completed: false,
-    note: 'The idea that keeps coming back.',
+    note: 'Keep it to a single page.',
     label: 'Someday',
     day: 0,
     time: '09:00',
@@ -31,7 +31,7 @@ export const demoTasks: DemoTask[] = [
   },
   {
     id: 'playlist',
-    title: 'Make a playlist for the process',
+    title: 'Make a playlist for late nights',
     list: 'Ideas',
     completed: false,
     day: 4,
@@ -39,7 +39,7 @@ export const demoTasks: DemoTask[] = [
   },
   {
     id: 'make-room',
-    title: 'Make room for the good ideas',
+    title: 'Try the board layout',
     list: 'In progress',
     completed: false,
     label: 'Making things',
@@ -49,17 +49,17 @@ export const demoTasks: DemoTask[] = [
   },
   {
     id: 'website',
-    title: 'Give the side project a home',
+    title: 'Build the project website',
     list: 'In progress',
     completed: false,
-    note: 'A little corner of the internet.',
+    note: 'One page to show what it does.',
     label: 'Today',
     day: 3,
     time: '11:00',
   },
   {
     id: 'first-step',
-    title: 'Take the first step',
+    title: 'Register a domain',
     list: 'Done',
     completed: true,
     day: 0,
@@ -67,7 +67,7 @@ export const demoTasks: DemoTask[] = [
   },
   {
     id: 'perfect',
-    title: 'Let go of perfect',
+    title: 'Pick a name',
     list: 'Done',
     completed: true,
     day: 2,

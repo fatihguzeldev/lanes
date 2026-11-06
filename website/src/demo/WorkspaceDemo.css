@@ -566,7 +566,6 @@
     display: none;
   }
   .demo-toolbar {
-    gap: 12px;
     padding: 13px 16px;
   }
   .demo-toolbar__project {
@@ -581,9 +580,6 @@
   .demo-board {
     grid-template-columns: repeat(3, minmax(210px, 1fr));
     padding-top: 17px;
-  }
-  .demo-content {
-    min-height: 310px;
   }
   .demo-status {
     padding-inline: 16px;
@@ -638,12 +634,8 @@
   .demo-task__check {
     margin-top: 0;
   }
-  .demo-task__title {
-    font-size: 13px;
-  }
   .demo-calendar .demo-task__label {
     align-items: start;
-    min-height: 44px;
     padding-block: 3px;
   }
 }
