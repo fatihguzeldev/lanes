@@ -7,10 +7,10 @@
   padding-top: 4px;
 }
 .board-options__section summary {
-  display: flex;
+  display: grid;
+  grid-template-columns: 15px minmax(0, 1fr) 13px;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  gap: 9px;
   padding: 8px 10px;
   border-radius: 5px;
   list-style: none;
@@ -23,7 +23,10 @@
 .board-options__section summary:hover {
   background: var(--paper-hover);
 }
-.board-options__section[open] > summary > svg {
+.board-options__section summary > .icon {
+  color: var(--icon);
+}
+.board-options__section[open] > summary > .board-options__chevron {
   transform: rotate(180deg);
 }
 .board-options__fields {

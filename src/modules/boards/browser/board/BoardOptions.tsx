@@ -91,12 +91,13 @@ export function BoardOptions({
           disabled={commands.busy}
           onClick={onCompleted}
         >
-          <Icon name="check" size={15} /> completed tasks
+          <Icon name="list-check" size={15} /> completed tasks
         </button>
       </div>
       <details className="board-options__section">
         <summary>
-          appearance <Icon name="down" size={13} />
+          <Icon name="palette" size={15} /> appearance
+          <Icon name="down" size={13} className="board-options__chevron" />
         </summary>
         <form
           className="board-options__fields"
@@ -204,7 +205,8 @@ export function BoardOptions({
       </details>
       <details className="board-options__section">
         <summary>
-          view preferences <Icon name="down" size={13} />
+          <Icon name="sliders" size={15} /> view preferences
+          <Icon name="down" size={13} className="board-options__chevron" />
         </summary>
         <div className="board-options__checks">
           <label>
@@ -233,7 +235,8 @@ export function BoardOptions({
       </details>
       <details className="board-options__section">
         <summary>
-          board order <Icon name="down" size={13} />
+          <Icon name="sort" size={15} /> board order
+          <Icon name="down" size={13} className="board-options__chevron" />
         </summary>
         <div className="popover__menu">
           <button
@@ -270,7 +273,7 @@ export function BoardOptions({
             commands.clearError();
           }}
         >
-          start a new attempt
+          <Icon name="sync" size={15} /> start a new attempt
         </button>
       )}
       <div className="board-options__delete">
