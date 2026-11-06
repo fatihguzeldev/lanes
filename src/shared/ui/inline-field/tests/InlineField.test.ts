@@ -37,10 +37,16 @@ vi.mock('../../dismiss/useOutsideDismiss', () => ({
 type Element = ReactElement<Record<string, any>>;
 const commit = vi.fn();
 const cancel = vi.fn();
-function render(value = 'reading') {
+function render(value = 'reading', initialDraft?: string) {
   harness.cursor = 0;
   harness.effects = [];
-  const root = InlineField({ value, label: 'name', onCommit: commit, onCancel: cancel }) as Element;
+  const root = InlineField({
+    value,
+    label: 'name',
+    onCommit: commit,
+    onCancel: cancel,
+    initialDraft,
+  }) as Element;
   harness.effects.forEach((effect) => effect());
   return (root.props.children as Element[])[0]!;
 }
@@ -64,6 +70,13 @@ beforeEach(() => {
   commit.mockResolvedValue(true);
 });
 describe('inline field completion', () => {
+  it('restores a failed draft without mistaking it for the confirmed value', async () => {
+    const input = render('reading', 'books');
+    expect(input.props.value).toBe('books');
+    input.props.onBlur();
+    expect(commit).toHaveBeenCalledExactlyOnceWith('books');
+    await Promise.resolve();
+  });
   it('commits a changed name once across enter, blur and outside dismissal', async () => {
     let finish!: (done: boolean) => void;
     commit.mockImplementation(

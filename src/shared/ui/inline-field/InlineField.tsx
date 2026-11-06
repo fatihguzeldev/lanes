@@ -4,6 +4,7 @@ import './InlineField.css';
 
 export function InlineField({
   value,
+  initialDraft,
   label,
   onCommit,
   onCancel,
@@ -15,6 +16,7 @@ export function InlineField({
   type = 'text',
 }: {
   value: string;
+  initialDraft?: string | undefined;
   label: string;
   onCommit(value: string): boolean | Promise<boolean>;
   onCancel?: () => void;
@@ -25,17 +27,23 @@ export function InlineField({
   maxLength?: number;
   type?: 'text' | 'url';
 }) {
-  const [draft, setDraft] = useState(value);
+  const [draft, setDraft] = useState(initialDraft ?? value);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const field = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLInputElement>(null);
-  const current = useRef(value);
+  const current = useRef(initialDraft ?? value);
   const latestValue = useRef(value);
   latestValue.current = value;
-  const dirty = useRef(false);
+  const dirty = useRef(initialDraft !== undefined && initialDraft !== value);
   const flight = useRef(false);
   const escaped = useRef(false);
+  useEffect(() => {
+    if (autoFocus) {
+      input.current?.focus({ preventScroll: true });
+      input.current?.select();
+    }
+  }, [autoFocus]);
   useEffect(() => {
     if (!dirty.current && !flight.current) {
       current.current = value;
