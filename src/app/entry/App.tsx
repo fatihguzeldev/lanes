@@ -4,13 +4,22 @@ import { WorkspaceSkeleton } from '../workspace/WorkspaceSkeleton';
 import { useTheme } from '../theme/theme';
 import { useOwnerSession } from '../../modules/accounts/browser/session/useOwnerSession';
 import { portabilityLanding } from '../../modules/transfer/browser/workspace/landing';
+import type { SessionSnapshot } from '../../modules/accounts/contracts/session';
 import './App.css';
 
 const Workspace = lazy(() =>
   import('../workspace/Workspace').then((module) => ({ default: module.Workspace })),
 );
 
-export function App() {
+export function App({
+  initialSession = null,
+  initialError = '',
+  interactive = true,
+}: {
+  initialSession?: SessionSnapshot | null;
+  initialError?: string;
+  interactive?: boolean;
+}) {
   const [, setTheme, resolvedTheme] = useTheme();
   const {
     session,
@@ -26,7 +35,9 @@ export function App() {
     authorize,
     loadMoreAccounts,
     dismissError,
-  } = useOwnerSession(() => portabilityLanding()?.accountId ?? null);
+  } = useOwnerSession(() => portabilityLanding()?.accountId ?? null, initialSession, initialError);
+  if (session?.authenticated && session.accounts?.items.length && !selected && !error)
+    return <WorkspaceSkeleton theme={resolvedTheme} accountInitial={loadingInitial} />;
   if (!session && !error)
     return <main className="entry" role="status" aria-label="loading lanes" aria-busy="true" />;
   if (session?.authenticated && selected)
@@ -67,11 +78,11 @@ export function App() {
         <Brand />
       </div>
       <section className="entry-paper">
-        {!session ? (
+        {!session || (error && !selected) ? (
           <>
             <h1>couldn’t open lanes.</h1>
             <p role="alert">{error}</p>
-            <button className="entry-primary" onClick={() => void load()}>
+            <button className="entry-primary" disabled={!interactive} onClick={() => void load()}>
               try again
             </button>
           </>
@@ -92,7 +103,7 @@ export function App() {
             <p>open your google tasks with the owner account.</p>
             <button
               className="entry-primary"
-              disabled={pending}
+              disabled={pending || !interactive}
               onClick={() => void authorize('signin')}
             >
               {pending ? 'opening google…' : 'continue with google'}
