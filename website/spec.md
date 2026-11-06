@@ -44,6 +44,7 @@ the page uses an open, light sage surface. forest green marks the identity, prim
 - motion follows user actions and respects reduced motion. do not use autoplay, scroll-driven state or animated height changes to demonstrate the product. content and useful links remain available without javascript.
 - at 320px through wide desktop sizes, headings and controls remain readable and reachable. only an explicitly identified workspace canvas may scroll sideways.
 - compact board columns leave a glimpse of the next column. list layout reflows without horizontal scrolling; calendar scrolling stays inside its canvas. preview actions provide 44px touch targets on devices with a coarse pointer, including hybrid inputs; text-entry fields use at least 16px text there.
+- the calendar opens with the current demo day visible inside its own scroller. it does not scroll the page or reset the visitor's position during a resize.
 
 ## commands
 

@@ -1,6 +1,7 @@
 import { useId, useLayoutEffect, useRef, useState } from 'react';
 import {
   demoAccounts,
+  demoToday,
   demoWeek,
   demoWorkspaces,
   selectDemoTasks,
@@ -194,10 +195,25 @@ function DemoBoard({
 }
 
 function DemoCalendar({ tasks }: { tasks: DemoTask[] }) {
+  const scroller = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const area = scroller.current;
+    const today = area?.querySelector<HTMLElement>('.demo-calendar__today');
+    if (!area || !today) return;
+    const day = today.getBoundingClientRect();
+    area.scrollLeft +=
+      day.left - area.getBoundingClientRect().left - (area.clientWidth - day.width) / 2;
+  }, []);
   return (
     <div className="demo-calendar">
       <p className="demo-calendar__period">nov 9 – nov 15, 2026</p>
-      <div className="demo-calendar__scroll" role="region" tabIndex={0} aria-label="week calendar">
+      <div
+        ref={scroller}
+        className="demo-calendar__scroll"
+        role="region"
+        tabIndex={0}
+        aria-label="week calendar"
+      >
         <table className="demo-calendar__table">
           <thead>
             <tr>
@@ -211,7 +227,7 @@ function DemoCalendar({ tasks }: { tasks: DemoTask[] }) {
           <tbody>
             <tr>
               {Array.from({ length: 7 }, (_, day) => (
-                <td className={day === 3 ? 'demo-calendar__today' : ''} key={day}>
+                <td className={demoWeek[day] === demoToday ? 'demo-calendar__today' : ''} key={day}>
                   <span className="demo-calendar__number">{day + 9}</span>
                   {tasks
                     .filter((task) => task.day === demoWeek[day] && !task.completed)
