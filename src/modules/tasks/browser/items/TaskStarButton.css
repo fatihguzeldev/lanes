@@ -14,9 +14,27 @@
 .task-star-button[aria-pressed='true'] {
   color: var(--green);
 }
+.task-star-button > .icon {
+  fill: transparent;
+}
 .task-star-button[aria-pressed='true'] .icon {
   fill: color-mix(in srgb, var(--green) 24%, transparent);
 }
 .task-star-button:disabled {
   cursor: default;
+}
+@media (hover: hover) and (pointer: fine) {
+  .task-star-button:hover:not(:disabled) > .icon {
+    fill: var(--green);
+  }
+}
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .task-star-button > .icon {
+    transition:
+      fill 120ms ease,
+      transform 120ms ease;
+  }
+  .task-star-button:hover:not(:disabled) > .icon {
+    transform: scale(1.1);
+  }
 }
