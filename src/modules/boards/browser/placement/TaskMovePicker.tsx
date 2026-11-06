@@ -2,14 +2,16 @@ import { useLayoutEffect, useRef } from 'react';
 import { Icon } from '../../../../shared/ui/icon/Icon';
 import { AnchoredPopover } from '../../../../shared/ui/popover/Popover';
 import type { TaskPlacement } from './useTaskPlacement';
-import { TaskMoveDestinations } from './TaskMoveDestinations';
+import { TaskMoveDestinations, type TaskMoveWorkspace } from './TaskMoveDestinations';
 import './TaskMovePicker.css';
 
 export function TaskMovePicker({
   controller,
+  workspace,
   embedded = false,
 }: {
   controller: TaskPlacement;
+  workspace: TaskMoveWorkspace;
   embedded?: boolean;
 }) {
   const selection = controller.selection!;
@@ -79,6 +81,7 @@ export function TaskMovePicker({
           task={task}
           disabled={disabled}
           boardId={selection.boardId}
+          workspace={workspace}
         />
       )}
       {controller.error && (

@@ -830,7 +830,7 @@ export function Workspace({
         )}
         moveMenu={
           boardManagement.placement.selection ? (
-            <TaskMovePicker controller={boardManagement.placement} embedded />
+            <TaskMovePicker controller={boardManagement.placement} workspace={boardData} embedded />
           ) : null
         }
         onMoveClose={boardManagement.placement.close}
