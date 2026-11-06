@@ -313,8 +313,34 @@ export function WorkspaceDemo({ suspended = false }: { suspended?: boolean }) {
   const [navigationOpen, setNavigationOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const showcase = useRef<HTMLDivElement>(null);
-  const latest = useRef({ editor: rawEditor, tasks });
-  latest.current = { editor: rawEditor, tasks };
+  const latest = useRef({ editor: rawEditor, tasks, view });
+  latest.current = { editor: rawEditor, tasks, view };
+  const pendingView = useRef<(() => void) | null>(null);
+  useLayoutEffect(() => {
+    pendingView.current?.();
+  }, [view]);
+  // Measurement belongs after React's commit, including the calendar's local scroll.
+  const commitView = (next: View, signal: AbortSignal) => {
+    signal.throwIfAborted();
+    if (latest.current.view === next) return Promise.resolve();
+    return new Promise<void>((resolve, reject) => {
+      const cleanup = () => {
+        signal.removeEventListener('abort', abort);
+        if (pendingView.current === finish) pendingView.current = null;
+      };
+      const finish = () => {
+        cleanup();
+        resolve();
+      };
+      const abort = () => {
+        cleanup();
+        reject(signal.reason);
+      };
+      pendingView.current = finish;
+      signal.addEventListener('abort', abort, { once: true });
+      setView(next);
+    });
+  };
   const playback = useShowcasePlayback({
     rootRef: showcase,
     suspended,
@@ -336,7 +362,7 @@ export function WorkspaceDemo({ suspended = false }: { suspended?: boolean }) {
               }),
             notes: (notes) => flushSync(() => latest.current.editor.patch({ notes })),
             save: () => flushSync(() => latest.current.editor.save()),
-            view: (value) => flushSync(() => setView(value)),
+            view: (value) => commitView(value, context.signal),
             completeSubtask: (index) =>
               flushSync(() => latest.current.editor.completeSubtask(task(), index, true)),
           });
@@ -347,8 +373,8 @@ export function WorkspaceDemo({ suspended = false }: { suspended?: boolean }) {
               flushSync(() => {
                 automatedDraft.current = false;
                 setWorkspaces(demoWorkspaces);
-                setView('board');
               });
+              return commitView('board', context.signal);
             },
             { duration: 680 },
           );

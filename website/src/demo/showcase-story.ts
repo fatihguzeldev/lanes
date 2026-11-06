@@ -9,7 +9,7 @@ type Story = {
   edit(): void;
   notes(value: string): void;
   save(): void;
-  view(value: 'list' | 'calendar'): void;
+  view(value: 'list' | 'calendar'): void | Promise<void>;
   completeSubtask(index: number): void;
 };
 
@@ -21,9 +21,9 @@ export async function playWorkspaceStory(story: Story) {
   const save = '.workbench-editor__save';
   const list = '[data-showcase-view-button="list"]';
   const calendar = '[data-showcase-view-button="calendar"]';
-  const apply = (action: () => void) => {
+  const apply = <T>(action: () => T): T => {
     context.checkpoint();
-    action();
+    return action();
   };
 
   await context.wait(2000);

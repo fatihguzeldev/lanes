@@ -66,6 +66,8 @@ npm run check
 
 use the existing react, typescript, vite and vitest dependencies. use semantic html and native controls before abstractions. for example, a demo task uses a labelled `<input type="checkbox" checked={completed}>` with a visible task name. colors and fonts come from site tokens; component styles remain local.
 
+view changes acknowledge react's layout commit before motion measures their destination, including the calendar's local scroll. shared title snapshots translate at their real text sizes; the destination stays hidden until the handoff. cancellation also rejects a pending commit acknowledgement.
+
 ## verification
 
 unit tests cover public github response validation and failures, clipboard payloads and failures, account-separated task changes, editor drafts and navigation guards, active-time playback, lifecycle cancellation, measured motion and the task's progression across views. type checking and production builds verify the separate entry. browser checks cover the full demonstration, pause/resume, visitor takeover, the interactive preview, clipboard confirmation, keyboard controls, responsive layout and reduced motion. compare product treatments against their owning application source before claiming fidelity. full repository checks verify that the website does not break the application.
