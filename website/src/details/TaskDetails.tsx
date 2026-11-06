@@ -1,75 +1,111 @@
+import { useState, type CSSProperties } from 'react';
+import { WorkbenchEditor } from './WorkbenchEditor';
+import { WorkbenchIcon } from './WorkbenchIcon';
+import { workbenchLabels, workbenchTasks, type WorkbenchTask } from './workbench-data';
 import './TaskDetails.css';
 
 export function TaskDetails() {
+  const [tasks, setTasks] = useState(workbenchTasks);
+  const [selected, setSelected] = useState('website');
+  const task = tasks.find((item) => item.id === selected) ?? tasks[0]!;
+  const changeTask = (id: string, patch: Partial<WorkbenchTask>) =>
+    setTasks((current) => current.map((item) => (item.id === id ? { ...item, ...patch } : item)));
+
   return (
     <section className="details-section container" aria-labelledby="details-title">
-      <div className="details-copy">
+      <header className="details-intro">
         <h2 id="details-title">a task is rarely just a title.</h2>
-        <p>keep the details with your google tasks.</p>
-        <dl>
-          <div>
-            <dt>plan it</dt>
-            <dd>dates and repeat rules.</dd>
+      </header>
+      <div className="details-workbench product-preview">
+        <div className="details-task-list" aria-label="side project tasks">
+          <div className="details-task-list__context">
+            <WorkbenchIcon name="list" />
+            side project
           </div>
-          <div>
-            <dt>find it</dt>
-            <dd>search and filters.</dd>
-          </div>
-        </dl>
-      </div>
-      <figure className="details-figure">
-        <article className="details-sample" aria-label="sample lanes task details">
-          <p className="details-sample__context">side project</p>
-          <h3>build the website</h3>
-          <p className="details-sample__note">for the side project.</p>
-          <div className="details-sample__properties">
-            <span className="details-sample__label">website</span>
-            <span>medium priority</span>
-          </div>
-          <fieldset className="details-checklist">
-            <legend>subtasks</legend>
-            {['write copy', 'build demo', 'finishing touches'].map((title, index) => (
-              <label className="details-check" key={title}>
-                <input type="checkbox" defaultChecked={index === 0} />
-                <span className="details-check__box" aria-hidden="true">
-                  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-                    <path d="m3.5 8 3 3 6-6" />
-                  </svg>
+          <h3>in progress</h3>
+          {tasks.map((item) => (
+            <article
+              className={`details-task${item.id === selected ? ' details-task--selected' : ''}`}
+              key={item.id}
+            >
+              <div className="details-task__top">
+                <label className="workbench-check workbench-check--completion">
+                  <input
+                    type="checkbox"
+                    aria-label={`complete ${item.title}`}
+                    checked={item.completed}
+                    onChange={(event) => changeTask(item.id, { completed: event.target.checked })}
+                  />
+                  <span aria-hidden="true">
+                    <WorkbenchIcon name="check" />
+                  </span>
+                </label>
+                <button
+                  className={`details-task__title${item.completed ? ' is-completed' : ''}`}
+                  type="button"
+                  aria-pressed={item.id === selected}
+                  onClick={() => setSelected(item.id)}
+                >
+                  {item.title}
+                </button>
+                {item.starred && (
+                  <span className="details-task__star" role="img" aria-label="starred">
+                    <WorkbenchIcon name="star" />
+                  </span>
+                )}
+              </div>
+              <div className="details-task__meta">
+                {workbenchLabels
+                  .filter((label) => item.labels.includes(label.id))
+                  .map((label) => (
+                    <span
+                      className="details-task__label"
+                      style={{ '--label-color': label.color } as CSSProperties}
+                      key={label.id}
+                    >
+                      <span className="workbench-label-dot" />
+                      {label.name}
+                    </span>
+                  ))}
+                <span>
+                  <WorkbenchIcon name="subtasks" />
+                  {item.subtasks.filter((child) => child.completed).length}/{item.subtasks.length}
                 </span>
-                <span>{title}</span>
-              </label>
-            ))}
-          </fieldset>
-          <div className="details-sample__planning">
-            <span>
-              <svg
-                aria-hidden="true"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-              >
-                <rect x="3" y="5" width="18" height="16" rx="2" />
-                <path d="M8 3v4m8-4v4M3 11h18" />
-              </svg>
-              thu, nov 12 <span className="details-sample__time">10:00</span>
-            </span>
-            <span>
-              <svg
-                aria-hidden="true"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-              >
-                <path d="m17 2 4 4-4 4M3 11V8a2 2 0 0 1 2-2h16M7 22l-4-4 4-4m14-1v3a2 2 0 0 1-2 2H3" />
-              </svg>
-              every week
-            </span>
-          </div>
-        </article>
-        <figcaption>sample task.</figcaption>
-      </figure>
+              </div>
+              {selected === item.id && (
+                <div className="details-task__children">
+                  {item.subtasks.map((child, index) => (
+                    <label className="workbench-check" key={child.title}>
+                      <input
+                        type="checkbox"
+                        checked={child.completed}
+                        onChange={(event) =>
+                          changeTask(item.id, {
+                            subtasks: item.subtasks.map((subtask, position) =>
+                              position === index
+                                ? { ...subtask, completed: event.target.checked }
+                                : subtask,
+                            ),
+                          })
+                        }
+                      />
+                      <span aria-hidden="true">
+                        <WorkbenchIcon name="check" />
+                      </span>
+                      <span>{child.title}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </article>
+          ))}
+        </div>
+        <WorkbenchEditor
+          key={task.id}
+          task={task}
+          onChange={(patch) => changeTask(task.id, patch)}
+        />
+      </div>
     </section>
   );
 }
