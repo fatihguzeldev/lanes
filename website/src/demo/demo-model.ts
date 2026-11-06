@@ -5,8 +5,8 @@ export type DemoTask = {
   completed: boolean;
   label?: string;
   note?: string;
-  day: number;
-  time: string;
+  day: number | null;
+  time?: string;
   starred?: boolean;
 };
 
@@ -18,24 +18,21 @@ export const demoTasks: DemoTask[] = [
     completed: false,
     note: 'keep it to a single page.',
     label: 'someday',
-    day: 0,
-    time: '09:00',
+    day: null,
   },
   {
     id: 'walk',
     title: 'take the long way home',
     list: 'ideas',
     completed: false,
-    day: 2,
-    time: '17:00',
+    day: null,
   },
   {
     id: 'playlist',
     title: 'make a playlist for late nights',
     list: 'ideas',
     completed: false,
-    day: 4,
-    time: '15:00',
+    day: null,
   },
   {
     id: 'make-room',
@@ -44,7 +41,7 @@ export const demoTasks: DemoTask[] = [
     completed: false,
     label: 'making things',
     starred: true,
-    day: 1,
+    day: 4,
     time: '10:00',
   },
   {
@@ -53,7 +50,7 @@ export const demoTasks: DemoTask[] = [
     list: 'in progress',
     completed: false,
     note: 'one page to show what it does.',
-    label: 'today',
+    label: 'website',
     day: 3,
     time: '11:00',
   },
@@ -77,4 +74,18 @@ export const demoTasks: DemoTask[] = [
 
 export function toggleDemoTask(tasks: DemoTask[], id: string): DemoTask[] {
   return tasks.map((task) => (task.id === id ? { ...task, completed: !task.completed } : task));
+}
+
+export type DemoScope = 'all' | 'today' | 'starred';
+
+export function selectDemoTasks(tasks: DemoTask[], scope: DemoScope, query: string): DemoTask[] {
+  const search = query.trim().normalize('NFC').toLocaleLowerCase();
+  return tasks.filter((task) => {
+    if (scope !== 'all' && task.completed) return false;
+    if (scope === 'today' && task.day !== 3) return false;
+    if (scope === 'starred' && !task.starred) return false;
+    return [task.title, task.note, task.list, task.label].some((text) =>
+      text?.normalize('NFC').toLocaleLowerCase().includes(search),
+    );
+  });
 }
