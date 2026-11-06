@@ -8,6 +8,8 @@ host lanes as one cloudflare deployment: a static browser client, a worker for s
 
 the browser client uses react and typescript.
 
+entry documents are prerendered from the existing react views during the build. the worker validates the owner session, selects a static document, and includes a safely serialized session snapshot for the browser. the renderer stays in build tooling; worker imports never reach browser components or react rendering code.
+
 ## source ownership
 
 ```text
