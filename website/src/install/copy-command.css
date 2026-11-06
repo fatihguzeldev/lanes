@@ -4,7 +4,7 @@
   gap: var(--space-md);
   position: relative;
   min-width: 0;
-  padding: var(--space-md);
+  padding: var(--space-xs) var(--space-md);
   border: 1px solid var(--color-line);
   border-radius: var(--radius-control);
   background: var(--color-paper);
@@ -16,7 +16,7 @@
   min-width: 0;
   overflow-wrap: anywhere;
   font-family: var(--font-code);
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.6;
   user-select: all;
 }
@@ -88,7 +88,7 @@
   }
 }
 
-@media (max-width: 560px) {
+@container self-hosting (max-width: 540px) {
   .copy-command {
     flex-direction: column;
     align-items: stretch;
