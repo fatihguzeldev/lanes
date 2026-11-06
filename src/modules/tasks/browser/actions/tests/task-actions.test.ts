@@ -232,7 +232,8 @@ describe('task completion workflow', () => {
         unknownBlockerCount: 1,
       }),
     });
-    await action.toggleComplete(task, true);
+    const saving = action.toggleComplete(task, true);
+    await vi.waitFor(() => expect(action.confirm).toHaveBeenCalledOnce());
     const choice = action.confirmation();
     expect(choice.message).toContain('2 open subtasks will also complete.');
     expect(choice.message).toContain('1 open blockers');
@@ -241,6 +242,7 @@ describe('task completion workflow', () => {
     expect(action.submit).not.toHaveBeenCalled();
     expect(action.onRepeat).not.toHaveBeenCalled();
     expect(await choice.onConfirm(identity)).toBe(true);
+    expect(await saving).toBe(true);
     expect(action.calls.at(-1)).toEqual({
       path: `${base}/commands/provider`,
       method: 'POST',
@@ -263,9 +265,25 @@ describe('task completion workflow', () => {
       taskPreview: consequences({ openSubtaskCount: 1 }),
       saveSucceeded: false,
     });
-    await action.toggleComplete(task, true);
+    const saving = action.toggleComplete(task, true);
+    await vi.waitFor(() => expect(action.confirm).toHaveBeenCalledOnce());
     expect(await action.confirmation().onConfirm(identity)).toBe(false);
+    expect(await saving).toBe(false);
     expect(action.onRepeat).not.toHaveBeenCalled();
+  });
+
+  it('reports a cancelled confirmation without sending a completion', async () => {
+    const action = workflow({ taskPreview: consequences({ openSubtaskCount: 1 }) });
+    const saving = action.toggleComplete(task, true);
+    await vi.waitFor(() => expect(action.confirm).toHaveBeenCalledOnce());
+    action.confirmation().onCancel?.();
+    expect(await saving).toBe(false);
+    expect(action.submit).not.toHaveBeenCalled();
+  });
+
+  it.each([true, false])('reports the ordinary completion result (%s)', async (saveSucceeded) => {
+    const action = workflow({ saveSucceeded });
+    expect(await action.toggleComplete(task, true)).toBe(saveSucceeded);
   });
 });
 
