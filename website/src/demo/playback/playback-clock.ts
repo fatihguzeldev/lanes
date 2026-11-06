@@ -88,7 +88,8 @@ export class PlaybackClock {
       this.checkpoint();
     }
     this.animations.add(animation);
-    void animation.finished.catch(() => {});
+    const release = () => this.animations.delete(animation);
+    void animation.finished.then(release, release);
     if (this.paused && animation.playState === 'running') animation.pause();
   }
   abort() {

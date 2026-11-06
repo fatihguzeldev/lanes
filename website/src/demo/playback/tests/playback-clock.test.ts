@@ -136,6 +136,37 @@ describe('showcase active-time clock', () => {
     clock.abort();
   });
 
+  it('releases settled animations while keeping active animations pausable and abortable', async () => {
+    const clock = new PlaybackClock();
+    const finished = animation('finished');
+    const cancelled = animation();
+    const active = animation();
+    let finish!: () => void;
+    let cancel!: () => void;
+    finished.finished = new Promise((resolve) => {
+      finish = () => resolve(finished);
+    });
+    cancelled.finished = new Promise((_, reject) => {
+      cancel = () => reject(new DOMException('cancelled', 'AbortError'));
+    });
+    clock.registerAnimation(finished);
+    clock.registerAnimation(cancelled);
+    clock.registerAnimation(active);
+    finish();
+    cancelled.cancel();
+    cancel();
+    await Promise.resolve();
+
+    clock.pause();
+    expect(active.pause).toHaveBeenCalledOnce();
+    clock.resume();
+    expect(active.play).toHaveBeenCalledOnce();
+    clock.abort();
+    expect(finished.cancel).not.toHaveBeenCalled();
+    expect(cancelled.cancel).toHaveBeenCalledOnce();
+    expect(active.cancel).toHaveBeenCalledOnce();
+  });
+
   it('cancels and rejects an animation registered by an abandoned run', () => {
     const clock = new PlaybackClock();
     const moving = animation();
