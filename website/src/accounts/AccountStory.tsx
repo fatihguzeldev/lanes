@@ -3,21 +3,21 @@ import './AccountStory.css';
 
 const accounts = {
   personal: {
-    name: 'Personal',
+    name: 'personal',
     tasks: [
-      ['Find a trail for Saturday', 'Weekend plans'],
-      ['Book a table for two', 'Weekend plans'],
-      ['Pick up the library books', 'Life admin'],
-      ['Plan the week over coffee', 'Life admin'],
+      ['find a trail for saturday', 'weekend plans'],
+      ['book a table for two', 'weekend plans'],
+      ['pick up the library books', 'life admin'],
+      ['plan the week over coffee', 'life admin'],
     ],
   },
   work: {
-    name: 'Work',
+    name: 'work',
     tasks: [
-      ['Polish the welcome screen', 'Product launch'],
-      ['Write the launch notes', 'Product launch'],
-      ['Follow up on feedback', 'Notes to follow up'],
-      ['Review the next small thing', 'Notes to follow up'],
+      ['polish the welcome screen', 'product launch'],
+      ['write the launch notes', 'product launch'],
+      ['follow up on feedback', 'notes to follow up'],
+      ['review the next small thing', 'notes to follow up'],
     ],
   },
 } as const;
@@ -29,11 +29,11 @@ export function AccountStory() {
   return (
     <section className="account-story container" aria-labelledby="accounts-title">
       <div className="account-story__intro">
-        <h2 id="accounts-title">Each account in its own lane.</h2>
-        <p>Switch between your Google accounts. Keep their tasks and organization separate.</p>
+        <h2 id="accounts-title">each account in its own lane.</h2>
+        <p>switch between your google accounts. keep their tasks and organization separate.</p>
       </div>
       <div className="account-story__workspace">
-        <div className="account-story__switcher" role="group" aria-label="Sample accounts">
+        <div className="account-story__switcher" role="group" aria-label="sample accounts">
           {(['personal', 'work'] as const).map((key) => (
             <button
               key={key}
@@ -49,7 +49,7 @@ export function AccountStory() {
                 <strong>{accounts[key].name}</strong>
               </span>
               <span className="account-story__selection" aria-hidden="true">
-                {selected === key ? 'Selected' : 'Switch account'}
+                {selected === key ? 'selected' : 'switch account'}
               </span>
             </button>
           ))}
@@ -66,7 +66,7 @@ export function AccountStory() {
           </ul>
         </div>
       </div>
-      <p className="account-story__caption">Sample accounts.</p>
+      <p className="account-story__caption">sample accounts.</p>
     </section>
   );
 }

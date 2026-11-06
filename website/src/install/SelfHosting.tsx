@@ -8,26 +8,26 @@ export function SelfHosting() {
     <section className="self-host-section" id="self-host" aria-labelledby="self-host-title">
       <div className="self-host-layout container">
         <div className="self-host-intro">
-          <h2 id="self-host-title">A Lanes of your own.</h2>
-          <p>Host Lanes in your Cloudflare account.</p>
+          <h2 id="self-host-title">a lanes of your own.</h2>
+          <p>host lanes in your cloudflare account.</p>
           <a className="button self-host-button" href={GUIDE}>
-            Read the setup guide
+            read the setup guide
           </a>
-          <p className="self-host-license">Open source. MIT licensed.</p>
+          <p className="self-host-license">open source. mit licensed.</p>
         </div>
         <div className="self-host-instructions">
-          <p className="self-host-instructions__lead">Start with the source.</p>
+          <p className="self-host-instructions__lead">start with the source.</p>
           <CopyCommand />
-          <p className="self-host-instructions__prompt-label">Then ask your coding agent:</p>
+          <p className="self-host-instructions__prompt-label">then ask your coding agent:</p>
           <blockquote className="install-prompt">
-            Deploy Lanes to my Cloudflare account. Follow <code>AGENTS.md</code> and{' '}
+            deploy lanes to my cloudflare account. follow <code>AGENTS.md</code> and{' '}
             <code>agents/self-hosting.md</code>.
           </blockquote>
-          <p className="self-host-instructions__note">You handle Google sign-in and consent.</p>
+          <p className="self-host-instructions__note">you handle google sign-in and consent.</p>
         </div>
         <div className="self-host-footnotes">
-          <p>Cloudflare free-plan quotas apply.</p>
-          <p>Google testing mode requires reconnection every seven days.</p>
+          <p>cloudflare free-plan quotas apply.</p>
+          <p>google testing mode requires reconnection every seven days.</p>
         </div>
       </div>
     </section>

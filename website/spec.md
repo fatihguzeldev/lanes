@@ -24,6 +24,8 @@ styles, local behavior and tests stay beside the component that owns them. share
 
 ## experience
 
+- public copy is lowercase, including sample content, accessible names and metadata. preserve the exact case of filenames, commands and identifiers where it affects their meaning.
+
 - the first screen contains the lanes identity, a concise google tasks introduction, and a clear self-hosting action.
 - the upper right contains a working github repository link with its real star count. loading or failure never invents a count; the link remains usable.
 - an explicitly labeled sample workspace demonstrates boards, lists, calendar, and reversible task completion without sign-in, provider calls or persisted visitor tasks.

@@ -18,10 +18,10 @@ export function CopyCommand() {
   }
 
   const label = {
-    idle: 'Copy',
-    copying: 'Copying…',
-    copied: 'Copied',
-    unavailable: 'Copy unavailable',
+    idle: 'copy',
+    copying: 'copying…',
+    copied: 'copied',
+    unavailable: 'copy unavailable',
   }[status];
 
   return (
@@ -32,7 +32,7 @@ export function CopyCommand() {
         type="button"
         onClick={copy}
         disabled={status === 'copying'}
-        aria-label={status === 'idle' ? 'Copy clone command' : label}
+        aria-label={status === 'idle' ? 'copy clone command' : label}
       >
         <svg
           viewBox="0 0 20 20"
@@ -54,9 +54,9 @@ export function CopyCommand() {
       </button>
       <span className="copy-command__status" role="status">
         {status === 'copied'
-          ? 'Command copied to clipboard.'
+          ? 'command copied to clipboard.'
           : status === 'unavailable'
-            ? 'Clipboard unavailable. Select and copy the command.'
+            ? 'clipboard unavailable. select and copy the command.'
             : ''}
       </span>
     </div>

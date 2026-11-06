@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { demoTasks, toggleDemoTask, type DemoTask } from './demo-model';
 import './WorkspaceDemo.css';
 
-type View = 'Board' | 'List' | 'Calendar';
+type View = 'board' | 'list' | 'calendar';
 type IconName = 'board' | 'list' | 'calendar' | 'star' | 'check' | 'sun' | 'repeat' | 'reset';
 
 function DemoIcon({ name }: { name: IconName }) {
@@ -80,15 +80,15 @@ function DemoTaskItem({
         </span>
         <span className="demo-task__title">{task.title}</span>
         {task.starred && (
-          <span className="demo-task__star" role="img" aria-label="Starred">
+          <span className="demo-task__star" role="img" aria-label="starred">
             <DemoIcon name="star" />
           </span>
         )}
       </label>
       {!compact && task.note && <p className="demo-task__note">{task.note}</p>}
       {!compact && task.label && (
-        <span className={`demo-task__tag${task.label === 'Today' ? ' demo-task__tag--today' : ''}`}>
-          {task.label === 'Today' && <DemoIcon name="sun" />}
+        <span className={`demo-task__tag${task.label === 'today' ? ' demo-task__tag--today' : ''}`}>
+          {task.label === 'today' && <DemoIcon name="sun" />}
           {task.label}
         </span>
       )}
@@ -98,8 +98,8 @@ function DemoTaskItem({
 
 function DemoBoard({ tasks, onToggle }: { tasks: DemoTask[]; onToggle: (id: string) => void }) {
   return (
-    <div className="demo-board" role="region" aria-label="Task board" tabIndex={0}>
-      {(['Ideas', 'In progress', 'Done'] as const).map((list) => (
+    <div className="demo-board" role="region" aria-label="task board" tabIndex={0}>
+      {(['ideas', 'in progress', 'done'] as const).map((list) => (
         <section className="demo-column" key={list} aria-label={`${list} task list`}>
           <header className="demo-column__header">
             <h3>{list}</h3>
@@ -113,7 +113,7 @@ function DemoBoard({ tasks, onToggle }: { tasks: DemoTask[]; onToggle: (id: stri
               ))}
           </div>
           <div className="demo-column__end" aria-hidden="true">
-            <span>+</span> Room for what’s next
+            <span>+</span> room for what’s next
           </div>
         </section>
       ))}
@@ -123,10 +123,10 @@ function DemoBoard({ tasks, onToggle }: { tasks: DemoTask[]; onToggle: (id: stri
 
 function DemoList({ tasks, onToggle }: { tasks: DemoTask[]; onToggle: (id: string) => void }) {
   return (
-    <div className="demo-list" aria-label="Task list">
+    <div className="demo-list" aria-label="task list">
       <div className="demo-list__header">
-        <span>All tasks</span>
-        <span>List</span>
+        <span>all tasks</span>
+        <span>list</span>
       </div>
       {tasks.map((task) => (
         <div className="demo-list__row" key={task.id}>
@@ -144,14 +144,14 @@ function DemoCalendar({ tasks, onToggle }: { tasks: DemoTask[]; onToggle: (id: s
       className="demo-calendar"
       role="region"
       tabIndex={0}
-      aria-label="Sample calendar for November 9 to 13, 2026"
+      aria-label="sample calendar for november 9 to 13, 2026"
     >
       <div className="demo-calendar__title">
-        <span>November 2026</span>
-        <span>Week view</span>
+        <span>november 2026</span>
+        <span>week view</span>
       </div>
       <div className="demo-calendar__week">
-        {['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].map((day, index) => (
+        {['mon', 'tue', 'wed', 'thu', 'fri'].map((day, index) => (
           <div className="demo-calendar__day" key={day}>
             <div className="demo-calendar__date">
               <span>{day}</span>
@@ -175,7 +175,7 @@ function DemoCalendar({ tasks, onToggle }: { tasks: DemoTask[]; onToggle: (id: s
 }
 
 export function WorkspaceDemo() {
-  const [view, setView] = useState<View>('Board');
+  const [view, setView] = useState<View>('board');
   const [tasks, setTasks] = useState(demoTasks);
   const completed = tasks.filter((task) => task.completed).length;
   const changed = tasks.some((task, index) => task.completed !== demoTasks[index]?.completed);
@@ -184,10 +184,10 @@ export function WorkspaceDemo() {
   return (
     <div
       className="workspace-demo"
-      aria-label="Interactive Lanes sample workspace"
+      aria-label="interactive lanes sample workspace"
       data-slot="workspace"
     >
-      <aside className="demo-sidebar" aria-label="Sample workspace navigation">
+      <aside className="demo-sidebar" aria-label="sample workspace navigation">
         <div className="demo-sidebar__brand">
           <span className="demo-mark" aria-hidden="true">
             <i />
@@ -201,7 +201,7 @@ export function WorkspaceDemo() {
             <DemoIcon name="sun" />
           </span>
           <span>
-            Personal<span className="demo-account__detail">Personal account</span>
+            personal<span className="demo-account__detail">personal account</span>
           </span>
           <span className="demo-account__chevron" aria-hidden="true">
             ⌄
@@ -210,29 +210,29 @@ export function WorkspaceDemo() {
         <div className="demo-sidebar__shortcuts" aria-hidden="true">
           <span>
             <DemoIcon name="sun" />
-            Today
+            today
           </span>
           <span>
             <DemoIcon name="star" />
-            Starred
+            starred
           </span>
         </div>
-        <p className="demo-sidebar__heading">Your boards</p>
+        <p className="demo-sidebar__heading">your boards</p>
         <div className="demo-sidebar__board demo-sidebar__board--selected">
           <DemoIcon name="board" />
-          <span>A little side project</span>
+          <span>a little side project</span>
         </div>
         <div className="demo-sidebar__board">
           <DemoIcon name="board" />
-          <span>Life, lately</span>
+          <span>life, lately</span>
         </div>
         <div className="demo-sidebar__board">
           <DemoIcon name="board" />
-          <span>Weekend plans</span>
+          <span>weekend plans</span>
         </div>
         <div className="demo-sidebar__bottom">
           <DemoIcon name="repeat" />
-          <span>Your Google Tasks workspace</span>
+          <span>your google tasks workspace</span>
         </div>
       </aside>
       <div className="demo-workspace">
@@ -241,10 +241,10 @@ export function WorkspaceDemo() {
             <span className="demo-toolbar__project-icon">
               <DemoIcon name="board" />
             </span>
-            <span>A little side project</span>
+            <span>a little side project</span>
           </div>
-          <div className="demo-view-switch" role="group" aria-label="Preview layout">
-            {(['Board', 'List', 'Calendar'] as const).map((name) => (
+          <div className="demo-view-switch" role="group" aria-label="preview layout">
+            {(['board', 'list', 'calendar'] as const).map((name) => (
               <button
                 key={name}
                 type="button"
@@ -257,16 +257,16 @@ export function WorkspaceDemo() {
             ))}
           </div>
         </header>
-        {view !== 'List' && (
+        {view !== 'list' && (
           <p className="demo-scroll-hint">
-            Scroll sideways to see {view === 'Board' ? 'every list' : 'the week'}
+            scroll sideways to see {view === 'board' ? 'every list' : 'the week'}
             <span aria-hidden="true">↔</span>
           </p>
         )}
         <div className="demo-content" data-view={view}>
-          {view === 'Board' && <DemoBoard tasks={tasks} onToggle={toggle} />}
-          {view === 'List' && <DemoList tasks={tasks} onToggle={toggle} />}
-          {view === 'Calendar' && <DemoCalendar tasks={tasks} onToggle={toggle} />}
+          {view === 'board' && <DemoBoard tasks={tasks} onToggle={toggle} />}
+          {view === 'list' && <DemoList tasks={tasks} onToggle={toggle} />}
+          {view === 'calendar' && <DemoCalendar tasks={tasks} onToggle={toggle} />}
         </div>
         <div className="demo-status">
           <span>
@@ -282,7 +282,7 @@ export function WorkspaceDemo() {
             disabled={!changed}
           >
             <DemoIcon name="reset" />
-            Reset preview
+            reset preview
           </button>
         </div>
       </div>

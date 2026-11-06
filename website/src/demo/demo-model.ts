@@ -1,7 +1,7 @@
 export type DemoTask = {
   id: string;
   title: string;
-  list: 'Ideas' | 'In progress' | 'Done';
+  list: 'ideas' | 'in progress' | 'done';
   completed: boolean;
   label?: string;
   note?: string;
@@ -13,62 +13,62 @@ export type DemoTask = {
 export const demoTasks: DemoTask[] = [
   {
     id: 'small-start',
-    title: 'Sketch the first version',
-    list: 'Ideas',
+    title: 'sketch the first version',
+    list: 'ideas',
     completed: false,
-    note: 'Keep it to a single page.',
-    label: 'Someday',
+    note: 'keep it to a single page.',
+    label: 'someday',
     day: 0,
     time: '09:00',
   },
   {
     id: 'walk',
-    title: 'Take the long way home',
-    list: 'Ideas',
+    title: 'take the long way home',
+    list: 'ideas',
     completed: false,
     day: 2,
     time: '17:00',
   },
   {
     id: 'playlist',
-    title: 'Make a playlist for late nights',
-    list: 'Ideas',
+    title: 'make a playlist for late nights',
+    list: 'ideas',
     completed: false,
     day: 4,
     time: '15:00',
   },
   {
     id: 'make-room',
-    title: 'Try the board layout',
-    list: 'In progress',
+    title: 'try the board layout',
+    list: 'in progress',
     completed: false,
-    label: 'Making things',
+    label: 'making things',
     starred: true,
     day: 1,
     time: '10:00',
   },
   {
     id: 'website',
-    title: 'Build the project website',
-    list: 'In progress',
+    title: 'build the project website',
+    list: 'in progress',
     completed: false,
-    note: 'One page to show what it does.',
-    label: 'Today',
+    note: 'one page to show what it does.',
+    label: 'today',
     day: 3,
     time: '11:00',
   },
   {
     id: 'first-step',
-    title: 'Register a domain',
-    list: 'Done',
+    title: 'register a domain',
+    list: 'done',
     completed: true,
     day: 0,
     time: '11:00',
   },
   {
     id: 'perfect',
-    title: 'Pick a name',
-    list: 'Done',
+    title: 'pick a name',
+    list: 'done',
     completed: true,
     day: 2,
     time: '09:00',
