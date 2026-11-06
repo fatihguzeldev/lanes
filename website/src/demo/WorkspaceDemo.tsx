@@ -19,6 +19,7 @@ const icons = {
   sun: 'M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5 19 19M5 19l1.5-1.5M17.5 6.5 19 5M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0',
   search: 'M16 16l5 5M17 10a7 7 0 1 1-14 0 7 7 0 0 1 14 0',
   down: 'm7 10 5 5 5-5',
+  left: 'm15 6-6 6 6 6',
   right: 'm9 6 6 6-6 6',
   menu: 'M4 6h16M4 12h16M4 18h16',
   more: 'M12 5h.01M12 12h.01M12 19h.01',
@@ -63,9 +64,13 @@ function DemoTaskActions({
     const close = () => menu.current?.hidePopover();
     window.addEventListener('scroll', close, true);
     window.addEventListener('resize', close);
+    window.visualViewport?.addEventListener('scroll', close);
+    window.visualViewport?.addEventListener('resize', close);
     return () => {
       window.removeEventListener('scroll', close, true);
       window.removeEventListener('resize', close);
+      window.visualViewport?.removeEventListener('scroll', close);
+      window.visualViewport?.removeEventListener('resize', close);
     };
   }, [open]);
   return (
@@ -89,9 +94,18 @@ function DemoTaskActions({
         aria-expanded={open}
         onClick={(event) => {
           const rect = event.currentTarget.getBoundingClientRect();
+          const viewport = window.visualViewport;
+          const top = viewport?.offsetTop ?? 0;
+          const left = viewport?.offsetLeft ?? 0;
           setPosition({
-            top: Math.max(8, Math.min(rect.bottom + 4, window.innerHeight - 60)),
-            left: Math.max(8, Math.min(rect.right - 170, window.innerWidth - 178)),
+            top: Math.max(
+              top + 8,
+              Math.min(rect.bottom + 4, top + (viewport?.height ?? window.innerHeight) - 60),
+            ),
+            left: Math.max(
+              left + 8,
+              Math.min(rect.right - 170, left + (viewport?.width ?? window.innerWidth) - 178),
+            ),
           });
         }}
       >
@@ -399,19 +413,64 @@ export function WorkspaceDemo() {
   const [scope, setScope] = useState<DemoScope>('all');
   const [query, setQuery] = useState('');
   const [navigationOpen, setNavigationOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [compact, setCompact] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches,
+  );
   const navigationTrigger = useRef<HTMLButtonElement>(null);
+  const navigationClose = useRef<HTMLButtonElement>(null);
+  const navigation = useRef<HTMLElement>(null);
+  const pendingNavigationFocus = useRef(false);
+  const searchTrigger = useRef<HTMLButtonElement>(null);
+  const searchInput = useRef<HTMLInputElement>(null);
+  const pendingSearchFocus = useRef<'input' | 'trigger' | null>(null);
   const navigationId = useId();
+  const searchId = useId();
+  const searching = searchOpen || Boolean(query);
   const visible = selectDemoTasks(tasks, scope, query);
   const toggle = (id: string) => setTasks((current) => toggleDemoTask(current, id));
   const toggleStar = (id: string) => setTasks((current) => toggleDemoTaskStar(current, id));
   const closeNavigation = () => {
+    pendingNavigationFocus.current = compact && navigationOpen;
     setNavigationOpen(false);
-    if (navigationOpen) navigationTrigger.current?.focus({ preventScroll: true });
   };
   const selectScope = (next: DemoScope) => {
     setScope(next);
     closeNavigation();
   };
+  const closeSearch = () => {
+    pendingSearchFocus.current = 'trigger';
+    setSearchOpen(false);
+    setQuery('');
+  };
+  useLayoutEffect(() => {
+    const pending = pendingSearchFocus.current;
+    pendingSearchFocus.current = null;
+    if (!pending) return;
+    const target = pending === 'input' || !compact ? searchInput.current : searchTrigger.current;
+    target?.focus({ preventScroll: true });
+  }, [searchOpen, query, compact]);
+  useLayoutEffect(() => {
+    if (compact && navigationOpen) navigationClose.current?.focus({ preventScroll: true });
+    else if (pendingNavigationFocus.current) {
+      pendingNavigationFocus.current = false;
+      navigationTrigger.current?.focus({ preventScroll: true });
+    } else if (document.activeElement === navigationClose.current)
+      navigation.current
+        ?.querySelector<HTMLButtonElement>('nav button')
+        ?.focus({ preventScroll: true });
+  }, [compact, navigationOpen]);
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 768px)');
+    const resize = () => {
+      setCompact(media.matches);
+      if (media.matches && document.activeElement === searchInput.current) setSearchOpen(true);
+      if (!media.matches && document.activeElement === searchTrigger.current)
+        searchInput.current?.focus({ preventScroll: true });
+    };
+    media.addEventListener('change', resize);
+    return () => media.removeEventListener('change', resize);
+  }, []);
 
   return (
     <div className="workspace-showcase">
@@ -442,8 +501,34 @@ export function WorkspaceDemo() {
           }
         }}
       >
-        <aside className="demo-sidebar" id={navigationId} aria-label="workspace navigation">
+        <button
+          className="demo-navigation-backdrop"
+          type="button"
+          aria-label="close workspace navigation"
+          tabIndex={-1}
+          hidden={!compact || !navigationOpen}
+          onClick={closeNavigation}
+        />
+        <aside
+          ref={navigation}
+          className="demo-sidebar"
+          id={navigationId}
+          aria-label="workspace navigation"
+          onKeyDown={(event) => {
+            if (!compact || !navigationOpen || event.key !== 'Tab') return;
+            const buttons = Array.from(
+              event.currentTarget.querySelectorAll<HTMLButtonElement>('button'),
+            );
+            const target = event.shiftKey ? buttons.at(-1) : buttons[0];
+            const boundary = event.shiftKey ? buttons[0] : buttons.at(-1);
+            if (document.activeElement === boundary) {
+              event.preventDefault();
+              target?.focus();
+            }
+          }}
+        >
           <button
+            ref={navigationClose}
             type="button"
             className="demo-sidebar__close"
             aria-label="close workspace navigation"
@@ -479,8 +564,8 @@ export function WorkspaceDemo() {
             </button>
           </nav>
         </aside>
-        <div className="demo-workspace">
-          <header className="demo-toolbar">
+        <div className="demo-workspace" inert={compact && navigationOpen}>
+          <header className={'demo-toolbar' + (searching ? ' demo-toolbar--searching' : '')}>
             <div className="demo-toolbar__title">
               <button
                 ref={navigationTrigger}
@@ -495,19 +580,49 @@ export function WorkspaceDemo() {
               </button>
               <h2>{scope === 'all' ? 'a little side project' : scope}</h2>
             </div>
-            <label className="demo-search">
+            <div className="demo-search-controls" id={searchId}>
+              <button
+                className="demo-search-back"
+                type="button"
+                aria-label="close preview search"
+                onClick={closeSearch}
+              >
+                <DemoIcon name="left" />
+              </button>
+              <label className="demo-search">
+                <DemoIcon name="search" />
+                <input
+                  ref={searchInput}
+                  type="search"
+                  enterKeyHint="search"
+                  placeholder="search tasks"
+                  aria-label="search preview tasks"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Escape') {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      closeSearch();
+                    }
+                  }}
+                />
+              </label>
+            </div>
+            <button
+              ref={searchTrigger}
+              className="demo-search-launch"
+              type="button"
+              aria-label="search preview tasks"
+              aria-expanded={searching}
+              aria-controls={searchId}
+              onClick={() => {
+                pendingSearchFocus.current = 'input';
+                setSearchOpen(true);
+              }}
+            >
               <DemoIcon name="search" />
-              <input
-                type="search"
-                placeholder="search tasks"
-                aria-label="search preview tasks"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Escape' && !navigationOpen) setQuery('');
-                }}
-              />
-            </label>
+            </button>
           </header>
           <div className="demo-content" data-view={view}>
             {view === 'calendar' ? (

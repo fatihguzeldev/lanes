@@ -35,6 +35,7 @@
   background-repeat: no-repeat;
 }
 .workspace-demo {
+  --demo-canvas-padding: 24px;
   position: relative;
   display: grid;
   grid-template-columns: 192px minmax(0, 1fr);
@@ -69,7 +70,10 @@
   background: var(--color-sidebar);
 }
 .demo-sidebar__close,
-.demo-navigation-toggle {
+.demo-navigation-toggle,
+.demo-navigation-backdrop,
+.demo-search-launch,
+.demo-search-back {
   display: none;
 }
 .demo-shortcuts {
@@ -150,11 +154,17 @@
   letter-spacing: -0.35px;
   text-wrap: nowrap;
 }
+.demo-search-controls {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
 .demo-search {
   display: flex;
   align-items: center;
   gap: 8px;
   min-width: 0;
+  flex: 1;
   height: 34px;
   padding: 0 10px;
   border: 1px solid var(--color-line);
@@ -180,22 +190,25 @@
   outline: 0;
 }
 .demo-content {
+  container: demo-content / inline-size;
   min-width: 0;
   flex: 1;
 }
 .demo-board {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(264px, 1fr));
+  display: flex;
   align-items: start;
   gap: 16px;
-  padding: 18px 24px 24px;
+  min-width: 0;
+  padding: 18px var(--demo-canvas-padding) 24px;
   overflow-x: auto;
   overscroll-behavior-inline: contain;
+  scroll-padding-inline: var(--demo-canvas-padding);
   scrollbar-width: thin;
   scrollbar-color: var(--color-line) transparent;
 }
 .demo-column {
   min-width: 0;
+  flex: 0 0 min(288px, calc(100cqi - 2 * var(--demo-canvas-padding) - 16px));
   overflow: clip;
   border: 1px solid var(--color-line);
   border-radius: 10px;
@@ -345,6 +358,8 @@
 .demo-task-options {
   position: fixed;
   width: min(170px, calc(100vw - 16px));
+  max-height: calc(100dvh - 16px);
+  overflow-y: auto;
   margin: 0;
   padding: 5px;
   border: 1px solid var(--color-line);
@@ -397,6 +412,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  min-width: 0;
   font-size: 12px;
   line-height: 1.5;
 }
@@ -445,6 +461,7 @@
   font-variant-numeric: tabular-nums;
 }
 .demo-board--list {
+  display: grid;
   grid-template-columns: minmax(0, 1fr);
   max-width: 1048px;
 }
@@ -468,7 +485,7 @@
   grid-column: 1 / -1;
 }
 .demo-calendar {
-  padding: 24px;
+  padding: 24px var(--demo-canvas-padding);
 }
 .demo-calendar__period {
   margin-bottom: 18px;
@@ -625,20 +642,19 @@
     max-width: none;
   }
 }
-@media (max-width: 950px) {
+@media (max-width: 1024px) {
   .workspace-demo {
+    --demo-canvas-padding: 18px;
     grid-template-columns: 172px minmax(0, 1fr);
   }
   .demo-toolbar {
     gap: 10px 16px;
     padding-inline: 18px;
   }
-  .demo-board {
-    padding-inline: 18px;
-  }
 }
-@media (max-width: 680px) {
+@media (max-width: 768px) {
   .workspace-demo {
+    --demo-canvas-padding: 16px;
     grid-template-columns: minmax(0, 1fr);
   }
   .demo-sidebar {
@@ -650,14 +666,27 @@
     z-index: 5;
     display: flex;
     width: min(260px, calc(100% - 48px));
+    overflow-y: auto;
+  }
+  .demo-navigation-backdrop {
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    display: block;
+    width: 100%;
+    padding: 0;
+    border: 0;
+    background: #00000040;
   }
   .demo-sidebar__close,
-  .demo-navigation-toggle {
+  .demo-navigation-toggle,
+  .demo-search-launch,
+  .demo-search-back {
     display: grid;
     place-items: center;
     flex: none;
-    width: 30px;
-    height: 30px;
+    width: 44px;
+    height: 44px;
     padding: 5px;
     border: 0;
     border-radius: 5px;
@@ -669,18 +698,46 @@
     margin-bottom: 12px;
   }
   .demo-toolbar {
-    grid-template-columns: minmax(0, 1fr);
-    padding-inline: 16px;
+    display: flex;
+    gap: 4px;
+    min-height: 56px;
+    padding: 5px 12px;
+  }
+  .demo-toolbar__title {
+    flex: 1;
+    gap: 2px;
   }
   .demo-toolbar__title h2 {
     font-size: 15px;
   }
   .demo-board {
-    grid-template-columns: repeat(3, minmax(264px, 1fr));
-    padding-inline: 16px;
+    padding-block-start: 16px;
   }
-  .demo-calendar {
-    padding-inline: 16px;
+  .demo-search-controls,
+  .demo-toolbar--searching .demo-toolbar__title,
+  .demo-toolbar--searching .demo-search-launch {
+    display: none;
+  }
+  .demo-toolbar--searching .demo-search-controls {
+    display: flex;
+    flex: 1;
+    gap: 4px;
+  }
+  .demo-search {
+    height: 44px;
+    padding-inline: 4px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+  .demo-search:focus-within {
+    box-shadow: inset 0 -1px var(--color-accent);
+  }
+  .demo-search > svg {
+    display: none;
+  }
+  .demo-search input {
+    padding-inline: 0;
   }
 }
 @media (pointer: coarse) {
