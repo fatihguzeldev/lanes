@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from 'react';
+import { useId, useLayoutEffect, useRef, useState } from 'react';
 import {
   demoTasks,
   selectDemoTasks,
@@ -57,6 +57,7 @@ function DemoTaskItem({
         'demo-task' + (task.completed ? ' demo-task--done' : '') + (row ? ' demo-task--row' : '')
       }
       role="listitem"
+      data-task-id={task.id}
     >
       <div className="demo-task__main">
         <div className="demo-task__top">
@@ -125,11 +126,43 @@ function DemoColumn({
   row: boolean;
 }) {
   const [expanded, setExpanded] = useState(list === 'done');
+  const column = useRef<HTMLElement>(null);
+  const pendingFocus = useRef<{ control: HTMLButtonElement; taskId: string; index: number } | null>(
+    null,
+  );
   const completedId = useId();
   const open = tasks.filter((task) => !task.completed);
   const completed = tasks.filter((task) => task.completed);
+  const visibleControls = () =>
+    Array.from(
+      column.current?.querySelectorAll<HTMLButtonElement>('.demo-task__check') ?? [],
+    ).filter((button) => button.getClientRects().length > 0);
+  const toggleTask = (id: string) => {
+    const controls = visibleControls();
+    const control = controls.find((button) => button === button.ownerDocument.activeElement);
+    if (control?.closest<HTMLElement>('[data-task-id]')?.dataset.taskId === id) {
+      pendingFocus.current = { control, taskId: id, index: controls.indexOf(control) };
+    }
+    onToggle(id);
+  };
+  useLayoutEffect(() => {
+    const request = pendingFocus.current;
+    pendingFocus.current = null;
+    if (!request || request.control.isConnected) return;
+    const controls = visibleControls();
+    const sameTask = controls.find(
+      (button) => button.closest<HTMLElement>('[data-task-id]')?.dataset.taskId === request.taskId,
+    );
+    const target =
+      sameTask ??
+      controls[request.index] ??
+      controls.at(-1) ??
+      column.current?.querySelector<HTMLButtonElement>('.demo-completed__toggle') ??
+      column.current;
+    target?.focus({ preventScroll: true });
+  }, [tasks]);
   return (
-    <section className="demo-column" aria-label={list + ' task list'}>
+    <section ref={column} className="demo-column" aria-label={list + ' task list'} tabIndex={-1}>
       <header className="demo-column__header">
         <span className="demo-column__symbol">
           <DemoIcon name="list" />
@@ -139,7 +172,7 @@ function DemoColumn({
       </header>
       <div role="list" aria-label={'open tasks in ' + list}>
         {open.map((task) => (
-          <DemoTaskItem task={task} key={task.id} onToggle={onToggle} row={row} />
+          <DemoTaskItem task={task} key={task.id} onToggle={toggleTask} row={row} />
         ))}
       </div>
       {open.length === 0 && completed.length === 0 && (
@@ -164,7 +197,7 @@ function DemoColumn({
             aria-label={'completed tasks in ' + list}
           >
             {completed.map((task) => (
-              <DemoTaskItem key={task.id} task={task} onToggle={onToggle} row={row} />
+              <DemoTaskItem key={task.id} task={task} onToggle={toggleTask} row={row} />
             ))}
           </div>
         </div>
