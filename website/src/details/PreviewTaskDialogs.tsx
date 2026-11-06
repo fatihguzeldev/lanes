@@ -37,10 +37,13 @@ export function PreviewTaskDialogs({
   function keepEditing() {
     discardDialog.current?.close();
     onKeepEditing();
-    if (document.activeElement === document.body)
-      document
-        .querySelector<HTMLTextAreaElement>('.workbench-editor__title')
-        ?.focus({ preventScroll: true });
+    requestAnimationFrame(() => {
+      const active = document.activeElement;
+      if (active === document.body || discardDialog.current?.contains(active))
+        document
+          .querySelector<HTMLTextAreaElement>('.workbench-editor__title')
+          ?.focus({ preventScroll: true });
+    });
   }
 
   return (
