@@ -46,24 +46,17 @@
   background: var(--color-paper);
   color: var(--color-ink);
 }
-.agent-prompt textarea {
+.agent-prompt__text {
   display: block;
   width: 100%;
   min-width: 0;
   margin: 0;
   padding: 0;
-  resize: none;
-  border: 0;
-  border-radius: 2px;
-  background: var(--color-transparent);
+  overflow-wrap: anywhere;
   color: inherit;
   font-family: var(--font-body);
   font-size: 14px;
   line-height: 1.6;
-}
-.agent-prompt textarea:focus-visible {
-  outline: 2px solid var(--color-accent);
-  outline-offset: 4px;
 }
 .agent-prompt__actions {
   display: flex;
@@ -91,7 +84,7 @@
   }
 }
 @media (any-pointer: coarse) {
-  .agent-prompt textarea {
+  .agent-prompt__text {
     font-size: 16px;
   }
 }
