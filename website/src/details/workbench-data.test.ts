@@ -8,6 +8,12 @@ import {
 } from './workbench-data';
 
 describe('inline editor draft boundary', () => {
+  it('excludes root-owned placement fields from metadata drafts', () => {
+    const task = { ...workbenchTasks[0]!, list: 'in progress' };
+
+    expect(workbenchDraft(task)).not.toHaveProperty('list');
+  });
+
   it('keeps immediate completion changes out of the metadata draft', () => {
     const task = workbenchTasks[0]!;
     const draft = workbenchDraft(task);

@@ -10,7 +10,7 @@ import {
 
 type Props = {
   task: WorkbenchTask;
-  tasks: WorkbenchTask[];
+  tasks: readonly WorkbenchTask[];
   draft: WorkbenchDraft;
   dirty: boolean;
   focusOnMount: boolean;

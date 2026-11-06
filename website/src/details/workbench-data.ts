@@ -15,13 +15,18 @@ export type WorkbenchTask = {
 
 export type WorkbenchDraft = Omit<WorkbenchTask, 'id' | 'completed' | 'subtasks'>;
 
-export function workbenchDraft({
-  id,
-  completed,
-  subtasks,
-  ...draft
-}: WorkbenchTask): WorkbenchDraft {
-  return draft;
+export function workbenchDraft(task: WorkbenchTask): WorkbenchDraft {
+  return {
+    title: task.title,
+    notes: task.notes,
+    priority: task.priority,
+    labels: [...task.labels],
+    day: task.day,
+    time: task.time,
+    timeZone: task.timeZone,
+    blockedBy: [...task.blockedBy],
+    starred: task.starred,
+  };
 }
 
 export function setWorkbenchCompletion(task: WorkbenchTask, completed: boolean): WorkbenchTask {
