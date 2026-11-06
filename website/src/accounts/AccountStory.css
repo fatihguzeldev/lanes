@@ -1,0 +1,170 @@
+/* Hallmark · component: AccountStory · genre: modern-minimal · theme: inherited lanes · v2.0.0 */
+/* Critique: source-based product presentation with native controls and local state. */
+.account-story {
+  margin-top: var(--section-gap);
+}
+.account-story__intro {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-xl);
+  margin-bottom: var(--space-xl);
+}
+.account-story__intro h2 {
+  max-width: 15ch;
+}
+.account-story__intro p {
+  max-width: 34ch;
+  padding-bottom: var(--space-2xs);
+  color: var(--color-muted);
+  font-size: var(--text-md);
+  line-height: 1.65;
+}
+.account-story__workspace {
+  overflow: clip;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-card);
+  background: var(--color-paper);
+}
+.account-story__switcher {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-bottom: 1px solid var(--color-line);
+}
+.account-story__account {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  min-height: 52px;
+  padding: var(--space-sm) 32px;
+  text-align: left;
+  border: 0;
+  border-bottom: 2px solid var(--color-transparent);
+  background: var(--color-transparent);
+  cursor: pointer;
+}
+.account-story__account + .account-story__account {
+  border-left: 1px solid var(--color-line);
+}
+.account-story__account[aria-pressed='true'] {
+  border-bottom-color: var(--color-accent);
+  background: var(--color-soft);
+}
+.account-story__avatar {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--color-line);
+  border-radius: 50%;
+  color: var(--color-accent);
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+.account-story__account strong {
+  font-size: var(--text-md);
+  font-weight: 500;
+}
+.account-story__selection {
+  margin-left: auto;
+  color: var(--color-accent);
+  font-size: var(--text-xs);
+}
+.account-story__account:focus-visible {
+  z-index: 1;
+  outline: 2px solid var(--color-focus);
+  outline-offset: -5px;
+}
+.account-story__lists {
+  padding: var(--space-md) 32px;
+}
+.account-story__lists ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.account-story__lists li {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) minmax(120px, 22%);
+  align-items: center;
+  gap: var(--space-md);
+  min-height: 62px;
+  font-size: var(--text-sm);
+}
+.account-story__lists li + li {
+  border-top: 1px solid var(--color-line);
+}
+.account-story__circle {
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--color-muted);
+  border-radius: 50%;
+}
+.account-story__list-name,
+.account-story__caption {
+  color: var(--color-muted);
+  font-size: var(--text-xs);
+}
+.account-story__caption {
+  margin-top: var(--space-md);
+}
+@media (hover: hover) {
+  .account-story__account:hover {
+    background: var(--color-soft);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .account-story__lists ul {
+    animation: account-arrive var(--dur-long) var(--ease-out) both;
+  }
+  @keyframes account-arrive {
+    from {
+      opacity: 0;
+      transform: translateY(5px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+@media (max-width: 760px) {
+  .account-story__intro {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-lg);
+  }
+  .account-story__account {
+    gap: var(--space-sm);
+    min-height: 52px;
+    padding: var(--space-sm) var(--space-md);
+  }
+  .account-story__selection {
+    display: none;
+  }
+  .account-story__lists {
+    padding: var(--space-xs) var(--space-md);
+  }
+  .account-story__lists li {
+    grid-template-columns: 16px minmax(0, 1fr);
+    row-gap: var(--space-2xs);
+    padding: var(--space-sm) 0;
+  }
+  .account-story__list-name {
+    grid-column: 2;
+  }
+}
+
+.account-story__account:active {
+  opacity: 0.8;
+}
+.account-story__account:disabled {
+  background: var(--color-canvas);
+  color: var(--color-muted);
+  cursor: default;
+  opacity: 0.55;
+}
+.account-story__intro h2 {
+  text-wrap: balance;
+}
