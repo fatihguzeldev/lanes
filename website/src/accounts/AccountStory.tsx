@@ -92,8 +92,8 @@ export function AccountStory() {
       (sameTask?.getClientRects().length ? sameTask : null) ??
       column?.querySelector<HTMLButtonElement>('.account-story__completed-toggle') ??
       column;
-    target?.focus({ preventScroll: true });
     focused.current = null;
+    target?.focus({ preventScroll: true });
   }, [tasks, selected]);
   const card = (item: DemoTask) => (
     <TaskCard key={`${selected}:${item.id}`} task={item} tasks={tasks} editor={editor} />

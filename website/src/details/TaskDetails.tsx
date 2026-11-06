@@ -65,8 +65,8 @@ export function TaskDetails() {
         ) ?? []),
       ].find((control) => control.getClientRects().length) ||
       frame.current;
-    if (target?.getClientRects().length) target.focus({ preventScroll: true });
     focused.current = null;
+    if (target?.getClientRects().length) target.focus({ preventScroll: true });
   }, [tasks, editor.editingId, showingCompleted]);
 
   return (

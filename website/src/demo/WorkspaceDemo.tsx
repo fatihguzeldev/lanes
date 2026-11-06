@@ -90,8 +90,8 @@ function DemoColumn({
       sameTask ||
       column.current?.querySelector<HTMLElement>('.demo-completed__toggle') ||
       column.current;
-    target?.focus({ preventScroll: true });
     focused.current = null;
+    target?.focus({ preventScroll: true });
   }, [tasks, editor.editingId]);
   const card = (task: DemoTask) => (
     <TaskCard
