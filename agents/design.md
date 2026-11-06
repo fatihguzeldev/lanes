@@ -21,7 +21,9 @@ fine-pointer controls stay compact. coarse-pointer controls have at least a 44px
 
 hover can reveal secondary controls, but keyboard focus must reveal them too. touch users must not need hover. preserve visible keyboard focus and the quieter pointer focus return.
 
-inline board, list, and task creation use flat name fields in place. use the accent for their focus underline; avoid a second input box inside a row. task text keeps its color on hover, and close icons do not need a separate hover tile. icon-only editor actions show a tooltip on hover and keyboard focus.
+inline board, list, and task creation use flat name fields in place. use the accent for their focus underline; avoid a second input box inside a row. task text keeps its color on hover, and close icons do not need a separate hover tile. icon-only editor actions show a tooltip on hover and keyboard focus, except the direct star control.
+
+the shared `Icon` owns glyph strokes. board and list type icons use an 18px glyph in a 20px slot in navigation and list headings, including inline creation. keep their backgrounds transparent. size these glyphs explicitly rather than overriding their svg dimensions in local css; keep tool styling independent of tooltip wrappers.
 
 single-value edits use inline fields or anchored pickers. colors and emoji show the selected value and save on selection; names and custom image urls save on enter or blur. do not collect these edits behind a shared save button. preview immediate changes and restore confirmed values if saving fails. keep submitted writes alive when their menu closes.
 
@@ -35,7 +37,7 @@ destination submenus open to the side on hover and remain reachable across the p
 
 use [the visual viewport](https://developer.mozilla.org/en-US/docs/Web/API/VisualViewport) for floating surfaces: the visible area can shrink independently of the document layout when the keyboard opens or the page is zoomed.
 
-loading placeholders use the same layout classes and control geometry as the content they replace. known labels and the retained account initial remain visible; unknown values use placeholders.
+loading placeholders use the same layout classes and control geometry as the content they replace. known labels, type and action icons, and the retained account initial remain visible; unknown names and counts use placeholders. custom emoji and colors can appear when their metadata arrives; the generic type icon does not need to become a placeholder while waiting.
 
 search uses one input across screen sizes. closing it clears the query through the existing draft guard. keep a pending query visible if the owner cancels that confirmation. settings presentations share one save controller across navigation and toolbar layouts.
 
