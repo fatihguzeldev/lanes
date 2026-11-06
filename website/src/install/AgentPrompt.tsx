@@ -10,7 +10,6 @@ export function AgentPrompt() {
       <div className="agent-prompt">
         <textarea id="setup-prompt" value={AGENT_PROMPT} readOnly rows={4} spellCheck={false} />
         <div className="agent-prompt__actions">
-          <span>codex / claude code</span>
           <CopyButton key={AGENT_PROMPT} text={AGENT_PROMPT} label="copy setup prompt" />
         </div>
       </div>
