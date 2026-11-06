@@ -1,12 +1,17 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import {
-  demoTasks,
+  demoAccounts,
+  demoWeek,
+  demoWorkspaces,
   selectDemoTasks,
-  toggleDemoTask,
-  toggleDemoTaskStar,
+  updateDemoTask,
+  type DemoAccountId,
   type DemoScope,
   type DemoTask,
 } from './demo-model';
+import { DemoAccountMenu } from './DemoAccountMenu';
+import { TaskCard } from '../details/TaskCard';
+import { usePreviewTaskEditor, type PreviewTaskEditor } from '../details/usePreviewTaskEditor';
 import './WorkspaceDemo.css';
 
 type View = 'board' | 'list' | 'calendar';
@@ -45,226 +50,67 @@ function DemoIcon({ name, size = 16 }: { name: keyof typeof icons; size?: number
   );
 }
 
-function DemoTaskActions({
-  task,
-  onToggle,
-  onToggleStar,
-}: {
-  task: DemoTask;
-  onToggle: (id: string) => void;
-  onToggleStar: (id: string) => void;
-}) {
-  const menuId = useId();
-  const menu = useRef<HTMLDivElement>(null);
-  const trigger = useRef<HTMLButtonElement>(null);
-  const [position, setPosition] = useState({ top: 0, left: 0 });
-  const [open, setOpen] = useState(false);
-  useEffect(() => {
-    if (!open) return;
-    const close = () => menu.current?.hidePopover();
-    window.addEventListener('scroll', close, true);
-    window.addEventListener('resize', close);
-    window.visualViewport?.addEventListener('scroll', close);
-    window.visualViewport?.addEventListener('resize', close);
-    return () => {
-      window.removeEventListener('scroll', close, true);
-      window.removeEventListener('resize', close);
-      window.visualViewport?.removeEventListener('scroll', close);
-      window.visualViewport?.removeEventListener('resize', close);
-    };
-  }, [open]);
-  return (
-    <div className="demo-task__actions">
-      <button
-        className="demo-task__star"
-        type="button"
-        aria-label={`${task.starred ? 'unstar' : 'star'} ${task.title}`}
-        aria-pressed={!!task.starred}
-        title={task.starred ? 'remove star' : 'star task'}
-        onClick={() => onToggleStar(task.id)}
-      >
-        <DemoIcon name="star" size={14} />
-      </button>
-      <button
-        ref={trigger}
-        className="demo-task__menu"
-        type="button"
-        popoverTarget={menuId}
-        aria-label={`options for ${task.title}`}
-        aria-expanded={open}
-        onClick={(event) => {
-          const rect = event.currentTarget.getBoundingClientRect();
-          const viewport = window.visualViewport;
-          const top = viewport?.offsetTop ?? 0;
-          const left = viewport?.offsetLeft ?? 0;
-          setPosition({
-            top: Math.max(
-              top + 8,
-              Math.min(rect.bottom + 4, top + (viewport?.height ?? window.innerHeight) - 60),
-            ),
-            left: Math.max(
-              left + 8,
-              Math.min(rect.right - 170, left + (viewport?.width ?? window.innerWidth) - 178),
-            ),
-          });
-        }}
-      >
-        <DemoIcon name="more" size={15} />
-      </button>
-      <div
-        ref={menu}
-        id={menuId}
-        popover="auto"
-        className="demo-task-options"
-        role="group"
-        aria-label={`options for ${task.title}`}
-        style={position}
-        onToggle={(event) => setOpen(event.currentTarget.matches(':popover-open'))}
-      >
-        <button
-          type="button"
-          onClick={() => {
-            menu.current?.hidePopover();
-            trigger.current?.focus({ preventScroll: true });
-            onToggle(task.id);
-          }}
-        >
-          <DemoIcon name="check" size={15} />
-          {task.completed ? 'reopen task' : 'complete task'}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function DemoTaskItem({
-  task,
-  onToggle,
-  onToggleStar,
-  row = false,
-}: {
-  task: DemoTask;
-  onToggle: (id: string) => void;
-  onToggleStar: (id: string) => void;
-  row?: boolean;
-}) {
-  return (
-    <article
-      className={
-        'demo-task' + (task.completed ? ' demo-task--done' : '') + (row ? ' demo-task--row' : '')
-      }
-      role="listitem"
-      data-task-id={task.id}
-    >
-      <div className="demo-task__main">
-        <div className="demo-task__top">
-          <button
-            className="demo-task__check"
-            type="button"
-            role="checkbox"
-            aria-checked={task.completed}
-            aria-label={(task.completed ? 'reopen ' : 'complete ') + task.title}
-            onClick={() => onToggle(task.id)}
-          >
-            {task.completed && <DemoIcon name="check" size={11} />}
-          </button>
-          <span className="demo-task__title">{task.title}</span>
-          <DemoTaskActions task={task} onToggle={onToggle} onToggleStar={onToggleStar} />
-        </div>
-        {task.note && <p className="demo-task__note">{task.note}</p>}
-        {!task.completed && (task.day !== null || task.label) && (
-          <div className="demo-task__meta">
-            {task.day !== null && (
-              <span
-                className={'demo-task__date' + (task.day < 3 ? ' demo-task__date--overdue' : '')}
-              >
-                <DemoIcon name={task.day === 3 ? 'sun' : 'calendar'} size={12} />
-                {
-                  [
-                    'mon, nov 9',
-                    'tue, nov 10',
-                    'wed, nov 11',
-                    'today',
-                    'tomorrow',
-                    'sat, nov 14',
-                    'sun, nov 15',
-                  ][task.day]
-                }
-                {task.time && ' · ' + task.time}
-                {task.day < 3 && <span className="visually-hidden">overdue</span>}
-              </span>
-            )}
-            {task.label && (
-              <span className="demo-task__tag">
-                <i aria-hidden="true" />
-                {task.label}
-              </span>
-            )}
-          </div>
-        )}
-      </div>
-    </article>
-  );
-}
-
 function DemoColumn({
   list,
   tasks,
-  onToggle,
-  onToggleStar,
-  row,
+  allTasks,
+  editor,
+  focalId,
 }: {
-  list: DemoTask['list'];
+  list: string;
   tasks: DemoTask[];
-  onToggle: (id: string) => void;
-  onToggleStar: (id: string) => void;
-  row: boolean;
+  allTasks: DemoTask[];
+  editor: PreviewTaskEditor;
+  focalId: string;
 }) {
   const [expanded, setExpanded] = useState(list === 'done');
   const column = useRef<HTMLElement>(null);
-  const pendingFocus = useRef<{ control: HTMLButtonElement; taskId: string; index: number } | null>(
-    null,
-  );
+  const focused = useRef<HTMLElement | null>(null);
   const completedId = useId();
   const open = tasks.filter((task) => !task.completed);
   const completed = tasks.filter((task) => task.completed);
-  const visibleControls = () =>
-    Array.from(
-      column.current?.querySelectorAll<HTMLButtonElement>('.demo-task__check') ?? [],
-    ).filter((button) => button.getClientRects().length > 0);
-  const updateTask = (id: string, update: (id: string) => void) => {
-    const controls = visibleControls();
-    const active = column.current?.ownerDocument.activeElement;
-    const control = active instanceof HTMLButtonElement ? active : null;
-    if (control?.closest<HTMLElement>('[data-task-id]')?.dataset.taskId === id) {
-      pendingFocus.current = {
-        control,
-        taskId: id,
-        index: controls.findIndex(
-          (button) => button.closest<HTMLElement>('[data-task-id]')?.dataset.taskId === id,
-        ),
-      };
-    }
-    update(id);
-  };
+  const showingCompleted = expanded || completed.some((task) => task.id === editor.editingId);
   useLayoutEffect(() => {
-    const request = pendingFocus.current;
-    pendingFocus.current = null;
-    if (!request || request.control.isConnected) return;
-    const controls = visibleControls();
-    const sameTask = controls.find(
-      (button) => button.closest<HTMLElement>('[data-task-id]')?.dataset.taskId === request.taskId,
-    );
+    if (completed.some((task) => task.id === editor.editingId)) setExpanded(true);
+    const previous = focused.current;
+    if (
+      !previous ||
+      (previous.isConnected && previous.getClientRects().length) ||
+      document.activeElement !== document.body
+    )
+      return;
+    const taskId = previous.closest<HTMLElement>('[data-task-id]')?.dataset.taskId;
+    const sameTask =
+      taskId &&
+      column.current?.querySelector<HTMLElement>(
+        `[data-task-id="${CSS.escape(taskId)}"] .workbench-check`,
+      );
     const target =
-      sameTask ??
-      controls[request.index] ??
-      controls.at(-1) ??
-      column.current?.querySelector<HTMLButtonElement>('.demo-completed__toggle') ??
+      sameTask ||
+      column.current?.querySelector<HTMLElement>('.demo-completed__toggle') ||
       column.current;
     target?.focus({ preventScroll: true });
-  }, [tasks]);
+    focused.current = null;
+  }, [tasks, editor.editingId]);
+  const card = (task: DemoTask) => (
+    <TaskCard
+      key={task.id}
+      task={task}
+      tasks={allTasks}
+      editor={editor}
+      initialExpanded={task.id === focalId}
+    />
+  );
   return (
-    <section ref={column} className="demo-column" aria-label={list + ' task list'} tabIndex={-1}>
+    <section
+      ref={column}
+      className="demo-column"
+      aria-label={list + ' task list'}
+      tabIndex={-1}
+      onFocusCapture={(event) => {
+        focused.current = event.target as HTMLElement;
+      }}
+    >
       <header className="demo-column__header">
         <span className="demo-column__symbol">
           <DemoIcon name="list" size={18} />
@@ -273,46 +119,31 @@ function DemoColumn({
         <span className="demo-column__count">{open.length}</span>
       </header>
       <div role="list" aria-label={'open tasks in ' + list}>
-        {open.map((task) => (
-          <DemoTaskItem
-            task={task}
-            key={task.id}
-            onToggle={(id) => updateTask(id, onToggle)}
-            onToggleStar={(id) => updateTask(id, onToggleStar)}
-            row={row}
-          />
-        ))}
+        {open.map(card)}
       </div>
-      {open.length === 0 && completed.length === 0 && (
-        <p className="demo-column__empty">no matching tasks.</p>
-      )}
       {completed.length > 0 && (
         <div className="demo-completed">
           <button
             type="button"
             className="demo-completed__toggle"
-            aria-expanded={expanded}
+            aria-expanded={showingCompleted}
             aria-controls={completedId}
-            onClick={() => setExpanded((value) => !value)}
+            onClick={() => {
+              if (showingCompleted && completed.some((task) => task.id === editor.editingId))
+                editor.navigate(() => setExpanded(false));
+              else setExpanded(!showingCompleted);
+            }}
           >
-            <DemoIcon name={expanded ? 'down' : 'right'} size={12} />
+            <DemoIcon name={showingCompleted ? 'down' : 'right'} size={12} />
             completed<span>{completed.length}</span>
           </button>
           <div
             id={completedId}
-            hidden={!expanded}
+            hidden={!showingCompleted}
             role="list"
             aria-label={'completed tasks in ' + list}
           >
-            {completed.map((task) => (
-              <DemoTaskItem
-                key={task.id}
-                task={task}
-                onToggle={(id) => updateTask(id, onToggle)}
-                onToggleStar={(id) => updateTask(id, onToggleStar)}
-                row={row}
-              />
-            ))}
+            {completed.map(card)}
           </div>
         </div>
       )}
@@ -322,14 +153,18 @@ function DemoColumn({
 
 function DemoBoard({
   tasks,
-  onToggle,
-  onToggleStar,
+  allTasks,
+  lists,
+  editor,
   view,
+  focalId,
 }: {
   tasks: DemoTask[];
-  onToggle: (id: string) => void;
-  onToggleStar: (id: string) => void;
+  allTasks: DemoTask[];
+  lists: string[];
+  editor: PreviewTaskEditor;
   view: 'board' | 'list';
+  focalId: string;
 }) {
   return (
     <div
@@ -338,16 +173,22 @@ function DemoBoard({
       aria-label={view === 'list' ? 'task lists' : 'task board'}
       tabIndex={0}
     >
-      {(['ideas', 'in progress', 'done'] as const).map((list) => (
-        <DemoColumn
-          key={list}
-          list={list}
-          tasks={tasks.filter((task) => task.list === list)}
-          onToggle={onToggle}
-          onToggleStar={onToggleStar}
-          row={view === 'list'}
-        />
-      ))}
+      {tasks.length === 0 ? (
+        <p className="demo-empty" role="status">
+          no tasks found.
+        </p>
+      ) : (
+        lists.map((list) => (
+          <DemoColumn
+            key={list}
+            list={list}
+            tasks={tasks.filter((task) => task.list === list)}
+            allTasks={allTasks}
+            editor={editor}
+            focalId={focalId}
+          />
+        ))
+      )}
     </div>
   );
 }
@@ -373,7 +214,7 @@ function DemoCalendar({ tasks }: { tasks: DemoTask[] }) {
                 <td className={day === 3 ? 'demo-calendar__today' : ''} key={day}>
                   <span className="demo-calendar__number">{day + 9}</span>
                   {tasks
-                    .filter((task) => task.day === day && !task.completed)
+                    .filter((task) => task.day === demoWeek[day] && !task.completed)
                     .map((task) => (
                       <article
                         className="demo-calendar__event"
@@ -409,7 +250,13 @@ function DemoCalendar({ tasks }: { tasks: DemoTask[] }) {
 
 export function WorkspaceDemo() {
   const [view, setView] = useState<View>('board');
-  const [tasks, setTasks] = useState(demoTasks);
+  const [accountId, setAccountId] = useState<DemoAccountId>('personal');
+  const [workspaces, setWorkspaces] = useState(demoWorkspaces);
+  const account = demoAccounts[accountId];
+  const tasks = workspaces[accountId];
+  const editor = usePreviewTaskEditor(tasks, (id, patch) =>
+    setWorkspaces((current) => updateDemoTask(current, accountId, id, patch)),
+  );
   const [scope, setScope] = useState<DemoScope>('all');
   const [query, setQuery] = useState('');
   const [navigationOpen, setNavigationOpen] = useState(false);
@@ -428,20 +275,20 @@ export function WorkspaceDemo() {
   const searchId = useId();
   const searching = searchOpen || Boolean(query);
   const visible = selectDemoTasks(tasks, scope, query);
-  const toggle = (id: string) => setTasks((current) => toggleDemoTask(current, id));
-  const toggleStar = (id: string) => setTasks((current) => toggleDemoTaskStar(current, id));
   const closeNavigation = () => {
     pendingNavigationFocus.current = compact && navigationOpen;
     setNavigationOpen(false);
   };
   const selectScope = (next: DemoScope) => {
-    setScope(next);
     closeNavigation();
+    editor.navigate(() => setScope(next));
   };
   const closeSearch = () => {
-    pendingSearchFocus.current = 'trigger';
-    setSearchOpen(false);
-    setQuery('');
+    editor.navigate(() => {
+      pendingSearchFocus.current = 'trigger';
+      setSearchOpen(false);
+      setQuery('');
+    });
   };
   useLayoutEffect(() => {
     const pending = pendingSearchFocus.current;
@@ -480,7 +327,7 @@ export function WorkspaceDemo() {
             type="button"
             key={layout}
             aria-pressed={view === layout}
-            onClick={() => setView(layout)}
+            onClick={() => editor.navigate(() => setView(layout))}
           >
             <DemoIcon name={layout} size={15} />
             {layout}
@@ -560,7 +407,7 @@ export function WorkspaceDemo() {
               <span className="demo-boards__symbol">
                 <DemoIcon name="board" size={18} />
               </span>
-              <span>a little side project</span>
+              <span>{account.board}</span>
             </button>
           </nav>
         </aside>
@@ -578,7 +425,7 @@ export function WorkspaceDemo() {
               >
                 <DemoIcon name="menu" />
               </button>
-              <h2>{scope === 'all' ? 'a little side project' : scope}</h2>
+              <h2>{scope === 'all' ? account.board : scope}</h2>
             </div>
             <div className="demo-search-controls" id={searchId}>
               <button
@@ -601,7 +448,10 @@ export function WorkspaceDemo() {
                   onFocus={() => {
                     if (compact) setSearchOpen(true);
                   }}
-                  onChange={(event) => setQuery(event.target.value)}
+                  onChange={(event) => {
+                    const value = event.currentTarget.value;
+                    editor.navigate(() => setQuery(value));
+                  }}
                   onKeyDown={(event) => {
                     if (event.key === 'Escape') {
                       event.preventDefault();
@@ -626,16 +476,39 @@ export function WorkspaceDemo() {
             >
               <DemoIcon name="search" />
             </button>
+            <DemoAccountMenu
+              account={account}
+              accounts={Object.values(demoAccounts)}
+              onSelect={(id) => {
+                if (id === accountId || (id !== 'personal' && id !== 'work')) return;
+                editor.navigate(() => {
+                  setAccountId(id);
+                  setScope('all');
+                  setQuery('');
+                  setSearchOpen(false);
+                });
+              }}
+            />
           </header>
           <div className="demo-content" data-view={view}>
-            {view === 'calendar' ? (
-              <DemoCalendar tasks={visible} />
-            ) : (
-              <DemoBoard tasks={visible} onToggle={toggle} onToggleStar={toggleStar} view={view} />
-            )}
+            <div className="demo-scene" key={accountId + view}>
+              {view === 'calendar' ? (
+                <DemoCalendar tasks={visible} />
+              ) : (
+                <DemoBoard
+                  tasks={visible}
+                  allTasks={tasks}
+                  lists={account.lists}
+                  editor={editor}
+                  view={view}
+                  focalId={tasks[0]!.id}
+                />
+              )}
+            </div>
           </div>
         </div>
       </div>
+      {editor.dialogs}
     </div>
   );
 }

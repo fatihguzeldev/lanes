@@ -1,95 +1,123 @@
-export type DemoTask = {
-  id: string;
-  title: string;
-  list: 'ideas' | 'in progress' | 'done';
-  completed: boolean;
-  label?: string;
-  note?: string;
-  day: number | null;
-  time?: string;
-  starred?: boolean;
-};
+import { workbenchLabels, workbenchTasks, type WorkbenchTask } from '../details/workbench-data';
+
+export type DemoTask = WorkbenchTask & { list: string };
+export type DemoAccountId = 'personal' | 'work';
+export type DemoScope = 'all' | 'today' | 'starred';
+export type DemoWorkspace = Record<DemoAccountId, DemoTask[]>;
+
+export const demoToday = '2026-11-12';
+export const demoWeek = Array.from(
+  { length: 7 },
+  (_, day) => `2026-11-${String(day + 9).padStart(2, '0')}`,
+);
+
+function task(id: string, title: string, list: string, patch: Partial<DemoTask> = {}): DemoTask {
+  return {
+    id,
+    title,
+    list,
+    notes: '',
+    completed: false,
+    starred: false,
+    labels: [],
+    priority: 'none',
+    day: '',
+    time: '',
+    timeZone: 'Europe/Istanbul',
+    blockedBy: [],
+    subtasks: [],
+    ...patch,
+  };
+}
+
+export const demoAccounts = {
+  personal: {
+    id: 'personal',
+    displayName: 'fatih',
+    email: 'fatih@personal.example',
+    board: 'a little side project',
+    lists: ['in progress', 'ideas', 'done'],
+  },
+  work: {
+    id: 'work',
+    displayName: 'fatih',
+    email: 'fatih@work.example',
+    board: 'the next release',
+    lists: ['in progress', 'up next', 'done'],
+  },
+} satisfies Record<
+  DemoAccountId,
+  {
+    id: DemoAccountId;
+    displayName: string;
+    email: string;
+    board: string;
+    lists: string[];
+  }
+>;
 
 export const demoTasks: DemoTask[] = [
-  {
-    id: 'small-start',
-    title: 'sketch the first version',
-    list: 'ideas',
-    completed: false,
-    note: 'keep it to a single page.',
-    label: 'someday',
-    day: null,
-  },
-  {
-    id: 'walk',
-    title: 'take the long way home',
-    list: 'ideas',
-    completed: false,
-    day: null,
-  },
-  {
-    id: 'playlist',
-    title: 'make a playlist for late nights',
-    list: 'ideas',
-    completed: false,
-    day: null,
-  },
-  {
-    id: 'make-room',
-    title: 'try the board layout',
-    list: 'in progress',
-    completed: false,
-    label: 'making things',
-    starred: true,
-    day: 4,
-    time: '10:00',
-  },
-  {
-    id: 'website',
-    title: 'build the project website',
-    list: 'in progress',
-    completed: false,
-    note: 'one page to show what it does.',
-    label: 'website',
-    day: 3,
-    time: '11:00',
-  },
-  {
-    id: 'first-step',
-    title: 'register a domain',
-    list: 'done',
-    completed: true,
-    day: 0,
-    time: '11:00',
-  },
-  {
-    id: 'perfect',
-    title: 'pick a name',
-    list: 'done',
-    completed: true,
-    day: 2,
-    time: '09:00',
-  },
+  { ...workbenchTasks[0]!, list: 'in progress' },
+  task('walkthrough', 'record a short walkthrough', 'in progress', {
+    day: '2026-11-13',
+    time: '14:00',
+    labels: ['launch'],
+  }),
+  task('small-start', 'sketch the first version', 'ideas', {
+    notes: 'keep it to a single page.',
+    labels: ['design'],
+  }),
+  task('playlist', 'make a playlist for late nights', 'ideas'),
+  task('first-step', 'register a domain', 'done', { completed: true }),
+  task('perfect', 'pick a name', 'done', { completed: true }),
 ];
 
-export function toggleDemoTask(tasks: DemoTask[], id: string): DemoTask[] {
-  return tasks.map((task) => (task.id === id ? { ...task, completed: !task.completed } : task));
-}
+export const demoWorkspaces: DemoWorkspace = {
+  personal: demoTasks,
+  work: [
+    task('release', 'ship the next version', 'in progress', {
+      notes: 'review the changes, update the changelog, and tag v1.0.',
+      day: demoToday,
+      time: '16:00',
+      labels: ['launch'],
+      priority: 'high',
+      starred: true,
+      subtasks: [
+        { title: 'review the pull requests', completed: true },
+        { title: 'write the changelog', completed: false },
+        { title: 'tag the release', completed: false },
+      ],
+    }),
+    task('feedback', 'read through the feedback', 'in progress', { labels: ['design'] }),
+    task('welcome', 'polish the welcome screen', 'up next', { labels: ['design'] }),
+    task('docs', 'update the setup guide', 'up next', { labels: ['writing'] }),
+    task('checks', 'run the release checks', 'done', { completed: true }),
+  ],
+};
 
-export function toggleDemoTaskStar(tasks: DemoTask[], id: string): DemoTask[] {
-  return tasks.map((task) => (task.id === id ? { ...task, starred: !task.starred } : task));
+export function updateDemoTask(
+  workspace: DemoWorkspace,
+  account: DemoAccountId,
+  id: string,
+  patch: Partial<WorkbenchTask>,
+): DemoWorkspace {
+  return {
+    ...workspace,
+    [account]: workspace[account].map((item) => (item.id === id ? { ...item, ...patch } : item)),
+  };
 }
-
-export type DemoScope = 'all' | 'today' | 'starred';
 
 export function selectDemoTasks(tasks: DemoTask[], scope: DemoScope, query: string): DemoTask[] {
   const search = query.trim().normalize('NFC').toLocaleLowerCase();
-  return tasks.filter((task) => {
-    if (scope !== 'all' && task.completed) return false;
-    if (scope === 'today' && task.day !== 3) return false;
-    if (scope === 'starred' && !task.starred) return false;
-    return [task.title, task.note, task.list, task.label].some((text) =>
-      text?.normalize('NFC').toLocaleLowerCase().includes(search),
+  return tasks.filter((item) => {
+    if (scope !== 'all' && item.completed) return false;
+    if (scope === 'today' && item.day !== demoToday) return false;
+    if (scope === 'starred' && !item.starred) return false;
+    const labels = workbenchLabels
+      .filter((label) => item.labels.includes(label.id))
+      .map((label) => label.name);
+    return [item.title, item.notes, item.list, ...labels].some((text) =>
+      text.normalize('NFC').toLocaleLowerCase().includes(search),
     );
   });
 }
