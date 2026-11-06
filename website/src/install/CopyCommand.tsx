@@ -1,15 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { CLONE_COMMAND, copyInstallCommand } from './copy-command';
 import './copy-command.css';
 
 export function CopyCommand() {
   const [status, setStatus] = useState<'idle' | 'copying' | 'copied' | 'unavailable'>('idle');
-
-  useEffect(() => {
-    if (status !== 'copied') return;
-    const timeout = window.setTimeout(() => setStatus('idle'), 2_000);
-    return () => window.clearTimeout(timeout);
-  }, [status]);
 
   async function copy() {
     setStatus('copying');
