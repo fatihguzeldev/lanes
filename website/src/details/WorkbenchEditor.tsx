@@ -1,4 +1,4 @@
-import { useId, useState, type CSSProperties } from 'react';
+import { useId, useRef, useState, type CSSProperties } from 'react';
 import { WorkbenchIcon } from './WorkbenchIcon';
 import { workbenchLabels, type WorkbenchTask } from './workbench-data';
 
@@ -10,6 +10,7 @@ export function WorkbenchEditor({
   onChange(patch: Partial<WorkbenchTask>): void;
 }) {
   const uid = useId();
+  const labelsTrigger = useRef<HTMLButtonElement>(null);
   const [section, setSection] = useState<'schedule' | 'subtasks' | null>('schedule');
   const [menu, setMenu] = useState<'labels' | 'priority' | null>(null);
   const toggleLabel = (id: string) =>
@@ -74,6 +75,7 @@ export function WorkbenchEditor({
             <WorkbenchIcon name="calendar" />
           </button>
           <button
+            ref={labelsTrigger}
             type="button"
             aria-label="labels"
             title="labels"
@@ -163,7 +165,16 @@ export function WorkbenchEditor({
               key={label.id}
               aria-label={`remove ${label.name}`}
               style={{ '--label-color': label.color } as CSSProperties}
-              onClick={() => toggleLabel(label.id)}
+              onClick={(event) => {
+                const button = event.currentTarget;
+                if (button.ownerDocument.activeElement === button) {
+                  const sibling = button.nextElementSibling ?? button.previousElementSibling;
+                  (sibling instanceof HTMLButtonElement ? sibling : labelsTrigger.current)?.focus({
+                    preventScroll: true,
+                  });
+                }
+                toggleLabel(label.id);
+              }}
             >
               <span className="workbench-label-dot" />
               {label.name}

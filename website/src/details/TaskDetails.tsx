@@ -53,6 +53,17 @@ export function TaskDetails() {
                     <WorkbenchIcon name="star" />
                   </span>
                 )}
+                {item.priority !== 'none' && (
+                  <span
+                    className={`details-task__priority details-task__priority--${item.priority}`}
+                    title={`${item.priority} priority`}
+                  >
+                    <span aria-hidden="true">
+                      {item.priority === 'high' ? '!!' : item.priority === 'medium' ? '!' : '↓'}
+                    </span>
+                    <span className="visually-hidden">{item.priority} priority</span>
+                  </span>
+                )}
               </div>
               <div className="details-task__meta">
                 {workbenchLabels

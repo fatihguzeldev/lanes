@@ -75,6 +75,23 @@
 .details-task__star svg {
   width: 12px;
   height: 12px;
+  fill: color-mix(in srgb, var(--color-star) 35%, var(--color-transparent));
+}
+.details-task__priority {
+  min-width: 10px;
+  margin-top: 3px;
+  flex-shrink: 0;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 18px;
+  color: var(--color-muted);
+}
+.details-task__priority--high {
+  color: var(--color-rust);
+}
+.details-task__priority--medium {
+  color: var(--color-star);
 }
 .details-task__meta {
   display: flex;
@@ -400,6 +417,19 @@
   }
   .workbench-editor {
     padding: 24px;
+  }
+}
+@media (max-width: 420px) {
+  .workbench-editor {
+    padding-inline: 16px;
+  }
+  .workbench-editor__toolbox,
+  .workbench-editor__labels,
+  .workbench-editor__section {
+    margin-left: 0;
+  }
+  .workbench-schedule {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 @media (pointer: coarse) {
