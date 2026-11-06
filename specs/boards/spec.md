@@ -92,7 +92,7 @@ query a paginated, server-owned task projection. return coverage and freshness w
 
 ## filters and sorts
 
-filters support list, completion, labels, priority, star, dependencies, and scheduled date: overdue, today, a chosen range, or no date. combine different filter types with and; multiple values inside one type use or. labels additionally allow an explicit match-all option. clearing filters restores the unfiltered view.
+filters support list, completion, labels, priority, star, dependencies, and scheduled date: overdue, today, a chosen range, or no date. combine different filter types with and; multiple values inside one type use or. labels additionally allow an explicit match-all option. clearing filters restores the unfiltered view. filter selections apply as they change and keep the menu open; there is no apply step. an incomplete or reversed date range keeps the last valid filter and shows the field error.
 
 overdue means an open task's scheduled day is before today in the account's planning time zone. a time earlier today does not make a separate deadline state. date filters include descendants by their own dates and keep parent context visible.
 
