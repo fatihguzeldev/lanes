@@ -2,6 +2,31 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <script id="theme-init">
+      (() => {
+        let preference;
+        try {
+          preference = localStorage.getItem('lanes.theme');
+        } catch {}
+        const theme =
+          preference === 'light' || preference === 'dark'
+            ? preference
+            : window.matchMedia('(prefers-color-scheme: dark)').matches
+              ? 'dark'
+              : 'light';
+        document.documentElement.dataset.theme = theme;
+      })();
+    </script>
+    <style>
+      html {
+        color-scheme: light;
+        background: #f3f3f1;
+      }
+      html[data-theme='dark'] {
+        color-scheme: dark;
+        background: #222222;
+      }
+    </style>
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"
