@@ -310,8 +310,6 @@
 }
 .demo-task:hover :is(.demo-task__star, .demo-task__menu),
 .demo-task:focus-within :is(.demo-task__star, .demo-task__menu),
-.demo-calendar__event:hover :is(.demo-task__star, .demo-task__menu),
-.demo-calendar__event:focus-within :is(.demo-task__star, .demo-task__menu),
 .workspace-demo .demo-task__menu[aria-expanded='true'] {
   opacity: 1;
   color: var(--color-accent);
@@ -516,8 +514,6 @@
   color: var(--color-on-accent);
 }
 .demo-calendar__event {
-  --demo-action-size: 20px;
-  --demo-action-height: 23px;
   margin-bottom: 8px;
   padding: 11px 10px;
   border: 1px solid color-mix(in srgb, var(--color-accent) 13%, var(--color-paper));
@@ -525,21 +521,25 @@
   background: color-mix(in srgb, var(--color-soft) 52%, var(--color-paper));
 }
 .demo-calendar__event-top {
-  position: relative;
   display: flex;
   align-items: start;
   gap: 5px;
   font-size: 13px;
   line-height: 1.5;
-  padding-right: calc(2 * var(--demo-action-size));
 }
 .demo-calendar__event-top > span:first-child {
   flex: 1;
   min-width: 0;
   overflow-wrap: anywhere;
 }
-.demo-calendar__event .demo-task__actions {
-  gap: 0;
+.demo-calendar__star {
+  display: inline-flex;
+  flex: none;
+  margin-top: 4px;
+  color: var(--color-star);
+}
+.demo-calendar__star svg {
+  fill: color-mix(in srgb, var(--color-star) 35%, transparent);
 }
 .demo-calendar__time {
   display: flex;
@@ -669,8 +669,7 @@
   .demo-task__top {
     align-items: center;
   }
-  .demo-task,
-  .demo-calendar__event {
+  .demo-task {
     --demo-action-size: 44px;
     --demo-action-height: 44px;
   }

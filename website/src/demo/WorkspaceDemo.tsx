@@ -338,37 +338,11 @@ function DemoBoard({
   );
 }
 
-function DemoCalendar({
-  tasks,
-  onToggle,
-  onToggleStar,
-}: {
-  tasks: DemoTask[];
-  onToggle: (id: string) => void;
-  onToggleStar: (id: string) => void;
-}) {
-  const calendar = useRef<HTMLDivElement>(null);
-  const pendingFocus = useRef<HTMLButtonElement | null>(null);
-  const updateTask = (id: string, update: (id: string) => void) => {
-    const active = calendar.current?.ownerDocument.activeElement;
-    pendingFocus.current = active instanceof HTMLButtonElement ? active : null;
-    update(id);
-  };
-  useLayoutEffect(() => {
-    const control = pendingFocus.current;
-    pendingFocus.current = null;
-    if (control && !control.isConnected) calendar.current?.focus({ preventScroll: true });
-  }, [tasks]);
+function DemoCalendar({ tasks }: { tasks: DemoTask[] }) {
   return (
     <div className="demo-calendar">
       <p className="demo-calendar__period">nov 9 – nov 15, 2026</p>
-      <div
-        ref={calendar}
-        className="demo-calendar__scroll"
-        role="region"
-        tabIndex={0}
-        aria-label="week calendar"
-      >
+      <div className="demo-calendar__scroll" role="region" tabIndex={0} aria-label="week calendar">
         <table className="demo-calendar__table">
           <thead>
             <tr>
@@ -394,11 +368,11 @@ function DemoCalendar({
                       >
                         <div className="demo-calendar__event-top">
                           <span>{task.title}</span>
-                          <DemoTaskActions
-                            task={task}
-                            onToggle={(id) => updateTask(id, onToggle)}
-                            onToggleStar={(id) => updateTask(id, onToggleStar)}
-                          />
+                          {task.starred && (
+                            <span className="demo-calendar__star" role="img" aria-label="starred">
+                              <DemoIcon name="star" size={11} />
+                            </span>
+                          )}
                         </div>
                         {task.time && (
                           <p className="demo-calendar__time">
@@ -533,7 +507,7 @@ export function WorkspaceDemo() {
         </header>
         <div className="demo-content" data-view={view}>
           {view === 'calendar' ? (
-            <DemoCalendar tasks={visible} onToggle={toggle} onToggleStar={toggleStar} />
+            <DemoCalendar tasks={visible} />
           ) : (
             <DemoBoard tasks={visible} onToggle={toggle} onToggleStar={toggleStar} view={view} />
           )}
