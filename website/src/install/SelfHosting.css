@@ -1,5 +1,5 @@
 .self-host-section {
-  margin-block-start: var(--space-2xl);
+  margin-block-start: 0;
   padding-block: var(--space-2xl);
   border-block-start: 1px solid var(--color-line);
   background: transparent;
@@ -8,13 +8,13 @@
 }
 .self-host-layout {
   display: grid;
-  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.62fr);
   gap: var(--space-2xl);
 }
 .self-host-intro h2 {
-  max-width: 14ch;
+  max-width: 18ch;
   color: var(--color-accent);
-  font-size: clamp(2.25rem, 4vw, 2.75rem);
+  font-size: clamp(1.875rem, 2.5vw, 2.125rem);
 }
 .self-host-intro > p:first-of-type {
   max-width: 31ch;

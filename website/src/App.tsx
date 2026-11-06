@@ -12,38 +12,38 @@ export function App() {
       <a className="skip-link" href="#main">
         skip to content
       </a>
-      <div className="site-header-field">
-        <header className="site-header container">
-          <a className="brand-link" href="#" aria-label="lanes home">
-            <Brand />
-          </a>
-          <nav className="site-nav" aria-label="main navigation">
-            <a href="#self-host">self-host</a>
-          </nav>
-          <GitHubStars />
-        </header>
-      </div>
+      <header className="site-header container">
+        <a className="brand-link" href="#" aria-label="lanes home">
+          <Brand />
+        </a>
+        <nav className="site-nav" aria-label="main navigation">
+          <a href="#self-host">self-host</a>
+        </nav>
+        <GitHubStars />
+      </header>
       <main id="main">
         <section className="hero" aria-labelledby="hero-title">
-          <div className="hero__intro container">
-            <h1 id="hero-title">
-              <span>google tasks.</span>
-              <span>a little more room.</span>
-            </h1>
-            <div className="hero__summary">
-              <p className="hero__description">a self-hosted workspace for your google tasks</p>
-              <a className="button button--primary" href="#self-host">
-                make it yours
-              </a>
+          <div className="hero-layout container">
+            <div className="hero__intro">
+              <h1 id="hero-title">
+                <span>google tasks.</span>
+                <span>a little more room.</span>
+              </h1>
+              <div className="hero__summary">
+                <p className="hero__description">a self-hosted workspace for your google tasks</p>
+                <a className="button button--primary" href="#self-host">
+                  make it yours
+                </a>
+              </div>
             </div>
-          </div>
-          <div
-            className="workspace-section container"
-            id="workspace"
-            aria-label="explore the lanes workspace"
-          >
-            <h2 className="visually-hidden">explore the workspace</h2>
-            <WorkspaceDemo />
+            <div
+              className="workspace-section"
+              id="workspace"
+              aria-label="explore the lanes workspace"
+            >
+              <h2 className="visually-hidden">explore the workspace</h2>
+              <WorkspaceDemo />
+            </div>
           </div>
         </section>
         <SelfHosting />
