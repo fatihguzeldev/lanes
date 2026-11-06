@@ -80,7 +80,13 @@ export function Tooltip({ label, children }: { label: string; children: ReactEle
       tooltip.style.left = `${left}px`;
       tooltip.style.top = `${Math.max(topEdge, Math.min(above >= topEdge ? above : bounds.bottom + 7, bottomEdge - size.height))}px`;
     };
-    tooltip.showPopover();
+    let cancelled = false;
+    // Native popover focus handling can run microtasks before its show operation finishes.
+    const frame = requestAnimationFrame(() => {
+      if (cancelled || !tooltip.isConnected || !anchor.isConnected) return;
+      tooltip.showPopover();
+      position();
+    });
     const escape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
       event.preventDefault();
@@ -93,6 +99,8 @@ export function Tooltip({ label, children }: { label: string; children: ReactEle
     observer.observe(tooltip);
     window.addEventListener('scroll', position, true);
     return () => {
+      cancelled = true;
+      cancelAnimationFrame(frame);
       stop();
       observer.disconnect();
       window.removeEventListener('scroll', position, true);

@@ -63,6 +63,10 @@ class Element {
   }
 }
 let cleanup: (() => void) | undefined;
+const frames: FrameRequestCallback[] = [];
+function paint() {
+  frames.splice(0).forEach((callback) => callback(0));
+}
 const lifetimes: Array<() => void> = [];
 function render(open = false) {
   state.open = open;
@@ -84,6 +88,13 @@ describe('control tooltips', () => {
     state.refs.length = 0;
     state.effects.length = 0;
     state.setOpen.mockClear();
+    frames.length = 0;
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) =>
+      frames.push(callback),
+    );
+    vi.stubGlobal('cancelAnimationFrame', (id: number) => {
+      frames[id - 1] = () => {};
+    });
     vi.stubGlobal('window', new EventTarget());
     vi.stubGlobal('document', Object.assign(new EventTarget(), { activeElement: null }));
     vi.stubGlobal('getComputedStyle', () => ({
@@ -141,10 +152,37 @@ describe('control tooltips', () => {
     expect(event.defaultPrevented).toBe(true);
     expect(stopped).toHaveBeenCalledOnce();
   });
-  it('describes its control without moving focus and preserves other descriptions', () => {
+  it('waits until native popover focus handling has finished before showing', async () => {
+    const { panel } = render(true);
+    let showingAnotherPopover = true;
+    panel.showPopover = () => {
+      if (showingAnotherPopover) throw new Error('nested native popover operation');
+      panel.open = true;
+    };
+    expect(() => {
+      cleanup = state.effects.at(-1)!() || undefined;
+    }).not.toThrow();
+    await Promise.resolve();
+    expect(panel.open).toBe(false);
+    showingAnotherPopover = false;
+    paint();
+    expect(panel.open).toBe(true);
+  });
+  it('does not show a queued tooltip after its owner unmounts', async () => {
+    const { panel } = render(true);
+    cleanup = state.effects.at(-1)!() || undefined;
+    cleanup?.();
+    cleanup = undefined;
+    await Promise.resolve();
+    paint();
+    expect(panel.open).toBe(false);
+  });
+  it('describes its control without moving focus and preserves other descriptions', async () => {
     const { anchor, panel } = render(true);
     anchor.setAttribute('aria-describedby', 'validation');
     cleanup = state.effects.at(-1)!() || undefined;
+    await Promise.resolve();
+    paint();
     expect(panel.open).toBe(true);
     expect(anchor.focus).not.toHaveBeenCalled();
     expect(anchor.getAttribute('aria-describedby')).toBe('validation tooltip-test');
