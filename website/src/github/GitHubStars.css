@@ -1,11 +1,9 @@
-/* Hallmark · component: GitHubStars · genre: modern-minimal · theme: inherited lanes · v2.0.0 */
-/* Critique: source-based product presentation with native controls and local state. */
 .github-stars {
   display: inline-flex;
   min-height: 40px;
   align-items: center;
   gap: 8px;
-  color: var(--color-ink);
+  color: var(--color-host-paper);
   font-size: 13px;
   font-weight: 500;
   text-decoration: none;
@@ -13,7 +11,10 @@
   border-radius: 7px;
   padding: 0 12px;
   background: var(--color-paper);
-  transition: background-color 160ms ease-out;
+  transition:
+    background-color var(--dur-micro) var(--ease-out),
+    color var(--dur-micro) var(--ease-out),
+    border-color var(--dur-micro) var(--ease-out);
 }
 
 .github-stars__mark {
@@ -30,7 +31,7 @@
   margin-left: 4px;
   padding-left: 12px;
   border-left: 1px solid var(--color-line);
-  color: var(--color-muted);
+  color: inherit;
   font-variant-numeric: tabular-nums;
 }
 
@@ -46,7 +47,12 @@
 
 @media (hover: hover) {
   .github-stars:hover {
-    background: var(--color-soft);
+    background: var(--color-host-paper);
+    border-color: var(--color-host-paper);
+    color: var(--color-brand-surface);
+  }
+  .github-stars:hover .github-stars__count {
+    border-inline-start-color: var(--color-brand-surface);
   }
 }
 

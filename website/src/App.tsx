@@ -20,7 +20,6 @@ export function App() {
             <Brand />
           </a>
           <nav className="site-nav" aria-label="main navigation">
-            <a href="#workspace">the workspace</a>
             <a href="#self-host">make it yours</a>
           </nav>
           <GitHubStars />
@@ -33,13 +32,10 @@ export function App() {
               <span>google tasks.</span>
               <span>a little more room.</span>
             </h1>
-            <p className="hero__description">a self-hosted home for your google tasks.</p>
-            <div className="hero__actions">
+            <div className="hero__summary">
+              <p className="hero__description">a self-hosted workspace for your google tasks</p>
               <a className="button button--primary" href="#self-host">
                 make it yours
-              </a>
-              <a className="text-link" href="#workspace">
-                take a look around
               </a>
             </div>
           </div>
@@ -49,16 +45,7 @@ export function App() {
             aria-label="explore the lanes workspace"
           >
             <h2 className="visually-hidden">explore the workspace</h2>
-            <figure className="workspace-figure">
-              <figcaption className="preview-notice">
-                <span>interactive preview</span>
-                <span>sample tasks. no sign-in.</span>
-              </figcaption>
-              <WorkspaceDemo />
-              <p className="workspace-caption">
-                change the view. check something off. make yourself at home.
-              </p>
-            </figure>
+            <WorkspaceDemo />
           </div>
         </section>
         <TaskDetails />

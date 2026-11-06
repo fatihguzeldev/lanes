@@ -30,10 +30,13 @@ the public site extends that palette with a forest-green opening and sage-tinted
 
 - the first screen contains the lanes identity, a concise google tasks introduction, and a clear self-hosting action.
 - the upper right contains a working github repository link with its real star count. loading or failure never invents a count; the link remains usable.
-- an explicitly labeled sample workspace demonstrates boards, lists, calendar, and reversible task completion without sign-in, provider calls or persisted visitor tasks.
-- the page describes only capabilities in the product guide. installation copy states the selected cloudflare and google setup, including testing-mode reconnection and free-plan quotas where it discusses those choices.
+- the main workspace demonstrates boards, grouped lists, calendar and reversible task completion using local fixtures. its cards, stars, labels, completed groups and account organization follow the current application components. never add invented product copy or controls that cannot perform their shown action.
+- the preview immediately follows the introduction, so navigation does not repeat a link to it. keep the header's installation link and github link bright against the green surface, with distinct hover and keyboard-focus states.
+- product sections show task customization and account separation through usable product surfaces. place each section's short supporting copy with its heading. omit captions, sample notices, progress summaries and account-selection instructions that repeat what the interface already shows.
+- the page describes only capabilities in the product guide. setup requirements, oauth expiry, quotas and licensing details remain in the linked repository guides rather than the public introduction.
+- installation provides the clone command and a separately copyable coding-agent prompt. copying one must not copy the other. confirmation persists until the next copy action; failures remain truthful and retryable. the prompt is not an ai request form.
 - the footer credits fatih güzel and links to his website and the repository.
-- motion follows user actions and one short entrance. reduced motion removes movement. content and useful links remain available without javascript.
+- motion follows user actions and respects reduced motion. scripted preview choreography is a separate design decision. content and useful links remain available without javascript.
 - at 320px through wide desktop sizes, headings and controls remain readable and reachable. only an explicitly identified workspace canvas may scroll sideways.
 
 ## commands
@@ -55,7 +58,7 @@ use the existing react, typescript, vite and vitest dependencies. use semantic h
 
 ## verification
 
-unit tests cover public github response validation and failures, and state changes shared by demo views. type checking and production builds verify the separate entry. browser checks cover the interactive preview, keyboard controls, responsive layout, reduced motion and github success/failure. full repository checks verify that the website does not break the application.
+unit tests cover public github response validation and failures, clipboard payloads and failures, and state changes shared by demo views. type checking and production builds verify the separate entry. browser checks cover the interactive preview, clipboard confirmation, keyboard controls, responsive layout and reduced motion. compare product treatments against their owning application source before claiming fidelity. full repository checks verify that the website does not break the application.
 
 ## boundaries
 

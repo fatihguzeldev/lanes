@@ -1,0 +1,19 @@
+.product-preview {
+  --color-canvas: #f3f3f1;
+  --color-paper: #fdfdfb;
+  --color-sidebar: #eeeee9;
+  --color-line: #e1e1dc;
+  --color-fine: #eeeee9;
+  --color-icon: #62775c;
+  --color-check-border: #92928b;
+  --color-ink: #2d2d2b;
+  --color-muted: #696963;
+  --color-soft: #e7eae2;
+  --color-selected: #dfe7dc;
+  --color-accent: #3d5847;
+  --color-on-accent: #fdfdfb;
+  --color-focus: #3d5847;
+  --color-star: #8c712e;
+  --color-rust: #a2553a;
+  --color-rust-soft: #f3e6d9;
+}
