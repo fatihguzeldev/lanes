@@ -6,6 +6,7 @@
 /* Hallmark · waive 44c · headline, sentence and action fit above the fold · the interactive workspace needs full-width task lists and sits directly below its introduction */
 
 /* Hallmark · hero-review: fix · 3 findings · 3 resolved: mobile intro tightened, scroll hint added, sample disclosure moved above workspace */
+/* Hallmark · finish-review: subagent · 2 findings · 2 resolved · sweep: 0 FAIL, 0 open Reflex; one 81-word product/setup window accepted */
 @import url('./tokens.css');
 @import url('./base.css');
 
@@ -161,9 +162,8 @@
   justify-content: space-between;
   align-items: center;
   gap: var(--space-lg);
-  margin-top: var(--section-gap);
+  margin-top: 0;
   min-height: 136px;
-  border-top: 1px solid var(--color-line);
 }
 .site-footer > p,
 .site-footer > a:last-child {
@@ -273,4 +273,39 @@
   .preview-notice {
     font-size: 11px;
   }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .site-brand__mark i {
+    transition: transform var(--dur-short) var(--ease-out);
+  }
+  .demo-content > * {
+    animation: view-change var(--dur-short) var(--ease-out);
+  }
+  @keyframes view-change {
+    from {
+      opacity: 0.5;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .brand-link:hover .site-brand__mark i:first-child {
+    transform: translateY(-3px);
+  }
+  .brand-link:hover .site-brand__mark i:last-child {
+    transform: translateY(-2px);
+  }
+}
+
+.hero h1 {
+  width: 100%;
+}
+.hero h1 > span {
+  display: block;
+  text-wrap: balance;
 }

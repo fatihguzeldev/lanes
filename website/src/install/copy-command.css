@@ -1,3 +1,5 @@
+/* Hallmark · component: copy-command · genre: modern-minimal · theme: inherited lanes · v2.0.0 */
+/* Critique: source-based product presentation with native controls and local state. */
 .copy-command {
   display: flex;
   align-items: center;
@@ -29,10 +31,10 @@
   flex-shrink: 0;
   min-width: 90px;
   min-height: 44px;
-  padding: 10px 12px;
+  padding: 12px 12px;
   border: 1px solid var(--color-host-line);
   border-radius: 7px;
-  background: var(--color-field);
+  background: var(--color-transparent);
   color: var(--color-host-paper);
   font-size: 13px;
   line-height: 1;

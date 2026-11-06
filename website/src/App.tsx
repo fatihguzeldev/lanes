@@ -1,10 +1,12 @@
 import { Brand } from './Brand';
 import { GitHubStars } from './github/GitHubStars';
 import { WorkspaceDemo } from './demo/WorkspaceDemo';
+import { TaskDetails } from './details/TaskDetails';
+import { AccountStory } from './accounts/AccountStory';
+import { SelfHosting } from './install/SelfHosting';
 import './site.css';
 
 export const REPOSITORY = 'https://github.com/fatihguzeldev/lanes';
-export const SELF_HOSTING = `${REPOSITORY}/blob/main/agents/self-hosting.md`;
 
 export function App() {
   return (
@@ -26,8 +28,8 @@ export function App() {
         <section className="hero" aria-labelledby="hero-title">
           <div className="hero__intro container">
             <h1 id="hero-title">
-              Google Tasks.
-              <br />A little more room.
+              <span>Google Tasks.</span>
+              <span>A little more room.</span>
             </h1>
             <p className="hero__description">A self-hosted home for your Google Tasks.</p>
             <div className="hero__actions">
@@ -57,6 +59,9 @@ export function App() {
             </figure>
           </div>
         </section>
+        <TaskDetails />
+        <AccountStory />
+        <SelfHosting />
       </main>
       <footer className="site-footer container">
         <a className="brand-link" href="#" aria-label="Lanes home">

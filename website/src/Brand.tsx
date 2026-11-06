@@ -1,6 +1,6 @@
-export function Brand({ large = false }: { large?: boolean }) {
+export function Brand() {
   return (
-    <span className={`site-brand${large ? ' site-brand--large' : ''}`}>
+    <span className="site-brand">
       <span className="site-brand__mark" aria-hidden="true">
         <i />
         <i />
