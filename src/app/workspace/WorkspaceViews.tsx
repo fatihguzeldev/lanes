@@ -22,6 +22,7 @@ import { Icon } from '../../shared/ui/icon/Icon';
 interface ViewActions {
   onChanged(): void;
   onReturnToBoard(): void;
+  onClearCompletedFilters(): void;
   onAddList(): void;
   onAddTask(list: TaskList): void;
   onOpenTask(task: Task): void;
@@ -180,6 +181,7 @@ export function WorkspaceViews({
           onInitialReady={onInitialReady}
           onOpenTask={actions.onOpenTask}
           onReturn={actions.onReturnToBoard}
+          onClearFilters={actions.onClearCompletedFilters}
           onTaskMenu={actions.onTaskMenu}
         />
       )}

@@ -5,12 +5,13 @@ import {
   groupCompletedTasks,
   sevenDayCompletionSummary,
 } from '../../../history/model/completion/completed';
-import { type CompletedGroupKey } from '../../../history/model/completion/types';
 import type { Task, TaskFilter, TaskList } from '../../../tasks/contracts/task';
 import { Icon } from '../../../../shared/ui/icon/Icon';
 import { useTaskQuery } from '../../../tasks/browser/queries/useTaskQuery';
 import { usePlanningToday } from '../../../tasks/browser/planning/usePlanningToday';
 import { Select } from '../../../../shared/ui/select/Select';
+import { CompletedSummary } from './CompletedSummary';
+import { CompletedTaskGroups } from './CompletedTaskGroups';
 import './CompletedWorkspace.css';
 import type { InitialViewReadiness } from '../../../../shared/browser/resources/readiness';
 
@@ -24,17 +25,10 @@ export interface CompletedWorkspaceProps {
   clockOffset: number;
   onOpenTask: (task: Task) => void;
   onReturn(): void;
+  onClearFilters(): void;
   onTaskMenu?: (task: Task, anchor: HTMLButtonElement) => void;
   onInitialReady?: (state: InitialViewReadiness) => void;
 }
-const groupNames: Record<CompletedGroupKey, string> = {
-  today: 'today',
-  yesterday: 'yesterday',
-  this_week: 'this week',
-  earlier: 'earlier',
-  unknown_time: 'completion time unavailable',
-  future: 'future completion dates',
-};
 export function CompletedWorkspace({
   account,
   board,
@@ -45,6 +39,7 @@ export function CompletedWorkspace({
   clockOffset,
   onOpenTask,
   onReturn,
+  onClearFilters,
   onTaskMenu,
   onInitialReady,
 }: CompletedWorkspaceProps) {
@@ -108,181 +103,126 @@ export function CompletedWorkspace({
   const choices = lists.filter((list) => list.accountId === account.id);
   const listName = (id: string) =>
     choices.find((list) => list.id === id)?.title.trim() || 'list not loaded';
-  const byList = new Map<string, number>();
-  for (const day of summary.days)
-    for (const list of day.lists)
-      byList.set(list.listId, (byList.get(list.listId) ?? 0) + list.count);
-  const dayName = new Intl.DateTimeFormat('en', { weekday: 'short', timeZone: 'UTC' });
-  const completionTime = new Intl.DateTimeFormat('en', {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    timeZone: account.planningZone,
-  });
+  const hasFilters = Boolean(
+    query.trim() || listId || Object.keys(filter).some((key) => key !== 'completion'),
+  );
   return (
     <section className="completed-workspace" aria-label="completed tasks">
-      <header className="completed-workspace__header">
-        <div>
-          <button type="button" className="completed-workspace__back" onClick={onReturn}>
-            <Icon name="left" size={14} /> back to board
-          </button>
-          <h2>completed</h2>
-        </div>
-        <div className="completed-workspace__filters">
-          {board && (
+      <div className="completed-workspace__content">
+        <header className="completed-workspace__header">
+          <div className="completed-workspace__heading">
+            <button
+              type="button"
+              className="completed-workspace__back"
+              aria-label="back to board"
+              onClick={onReturn}
+            >
+              <Icon name="left" size={14} /> board
+            </button>
+            <h2>completed</h2>
+          </div>
+          <div className="completed-workspace__filters">
+            {board && (
+              <Select
+                aria-label="completed task scope"
+                value={scope}
+                onChange={(value) => setScope(value as 'board' | 'account')}
+                options={[
+                  { value: 'board', label: 'this board' },
+                  { value: 'account', label: 'all boards' },
+                ]}
+              />
+            )}
             <Select
-              aria-label="completed task scope"
-              value={scope}
-              onChange={(selectedValue) => setScope(selectedValue as 'board' | 'account')}
+              aria-label="filter completed tasks by list"
+              value={listId}
+              onChange={(value) => setSelection({ key: selectionKey, listId: value })}
               options={[
-                { value: 'board', label: 'this board' },
-                { value: 'account', label: 'all boards in this account' },
+                { value: '', label: 'all lists' },
+                ...choices.map((list) => ({
+                  value: list.id,
+                  label: list.title.trim() || 'untitled list',
+                })),
               ]}
             />
-          )}
-          <Select
-            aria-label="filter completed tasks by list"
-            value={listId}
-            onChange={(selectedValue) => setSelection({ key: selectionKey, listId: selectedValue })}
-            options={[
-              { value: '', label: 'all lists in this view' },
-              ...choices.map((list) => ({
-                value: list.id,
-                label: list.title.trim() || 'untitled list',
-              })),
-            ]}
-          />
-        </div>
-      </header>
-      {complete && (
-        <section className="completed-workspace__summary" aria-label="seven day completion summary">
-          <div className="completed-workspace__summary-heading">
-            <h3>last 7 days</h3>
           </div>
-          <ol tabIndex={0} aria-label="daily completion counts">
-            {summary.days.map((day) => (
-              <li key={day.day}>
-                <span>{dayName.format(new Date(day.day + 'T12:00:00Z')).toLowerCase()}</span>
-                <strong>{day.count}</strong>
-                <time dateTime={day.day}>{day.day.slice(5).replace('-', '/')}</time>
-              </li>
-            ))}
-          </ol>
-          {byList.size > 0 && (
-            <details>
-              <summary>by list</summary>
-              <ul>
-                {[...byList].map(([id, count]) => (
-                  <li key={id}>
-                    <span>{listName(id)}</span>
-                    <strong>{count}</strong>
-                  </li>
-                ))}
-              </ul>
-            </details>
-          )}
-          {summary.unknownTimeCount > 0 && (
-            <p className="completed-workspace__summary-note">
-              {summary.unknownTimeCount} tasks have no completion time and are outside the daily
-              summary.
-            </p>
-          )}
-        </section>
-      )}
-      {!valid && (
-        <p className="completed-workspace__notice completed-workspace__notice--error" role="alert">
-          this board belongs to a different account.
-        </p>
-      )}
-      {valid && !tasks.loaded && tasks.status === 'loading' && (
-        <p className="completed-workspace__notice" role="status">
-          loading completed tasks…
-        </p>
-      )}
-      {valid && tasks.status === 'error' && (
-        <div
-          className="completed-workspace__notice completed-workspace__notice--error"
-          role="alert"
-        >
-          <p>{tasks.error}</p>
-          <button
-            type="button"
-            onClick={() => {
-              void tasks.reload();
-            }}
-          >
-            try again
-          </button>
-        </div>
-      )}
-      {valid && tasks.loaded && !groups.length && (
-        <div className="completed-workspace__empty">
-          <Icon name="check" size={23} />
-          <p>
-            {complete
-              ? 'no completed tasks match this view.'
-              : 'no matching completed tasks loaded yet.'}
-          </p>
-        </div>
-      )}
-      {groups.map((group) => (
-        <section className="completed-workspace__group" key={group.key}>
-          <h3>{groupNames[group.key]}</h3>
-          <ul>
-            {group.items.map(({ task, parent }) => (
-              <li key={task.id}>
-                <Icon name="check" size={14} />
-                <div>
+        </header>
+        <div className="completed-workspace__paper">
+          {complete && <CompletedSummary summary={summary} today={today} listName={listName} />}
+          <div className="completed-workspace__body">
+            {!valid && (
+              <p
+                className="completed-workspace__notice completed-workspace__notice--error"
+                role="alert"
+              >
+                this board belongs to a different account.
+              </p>
+            )}
+            {valid && !tasks.loaded && tasks.status === 'loading' && (
+              <p className="completed-workspace__notice" role="status">
+                loading completed tasks…
+              </p>
+            )}
+            {valid && tasks.status === 'error' && (
+              <div
+                className="completed-workspace__notice completed-workspace__notice--error"
+                role="alert"
+              >
+                <p>{tasks.error}</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void tasks.reload();
+                  }}
+                >
+                  try again
+                </button>
+              </div>
+            )}
+            {valid && tasks.loaded && tasks.status !== 'error' && !groups.length && (
+              <div className="completed-workspace__empty">
+                <p>
+                  {!complete
+                    ? 'no matching completed tasks loaded yet.'
+                    : hasFilters
+                      ? 'no completed tasks match these filters.'
+                      : 'no completed tasks yet.'}
+                </p>
+                {hasFilters && (
                   <button
-                    className="completed-workspace__task"
                     type="button"
-                    onClick={() => onOpenTask(task)}
+                    onClick={() => {
+                      setSelection({ key: selectionKey, listId: '' });
+                      onClearFilters();
+                    }}
                   >
-                    {task.title.trim() || 'untitled task'}
-                  </button>
-                  <p>
-                    {task.parentId ? `${parent?.title.trim() || 'parent not loaded'} · ` : ''}
-                    {listName(task.listId)}
-                    {task.completedAt && (
-                      <>
-                        {' '}
-                        ·{' '}
-                        <time dateTime={task.completedAt}>
-                          {completionTime.format(new Date(task.completedAt)).toLowerCase()}
-                        </time>
-                      </>
-                    )}
-                  </p>
-                </div>
-                {onTaskMenu && (
-                  <button
-                    className="completed-workspace__menu"
-                    type="button"
-                    aria-label={`options for ${task.title.trim() || 'untitled task'}`}
-                    onClick={(event) => onTaskMenu(task, event.currentTarget)}
-                  >
-                    <Icon name="more" size={16} />
+                    clear filters
                   </button>
                 )}
-              </li>
-            ))}
-          </ul>
-        </section>
-      ))}
-      {tasks.page.nextCursor && (
-        <button
-          className="completed-workspace__more"
-          type="button"
-          disabled={tasks.status === 'loading'}
-          onClick={() => {
-            void tasks.loadMore();
-          }}
-        >
-          more completed tasks
-          <Icon name="down" size={13} />
-        </button>
-      )}
+              </div>
+            )}
+            <CompletedTaskGroups
+              groups={groups}
+              timeZone={account.planningZone}
+              listName={listName}
+              onOpenTask={onOpenTask}
+              {...(onTaskMenu ? { onTaskMenu } : {})}
+            />
+            {tasks.page.nextCursor && (
+              <button
+                className="completed-workspace__more"
+                type="button"
+                disabled={tasks.status === 'loading'}
+                onClick={() => {
+                  void tasks.loadMore();
+                }}
+              >
+                more completed tasks <Icon name="down" size={13} />
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
     </section>
   );
 }

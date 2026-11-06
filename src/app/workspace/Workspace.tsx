@@ -609,7 +609,18 @@ export function Workspace({
           onInitialReady={onInitialReady}
           actions={{
             onChanged: changed,
-            onReturnToBoard: () => guard(leaveCompleted),
+            onReturnToBoard: () =>
+              guard(() => {
+                leaveCompleted();
+                setQuick('all');
+                setSearchScope('board');
+              }),
+            onClearCompletedFilters: () =>
+              guard(() => {
+                setFilter({});
+                setSearch('');
+                setQuery('');
+              }),
             onAddList: boardManagement.createList,
             onAddTask: (list) => {
               if (list.accountId !== account.id) return;
@@ -725,7 +736,13 @@ export function Workspace({
         onHistory={() => {
           historyDialog.open();
         }}
-        onCompleted={() => setView('completed')}
+        onCompleted={() =>
+          guard(() => {
+            setQuick('all');
+            setSearchScope('board');
+            updateBoardView({ view: 'completed' });
+          })
+        }
         onInspect={inspection.inspect}
         onRefresh={() =>
           void sync.refresh(

@@ -64,6 +64,8 @@ completed browsing is a temporary review screen with a visible return to the boa
 
 allow text search over task, parent, and list names, list filtering, and a seven-day summary by day and list. use the account zone and configured week start. count current completed tasks once, including subtasks; label the counting rule. reopening removes a task from these counts.
 
+the summary, grouped results, and empty state share one result surface. distinguish an empty collection from an empty filtered selection and offer clearing active filters. a failed read must not also claim that there are no completed tasks.
+
 return pagination and provider coverage. hidden completed tasks must be requested deliberately. if older completed content has not been loaded, say so instead of showing a supposedly complete total. deleted tasks remain events where recorded, but are no longer current completed tasks.
 
 the seven-day summary is not a permanent productivity score. tasks completed and then reopened between syncs may be unknowable. no reminders, emailed reports, or notification permissions are required.

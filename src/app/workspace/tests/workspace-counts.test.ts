@@ -151,6 +151,7 @@ const completed = () =>
       clockOffset: 0,
       onOpenTask: noop,
       onReturn: noop,
+      onClearFilters: noop,
     }),
   );
 
