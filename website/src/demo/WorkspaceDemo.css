@@ -12,26 +12,6 @@
   justify-content: flex-end;
   margin-bottom: 12px;
 }
-.demo-playback {
-  position: absolute;
-  z-index: 101;
-  left: 12px;
-  bottom: 12px;
-  display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
-  flex: none;
-  padding: 0;
-  border: 1px solid var(--color-line);
-  border-radius: 5px;
-  background: var(--color-paper);
-  color: var(--color-muted);
-}
-.demo-playback:focus-visible {
-  outline: 2px solid var(--color-accent);
-  outline-offset: 3px;
-}
 .demo-view-controls {
   display: flex;
   flex-wrap: wrap;
@@ -413,11 +393,6 @@
   font-size: 12px;
 }
 @media (hover: hover) {
-  .demo-playback:hover {
-    border-color: var(--color-accent);
-    background: var(--color-accent);
-    color: var(--color-on-accent);
-  }
   .demo-view-controls button:hover:not([aria-pressed='true']) {
     background-color: var(--color-soft);
   }
@@ -536,10 +511,6 @@
 @media (any-pointer: coarse) {
   .workspace-demo {
     height: 480px;
-  }
-  .demo-playback {
-    width: 44px;
-    height: 44px;
   }
   .demo-view-controls button,
   .demo-shortcuts button,

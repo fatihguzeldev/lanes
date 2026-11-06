@@ -1,4 +1,4 @@
-import { useId, useLayoutEffect, useRef, useState, type SyntheticEvent } from 'react';
+import { useId, useLayoutEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { useShowcasePlayback, type PlaybackContext } from './playback/useShowcasePlayback';
 import { createShowcaseMotion } from './motion/showcase-motion';
@@ -34,8 +34,6 @@ const icons = {
   menu: 'M4 6h16M4 12h16M4 18h16',
   more: 'M12 5h.01M12 12h.01M12 19h.01',
   close: 'm6 6 12 12M18 6 6 18',
-  play: 'm9 5 11 7-11 7Z',
-  pause: 'M9 5v14M15 5v14',
   clock: 'M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0',
 };
 
@@ -385,10 +383,7 @@ export function WorkspaceDemo({ suspended = false }: { suspended?: boolean }) {
     },
   });
   const scripted = playback.status === 'playing' || playback.status === 'paused';
-  const takeOver = (event: SyntheticEvent) => {
-    if ((event.target as Element).closest('[data-showcase-control]')) return;
-    playback.takeOver();
-  };
+  const takeOver = playback.takeOver;
   const [compact, setCompact] = useState(true);
   const measuredCompact = useRef(true);
   const measuredWidth = useRef<number | null>(null);
@@ -403,6 +398,7 @@ export function WorkspaceDemo({ suspended = false }: { suspended?: boolean }) {
   const pendingSearchFocus = useRef<'input' | 'trigger' | null>(null);
   const navigationId = useId();
   const searchId = useId();
+  const playbackHintId = useId();
   const searching = searchOpen || Boolean(query);
   const visible = selectDemoTasks(tasks, scope, query);
   const closeNavigation = () => {
@@ -469,19 +465,27 @@ export function WorkspaceDemo({ suspended = false }: { suspended?: boolean }) {
       ref={showcase}
       className="workspace-showcase"
       data-playback={playback.status}
-      onPointerDownCapture={(event) => {
-        if (playback.status !== 'waiting') takeOver(event);
+      onPointerDownCapture={() => {
+        if (playback.status !== 'waiting') takeOver();
       }}
       onClickCapture={takeOver}
       onInputCapture={takeOver}
       onKeyDownCapture={takeOver}
       onFocusCapture={takeOver}
-      onWheelCapture={(event) => {
-        if (playback.status !== 'waiting') takeOver(event);
+      onWheelCapture={() => {
+        if (playback.status !== 'waiting') takeOver();
       }}
     >
       <div className="demo-showcase-toolbar">
-        <div className="demo-view-controls" role="group" aria-label="preview layout">
+        <p className="visually-hidden" id={playbackHintId}>
+          choosing a view stops the automatic demo.
+        </p>
+        <div
+          className="demo-view-controls"
+          role="group"
+          aria-label="preview layout"
+          aria-describedby={playbackHintId}
+        >
           {(['board', 'list', 'calendar'] as const).map((layout) => (
             <button
               type="button"
@@ -671,18 +675,6 @@ export function WorkspaceDemo({ suspended = false }: { suspended?: boolean }) {
           </div>
         </div>
       </div>
-      {scripted && (
-        <button
-          type="button"
-          className="demo-playback"
-          data-showcase-control
-          aria-label={playback.status === 'playing' ? 'pause demo' : 'resume demo'}
-          title={playback.status === 'playing' ? 'pause demo' : 'resume demo'}
-          onClick={() => (playback.status === 'playing' ? playback.pause() : playback.resume())}
-        >
-          <DemoIcon name={playback.status === 'playing' ? 'pause' : 'play'} size={14} />
-        </button>
-      )}
       {editor.dialogs}
     </div>
   );
