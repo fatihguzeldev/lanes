@@ -7,6 +7,9 @@ const paths = {
   check: 'm5 12 4 4L19 6',
   close: 'm6 6 12 12M18 6 6 18',
   list: 'M8 5h12M8 12h12M8 19h12M3 5h.01M3 12h.01M3 19h.01',
+  link: 'M10 13a5 5 0 0 0 7 .3l3-3a5 5 0 0 0-7-7l-2 2M14 11a5 5 0 0 0-7-.3l-3 3a5 5 0 0 0 7 7l2-2',
+  arrow: 'M4 12h15m-6-6 6 6-6 6',
+  plus: 'M12 5v14M5 12h14',
 } as const;
 
 export function WorkbenchIcon({ name }: { name: keyof typeof paths }) {
