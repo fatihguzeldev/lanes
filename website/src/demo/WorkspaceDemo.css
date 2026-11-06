@@ -639,3 +639,19 @@
     padding-block: 3px;
   }
 }
+
+.demo-scroll-hint {
+  display: none;
+}
+@media (max-width: 950px) {
+  .demo-scroll-hint {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-sm);
+    margin: 0;
+    padding: var(--space-xs) var(--space-md) 0;
+    color: var(--color-muted);
+    font-size: 11px;
+  }
+}

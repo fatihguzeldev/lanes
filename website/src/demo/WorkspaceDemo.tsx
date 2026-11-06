@@ -98,7 +98,7 @@ function DemoTaskItem({
 
 function DemoBoard({ tasks, onToggle }: { tasks: DemoTask[]; onToggle: (id: string) => void }) {
   return (
-    <div className="demo-board" aria-label="Task board" tabIndex={0}>
+    <div className="demo-board" role="region" aria-label="Task board" tabIndex={0}>
       {(['Ideas', 'In progress', 'Done'] as const).map((list) => (
         <section className="demo-column" key={list} aria-label={`${list} task list`}>
           <header className="demo-column__header">
@@ -142,6 +142,7 @@ function DemoCalendar({ tasks, onToggle }: { tasks: DemoTask[]; onToggle: (id: s
   return (
     <div
       className="demo-calendar"
+      role="region"
       tabIndex={0}
       aria-label="Sample calendar for November 9 to 13, 2026"
     >
@@ -256,6 +257,12 @@ export function WorkspaceDemo() {
             ))}
           </div>
         </header>
+        {view !== 'List' && (
+          <p className="demo-scroll-hint">
+            Scroll sideways to see {view === 'Board' ? 'every list' : 'the week'}
+            <span aria-hidden="true">↔</span>
+          </p>
+        )}
         <div className="demo-content" data-view={view}>
           {view === 'Board' && <DemoBoard tasks={tasks} onToggle={toggle} />}
           {view === 'List' && <DemoList tasks={tasks} onToggle={toggle} />}
