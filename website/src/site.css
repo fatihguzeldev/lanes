@@ -171,7 +171,8 @@
   .site-nav a:hover {
     background: var(--color-header-hover);
   }
-  .button--primary:hover {
+  .button--primary:hover,
+  .self-host-button:hover {
     background: var(--color-primary-hover);
   }
   .site-footer a:hover {

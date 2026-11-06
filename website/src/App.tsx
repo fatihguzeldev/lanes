@@ -20,7 +20,7 @@ export function App() {
             <Brand />
           </a>
           <nav className="site-nav" aria-label="main navigation">
-            <a href="#self-host">make it yours</a>
+            <a href="#self-host">self-host</a>
           </nav>
           <GitHubStars />
         </header>

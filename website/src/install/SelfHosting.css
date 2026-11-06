@@ -55,7 +55,7 @@
   min-height: 104px;
   margin: 0;
   padding: 0;
-  resize: vertical;
+  resize: none;
   border: 0;
   border-radius: 2px;
   background: var(--color-transparent);
