@@ -5,6 +5,7 @@ import { countOpenTasks, getBlockingState } from '../../model/task';
 import { addCalendarDays } from '../../model/planning';
 import './TaskCard.css';
 import type { SubtaskSummary } from '../../contracts/query';
+import { TaskStarButton, type ToggleTaskStar } from './TaskStarButton';
 
 export interface TaskCardProps {
   task: Task;
@@ -18,6 +19,8 @@ export interface TaskCardProps {
   pending?: boolean;
   pendingTaskIds?: ReadonlySet<string>;
   providerActionsEnabled?: boolean;
+  localActionsEnabled?: boolean;
+  onToggleStar?: ToggleTaskStar | undefined;
   contextOnly?: boolean;
   parentTitle?: string;
   initiallyExpanded?: boolean;
@@ -105,6 +108,8 @@ export function TaskCard({
   pending = false,
   pendingTaskIds,
   providerActionsEnabled = true,
+  localActionsEnabled = false,
+  onToggleStar,
   contextOnly = false,
   parentTitle,
   initiallyExpanded = false,
@@ -171,8 +176,8 @@ export function TaskCard({
           <button className="task-card__title" type="button" onClick={() => onOpen(task)}>
             {taskTitle(task)}
           </button>
-          {task.starred && (
-            <Icon name="star" size={12} title="starred" className="task-card__star" />
+          {task.starred && !onToggleStar && (
+            <Icon name="star" size={12} title="starred" className="task-card__star-mark" />
           )}
           {task.priority !== 'none' && (
             <span
@@ -195,15 +200,27 @@ export function TaskCard({
               <Icon name={task.unsupportedHierarchy ? 'warning' : 'lock'} size={12} />
             </span>
           )}
-          {onMenu && (
-            <button
-              className="task-card__menu"
-              type="button"
-              aria-label={`options for ${taskTitle(task)}`}
-              onClick={(event) => onMenu(task, event.currentTarget)}
-            >
-              <Icon name="more" size={15} />
-            </button>
+          {(onMenu || onToggleStar) && (
+            <span className="task-card__actions">
+              {onToggleStar && (
+                <TaskStarButton
+                  key={`${task.accountId}:${task.id}`}
+                  task={task}
+                  disabled={pending || !localActionsEnabled}
+                  onToggle={onToggleStar}
+                />
+              )}
+              {onMenu && (
+                <button
+                  className="task-card__menu"
+                  type="button"
+                  aria-label={`options for ${taskTitle(task)}`}
+                  onClick={(event) => onMenu(task, event.currentTarget)}
+                >
+                  <Icon name="more" size={15} />
+                </button>
+              )}
+            </span>
           )}
         </div>
         {contextOnly && <span className="task-card__context-label">parent context</span>}
@@ -322,15 +339,27 @@ export function TaskCard({
                     data-task-editor-host={child.id}
                     data-account-id={child.accountId}
                   />
-                  {onMenu && (
-                    <button
-                      className="task-card__menu"
-                      type="button"
-                      aria-label={`options for ${taskTitle(child)}`}
-                      onClick={(event) => onMenu(child, event.currentTarget)}
-                    >
-                      <Icon name="more" size={14} />
-                    </button>
+                  {(onMenu || onToggleStar) && (
+                    <span className="task-card__actions">
+                      {onToggleStar && (
+                        <TaskStarButton
+                          key={`${child.accountId}:${child.id}`}
+                          task={child}
+                          disabled={pending || childPending || !localActionsEnabled}
+                          onToggle={onToggleStar}
+                        />
+                      )}
+                      {onMenu && (
+                        <button
+                          className="task-card__menu"
+                          type="button"
+                          aria-label={`options for ${taskTitle(child)}`}
+                          onClick={(event) => onMenu(child, event.currentTarget)}
+                        >
+                          <Icon name="more" size={14} />
+                        </button>
+                      )}
+                    </span>
                   )}
                 </li>
               );

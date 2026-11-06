@@ -10,6 +10,7 @@ import {
   type TaskSort,
 } from '../../contracts/task';
 import { TaskCard } from '../items/TaskCard';
+import type { ToggleTaskStar } from '../items/TaskStarButton';
 import { countOpenTasks, getBlockingStates } from '../../model/task';
 import { Icon } from '../../../../shared/ui/icon/Icon';
 import { request } from '../../../../shared/browser/http/http';
@@ -35,6 +36,9 @@ interface Props {
   version: number;
   onOpenTask: (task: Task) => void;
   onToggleComplete: (task: Task, completed: boolean) => void;
+  onToggleStar?: ToggleTaskStar | undefined;
+  localActionsEnabled?: boolean;
+  pendingTaskIds?: ReadonlySet<string> | undefined;
   onTaskMenu: (task: Task, anchor: HTMLButtonElement) => void;
   onOpenBoard: (id: string) => void;
   onInitialReady?: (state: InitialViewReadiness) => void;
@@ -49,6 +53,9 @@ export function TaskCollectionWorkspace({
   version,
   onOpenTask,
   onToggleComplete,
+  onToggleStar,
+  localActionsEnabled = false,
+  pendingTaskIds,
   onTaskMenu,
   onOpenBoard,
   onInitialReady,
@@ -192,6 +199,10 @@ export function TaskCollectionWorkspace({
                 accountTimeZone={account.planningZone}
                 layout="row"
                 providerActionsEnabled={account.state === 'connected'}
+                localActionsEnabled={localActionsEnabled}
+                onToggleStar={onToggleStar}
+                pending={pendingTaskIds?.has(task.id) ?? false}
+                {...(pendingTaskIds ? { pendingTaskIds } : {})}
                 contextOnly={tasks.page.contextTaskIds.includes(task.id)}
                 onOpen={onOpenTask}
                 onToggleComplete={onToggleComplete}

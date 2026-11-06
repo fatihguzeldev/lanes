@@ -84,6 +84,8 @@ label creation and management stay in an anchored menu beside the task. account 
 
 labels belong to an account. each has a name and a color; tasks may carry up to 20. require a trimmed name of 1–64 characters and compare names case-insensitively for uniqueness within that account. preserve the chosen spelling. renaming a label keeps its identity; deleting it removes associations without deleting tasks. this per-task bound keeps editing, rendering, and import requests bounded.
 
+task rows expose a direct star control immediately before their options menu. unstarred controls appear on row hover or keyboard focus; starred controls remain visible. touch keeps the control visible. reserve its space so interaction does not shift the title, and use the accent without a separate hover tile or tooltip. a quick star previews immediately, restores the confirmed value on failure, and waits for the refreshed revision before another write.
+
 priority is one of none, low, medium, or high. starring is an independent boolean. both are lanes metadata and do not claim to set google's native star. default to no priority, no labels, and not starred.
 
 metadata-only edits can be confirmed during grant expiry or a temporary google outage if the owner session and server are usable and the task is still retained. an explicitly disconnected workspace remains read-only until relinked. mark provider data stale. deletion, due-day edits, and other provider-backed actions remain unavailable without valid provider access.

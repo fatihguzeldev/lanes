@@ -309,7 +309,7 @@ export function Workspace({
     const list = lists.items.find((item) => item.id === task.listId);
     guard(() => taskEditor.open(task, list ? { list, boardId: list.boardId } : undefined));
   };
-  const { toggleComplete, deleteTask, deleteList, reschedule } = createTaskActions({
+  const { toggleStar, toggleComplete, deleteTask, deleteList, reschedule } = createTaskActions({
     accountId: account.id,
     submit,
     confirm: setConfirmation,
@@ -604,6 +604,7 @@ export function Workspace({
           version={version}
           clockOffset={clockOffset}
           writable={writable}
+          localWritable={localWritable && !commands.busy}
           pendingTaskIds={commands.pendingTaskIds}
           moveQueue={moveQueue}
           listCreation={
@@ -636,6 +637,7 @@ export function Workspace({
             },
             onOpenTask: openTask,
             onToggleComplete: (task, completed) => void toggleComplete(task, completed),
+            onToggleStar: toggleStar,
             onTaskMenu: taskMenu.open,
             onListMenu: boardManagement.openListMenu,
             onOpenBoard: (id) =>
