@@ -6,22 +6,13 @@ import { App } from '../App';
 afterEach(() => vi.unstubAllGlobals());
 
 describe('workspace startup', () => {
-  it('keeps the workspace layout while the owner session is being checked', () => {
+  it('waits for session authorization without guessing the destination screen', () => {
     const html = renderToStaticMarkup(createElement(App));
-    expect(html).toContain('workspace__sidebar');
-    expect(html).toContain('workspace__topbar');
-    expect(html).toContain('board-column--skeleton');
+    expect(html).toContain('aria-label="loading lanes"');
     expect(html).toContain('aria-busy="true"');
-    for (const label of [
-      'today',
-      'starred',
-      'your boards',
-      'search tasks',
-      'add a task',
-      'new list',
-    ])
-      expect(html).toContain(label);
+    expect(html).not.toContain('workspace-skeleton');
     expect(html).not.toContain('entry-paper');
+    expect(html).not.toContain('continue with google');
     expect(html).not.toContain('opening your workspace');
   });
 
@@ -31,14 +22,11 @@ describe('workspace startup', () => {
     vi.stubGlobal('localStorage', storage);
     const html = renderToStaticMarkup(createElement(App));
     expect(html).not.toContain('remembered-private-account');
-    expect(html).toContain('class="workspace__sidebar" aria-hidden="true" inert=""');
-    expect(html).toContain('class="workspace__main" aria-hidden="true" inert=""');
     const controls = html.match(/<(?:button|input|select)\b[^>]*>/g) ?? [];
-    expect(controls.length).toBeGreaterThan(0);
-    expect(controls.every((control) => /tabindex="-1"|disabled=""/.test(control))).toBe(true);
+    expect(controls).toHaveLength(0);
   });
 
-  it('retains only the avatar initial while session authorization is pending', () => {
+  it('does not use a retained initial as proof of a current owner session', () => {
     const storage = {
       getItem: (key: string) =>
         key === 'lanes.account-initial'
@@ -50,7 +38,8 @@ describe('workspace startup', () => {
     vi.stubGlobal('sessionStorage', storage);
     vi.stubGlobal('localStorage', storage);
     const html = renderToStaticMarkup(createElement(App));
-    expect(html).toContain('<span class="account-menu__avatar">F</span>');
+    expect(html).not.toContain('account-menu__avatar');
+    expect(html).not.toContain('workspace-skeleton');
     expect(html).not.toContain('private-account');
     expect(html).not.toContain('aria-label="workspace navigation"');
   });

@@ -28,17 +28,12 @@ export function App() {
     dismissError,
   } = useOwnerSession(() => portabilityLanding()?.accountId ?? null);
   if (!session && !error)
-    return <WorkspaceSkeleton theme={resolvedTheme} accountInitial={loadingInitial} />;
+    return <main className="entry" role="status" aria-label="loading lanes" aria-busy="true" />;
   if (session?.authenticated && selected)
     return (
       <>
         <Suspense
-          fallback={
-            <WorkspaceSkeleton
-              theme={resolvedTheme}
-              accountInitial={Array.from(selected.displayName.trim())[0] ?? '?'}
-            />
-          }
+          fallback={<WorkspaceSkeleton theme={resolvedTheme} accountInitial={loadingInitial} />}
         >
           <Workspace
             key={selected.id}
