@@ -67,10 +67,13 @@
   place-items: center;
   width: 20px;
   height: 20px;
-  border-radius: 4px;
   flex: none;
-  color: var(--icon);
-  background: color-mix(in srgb, var(--board-color, var(--green-soft)) 35%, var(--paper));
+  color: color-mix(in srgb, var(--board-color, var(--green)) 35%, var(--green));
+}
+.board-navigation__symbol > .icon {
+  width: 18px;
+  height: 18px;
+  stroke-width: 2;
 }
 .board-navigation__note {
   padding: 10px;
@@ -101,8 +104,8 @@
   height: 1lh;
 }
 .board-navigation__placeholder-symbol {
-  width: 15px;
-  height: 15px;
+  width: 18px;
+  height: 18px;
   flex: none;
 }
 .board-navigation__placeholder-line {
