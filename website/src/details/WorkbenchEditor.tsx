@@ -180,10 +180,9 @@ export function WorkbenchEditor({
           <WorkbenchIcon name="subtasks" />
         </button>
         <button
-          className="workbench-tool"
+          className="workbench-tool workbench-tool--star"
           type="button"
           aria-label={draft.starred ? 'remove star' : 'star task'}
-          title={draft.starred ? 'remove star' : 'star task'}
           aria-pressed={draft.starred}
           onClick={() => onDraftChange({ starred: !draft.starred })}
         >

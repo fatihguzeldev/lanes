@@ -12,15 +12,15 @@ const paths = {
   plus: 'M12 5v14M5 12h14',
 } as const;
 
-export function WorkbenchIcon({ name }: { name: keyof typeof paths }) {
+export function WorkbenchIcon({ name, size = 16 }: { name: keyof typeof paths; size?: number }) {
   return (
     <svg
       viewBox="0 0 24 24"
-      width="16"
-      height="16"
+      width={size}
+      height={size}
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.65"
+      strokeWidth={name === 'list' ? 2 : 1.65}
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"

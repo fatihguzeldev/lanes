@@ -27,11 +27,13 @@
   padding: 10px 12px;
   border-bottom: 1px solid var(--color-line);
 }
-.details-list-heading > svg {
-  width: 18px;
-  height: 18px;
-  stroke-width: 2;
-  color: var(--color-accent);
+.details-list-heading__symbol {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  flex: none;
+  color: color-mix(in srgb, #f8f6ef 35%, var(--color-accent));
 }
 .details-list-heading h3 {
   font-size: 14px;
@@ -108,6 +110,7 @@
 .details-task__star svg {
   width: 14px;
   height: 14px;
+  fill: transparent;
 }
 .details-task__star[aria-pressed='true'] {
   color: var(--color-accent);
@@ -288,10 +291,19 @@
   background: transparent;
   color: var(--color-icon);
 }
-.workbench-tool[aria-pressed='true'],
+.workbench-tool:not(.workbench-tool--star)[aria-pressed='true'],
 .workbench-tool[aria-expanded='true'] {
   color: var(--color-accent);
   background: var(--color-soft);
+}
+.workbench-tool--star[aria-pressed='true'] {
+  color: var(--color-accent);
+}
+.workbench-tool--star > svg {
+  fill: transparent;
+}
+.workbench-tool--star[aria-pressed='true'] > svg {
+  fill: color-mix(in srgb, var(--color-accent) 24%, transparent);
 }
 .workbench-editor__labels {
   display: flex;
@@ -544,9 +556,28 @@
   .details-task__main:focus-within .details-task__star {
     opacity: 1;
   }
-  .workbench-tool:hover {
+  .workbench-tool:not(.workbench-tool--star):hover {
     background: var(--color-soft);
     color: var(--color-accent);
+  }
+  .workbench-tool--star:hover:not(:disabled) {
+    color: var(--color-accent);
+  }
+  .details-task__star:hover:not(:disabled) > svg,
+  .workbench-tool--star:hover:not(:disabled) > svg {
+    fill: var(--color-accent);
+  }
+}
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .details-task__star > svg,
+  .workbench-tool--star > svg {
+    transition:
+      fill 120ms ease,
+      transform 120ms ease;
+  }
+  .details-task__star:hover:not(:disabled) > svg,
+  .workbench-tool--star:hover:not(:disabled) > svg {
+    transform: scale(1.1);
   }
 }
 @media (pointer: coarse) {

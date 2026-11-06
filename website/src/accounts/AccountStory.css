@@ -57,6 +57,14 @@
   color: var(--color-muted);
   font-size: 12px;
 }
+.account-story__board-symbol {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  flex: none;
+  color: color-mix(in srgb, #f1f0e9 35%, var(--color-accent));
+}
 .account-story__lists {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

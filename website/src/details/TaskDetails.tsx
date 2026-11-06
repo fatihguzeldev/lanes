@@ -114,7 +114,9 @@ export function TaskDetails() {
       <div className="details-workbench product-preview">
         <div className="details-task-list" aria-label="in progress tasks">
           <header className="details-list-heading">
-            <WorkbenchIcon name="list" />
+            <span className="details-list-heading__symbol">
+              <WorkbenchIcon name="list" size={18} />
+            </span>
             <h3>in progress</h3>
             <span>{tasks.filter((item) => !item.completed).length}</span>
           </header>

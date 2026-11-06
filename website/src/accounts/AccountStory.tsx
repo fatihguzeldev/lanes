@@ -89,17 +89,19 @@ export function AccountStory() {
             ))}
           </div>
           <p className="account-story__board-name">
-            <svg
-              viewBox="0 0 24 24"
-              width="15"
-              height="15"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.65"
-              aria-hidden="true"
-            >
-              <path d="M4 5h6v14H4ZM14 5h6v9h-6Z" />
-            </svg>
+            <span className="account-story__board-symbol">
+              <svg
+                viewBox="0 0 24 24"
+                width="18"
+                height="18"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                aria-hidden="true"
+              >
+                <path d="M4 5h6v14H4ZM14 5h6v9h-6Z" />
+              </svg>
+            </span>
             {account.board}
           </p>
         </div>
