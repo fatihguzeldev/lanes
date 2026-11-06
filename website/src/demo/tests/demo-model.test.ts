@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { demoTasks, selectDemoTasks, toggleDemoTask } from '../demo-model';
+import { demoTasks, selectDemoTasks, toggleDemoTask, toggleDemoTaskStar } from '../demo-model';
 
 describe('interactive workspace preview', () => {
   it('completes a task and reopens it without changing its list or other tasks', () => {
@@ -19,6 +19,27 @@ describe('interactive workspace preview', () => {
 
   it('leaves the preview unchanged when a task no longer exists', () => {
     expect(toggleDemoTask(demoTasks, 'missing-task')).toEqual(demoTasks);
+    expect(toggleDemoTaskStar(demoTasks, 'missing-task')).toEqual(demoTasks);
+  });
+
+  it('stars and unstars tasks across views without changing completion or list placement', () => {
+    const starred = toggleDemoTaskStar(demoTasks, 'small-start');
+    expect(starred.find((task) => task.id === 'small-start')).toEqual({
+      ...demoTasks.find((task) => task.id === 'small-start'),
+      starred: true,
+    });
+    expect(selectDemoTasks(starred, 'starred', '').map((task) => task.id)).toEqual([
+      'small-start',
+      'make-room',
+    ]);
+    expect(starred.filter((task) => task.id !== 'small-start')).toEqual(
+      demoTasks.filter((task) => task.id !== 'small-start'),
+    );
+    const unstarred = toggleDemoTaskStar(starred, 'make-room');
+    expect(selectDemoTasks(unstarred, 'starred', '').map((task) => task.id)).toEqual([
+      'small-start',
+    ]);
+    expect(demoTasks.find((task) => task.id === 'small-start')?.starred).toBeUndefined();
   });
 
   it('shows open tasks for the today and starred shortcuts', () => {

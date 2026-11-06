@@ -1,8 +1,9 @@
-import { useId, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import {
   demoTasks,
   selectDemoTasks,
   toggleDemoTask,
+  toggleDemoTaskStar,
   type DemoScope,
   type DemoTask,
 } from './demo-model';
@@ -20,6 +21,7 @@ const icons = {
   down: 'm7 10 5 5 5-5',
   right: 'm9 6 6 6-6 6',
   menu: 'M4 6h16M4 12h16M4 18h16',
+  more: 'M12 5h.01M12 12h.01M12 19h.01',
   close: 'm6 6 12 12M18 6 6 18',
   clock: 'M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0',
 };
@@ -42,13 +44,94 @@ function DemoIcon({ name, size = 16 }: { name: keyof typeof icons; size?: number
   );
 }
 
+function DemoTaskActions({
+  task,
+  onToggle,
+  onToggleStar,
+}: {
+  task: DemoTask;
+  onToggle: (id: string) => void;
+  onToggleStar: (id: string) => void;
+}) {
+  const menuId = useId();
+  const menu = useRef<HTMLDivElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const [position, setPosition] = useState({ top: 0, left: 0 });
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    const close = () => menu.current?.hidePopover();
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
+    return () => {
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close);
+    };
+  }, [open]);
+  return (
+    <div className="demo-task__actions">
+      <button
+        className="demo-task__star"
+        type="button"
+        aria-label={`${task.starred ? 'unstar' : 'star'} ${task.title}`}
+        aria-pressed={!!task.starred}
+        title={task.starred ? 'remove star' : 'star task'}
+        onClick={() => onToggleStar(task.id)}
+      >
+        <DemoIcon name="star" size={14} />
+      </button>
+      <button
+        ref={trigger}
+        className="demo-task__menu"
+        type="button"
+        popoverTarget={menuId}
+        aria-label={`options for ${task.title}`}
+        aria-expanded={open}
+        onClick={(event) => {
+          const rect = event.currentTarget.getBoundingClientRect();
+          setPosition({
+            top: Math.max(8, Math.min(rect.bottom + 4, window.innerHeight - 60)),
+            left: Math.max(8, Math.min(rect.right - 170, window.innerWidth - 178)),
+          });
+        }}
+      >
+        <DemoIcon name="more" size={15} />
+      </button>
+      <div
+        ref={menu}
+        id={menuId}
+        popover="auto"
+        className="demo-task-options"
+        role="group"
+        aria-label={`options for ${task.title}`}
+        style={position}
+        onToggle={(event) => setOpen(event.currentTarget.matches(':popover-open'))}
+      >
+        <button
+          type="button"
+          onClick={() => {
+            menu.current?.hidePopover();
+            trigger.current?.focus({ preventScroll: true });
+            onToggle(task.id);
+          }}
+        >
+          <DemoIcon name="check" size={15} />
+          {task.completed ? 'reopen task' : 'complete task'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function DemoTaskItem({
   task,
   onToggle,
+  onToggleStar,
   row = false,
 }: {
   task: DemoTask;
   onToggle: (id: string) => void;
+  onToggleStar: (id: string) => void;
   row?: boolean;
 }) {
   return (
@@ -72,11 +155,7 @@ function DemoTaskItem({
             {task.completed && <DemoIcon name="check" size={11} />}
           </button>
           <span className="demo-task__title">{task.title}</span>
-          {task.starred && (
-            <span className="demo-task__star" role="img" aria-label="starred">
-              <DemoIcon name="star" size={12} />
-            </span>
-          )}
+          <DemoTaskActions task={task} onToggle={onToggle} onToggleStar={onToggleStar} />
         </div>
         {task.note && <p className="demo-task__note">{task.note}</p>}
         {!task.completed && (task.day !== null || task.label) && (
@@ -118,11 +197,13 @@ function DemoColumn({
   list,
   tasks,
   onToggle,
+  onToggleStar,
   row,
 }: {
   list: DemoTask['list'];
   tasks: DemoTask[];
   onToggle: (id: string) => void;
+  onToggleStar: (id: string) => void;
   row: boolean;
 }) {
   const [expanded, setExpanded] = useState(list === 'done');
@@ -137,13 +218,20 @@ function DemoColumn({
     Array.from(
       column.current?.querySelectorAll<HTMLButtonElement>('.demo-task__check') ?? [],
     ).filter((button) => button.getClientRects().length > 0);
-  const toggleTask = (id: string) => {
+  const updateTask = (id: string, update: (id: string) => void) => {
     const controls = visibleControls();
-    const control = controls.find((button) => button === button.ownerDocument.activeElement);
+    const active = column.current?.ownerDocument.activeElement;
+    const control = active instanceof HTMLButtonElement ? active : null;
     if (control?.closest<HTMLElement>('[data-task-id]')?.dataset.taskId === id) {
-      pendingFocus.current = { control, taskId: id, index: controls.indexOf(control) };
+      pendingFocus.current = {
+        control,
+        taskId: id,
+        index: controls.findIndex(
+          (button) => button.closest<HTMLElement>('[data-task-id]')?.dataset.taskId === id,
+        ),
+      };
     }
-    onToggle(id);
+    update(id);
   };
   useLayoutEffect(() => {
     const request = pendingFocus.current;
@@ -172,7 +260,13 @@ function DemoColumn({
       </header>
       <div role="list" aria-label={'open tasks in ' + list}>
         {open.map((task) => (
-          <DemoTaskItem task={task} key={task.id} onToggle={toggleTask} row={row} />
+          <DemoTaskItem
+            task={task}
+            key={task.id}
+            onToggle={(id) => updateTask(id, onToggle)}
+            onToggleStar={(id) => updateTask(id, onToggleStar)}
+            row={row}
+          />
         ))}
       </div>
       {open.length === 0 && completed.length === 0 && (
@@ -197,7 +291,13 @@ function DemoColumn({
             aria-label={'completed tasks in ' + list}
           >
             {completed.map((task) => (
-              <DemoTaskItem key={task.id} task={task} onToggle={toggleTask} row={row} />
+              <DemoTaskItem
+                key={task.id}
+                task={task}
+                onToggle={(id) => updateTask(id, onToggle)}
+                onToggleStar={(id) => updateTask(id, onToggleStar)}
+                row={row}
+              />
             ))}
           </div>
         </div>
@@ -209,10 +309,12 @@ function DemoColumn({
 function DemoBoard({
   tasks,
   onToggle,
+  onToggleStar,
   view,
 }: {
   tasks: DemoTask[];
   onToggle: (id: string) => void;
+  onToggleStar: (id: string) => void;
   view: 'board' | 'list';
 }) {
   return (
@@ -228,6 +330,7 @@ function DemoBoard({
           list={list}
           tasks={tasks.filter((task) => task.list === list)}
           onToggle={onToggle}
+          onToggleStar={onToggleStar}
           row={view === 'list'}
         />
       ))}
@@ -235,11 +338,37 @@ function DemoBoard({
   );
 }
 
-function DemoCalendar({ tasks }: { tasks: DemoTask[] }) {
+function DemoCalendar({
+  tasks,
+  onToggle,
+  onToggleStar,
+}: {
+  tasks: DemoTask[];
+  onToggle: (id: string) => void;
+  onToggleStar: (id: string) => void;
+}) {
+  const calendar = useRef<HTMLDivElement>(null);
+  const pendingFocus = useRef<HTMLButtonElement | null>(null);
+  const updateTask = (id: string, update: (id: string) => void) => {
+    const active = calendar.current?.ownerDocument.activeElement;
+    pendingFocus.current = active instanceof HTMLButtonElement ? active : null;
+    update(id);
+  };
+  useLayoutEffect(() => {
+    const control = pendingFocus.current;
+    pendingFocus.current = null;
+    if (control && !control.isConnected) calendar.current?.focus({ preventScroll: true });
+  }, [tasks]);
   return (
     <div className="demo-calendar">
       <p className="demo-calendar__period">nov 9 – nov 15, 2026</p>
-      <div className="demo-calendar__scroll" role="region" tabIndex={0} aria-label="week calendar">
+      <div
+        ref={calendar}
+        className="demo-calendar__scroll"
+        role="region"
+        tabIndex={0}
+        aria-label="week calendar"
+      >
         <table className="demo-calendar__table">
           <thead>
             <tr>
@@ -258,14 +387,18 @@ function DemoCalendar({ tasks }: { tasks: DemoTask[] }) {
                   {tasks
                     .filter((task) => task.day === day && !task.completed)
                     .map((task) => (
-                      <article className="demo-calendar__event" key={task.id}>
+                      <article
+                        className="demo-calendar__event"
+                        key={task.id}
+                        data-task-id={task.id}
+                      >
                         <div className="demo-calendar__event-top">
                           <span>{task.title}</span>
-                          {task.starred && (
-                            <span className="demo-task__star" role="img" aria-label="starred">
-                              <DemoIcon name="star" size={11} />
-                            </span>
-                          )}
+                          <DemoTaskActions
+                            task={task}
+                            onToggle={(id) => updateTask(id, onToggle)}
+                            onToggleStar={(id) => updateTask(id, onToggleStar)}
+                          />
                         </div>
                         {task.time && (
                           <p className="demo-calendar__time">
@@ -296,6 +429,7 @@ export function WorkspaceDemo() {
   const navigationId = useId();
   const visible = selectDemoTasks(tasks, scope, query);
   const toggle = (id: string) => setTasks((current) => toggleDemoTask(current, id));
+  const toggleStar = (id: string) => setTasks((current) => toggleDemoTaskStar(current, id));
   const closeNavigation = () => {
     setNavigationOpen(false);
     if (navigationOpen) navigationTrigger.current?.focus({ preventScroll: true });
@@ -399,9 +533,9 @@ export function WorkspaceDemo() {
         </header>
         <div className="demo-content" data-view={view}>
           {view === 'calendar' ? (
-            <DemoCalendar tasks={visible} />
+            <DemoCalendar tasks={visible} onToggle={toggle} onToggleStar={toggleStar} />
           ) : (
-            <DemoBoard tasks={visible} onToggle={toggle} view={view} />
+            <DemoBoard tasks={visible} onToggle={toggle} onToggleStar={toggleStar} view={view} />
           )}
         </div>
       </div>

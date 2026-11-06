@@ -192,9 +192,12 @@
   width: 20px;
   height: 20px;
   flex: none;
-  border-radius: 4px;
-  color: var(--color-icon, var(--color-accent));
-  background: var(--color-soft);
+  color: var(--color-accent);
+}
+.demo-column__symbol > svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 2;
 }
 .demo-column__header h3 {
   min-width: 0;
@@ -215,6 +218,8 @@
 }
 .demo-task {
   container: demo-task / inline-size;
+  --demo-action-size: 23px;
+  --demo-action-height: 25px;
   position: relative;
   min-width: 0;
   margin: 0 12px;
@@ -235,10 +240,12 @@
   padding: 8px 0;
 }
 .demo-task__top {
+  position: relative;
   display: flex;
   align-items: start;
   gap: 8px;
   min-width: 0;
+  padding-right: calc(2 * var(--demo-action-size) + 2px);
 }
 .demo-task__check {
   display: grid;
@@ -271,14 +278,77 @@
   text-decoration: line-through;
   font-size: 13px;
 }
-.demo-task__star {
-  display: inline-flex;
+.demo-task__actions {
+  position: absolute;
+  top: 0;
+  right: -2px;
+  display: flex;
+  align-items: center;
   flex: none;
-  margin-top: 3px;
-  color: var(--color-star);
+  gap: 2px;
 }
-.demo-task__star svg {
-  fill: color-mix(in srgb, var(--color-star) 35%, transparent);
+.workspace-demo .demo-task__star,
+.workspace-demo .demo-task__menu {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: var(--demo-action-size);
+  height: var(--demo-action-height);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--color-icon, var(--color-accent));
+  opacity: 0;
+}
+.workspace-demo .demo-task__star[aria-pressed='true'] {
+  color: var(--color-accent);
+  opacity: 1;
+}
+.demo-task__star[aria-pressed='true'] svg {
+  fill: color-mix(in srgb, var(--color-accent) 24%, transparent);
+}
+.demo-task:hover :is(.demo-task__star, .demo-task__menu),
+.demo-task:focus-within :is(.demo-task__star, .demo-task__menu),
+.demo-calendar__event:hover :is(.demo-task__star, .demo-task__menu),
+.demo-calendar__event:focus-within :is(.demo-task__star, .demo-task__menu),
+.workspace-demo .demo-task__menu[aria-expanded='true'] {
+  opacity: 1;
+  color: var(--color-accent);
+}
+.workspace-demo :is(.demo-task__star, .demo-task__menu):focus-visible {
+  outline: none;
+  background-image: linear-gradient(var(--color-focus), var(--color-focus));
+  background-position: center calc(100% - 4px);
+  background-size: 14px 2px;
+  background-repeat: no-repeat;
+}
+.demo-task-options {
+  position: fixed;
+  width: min(170px, calc(100vw - 16px));
+  margin: 0;
+  padding: 5px;
+  border: 1px solid var(--color-line);
+  border-radius: 7px;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  box-shadow: 0 5px 18px #30392f14;
+}
+.demo-task-options > button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 34px;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  text-align: left;
+  font-size: 12px;
+}
+.demo-task-options > button:hover {
+  background: var(--color-soft);
 }
 .demo-task__note {
   display: -webkit-box;
@@ -446,6 +516,8 @@
   color: var(--color-on-accent);
 }
 .demo-calendar__event {
+  --demo-action-size: 20px;
+  --demo-action-height: 23px;
   margin-bottom: 8px;
   padding: 11px 10px;
   border: 1px solid color-mix(in srgb, var(--color-accent) 13%, var(--color-paper));
@@ -453,16 +525,21 @@
   background: color-mix(in srgb, var(--color-soft) 52%, var(--color-paper));
 }
 .demo-calendar__event-top {
+  position: relative;
   display: flex;
   align-items: start;
   gap: 5px;
   font-size: 13px;
   line-height: 1.5;
+  padding-right: calc(2 * var(--demo-action-size));
 }
 .demo-calendar__event-top > span:first-child {
   flex: 1;
   min-width: 0;
   overflow-wrap: anywhere;
+}
+.demo-calendar__event .demo-task__actions {
+  gap: 0;
 }
 .demo-calendar__time {
   display: flex;
@@ -592,6 +669,20 @@
   .demo-task__top {
     align-items: center;
   }
+  .demo-task,
+  .demo-calendar__event {
+    --demo-action-size: 44px;
+    --demo-action-height: 44px;
+  }
+  .demo-task__top {
+    padding-right: calc(2 * var(--demo-action-size) - 4px);
+  }
+  .demo-task__actions {
+    right: -8px;
+  }
+  .demo-task-options > button {
+    min-height: 44px;
+  }
   .demo-task__check {
     position: relative;
     width: 44px;
@@ -627,5 +718,11 @@
     .demo-task--row .demo-task__meta {
       margin-left: 52px;
     }
+  }
+}
+@media (hover: none), (pointer: coarse) {
+  .workspace-demo .demo-task__star,
+  .workspace-demo .demo-task__menu {
+    opacity: 1;
   }
 }

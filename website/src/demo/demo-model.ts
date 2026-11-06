@@ -76,6 +76,10 @@ export function toggleDemoTask(tasks: DemoTask[], id: string): DemoTask[] {
   return tasks.map((task) => (task.id === id ? { ...task, completed: !task.completed } : task));
 }
 
+export function toggleDemoTaskStar(tasks: DemoTask[], id: string): DemoTask[] {
+  return tasks.map((task) => (task.id === id ? { ...task, starred: !task.starred } : task));
+}
+
 export type DemoScope = 'all' | 'today' | 'starred';
 
 export function selectDemoTasks(tasks: DemoTask[], scope: DemoScope, query: string): DemoTask[] {
