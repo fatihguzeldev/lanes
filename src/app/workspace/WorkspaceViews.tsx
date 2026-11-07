@@ -190,6 +190,10 @@ export function WorkspaceViews({
           providerActionsEnabled={writable}
           onOpenTask={actions.onOpenTask}
           onTaskMenu={actions.onTaskMenu}
+          edits={edits}
+          onEditRead={onEditRead}
+          creations={creations}
+          onCreationRead={onCreationRead}
           onCreateTask={actions.onCreateTask}
           onReschedule={actions.onReschedule}
         />

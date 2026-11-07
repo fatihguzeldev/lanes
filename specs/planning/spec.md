@@ -32,7 +32,7 @@ create a task on a selected day by choosing its destination list. moving a task 
 
 choose that destination in a menu anchored to the day or unscheduled add action. preserve the selected account and day while paging boards or lists; choosing a list opens the task editor directly. this choice does not need a modal or a second approval.
 
-calendar actions have keyboard equivalents. display pending saves, failed reschedules, partial data, and expired-account state consistently with the board. do not make a read-only calendar look draggable.
+calendar actions have keyboard equivalents. rescheduling moves the task immediately and saves in the background without a saving badge or drag lock. queue consecutive date changes with the task's quick actions against fresh revisions; unchanged dates submit nothing. a failed or cancelled change restores confirmed placement, and a fresh read after confirmation replaces its preview. report failures, partial data, and expired-account state consistently with the board. do not make a read-only calendar look draggable.
 
 calendar is task planning: no durations, meeting invitations, resource booking, reminders, browser notifications, or google calendar event creation. google may display its own dated tasks; lanes does not control the presentation of native google clients.
 

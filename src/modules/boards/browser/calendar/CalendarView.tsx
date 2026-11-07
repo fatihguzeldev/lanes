@@ -15,6 +15,8 @@ import {
   type CalendarScope,
 } from './calendar-model';
 import { Select } from '../../../../shared/ui/select/Select';
+import { TaskCreationPreview } from '../../../tasks/browser/creation/TaskCreationPreview';
+import type { PendingTaskCreation } from '../../../tasks/browser/creation/useTaskCreations';
 import './CalendarView.css';
 
 export type { CalendarMode, CalendarScope } from './calendar-model';
@@ -36,6 +38,7 @@ export interface CalendarViewProps {
   accountId: string;
   boardId: string;
   tasks: readonly Task[];
+  creations?: readonly PendingTaskCreation[];
   relatedTasks?: readonly Task[] | undefined;
   lists: readonly TaskList[];
   today: string;
@@ -56,7 +59,7 @@ export interface CalendarViewProps {
   onOpenTask: (task: Task) => void;
   onTaskMenu: (task: Task, anchor: HTMLButtonElement) => void;
   onCreateTask: (intent: CalendarDaySelection, anchor: HTMLElement) => void;
-  onReschedule: (intent: CalendarRescheduleIntent) => void;
+  onReschedule: (intent: CalendarRescheduleIntent) => Promise<boolean> | void;
   onLoadMore: () => void;
   onRetry: () => void;
   onRangeChange?: ((range: CalendarRangeRequest) => void) | undefined;
@@ -143,20 +146,17 @@ interface ItemProps {
 }
 
 function CalendarItem({ task, options, context, listNames, startDrag, endDrag }: ItemProps) {
-  const pending = options.pendingTaskIds?.has(task.id) ?? false;
   const draggable =
     options.providerActionsEnabled !== false &&
     task.capabilities.canEdit &&
-    !task.unsupportedHierarchy &&
-    !pending;
+    !task.unsupportedHierarchy;
   const parent = task.parentId ? context.get(task.parentId) : null;
   const zone = task.timeZone && task.timeZone !== options.accountTimeZone ? task.timeZone : null;
   return (
     <article
-      className={`calendar-item${task.completed ? ' calendar-item--completed' : ''}${pending ? ' calendar-item--pending' : ''}`}
+      className={`calendar-item${task.completed ? ' calendar-item--completed' : ''}`}
       role="listitem"
       data-calendar-task-id={task.id}
-      aria-busy={pending || undefined}
       draggable={draggable}
       onDragStart={(event) => startDrag(task, event)}
       onDragEnd={endDrag}
@@ -211,12 +211,21 @@ function CalendarItem({ task, options, context, listNames, startDrag, endDrag }:
           read-only task
         </p>
       )}
-      {pending && (
-        <span className="calendar-item__saving" role="status">
-          saving…
-        </span>
-      )}
     </article>
+  );
+}
+
+function CalendarCreation({ creation }: { creation: PendingTaskCreation }) {
+  return (
+    <div className="calendar-item calendar-creation" role="listitem">
+      <TaskCreationPreview creation={creation} />
+      {creation.input.scheduledTime && (
+        <p className="calendar-item__time">
+          <Icon name="clock" size={11} />
+          {creation.input.scheduledTime}
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -247,6 +256,11 @@ function DayCell({
   const today = day.date === options.today;
   const dateOnly = bucket?.dateOnly ?? [];
   const timed = bucket?.timed ?? [];
+  const creations =
+    options.creations?.filter(
+      (creation) =>
+        creation.input.accountId === options.accountId && creation.input.scheduledDay === day.date,
+    ) ?? [];
   const limited = options.mode === 'month' && !expanded;
   const visibleDateOnly = limited ? dateOnly.slice(0, 3) : dateOnly;
   const visibleTimed = limited ? timed.slice(0, Math.max(0, 3 - visibleDateOnly.length)) : timed;
@@ -310,6 +324,13 @@ function DayCell({
             </div>
           </div>
         )}
+        {creations.length > 0 && (
+          <div className="calendar-day__group" role="list" aria-label={`new tasks on ${dateLabel}`}>
+            {creations.map((creation) => (
+              <CalendarCreation key={creation.id} creation={creation} />
+            ))}
+          </div>
+        )}
         {omitted > 0 && (
           <button className="calendar-day__more" type="button" onClick={() => setExpanded(true)}>
             show {omitted} more
@@ -332,6 +353,11 @@ export function CalendarView(options: CalendarViewProps) {
   const [dropTarget, setDropTarget] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState('');
   const unscheduledId = useId();
+  const unscheduledCreations =
+    options.creations?.filter(
+      (creation) =>
+        creation.input.accountId === options.accountId && creation.input.scheduledDay === null,
+    ) ?? [];
   const cursorDay = cursor.accountId === options.accountId ? cursor.day : options.today;
   const grid = useMemo(
     () => calendarGrid(cursorDay, options.mode, options.weekStart),
@@ -384,8 +410,7 @@ export function CalendarView(options: CalendarViewProps) {
       options.providerActionsEnabled === false ||
       task.accountId !== options.accountId ||
       !task.capabilities.canEdit ||
-      task.unsupportedHierarchy ||
-      options.pendingTaskIds?.has(task.id)
+      task.unsupportedHierarchy
     ) {
       event.preventDefault();
       return;
@@ -439,7 +464,7 @@ export function CalendarView(options: CalendarViewProps) {
       return;
     }
     if (task.scheduledDay !== day) {
-      options.onReschedule({ ...payload, scheduledDay: day });
+      void options.onReschedule({ ...payload, scheduledDay: day });
       setAnnouncement(`date change requested for ${taskTitle(task)}.`);
     }
     endDrag();
@@ -612,7 +637,7 @@ export function CalendarView(options: CalendarViewProps) {
               <Icon name={unscheduledExpanded ? 'down' : 'right'} size={13} />
               <h2>unscheduled</h2>
               {options.coverage.complete && options.nextCursor == null && (
-                <span>{groups.unscheduled.length}</span>
+                <span>{groups.unscheduled.length + unscheduledCreations.length}</span>
               )}
             </button>
             <button
@@ -639,12 +664,15 @@ export function CalendarView(options: CalendarViewProps) {
           <div id={unscheduledId} hidden={!unscheduledExpanded}>
             {unscheduledExpanded && (
               <>
-                {groups.unscheduled.length ? (
+                {groups.unscheduled.length + unscheduledCreations.length > 0 ? (
                   <div
                     className="calendar-view__unscheduled-items"
                     role="list"
                     aria-label="unscheduled tasks"
                   >
+                    {unscheduledCreations.map((creation) => (
+                      <CalendarCreation key={`creation:${creation.id}`} creation={creation} />
+                    ))}
                     {groups.unscheduled.map((task) => (
                       <CalendarItem key={task.id} task={task} {...itemProps} />
                     ))}

@@ -388,17 +388,8 @@ button.calendar-day__number:hover {
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
-.calendar-item__saving {
-  display: block;
-  margin-top: 6px;
-  color: var(--secondary, #697063);
-  font-size: 12px;
-}
 .calendar-item__restriction {
   color: var(--rust, #a2553a);
-}
-.calendar-item--pending {
-  border-style: dashed;
 }
 .calendar-day__more {
   padding: 4px;
@@ -608,4 +599,29 @@ button.calendar-day__number:hover {
   .calendar-view__load-more {
     min-height: var(--control-size);
   }
+}
+
+.calendar-creation .task-creation-preview {
+  margin: 0;
+  border: 0;
+}
+.calendar-creation .task-creation-preview::before {
+  display: none;
+}
+.calendar-creation .task-card__main {
+  padding: 0;
+}
+.calendar-creation .task-card__top {
+  padding: 0;
+}
+.calendar-creation .task-card__check {
+  display: none;
+}
+.calendar-creation .task-card__title,
+.calendar-creation .task-card__notes {
+  font-size: 12px;
+  letter-spacing: normal;
+}
+.calendar-creation .task-card__notes {
+  margin-left: 0;
 }

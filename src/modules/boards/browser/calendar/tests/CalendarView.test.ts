@@ -2,6 +2,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { CalendarView, type CalendarViewProps } from '../CalendarView';
+import { CreateTaskSchema } from '../../../../tasks/contracts/task';
 
 const noop = () => {};
 const props: CalendarViewProps = {
@@ -40,4 +41,47 @@ describe('calendar navigation and horizontal grid', () => {
       );
     },
   );
+  it('keeps admitted creations visible in their day or unscheduled section without saving labels', () => {
+    const html = renderToStaticMarkup(
+      createElement(CalendarView, {
+        ...props,
+        creations: [
+          {
+            id: 1,
+            confirmedAfter: null,
+            input: CreateTaskSchema.parse({
+              accountId: 'account',
+              listId: 'list',
+              title: 'dated creation',
+              scheduledDay: props.today,
+            }),
+          },
+          {
+            id: 2,
+            confirmedAfter: null,
+            input: CreateTaskSchema.parse({
+              accountId: 'account',
+              listId: 'list',
+              title: 'undated creation',
+            }),
+          },
+          {
+            id: 3,
+            confirmedAfter: null,
+            input: CreateTaskSchema.parse({
+              accountId: 'other',
+              listId: 'list',
+              title: 'foreign creation',
+            }),
+          },
+        ],
+      }),
+    );
+    expect(html).toContain('dated creation');
+    expect(html).toContain('undated creation');
+    expect(html).not.toContain('foreign creation');
+    expect(html.indexOf('dated creation')).toBeLessThan(html.indexOf('calendar-view__unscheduled'));
+    expect(html).not.toContain('no unscheduled tasks in this view');
+    expect(html).not.toContain('saving');
+  });
 });
