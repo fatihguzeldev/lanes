@@ -1,0 +1,17 @@
+# lanes
+
+> an open-source, self-hosted workspace for google tasks.
+
+lanes organizes google tasks with boards, lists, a calendar, labels and multiple google accounts. each installation has one owner and runs in that owner's cloudflare account.
+
+this website introduces the product with local sample previews. it does not connect visitors' google accounts or provide a public hosted workspace.
+
+## sources
+
+- [website](https://lanes.fatihguzel.dev/): product introduction and interactive previews.
+- [repository](https://github.com/fatihguzeldev/lanes): source code and project overview.
+- [self-hosting guide](https://github.com/fatihguzeldev/lanes/blob/main/agents/self-hosting.md): installation, configuration and google authorization.
+- [product guide](https://github.com/fatihguzeldev/lanes/blob/main/agents/product.md): supported behavior and product boundaries.
+- [architecture proposal](https://github.com/fatihguzeldev/lanes/blob/main/agents/architecture.md): proposed ownership and runtime boundaries, subject to change.
+- [license](https://github.com/fatihguzeldev/lanes/blob/main/LICENSE): mit license.
+- [author](https://fatihguzel.dev): fatih güzel.

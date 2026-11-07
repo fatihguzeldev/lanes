@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex, follow" />
+    <meta name="theme-color" content="#3d5847" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>lanes</title>
+    <style>
+      @font-face {
+        font-family: 'DM Sans';
+        font-style: normal;
+        font-weight: 400 700;
+        font-display: swap;
+        src: url('/fonts/dm-sans-latin.woff2') format('woff2');
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        display: grid;
+        align-items: center;
+        min-height: 100svh;
+        margin: 0;
+        padding: 32px 24px;
+        background: #e8ede3;
+        color: #273c30;
+        font:
+          16px/1.6 'DM Sans',
+          sans-serif;
+      }
+      main {
+        width: 100%;
+        max-width: 480px;
+        margin-inline: auto;
+      }
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 32px;
+        color: inherit;
+        font-size: 30px;
+        font-weight: 700;
+        letter-spacing: -1.5px;
+        text-decoration: none;
+      }
+      h1 {
+        margin: 0;
+        font-size: clamp(2rem, 7vw, 3rem);
+        font-weight: 500;
+        line-height: 1.1;
+        letter-spacing: -0.045em;
+      }
+      .home {
+        display: inline-flex;
+        align-items: center;
+        min-height: 44px;
+        margin-top: 24px;
+        padding: 8px 16px;
+        border-radius: 7px;
+        background: #3d5847;
+        color: #fbfcf8;
+        font-size: 14px;
+        text-decoration: none;
+      }
+      a:focus-visible {
+        outline: 2px solid #3d5847;
+        outline-offset: 4px;
+      }
+      @media (hover: hover) {
+        .home:hover {
+          background: #2e4637;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <a class="brand" href="/"><img src="/favicon.svg" alt="" width="28" height="28" />lanes</a>
+      <h1>page not found.</h1>
+      <a class="home" href="/">back to lanes</a>
+    </main>
+  </body>
+</html>
