@@ -81,7 +81,7 @@
   margin: 4px 0 0 23px;
   white-space: pre-line;
   color: var(--color-muted);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.5;
 }
 .details-task__meta {
@@ -360,7 +360,7 @@
   gap: 7px;
   min-width: 0;
   color: var(--color-muted);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.5;
 }
 .workbench-clear-schedule {
@@ -523,8 +523,26 @@
   }
 }
 @media (any-pointer: coarse) {
+  .details-task__main {
+    padding-block: 4px;
+  }
+  .details-task__top {
+    gap: 0;
+    margin-inline: -12px;
+  }
   .details-task__star[aria-pressed='false'] {
     opacity: 1;
+  }
+  .details-task__star {
+    flex-basis: 44px;
+    width: 44px;
+    height: 44px;
+    margin: 0;
+  }
+  .details-task__priority {
+    min-width: 16px;
+    margin-top: 12px;
+    text-align: center;
   }
   .workbench-check {
     position: relative;
@@ -554,13 +572,37 @@
     position: relative;
   }
   .details-task__title {
+    display: flex;
+    align-items: center;
     min-height: 44px;
-    padding-block: 10px;
+    padding-block: 0;
   }
   .details-task__notes,
   .details-task__meta,
   .details-task__children {
-    margin-left: 52px;
+    margin-left: 32px;
+  }
+  .details-task__meta {
+    gap: 2px 6px;
+  }
+  .details-task__meta:has(.details-task__subtasks-toggle) {
+    position: relative;
+    min-height: 44px;
+    padding-inline-end: 48px;
+    align-content: center;
+  }
+  .details-task__subtasks-toggle {
+    position: absolute;
+    inset-block: 0;
+    inset-inline-end: 0;
+    justify-content: center;
+    width: 44px;
+    margin: 0;
+    padding: 0;
+  }
+  .details-task__children,
+  .workbench-subtasks {
+    gap: 0;
   }
   .workbench-tool,
   .workbench-label,
@@ -582,19 +624,38 @@
   }
   .workbench-editor__title,
   .workbench-editor__notes {
-    margin-left: 52px;
-    width: calc(100% - 52px);
+    margin-left: 32px;
+    width: calc(100% - 32px);
     font-size: 16px;
   }
   .workbench-editor__title {
-    width: calc(100% - 100px);
+    width: calc(100% - 64px);
     min-height: 44px;
-    padding-block: 10px;
+    padding-block: 0;
   }
   .workbench-editor__completion {
     position: absolute;
-    top: 9px;
-    left: 0;
+    top: 0;
+    left: -12px;
+  }
+  .workbench-editor__close {
+    top: 0;
+    right: -12px;
+  }
+  /* Touch targets use the card gutters; keep their focus rings inside the frame. */
+  .details-task :is(.details-task__top, .workbench-editor) > button:focus-visible {
+    outline-offset: -2px;
+  }
+  .workbench-editor__section {
+    margin-top: 12px;
+    padding-top: 12px;
+  }
+  .workbench-editor__section h3 {
+    margin-bottom: 8px;
+  }
+  .workbench-editor__footer {
+    gap: 8px;
+    margin-top: 8px;
   }
   .workbench-schedule input,
   .workbench-schedule select,
