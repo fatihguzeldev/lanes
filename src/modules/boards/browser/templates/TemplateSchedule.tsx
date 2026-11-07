@@ -37,9 +37,9 @@ export function ScheduleEditor({
   templates,
   template,
   schedule,
+  draft,
   boards,
   mutate,
-  busy,
   error,
   onClose,
   onSaved,
@@ -51,9 +51,9 @@ export function ScheduleEditor({
   templates: PersonalTemplate[];
   template?: PersonalTemplate | undefined;
   schedule?: TemplateScheduleSummary | undefined;
+  draft?: TemplateCommand | undefined;
   boards: BoardsResource;
   mutate: Mutate;
-  busy: boolean;
   error: string;
   onClose: () => void;
   onSaved: () => void;
@@ -61,28 +61,46 @@ export function ScheduleEditor({
   moreTemplates: boolean;
   onMoreTemplates: () => void;
 }) {
+  const retained =
+    draft?.kind === 'template.schedule.create' || draft?.kind === 'template.schedule.update'
+      ? draft.input
+      : null;
   const initialRef =
-    schedule?.template ?? (template ? ref(template) : templates[0] ? ref(templates[0]) : null);
+    retained?.template ??
+    schedule?.template ??
+    (template ? ref(template) : templates[0] ? ref(templates[0]) : null);
   const [selection, setSelection] = useState(
       initialRef ? `${initialRef.kind}:${initialRef.id}:${initialRef.contentRevision}` : '',
     ),
-    [boardId, setBoardId] = useState(schedule?.boardId ?? ''),
+    [boardId, setBoardId] = useState(retained?.boardId ?? schedule?.boardId ?? ''),
     [frequency, setFrequency] = useState<'weekly' | 'monthly'>(
-      schedule?.timing.frequency ?? 'weekly',
+      retained?.timing?.frequency ?? schedule?.timing.frequency ?? 'weekly',
     );
   const [weekday, setWeekday] = useState(
-      schedule?.timing.frequency === 'weekly' ? schedule.timing.weekday : 1,
+      retained?.timing?.frequency === 'weekly'
+        ? retained.timing.weekday
+        : schedule?.timing.frequency === 'weekly'
+          ? schedule.timing.weekday
+          : 1,
     ),
     [monthDay, setMonthDay] = useState(
-      schedule?.timing.frequency === 'monthly' ? schedule.timing.dayOfMonth : 1,
+      retained?.timing?.frequency === 'monthly'
+        ? retained.timing.dayOfMonth
+        : schedule?.timing.frequency === 'monthly'
+          ? schedule.timing.dayOfMonth
+          : 1,
     ),
-    [zone, setZone] = useState(schedule?.timing.zone ?? account.planningZone),
+    [zone, setZone] = useState(
+      retained?.timing?.zone ?? schedule?.timing.zone ?? account.planningZone,
+    ),
     [startsOn, setStartsOn] = useState(
-      schedule?.timing.startsOn ?? accountToday(account.planningZone),
+      retained?.timing?.startsOn ?? schedule?.timing.startsOn ?? accountToday(account.planningZone),
     ),
-    [prefix, setPrefix] = useState(schedule?.listPrefix ?? ''),
+    [prefix, setPrefix] = useState(retained?.listPrefix ?? schedule?.listPrefix ?? ''),
     [relative, setRelative] = useState(
-      schedule?.useRelativeDates ?? template?.snapshot.dateMode !== 'none',
+      retained?.useRelativeDates ??
+        schedule?.useRelativeDates ??
+        template?.snapshot.dateMode !== 'none',
     );
   const [baseline, setBaseline] = useState(schedule),
     [formError, setFormError] = useState(''),
@@ -127,7 +145,8 @@ export function ScheduleEditor({
   const original = useRef(JSON.stringify(settings));
   const dirty = JSON.stringify(settings) !== original.current;
   useDirty(dirty, onDirtyChange);
-  async function save(event: FormEvent) {
+  const captured = useRef(false);
+  function save(event: FormEvent) {
     event.preventDefault();
     setFormError('');
     const parsed = CreateTemplateScheduleSchema.safeParse({
@@ -150,7 +169,10 @@ export function ScheduleEditor({
           input: parsed.data,
         }
       : { kind: 'template.schedule.create', input: parsed.data };
-    if (await mutate(command)) onSaved();
+    if (!captured.current && mutate(command)) {
+      captured.current = true;
+      onSaved();
+    }
   }
   async function reviewLatest() {
     if (!baseline) return;
@@ -172,13 +194,13 @@ export function ScheduleEditor({
     }
   }
   return (
-    <CloseGuard dirty={dirty} busy={busy || reviewing} onClose={onClose}>
+    <CloseGuard dirty={dirty} busy={reviewing} onClose={onClose}>
       {(close) => (
         <Dialog
           title={baseline ? 'edit recurring checklist' : 'a recurring checklist'}
           onClose={close}
           wide
-          pending={busy || reviewing}
+          pending={reviewing}
         >
           <form className="dialog__body templates__form" onSubmit={(event) => void save(event)}>
             <ServerRecovery />
@@ -191,7 +213,7 @@ export function ScheduleEditor({
                 resolve or cancel that run before changing the future destination.
               </p>
             )}
-            <fieldset disabled={busy || reviewing || !localWritable(account)}>
+            <fieldset disabled={reviewing || !localWritable(account)}>
               <label>
                 personal template
                 <Select
@@ -340,20 +362,19 @@ export function ScheduleEditor({
                 className="templates__text"
                 type="button"
                 onClick={() => void reviewLatest()}
-                disabled={busy || reviewing}
+                disabled={reviewing}
               >
                 review latest revision; keep my draft
               </button>
             )}
             <footer>
-              <button type="button" onClick={close} disabled={busy || reviewing}>
+              <button type="button" onClick={close} disabled={reviewing}>
                 cancel
               </button>
               <button
                 type="submit"
                 className="primary"
                 disabled={
-                  busy ||
                   reviewing ||
                   !localWritable(account) ||
                   !timing.success ||
@@ -361,7 +382,7 @@ export function ScheduleEditor({
                   !selectedBoard
                 }
               >
-                {busy ? 'saving…' : 'save schedule'}
+                save schedule
               </button>
             </footer>
             {baseline && (
@@ -381,15 +402,16 @@ export function ScheduleEditor({
                 <button
                   className="templates__danger"
                   type="button"
-                  disabled={!deleteConfirm || busy || !localWritable(account)}
+                  disabled={!deleteConfirm || !localWritable(account)}
                   onClick={() => {
-                    void mutate({
-                      kind: 'template.schedule.delete',
-                      scheduleId: baseline.id,
-                      revision: baseline.revision,
-                    }).then((saved) => {
-                      if (saved) onSaved();
-                    });
+                    if (
+                      mutate({
+                        kind: 'template.schedule.delete',
+                        scheduleId: baseline.id,
+                        revision: baseline.revision,
+                      })
+                    )
+                      onSaved();
                   }}
                 >
                   delete schedule
@@ -407,7 +429,6 @@ export function ResumeSchedule({
   account,
   schedule,
   mutate,
-  busy,
   error,
   onClose,
   onSaved,
@@ -415,7 +436,6 @@ export function ResumeSchedule({
   account: ConnectionSummary;
   schedule: TemplateScheduleSummary;
   mutate: Mutate;
-  busy: boolean;
   error: string;
   onClose: () => void;
   onSaved: () => void;
@@ -433,7 +453,7 @@ export function ResumeSchedule({
       })
     : null;
   return (
-    <Dialog title="resume this rhythm" onClose={onClose} pending={busy}>
+    <Dialog title="resume this rhythm" onClose={onClose}>
       <div className="dialog__body templates__form">
         <ServerRecovery />
         <p>choose what to do with the missed checklists. lanes will not generate a backlog.</p>
@@ -480,22 +500,23 @@ export function ResumeSchedule({
           </p>
         )}
         <footer>
-          <button type="button" disabled={busy} onClick={onClose}>
+          <button type="button" onClick={onClose}>
             cancel
           </button>
           <button
             type="button"
             className="primary"
-            disabled={busy || !providerWritable(account)}
+            disabled={!providerWritable(account)}
             onClick={() => {
-              void mutate({
-                kind: 'template.schedule.resume',
-                scheduleId: schedule.id,
-                revision: schedule.revision,
-                catchUp: choice,
-              }).then((saved) => {
-                if (saved) onSaved();
-              });
+              if (
+                mutate({
+                  kind: 'template.schedule.resume',
+                  scheduleId: schedule.id,
+                  revision: schedule.revision,
+                  catchUp: choice,
+                })
+              )
+                onSaved();
             }}
           >
             resume schedule

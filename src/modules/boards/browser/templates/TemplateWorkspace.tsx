@@ -1,12 +1,13 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import type { ConnectionSummary } from '../../../accounts/contracts/connection';
 import { type TemplateRunSummary, type TemplateScheduleSummary } from '../../contracts/template';
-import { TemplateCommandSchema } from '../../contracts/template-commands';
+import type { TemplateCommand } from '../../contracts/template-commands';
+import { Dialog } from '../../../../shared/ui/dialog/Dialog';
+import { useTemplateChanges, type TemplateFailure } from './useTemplateChanges';
 import { Icon } from '../../../../shared/ui/icon/Icon';
 import { checkServerConnection, request } from '../../../../shared/browser/http/http';
 import { BoardPageSchema } from '../../contracts/query';
 import { usePagedResource } from '../../../../shared/browser/resources/usePagedResource';
-import { newOperationId } from '../../../operations/browser/submission/operation-identity';
 import { useCommands } from '../../../operations/browser/submission/useCommands';
 import { useServerConnection } from '../../../../shared/browser/connectivity/useServerConnection';
 import './TemplateWorkspace.css';
@@ -14,10 +15,7 @@ import {
   type PersonalTemplate,
   type Tab,
   baseFor,
-  type InputIdentity,
   query,
-  type Mutate,
-  unchangedInputIdentity,
   localWritable,
   errorMessage,
   providerWritable,
@@ -46,9 +44,12 @@ export interface TemplateWorkspaceProps {
   onOpenOperation?: (operationId: string) => void;
   onRefreshInventory?: () => void;
   onDirtyChange?: (dirty: boolean) => void;
+  presented?: boolean;
+  onClose?: () => void;
+  onNotice?: ((message: string, operationId?: string) => void) | undefined;
 }
 
-type Modal =
+type Modal = (
   | {
       kind: 'save';
       template?: PersonalTemplate;
@@ -69,7 +70,8 @@ type Modal =
   | {
       kind: 'resume';
       schedule: TemplateScheduleSummary;
-    };
+    }
+) & { draft?: TemplateCommand };
 
 /** The account key also scopes drafts, abortable reads, and retained command identities. */
 export function TemplateWorkspace(props: TemplateWorkspaceProps) {
@@ -84,6 +86,9 @@ function TemplateWorkspaceBody({
   onOpenOperation,
   onRefreshInventory,
   onDirtyChange,
+  presented = true,
+  onClose,
+  onNotice,
 }: TemplateWorkspaceProps) {
   const [tab, setTab] = useState<Tab>('personal'),
     [modal, setModal] = useState<Modal | null>(null),
@@ -95,65 +100,93 @@ function TemplateWorkspaceBody({
     setGeneration((value) => value + 1);
     onChanged?.();
   };
-  const commands = useCommands(account.id, clockOffset, changed);
+  const commands = useCommands(account.id, clockOffset, () => {});
   const connection = useServerConnection();
-  const commandIdentity = useRef<InputIdentity | null>(null);
   const list = usePagedResource(
-    `${account.id}:list-templates`,
+    presented ? `${account.id}:list-templates` : null,
     (cursor, signal) =>
       request(`${base}/templates/list${query(cursor)}`, ListPageSchema, { signal }),
     (item) => item.id,
     invalidation,
   );
   const board = usePagedResource(
-    `${account.id}:board-templates`,
+    presented ? `${account.id}:board-templates` : null,
     (cursor, signal) =>
       request(`${base}/templates/board${query(cursor)}`, BoardTemplatePageSchema, { signal }),
     (item) => item.id,
     invalidation,
   );
   const schedules = usePagedResource(
-    tab === 'schedules' ? `${account.id}:template-schedules` : null,
+    presented && tab === 'schedules' ? `${account.id}:template-schedules` : null,
     (cursor, signal) =>
       request(`${base}/template-schedules${query(cursor)}`, SchedulePageSchema, { signal }),
     (item) => item.id,
     invalidation,
   );
   const runs = usePagedResource(
-    tab === 'runs' ? `${account.id}:template-runs` : null,
+    presented && tab === 'runs' ? `${account.id}:template-runs` : null,
     (cursor, signal) => request(`${base}/template-runs${query(cursor)}`, RunPageSchema, { signal }),
     (item) => item.id,
     invalidation,
   );
   const boards = usePagedResource(
-    `${account.id}:template-boards`,
+    presented ? `${account.id}:template-boards` : null,
     (cursor, signal) => request(`${base}/boards${query(cursor)}`, BoardPageSchema, { signal }),
     (item) => item.id,
     invalidation,
   );
-  const templates: PersonalTemplate[] = [...list.items, ...board.items].filter(
+  const confirmedTemplates: PersonalTemplate[] = [...list.items, ...board.items].filter(
     (item) => item.accountId === account.id,
   );
-  const mutate: Mutate = async (command) => {
-    const parsed = TemplateCommandSchema.safeParse(command);
-    if (!parsed.success) {
-      setNotice(parsed.error.issues[0]?.message ?? 'check these fields.');
-      return false;
+  const changes = useTemplateChanges({
+    account,
+    clockOffset,
+    commands,
+    templates: confirmedTemplates,
+    schedules: schedules.items.filter((item) => item.accountId === account.id),
+    onChanged: changed,
+    onFailure: (failure) => onNotice?.(failure.message, failure.operationId),
+  });
+  const { mutate, templates } = changes;
+  function reviewFailure(failure: TemplateFailure) {
+    const command = failure.command;
+    if ('templateId' in command) {
+      const template = confirmedTemplates.find(
+        (item) =>
+          item.id === command.templateId && command.kind.startsWith(`template.${item.kind}.`),
+      );
+      if (!template) {
+        setNotice('reload the template before reviewing this change.');
+        return;
+      }
+      setModal({
+        kind: command.kind.endsWith('.replace') ? 'save' : 'manage',
+        template,
+        draft: command,
+      });
+    } else if ('scheduleId' in command) {
+      const schedule = schedules.items.find((item) => item.id === command.scheduleId);
+      if (!schedule) {
+        setNotice('reload schedules before reviewing this change.');
+        return;
+      }
+      setModal({
+        kind: command.kind.endsWith('.resume') ? 'resume' : 'schedule',
+        schedule,
+        draft: command,
+      });
+    } else if (command.kind === 'template.schedule.create') {
+      setModal({ kind: 'schedule', draft: command });
+    } else if (command.kind.endsWith('.create')) {
+      setModal({ kind: 'save', draft: command });
     }
-    commandIdentity.current = unchangedInputIdentity(commandIdentity.current, parsed.data, () =>
-      newOperationId(clockOffset),
-    );
-    const result = await commands.submit(parsed.data, 'local', commandIdentity.current.id);
-    // A confirmed success ends this intent; a later identical create is new work.
-    if (result?.state === 'succeeded') commandIdentity.current = null;
-    return result?.state === 'succeeded';
-  };
+  }
   const close = () => {
     setModal(null);
     commands.clearError();
     setNotice('');
   };
-  return (
+  const content = (
     <section className="templates" aria-label="templates">
       <header className="templates__heading">
         <div>
@@ -214,9 +247,9 @@ function TemplateWorkspaceBody({
             : 'this account is read only while it is disconnected.'}
         </p>
       )}
-      {(notice || commands.error) && (
+      {(notice || changes.error || commands.error) && (
         <p className="templates__error" role="alert">
-          {notice || commands.error}
+          {notice || changes.error || commands.error}
           {commands.errorDetails?.operationId && onOpenOperation && (
             <button
               type="button"
@@ -227,9 +260,37 @@ function TemplateWorkspaceBody({
           )}
         </p>
       )}
+      {changes.failures.map((failure) => (
+        <p className="templates__error" role="alert" key={failure.identity}>
+          {failure.message}
+          {failure.operationId && onOpenOperation && (
+            <button type="button" onClick={() => onOpenOperation(failure.operationId!)}>
+              check this change
+            </button>
+          )}
+          {failure.retryable && !failure.command.kind.endsWith('.gallery') && (
+            <button type="button" onClick={() => reviewFailure(failure)}>
+              review draft
+            </button>
+          )}
+          <button type="button" onClick={() => changes.dismissFailure(failure.identity)}>
+            dismiss
+          </button>
+        </p>
+      ))}
       {tab === 'personal' && (
         <>
           <div className="templates__collection">
+            {changes.createdTemplates.map((template) => (
+              <article className="templates__card" key={template.id}>
+                <span className="templates__stamp">
+                  <Icon name={template.kind === 'board' ? 'board' : 'list'} size={16} />
+                  {template.kind}
+                </span>
+                <h3>{template.name}</h3>
+                {template.description && <p>{template.description}</p>}
+              </article>
+            ))}
             {templates.map((template) => (
               <article className="templates__card" key={`${template.kind}:${template.id}`}>
                 <div className="templates__card-heading">
@@ -274,7 +335,12 @@ function TemplateWorkspaceBody({
               </article>
             ))}
           </div>
-          <PageState resource={list} empty={list.loaded && board.loaded && !templates.length}>
+          <PageState
+            resource={list}
+            empty={
+              list.loaded && board.loaded && !templates.length && !changes.createdTemplates.length
+            }
+          >
             <Icon name="template" size={23} />
             <h3>keep a good starting point</h3>
             <p>save a list or a whole board, or make a personal copy of a starter.</p>
@@ -286,10 +352,9 @@ function TemplateWorkspaceBody({
         <GalleryView
           account={account}
           mutate={mutate}
-          busy={commands.busy}
           onSaved={() => {
             setTab('personal');
-            setNotice('starter saved as an independent personal template.');
+            setNotice('');
           }}
         />
       )}
@@ -307,7 +372,7 @@ function TemplateWorkspaceBody({
             </button>
           </div>
           <div className="templates__rows">
-            {schedules.items
+            {changes.schedules
               .filter((item) => item.accountId === account.id)
               .map((schedule) => (
                 <article className="templates__row" key={schedule.id}>
@@ -335,7 +400,9 @@ function TemplateWorkspaceBody({
                     <p>
                       {schedule.nextRunAt
                         ? `next eligible run ${formatInstant(schedule.nextRunAt, schedule.timing.zone)}`
-                        : 'no eligible run while paused'}
+                        : schedule.state === 'active'
+                          ? ''
+                          : 'no eligible run while paused'}
                       {schedule.pauseReason
                         ? ` · ${schedule.pauseReason.replaceAll('_', ' ')}`
                         : ''}
@@ -349,7 +416,7 @@ function TemplateWorkspaceBody({
                   <div className="templates__row-actions">
                     <button
                       type="button"
-                      disabled={!localWritable(account) || commands.busy}
+                      disabled={!localWritable(account)}
                       onClick={() => setModal({ kind: 'schedule', schedule })}
                     >
                       edit
@@ -357,7 +424,7 @@ function TemplateWorkspaceBody({
                     {schedule.state === 'active' ? (
                       <button
                         type="button"
-                        disabled={!localWritable(account) || commands.busy}
+                        disabled={!localWritable(account)}
                         onClick={() =>
                           void mutate({
                             kind: 'template.schedule.pause',
@@ -371,7 +438,7 @@ function TemplateWorkspaceBody({
                     ) : (
                       <button
                         type="button"
-                        disabled={!localWritable(account) || commands.busy}
+                        disabled={!localWritable(account)}
                         onClick={() => setModal({ kind: 'resume', schedule })}
                       >
                         resume
@@ -394,7 +461,7 @@ function TemplateWorkspaceBody({
                 </article>
               ))}
           </div>
-          <PageState resource={schedules} empty={!schedules.items.length}>
+          <PageState resource={schedules} empty={!changes.schedules.length}>
             <h3>a rhythm, with room to pause</h3>
             <p>
               schedule a personal template. each run creates new lists and leaves the previous
@@ -456,9 +523,9 @@ function TemplateWorkspaceBody({
           account={account}
           boards={boards}
           template={modal.template}
+          draft={modal.draft}
           mutate={mutate}
-          busy={commands.busy}
-          error={commands.error}
+          error={changes.error || commands.error}
           onClose={close}
           onSaved={close}
           onDirtyChange={onDirtyChange}
@@ -468,9 +535,9 @@ function TemplateWorkspaceBody({
         <TemplateManager
           account={account}
           template={modal.template}
+          draft={modal.draft}
           mutate={mutate}
-          busy={commands.busy}
-          error={commands.error}
+          error={changes.error || commands.error}
           onClose={close}
           onApplied={(template) => setModal({ kind: 'apply', template })}
           onReplace={(template) => setModal({ kind: 'save', template })}
@@ -500,6 +567,7 @@ function TemplateWorkspaceBody({
           templates={templates}
           template={modal.template}
           schedule={modal.schedule}
+          draft={modal.draft}
           moreTemplates={Boolean(list.nextCursor || board.nextCursor)}
           onMoreTemplates={() => {
             if (list.nextCursor) void list.loadMore();
@@ -507,8 +575,7 @@ function TemplateWorkspaceBody({
           }}
           boards={boards}
           mutate={mutate}
-          busy={commands.busy}
-          error={commands.error}
+          error={changes.error || commands.error}
           onClose={close}
           onSaved={close}
           onDirtyChange={onDirtyChange}
@@ -519,8 +586,7 @@ function TemplateWorkspaceBody({
           account={account}
           schedule={modal.schedule}
           mutate={mutate}
-          busy={commands.busy}
-          error={commands.error}
+          error={changes.error || commands.error}
           onClose={close}
           onSaved={close}
         />
@@ -535,5 +601,13 @@ function TemplateWorkspaceBody({
         />
       )}
     </section>
+  );
+  if (!presented) return null;
+  return onClose ? (
+    <Dialog title="templates" wide onClose={onClose}>
+      {content}
+    </Dialog>
+  ) : (
+    content
   );
 }

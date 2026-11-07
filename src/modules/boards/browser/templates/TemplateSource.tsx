@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import type { ConnectionSummary } from '../../../accounts/contracts/connection';
 import type { Board } from '../../contracts/board';
 import { BoardTemplateSummarySchema } from '../../contracts/template';
@@ -6,6 +6,7 @@ import {
   BoardTemplateSourceSchema,
   ListTemplateSourceSchema,
   TemplateCommandSchema,
+  type TemplateCommand,
 } from '../../contracts/template-commands';
 import {
   ListTemplateSummarySchema,
@@ -136,8 +137,8 @@ export function SourceEditor({
   account,
   boards,
   template,
+  draft,
   mutate,
-  busy,
   error,
   onClose,
   onSaved,
@@ -146,20 +147,36 @@ export function SourceEditor({
   account: ConnectionSummary;
   boards: BoardsResource;
   template?: PersonalTemplate | undefined;
+  draft?: TemplateCommand | undefined;
   mutate: Mutate;
-  busy: boolean;
   error: string;
   onClose: () => void;
   onSaved: () => void;
   onDirtyChange: TemplateWorkspaceProps['onDirtyChange'];
 }) {
-  const [kind, setKind] = useState<Kind>(template?.kind ?? 'list'),
-    [boardId, setBoardId] = useState(''),
-    [listId, setListId] = useState('');
-  const [name, setName] = useState(''),
-    [description, setDescription] = useState(''),
-    [completed, setCompleted] = useState(false),
-    [dateMode, setDateMode] = useState<'relative' | 'none'>('relative');
+  const retained =
+    draft?.kind === 'template.list.create' ||
+    draft?.kind === 'template.board.create' ||
+    draft?.kind === 'template.list.replace' ||
+    draft?.kind === 'template.board.replace'
+      ? draft.input
+      : null;
+  const captured = useRef(false);
+  const [kind, setKind] = useState<Kind>(
+      draft?.kind.startsWith('template.board.') ? 'board' : (template?.kind ?? 'list'),
+    ),
+    [boardId, setBoardId] = useState(retained && 'boardId' in retained ? retained.boardId : ''),
+    [listId, setListId] = useState(retained && 'listId' in retained ? retained.listId : '');
+  const [name, setName] = useState(
+      retained && 'name' in retained && typeof retained.name === 'string' ? retained.name : '',
+    ),
+    [description, setDescription] = useState(
+      retained && 'description' in retained && typeof retained.description === 'string'
+        ? retained.description
+        : '',
+    ),
+    [completed, setCompleted] = useState(retained?.includeCompleted ?? false),
+    [dateMode, setDateMode] = useState<'relative' | 'none'>(retained?.dateMode ?? 'relative');
   const [preview, setPreview] = useState<{
       fingerprint: string;
       value: SourcePreview;
@@ -222,7 +239,7 @@ export function SourceEditor({
       if (!lifetime.current.signal.aborted) setLoading(false);
     }
   }
-  async function submit(event: FormEvent) {
+  function submit(event: FormEvent) {
     event.preventDefault();
     if (!currentPreview || !localWritable(account)) return;
     const command = template
@@ -233,7 +250,10 @@ export function SourceEditor({
       setFormError(parsed.error.issues[0]?.message ?? 'check the template fields.');
       return;
     }
-    if (await mutate(parsed.data)) onSaved();
+    if (!captured.current && mutate(parsed.data)) {
+      captured.current = true;
+      onSaved();
+    }
   }
   async function reviewRevision() {
     if (!template) return;
@@ -256,13 +276,13 @@ export function SourceEditor({
     }
   }
   return (
-    <CloseGuard dirty={dirty} busy={busy || loading} onClose={onClose}>
+    <CloseGuard dirty={dirty} busy={loading} onClose={onClose}>
       {(close) => (
         <Dialog
           title={template ? `replace ${template.name}` : 'save a starting point'}
           onClose={close}
           wide
-          pending={busy || loading}
+          pending={loading}
         >
           <form className="dialog__body templates__form" onSubmit={(event) => void submit(event)}>
             <ServerRecovery />
@@ -271,7 +291,7 @@ export function SourceEditor({
                 ? 'the new snapshot becomes a new content version. already admitted runs keep their original input.'
                 : 'choose a source, then review what will be saved. later edits to the source will not change this snapshot.'}
             </p>
-            <fieldset disabled={busy || loading || !localWritable(account)}>
+            <fieldset disabled={loading || !localWritable(account)}>
               {!template && (
                 <div className="templates__segmented" aria-label="template kind">
                   {(['list', 'board'] as const).map((value) => (
@@ -380,22 +400,22 @@ export function SourceEditor({
               <button
                 className="templates__text"
                 type="button"
-                disabled={loading || busy}
+                disabled={loading}
                 onClick={() => void reviewRevision()}
               >
                 review latest template revision
               </button>
             )}
             <footer>
-              <button type="button" onClick={close} disabled={busy || loading}>
+              <button type="button" onClick={close} disabled={loading}>
                 cancel
               </button>
               <button
                 className="primary"
                 type="submit"
-                disabled={busy || loading || !currentPreview || !localWritable(account)}
+                disabled={loading || !currentPreview || !localWritable(account)}
               >
-                {busy ? 'saving…' : template ? 'confirm replacement' : 'save template'}
+                {template ? 'confirm replacement' : 'save template'}
               </button>
             </footer>
           </form>

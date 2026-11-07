@@ -79,3 +79,12 @@ export const TemplateCommandSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('template.schedule.delete'), scheduleId: id, revision }).strict(),
 ]);
 export type TemplateCommand = z.infer<typeof TemplateCommandSchema>;
+
+/** Local create receipts name their resulting resources before the response reaches the browser. */
+export function templateResultIds(operationId: string) {
+  return {
+    templateId: `template:${operationId}`,
+    snapshotId: `snapshot:${operationId}`,
+    scheduleId: `schedule:${operationId}`,
+  };
+}

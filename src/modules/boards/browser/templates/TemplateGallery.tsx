@@ -9,12 +9,10 @@ import { type Gallery, GallerySchema } from './template-client';
 export function GalleryView({
   account,
   mutate,
-  busy,
   onSaved,
 }: {
   account: ConnectionSummary;
   mutate: Mutate;
-  busy: boolean;
   onSaved: () => void;
 }) {
   const [data, setData] = useState<
@@ -91,16 +89,17 @@ export function GalleryView({
               <footer>
                 <button
                   type="button"
-                  disabled={busy || !localWritable(account)}
+                  disabled={!localWritable(account)}
                   onClick={() => {
-                    void mutate(
-                      TemplateCommandSchema.parse({
-                        kind: `template.${group.kind}.gallery`,
-                        galleryId: entry.id,
-                      }),
-                    ).then((saved) => {
-                      if (saved) onSaved();
-                    });
+                    if (
+                      mutate(
+                        TemplateCommandSchema.parse({
+                          kind: `template.${group.kind}.gallery`,
+                          galleryId: entry.id,
+                        }),
+                      )
+                    )
+                      onSaved();
                   }}
                 >
                   save personal copy

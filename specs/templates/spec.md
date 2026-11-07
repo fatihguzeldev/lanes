@@ -29,6 +29,14 @@ negative offsets are valid and visible in preview. they may create tasks schedul
 
 a snapshot never follows later source edits. deleting its source list or board does not delete the template. saving a replacement snapshot is an explicit action with its own preview.
 
+## browser submission
+
+validating a name, description, schedule, or prepared snapshot completes the editing interaction immediately. close its editor after capturing the command and its operation identity. keep accepted commands in the account workspace when the templates view closes or the owner switches accounts; do not keep a form open or disable unrelated controls while saving.
+
+show metadata and schedule edits immediately. retain the preview until a confirmed read replaces it. process later edits to the same resource in order, advancing only from confirmed predecessors. if an earlier change fails, preserve later drafts without sending them against an assumed revision.
+
+a failed save removes its preview and exposes its receipt and captured draft. restore editable fields only after a definite rejection; an ambiguous create keeps its original identity and requires inspection before another create. source preview, application admission, and bulk run progress keep their existing review steps.
+
 ## applying a template
 
 support these actions:
@@ -95,3 +103,5 @@ the baseline snapshot, relative-date, and weekly/monthly behavior follows [tasks
 - `templates-07`: a multi-week pause offers one latest catch-up or skip, not an automatic backlog.
 - `templates-08`: deleted destinations/templates and expired grants pause schedules while preserving previous output.
 - `templates-09`: gallery data requires no external service and passes the same validation as a personal template.
+
+- `templates-10`: validated edits close immediately, retain their account owner after view closure, update metadata optimistically, and preserve rejected drafts and ambiguous receipt identities.

@@ -1,18 +1,21 @@
 import { lazy, Suspense, useState } from 'react';
-import type { ConnectionSummary } from '../../../accounts/contracts/connection';
 import { Dialog } from '../../../../shared/ui/dialog/Dialog';
+import type { ConnectionSummary } from '../../../accounts/contracts/connection';
 
 const TemplateWorkspace = lazy(() =>
   import('./TemplateWorkspace').then((module) => ({ default: module.TemplateWorkspace })),
 );
 export function useTemplateDialog() {
   const [open, setOpen] = useState(false),
+    [opened, setOpened] = useState(false),
     [dirty, setDirty] = useState(false);
   return {
     open,
+    opened,
     dirty,
     setDirty,
     show() {
+      setOpened(true);
       setOpen(true);
     },
     close() {
@@ -30,6 +33,8 @@ interface Props {
   onChanged(): void;
   onInspect(id: string): void;
   onRefreshInventory(): void;
+  active?: boolean;
+  onNotice?: (message: string, operationId?: string) => void;
 }
 export function TemplateDialog({
   controller,
@@ -40,34 +45,33 @@ export function TemplateDialog({
   onChanged,
   onInspect,
   onRefreshInventory,
+  active = true,
+  onNotice,
 }: Props) {
-  return (
-    <>
-      {controller.open && (
-        <Dialog
-          title="templates"
-          wide
-          onClose={() =>
-            guard(() => {
-              controller.close();
-            })
-          }
-        >
-          <Suspense fallback={<div className="dialog__body">opening templates…</div>}>
-            <TemplateWorkspace
-              account={account}
-              clockOffset={clockOffset}
-              version={version}
-              onChanged={onChanged}
-              onDirtyChange={controller.setDirty}
-              onOpenOperation={(id) => {
-                onInspect(id);
-              }}
-              onRefreshInventory={onRefreshInventory}
-            />
-          </Suspense>
-        </Dialog>
-      )}
-    </>
-  );
+  return controller.opened ? (
+    <Suspense
+      fallback={
+        active && controller.open ? (
+          <Dialog title="templates" wide onClose={() => controller.close()}>
+            <div className="dialog__body" role="status">
+              loading…
+            </div>
+          </Dialog>
+        ) : null
+      }
+    >
+      <TemplateWorkspace
+        account={account}
+        clockOffset={clockOffset}
+        version={version}
+        presented={active && controller.open}
+        onClose={() => guard(() => controller.close())}
+        onChanged={onChanged}
+        onDirtyChange={controller.setDirty}
+        onOpenOperation={onInspect}
+        onRefreshInventory={onRefreshInventory}
+        onNotice={onNotice}
+      />
+    </Suspense>
+  ) : null;
 }

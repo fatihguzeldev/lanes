@@ -66,7 +66,7 @@ export function unchangedInputIdentity(
   return prior?.fingerprint === fingerprint ? prior : { fingerprint, id: create() };
 }
 
-export type Mutate = (command: TemplateCommand) => Promise<boolean>;
+export type Mutate = (command: TemplateCommand) => boolean;
 
 export function weekdayName(day: number) {
   return (

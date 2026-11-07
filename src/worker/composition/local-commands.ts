@@ -4,7 +4,10 @@ import { AccountPreferenceCommandSchema } from '../../modules/accounts/contracts
 import { assertLocalWritable } from '../../modules/accounts/server/connections/access';
 import { createAccountServices } from '../../modules/accounts/server/create-services';
 import { BoardCommandSchema } from '../../modules/boards/contracts/commands';
-import { TemplateCommandSchema } from '../../modules/boards/contracts/template-commands';
+import {
+  TemplateCommandSchema,
+  templateResultIds,
+} from '../../modules/boards/contracts/template-commands';
 import { BoardService } from '../../modules/boards/server/boards/service';
 import { HistoryService } from '../../modules/history/server/events/event-store';
 import { OperationIdSchema } from '../../modules/operations/contracts/receipt';
@@ -117,10 +120,7 @@ export async function submitLocalCommand(
         saveDay: accountToday(account.planningZone, new Date(now).toISOString()),
         zone: account.planningZone,
       };
-      const admitted = {
-        templateId: `template:${operation.id}`,
-        snapshotId: `snapshot:${operation.id}`,
-      };
+      const admitted = templateResultIds(operation.id);
       switch (command.kind) {
         case 'template.list.create':
           await templates.listTemplates.create(accountId, command.input, templateContext, admitted);
@@ -204,12 +204,7 @@ export async function submitLocalCommand(
           );
           break;
         case 'template.schedule.create':
-          await templates.schedules.create(
-            accountId,
-            command.input,
-            context,
-            `schedule:${operation.id}`,
-          );
+          await templates.schedules.create(accountId, command.input, context, admitted.scheduleId);
           break;
         case 'template.schedule.update':
           await templates.schedules.update(

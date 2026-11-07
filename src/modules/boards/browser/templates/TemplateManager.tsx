@@ -1,7 +1,7 @@
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import type { ConnectionSummary } from '../../../accounts/contracts/connection';
 import { BoardTemplateSummarySchema } from '../../contracts/template';
-import { TemplateCommandSchema } from '../../contracts/template-commands';
+import { TemplateCommandSchema, type TemplateCommand } from '../../contracts/template-commands';
 import { ListTemplateSummarySchema } from '../../../tasks/contracts/template';
 import { accountToday } from '../../../tasks/model/planning';
 import { Dialog } from '../../../../shared/ui/dialog/Dialog';
@@ -23,8 +23,8 @@ import { SourceCounts, SnapshotContent } from './TemplateSource';
 export function TemplateManager({
   account,
   template,
+  draft,
   mutate,
-  busy,
   error,
   onClose,
   onApplied,
@@ -34,8 +34,8 @@ export function TemplateManager({
 }: {
   account: ConnectionSummary;
   template: PersonalTemplate;
+  draft?: TemplateCommand | undefined;
   mutate: Mutate;
-  busy: boolean;
   error: string;
   onClose: () => void;
   onApplied: (template: PersonalTemplate) => void;
@@ -43,15 +43,20 @@ export function TemplateManager({
   onSchedule: (template: PersonalTemplate) => void;
   onDirtyChange: TemplateWorkspaceProps['onDirtyChange'];
 }) {
+  const retained =
+    draft?.kind === 'template.list.update' || draft?.kind === 'template.board.update'
+      ? draft.input
+      : null;
   const [baseline, setBaseline] = useState(template),
-    [name, setName] = useState(template.name),
-    [description, setDescription] = useState(template.description),
+    [name, setName] = useState(retained?.name ?? template.name),
+    [description, setDescription] = useState(retained?.description ?? template.description),
     [deleteConfirm, setDeleteConfirm] = useState(false),
     [formError, setFormError] = useState('');
   const lifetime = useLifetime(),
     dirty = name !== baseline.name || description !== baseline.description;
   useDirty(dirty, onDirtyChange);
-  async function save(event: FormEvent) {
+  const captured = useRef(false);
+  function save(event: FormEvent) {
     event.preventDefault();
     const parsed = TemplateCommandSchema.safeParse({
       kind: `template.${baseline.kind}.update`,
@@ -63,19 +68,25 @@ export function TemplateManager({
       setFormError(parsed.error.issues[0]?.message ?? 'check the template fields.');
       return;
     }
-    if (await mutate(parsed.data)) onClose();
+    if (!captured.current && mutate(parsed.data)) {
+      captured.current = true;
+      onClose();
+    }
   }
-  async function remove() {
+  function remove() {
     if (
-      await mutate(
+      !captured.current &&
+      mutate(
         TemplateCommandSchema.parse({
           kind: `template.${baseline.kind}.delete`,
           templateId: baseline.id,
           revision: baseline.revision,
         }),
       )
-    )
+    ) {
+      captured.current = true;
       onClose();
+    }
   }
   async function reviewLatest() {
     try {
@@ -93,9 +104,9 @@ export function TemplateManager({
     }
   }
   return (
-    <CloseGuard dirty={dirty} busy={busy} onClose={onClose}>
+    <CloseGuard dirty={dirty} busy={false} onClose={onClose}>
       {(close) => (
-        <Dialog title={baseline.name} onClose={close} wide pending={busy}>
+        <Dialog title={baseline.name} onClose={close} wide>
           <div className="dialog__body templates__form">
             <ServerRecovery />
             <span className="templates__stamp">
@@ -111,7 +122,7 @@ export function TemplateManager({
                 }
               }}
             >
-              <fieldset disabled={busy || !localWritable(account)}>
+              <fieldset disabled={!localWritable(account)}>
                 <label>
                   name
                   <input value={name} onChange={(event) => setName(event.target.value)} required />
@@ -136,11 +147,7 @@ export function TemplateManager({
                   >
                     reset fields
                   </button>
-                  <button
-                    type="submit"
-                    className="primary"
-                    disabled={busy || !localWritable(account)}
-                  >
+                  <button type="submit" className="primary" disabled={!localWritable(account)}>
                     save details
                   </button>
                 </footer>
@@ -161,19 +168,14 @@ export function TemplateManager({
               </p>
             )}
             {error && (
-              <button
-                className="templates__text"
-                type="button"
-                onClick={() => void reviewLatest()}
-                disabled={busy}
-              >
+              <button className="templates__text" type="button" onClick={() => void reviewLatest()}>
                 review latest revision without discarding fields
               </button>
             )}
             <div className="templates__management">
               <button
                 type="button"
-                disabled={dirty || busy || !providerWritable(account)}
+                disabled={dirty || !providerWritable(account)}
                 onClick={() => onApplied(baseline)}
               >
                 use template
@@ -181,7 +183,7 @@ export function TemplateManager({
               </button>
               <button
                 type="button"
-                disabled={dirty || busy || !localWritable(account)}
+                disabled={dirty || !localWritable(account)}
                 onClick={() => onSchedule(baseline)}
               >
                 schedule a checklist
@@ -189,7 +191,7 @@ export function TemplateManager({
               </button>
               <button
                 type="button"
-                disabled={dirty || busy || !localWritable(account)}
+                disabled={dirty || !localWritable(account)}
                 onClick={() => onReplace(baseline)}
               >
                 replace the saved snapshot
@@ -210,7 +212,7 @@ export function TemplateManager({
               <button
                 className="templates__danger"
                 type="button"
-                disabled={!deleteConfirm || busy || !localWritable(account)}
+                disabled={!deleteConfirm || !localWritable(account)}
                 onClick={() => void remove()}
               >
                 delete template
