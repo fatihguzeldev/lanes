@@ -205,9 +205,8 @@
     max-width: 19ch;
   }
   .hero__summary {
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
+    flex-direction: column;
+    align-items: flex-start;
     gap: 16px;
   }
   .hero__description {
@@ -243,10 +242,6 @@
   }
   .site-brand__mark {
     scale: 0.9;
-  }
-  .hero__summary {
-    flex-direction: column;
-    align-items: flex-start;
   }
   .hero__description {
     max-width: 29ch;
