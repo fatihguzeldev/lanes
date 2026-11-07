@@ -5,7 +5,7 @@ import { z } from 'zod';
 import type { ConnectionSummary } from '../../../accounts/contracts/connection';
 import { TaskEditor } from './TaskEditor';
 import type { EditorSelection, TaskEditorCreate, TaskEditorSave } from './editor-contract';
-import { TaskSchema, type Label, type Task } from '../../contracts/task';
+import { TaskSchema, type CreateTask, type Label, type Task } from '../../contracts/task';
 import { LabelDeletionJobSchema } from '../../contracts/metadata-commands';
 import { TaskDependantsPageSchema } from '../../contracts/query';
 import { RecurrenceStatusSchema, type RecurrenceStatus } from '../../contracts/recurrence';
@@ -32,6 +32,7 @@ interface Props {
   onChanged: () => void;
   onClose: () => void;
   onSaved: () => void;
+  onCreatePending?(input: CreateTask): void;
   onDirtyChange: (dirty: boolean) => void;
   onOpenTask: (task: Task) => void;
   onToggleComplete: (task: Task, completed: boolean) => void;
@@ -73,6 +74,7 @@ export function TaskEditorWorkspace({
   onChanged,
   onClose,
   onSaved,
+  onCreatePending,
   onDirtyChange,
   onOpenTask,
   onToggleComplete,
@@ -351,6 +353,7 @@ export function TaskEditorWorkspace({
     if (value.accountId !== account.id || value.input.listId !== selection.list.id) return;
     const { accountId: capturedAccount, ...input } = value.input;
     if (capturedAccount !== account.id) return;
+    if (selection.inlineCreate) onCreatePending?.(value.input);
     void finish(
       {
         kind: 'task.create',

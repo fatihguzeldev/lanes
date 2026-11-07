@@ -6,6 +6,10 @@ import type { TaskFilter, TaskSort } from '../../../tasks/contracts/task';
 import { useTaskQuery } from '../../../tasks/browser/queries/useTaskQuery';
 import { unknownCoverage } from '../../../../shared/browser/resources/usePagedResource';
 import { InlineTaskCreate } from '../../../tasks/browser/creation/InlineTaskCreate';
+import {
+  creationAcknowledged,
+  type PendingTaskCreation,
+} from '../../../tasks/browser/creation/useTaskCreations';
 import type { TaskMoveQueue } from '../../../tasks/browser/movement/useTaskMoveQueue';
 import { projectTaskMoves } from '../../../tasks/browser/movement/task-move-model';
 import type { InitialViewReadiness } from '../../../../shared/browser/resources/readiness';
@@ -163,6 +167,8 @@ export interface BoardWorkspaceProps extends Omit<
   providerActionsEnabled?: boolean;
   onInitialReady?: (state: InitialViewReadiness) => void;
   moveQueue: TaskMoveQueue;
+  creations?: readonly PendingTaskCreation[];
+  onCreationRead?(id: number): void;
 }
 export function BoardWorkspace({
   account,
@@ -176,6 +182,8 @@ export function BoardWorkspace({
   providerActionsEnabled = account.state === 'connected',
   onInitialReady,
   moveQueue,
+  creations = [],
+  onCreationRead,
   ...props
 }: BoardWorkspaceProps) {
   const [data, setData] = useState<Record<string, BoardColumn>>({}),
@@ -234,6 +242,26 @@ export function BoardWorkspace({
     columns,
     moveQueue.moves.filter((move) => move.scope === moveScope),
   );
+  const displayedColumns = queuedColumns.map((column) => ({
+    ...column,
+    creations: creations.filter(
+      (creation) =>
+        creation.input.accountId === account.id &&
+        creation.input.listId === column.list.id &&
+        !creationAcknowledged(creation, column.readVersion),
+    ),
+  }));
+  useEffect(() => {
+    for (const creation of creations) {
+      const column = columns.find(
+        (item) =>
+          item.list.accountId === creation.input.accountId &&
+          item.list.id === creation.input.listId,
+      );
+      if (column && creationAcknowledged(creation, column.readVersion))
+        onCreationRead?.(creation.id);
+    }
+  }, [columns, creations, onCreationRead]);
   useEffect(() => {
     moveQueue.reconcile(columns, moveScope);
   }, [columns, moveQueue, moveScope]);
@@ -260,7 +288,7 @@ export function BoardWorkspace({
         key={filter.completion ?? 'open'}
         expandCompleted={!!filter.completion && filter.completion !== 'open'}
         accountId={account.id}
-        columns={queuedColumns}
+        columns={displayedColumns}
         onMoveTask={(intent) => moveQueue.enqueue(intent, columns, moveScope)}
         today={today}
         accountTimeZone={account.planningZone}

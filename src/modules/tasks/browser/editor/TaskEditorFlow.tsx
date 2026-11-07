@@ -5,9 +5,11 @@ import type { Label, Task } from '../../contracts/task';
 import type { TaskEditorController, TaskEditorSession } from './useTaskEditor';
 import { TaskEditorWorkspace } from './TaskEditorWorkspace';
 import { LabelManager } from '../labels/LabelManager';
+import type { TaskCreationController } from '../creation/useTaskCreations';
 
 interface Props {
   controller: TaskEditorController;
+  creations: TaskCreationController;
   account: ConnectionSummary;
   boardId: string | null;
   labels: readonly Label[];
@@ -25,6 +27,7 @@ interface Props {
 }
 export function TaskEditorFlow({
   controller,
+  creations,
   account,
   boardId,
   labels,
@@ -70,6 +73,7 @@ export function TaskEditorFlow({
           presented={id === session?.id}
           onBusyChange={(busy) => controller.setSaving(id, busy)}
           onRetire={(hadWork, error, operationId) => {
+            creations.remove(id);
             retire(id);
             if (hadWork) onChanged();
             if (error)
@@ -89,11 +93,13 @@ export function TaskEditorFlow({
             else guard(() => controller.close(id));
           }}
           onSaved={() => {
+            creations.confirm(id);
             controller.closeSaved(id);
             retire(id);
             onChanged();
             onAccountsChanged();
           }}
+          onCreatePending={(input) => creations.start(id, input)}
           onInspectChange={onInspect}
           onDirtyChange={(dirty) => controller.setDirty(dirty, id)}
           onOpenTask={onOpenTask}

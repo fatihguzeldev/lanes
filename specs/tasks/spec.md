@@ -19,6 +19,8 @@ lanes metadata is stored separately from task notes. do not insert hidden syntax
 
 the list's add-a-task action opens a new row with its task editor already expanded: focus the empty title and expose notes and optional detail controls in the same place. it has no separate approval button. enter in the title, its close control, or an outside click submits a nonblank draft once and closes after admission captures its receipt. a pristine empty entry closes without creating a task; escape cancels an unsubmitted creation draft. validation or failed admission keeps the draft available for correction. nested menus and dialogs remain part of the editor. there is no global create action that silently chooses a list.
 
+after admission closes the editor, keep the submitted task visible as a local row while its save runs. replace it when a fresh list read after confirmation settles, without showing both rows or requiring a page reload. other tasks and the list's add action remain available. failed or uncertain saves use the existing error and receipt flow without resubmitting creation.
+
 open a task in its row, with its title selected for editing and notes immediately available. schedule, metadata, dependencies, and checklist controls reveal their own fields when requested. keep a retained non-modal editor when its card is outside the current view; changing presentation must not remount its draft or abandon a submitted save. closing or navigating away still applies the unsent-draft guard.
 
 clicking outside an editor requests the same close as its close control. clicks in its nested menus or an open dialog do not discard the editor. icon-only detail actions show their meaning on hover and keyboard focus, in addition to their accessible names.

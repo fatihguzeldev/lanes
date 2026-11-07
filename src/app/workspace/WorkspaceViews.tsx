@@ -11,6 +11,7 @@ import type {
 import type { BoardViewPreferences } from '../../modules/boards/browser/view/view-preferences';
 import type { useBoardData } from '../../modules/boards/browser/navigation/useBoardData';
 import type { TaskMoveQueue } from '../../modules/tasks/browser/movement/useTaskMoveQueue';
+import type { PendingTaskCreation } from '../../modules/tasks/browser/creation/useTaskCreations';
 import type { InitialViewReadiness } from '../../shared/browser/resources/readiness';
 import { BoardWorkspace } from '../../modules/boards/browser/board/BoardWorkspace';
 import { CalendarWorkspace } from '../../modules/boards/browser/calendar/CalendarWorkspace';
@@ -58,6 +59,8 @@ interface Props {
   localWritable: boolean;
   pendingTaskIds: ReadonlySet<string>;
   moveQueue: TaskMoveQueue;
+  creations: readonly PendingTaskCreation[];
+  onCreationRead(id: number): void;
   listCreation: ReactNode;
   onInitialReady(state: InitialViewReadiness): void;
   actions: ViewActions;
@@ -86,6 +89,8 @@ export function WorkspaceViews({
   localWritable,
   pendingTaskIds,
   moveQueue,
+  creations,
+  onCreationRead,
   listCreation,
   onInitialReady,
   actions,
@@ -134,6 +139,8 @@ export function WorkspaceViews({
               actions.onListMenu(visibleLists.find((item) => item.id === list.id) ?? null, anchor)
             }
             moveQueue={moveQueue}
+            creations={creations}
+            onCreationRead={onCreationRead}
           />
         )}
       {board &&

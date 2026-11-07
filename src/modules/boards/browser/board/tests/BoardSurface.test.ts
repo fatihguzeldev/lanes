@@ -1,7 +1,7 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { TaskSchema, type TaskList } from '../../../../tasks/contracts/task';
+import { CreateTaskSchema, TaskSchema, type TaskList } from '../../../../tasks/contracts/task';
 import { BoardSurface, type BoardColumn, type BoardSurfaceProps } from '../BoardSurface';
 
 const list: TaskList = {
@@ -82,6 +82,29 @@ const completedTask = TaskSchema.parse({
 });
 
 describe('board list presentation', () => {
+  it('keeps a submitted creation in the list before its confirmed task is available', () => {
+    const markup = render({
+      ...{
+        creations: [
+          {
+            id: 1,
+            input: CreateTaskSchema.parse({
+              accountId: 'account',
+              listId: 'list',
+              title: 'ring64',
+            }),
+            confirmedAfter: null,
+          },
+        ],
+      },
+    });
+    expect(markup).toContain('ring64');
+    expect(markup).not.toContain('no tasks.');
+    expect(markup).not.toContain('saving…');
+    expect(markup).toContain('aria-busy="true"');
+    expect(markup).toMatch(/class="board-column__count"[^>]*>1</);
+  });
+
   it('keeps the known list symbol identical while names and counts are unknown', () => {
     const symbol = (markup: string) =>
       markup.match(/<span class="board-column__symbol">([\s\S]*?)<\/span>/)?.[1];

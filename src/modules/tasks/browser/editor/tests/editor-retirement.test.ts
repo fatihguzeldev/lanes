@@ -2,6 +2,7 @@ import type { ComponentProps, ReactElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TaskEditorWorkspace } from '../TaskEditorWorkspace';
 import type { TaskEditor } from '../TaskEditor';
+import { CreateTaskSchema } from '../../../contracts/task';
 
 const state = vi.hoisted(() => ({
   slots: [] as unknown[],
@@ -70,7 +71,8 @@ vi.mock('../../../../../shared/browser/resources/usePagedResource', () => ({
 
 function mount(inlineCreate = false) {
   const retire = vi.fn(),
-    saved = vi.fn();
+    saved = vi.fn(),
+    preview = vi.fn();
   const props = {
     account: { id: 'account', state: 'connected', planningZone: 'UTC' },
     selection: {
@@ -86,6 +88,7 @@ function mount(inlineCreate = false) {
     onBusyChange: vi.fn(),
     onRetire: retire,
     onSaved: saved,
+    onCreatePending: preview,
     onDirtyChange: vi.fn(),
     onChanged() {},
     onClose() {},
@@ -121,7 +124,7 @@ function mount(inlineCreate = false) {
     });
     return resolve;
   };
-  return { retire, saved, render, save };
+  return { retire, saved, preview, render, save };
 }
 
 describe('hidden editor retirement', () => {
@@ -136,6 +139,23 @@ describe('hidden editor retirement', () => {
     state.commands.submit.mockReset();
     state.repeat.busy = false;
     state.repeat.error = '';
+  });
+
+  it('retains the validated creation before waiting for server admission', () => {
+    const editor = mount(true);
+    const input = CreateTaskSchema.parse({
+      accountId: 'account',
+      listId: 'list',
+      title: 'ring64',
+    });
+    state.commands.submit.mockReturnValue(new Promise(() => {}));
+    editor.render()!.props.children.props.onCreate({
+      accountId: 'account',
+      listRevision: 1,
+      input,
+    });
+    expect(editor.preview).toHaveBeenCalledWith(input);
+    expect(editor.saved).not.toHaveBeenCalled();
   });
 
   it('retires a recovered confirmed receipt even when submit returned null', async () => {

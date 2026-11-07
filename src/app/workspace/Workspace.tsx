@@ -20,6 +20,7 @@ import {
   ChangeInspection,
 } from '../../modules/operations/browser/status/ChangeInspection';
 import { useTaskEditor } from '../../modules/tasks/browser/editor/useTaskEditor';
+import { useTaskCreations } from '../../modules/tasks/browser/creation/useTaskCreations';
 import { TaskEditorFlow } from '../../modules/tasks/browser/editor/TaskEditorFlow';
 import {
   useTaskCompletion,
@@ -136,6 +137,7 @@ export function Workspace({
     return { list, boardId: membership.boardId };
   }, setNotice);
   const editorDirty = taskEditor.dirty;
+  const creations = useTaskCreations(account.id, version);
   const completion = useTaskCompletion();
   const taskMenu = useTaskMenu();
   const changed = useCallback(() => {
@@ -621,6 +623,8 @@ export function Workspace({
           localWritable={localWritable}
           pendingTaskIds={commands.pendingTaskIds}
           moveQueue={moveQueue}
+          creations={creations.items.filter((item) => item.id !== taskEditor.session?.id)}
+          onCreationRead={creations.remove}
           listCreation={
             boardManagement.listCreation.open &&
             boardManagement.listCreation.boardId === board?.id ? (
@@ -680,6 +684,7 @@ export function Workspace({
       </main>
       <TaskEditorFlow
         controller={taskEditor}
+        creations={creations}
         onNotice={setNotice}
         account={account}
         boardId={board?.id ?? null}

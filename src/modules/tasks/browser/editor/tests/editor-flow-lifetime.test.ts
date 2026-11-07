@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TaskEditorFlow } from '../TaskEditorFlow';
 import { TaskEditorWorkspace } from '../TaskEditorWorkspace';
 import type { TaskEditorController, TaskEditorSession } from '../useTaskEditor';
+import { CreateTaskSchema } from '../../../contracts/task';
 
 const hooks = vi.hoisted(() => ({
   slots: [] as unknown[],
@@ -62,6 +63,7 @@ function mount() {
   } as unknown as TaskEditorController;
   const props = {
     controller,
+    creations: { items: [], start: vi.fn(), confirm: vi.fn(), remove: vi.fn() },
     account: { id: 'account' } as ComponentProps<typeof TaskEditorFlow>['account'],
     boardId: 'board',
     labels: [],
@@ -87,6 +89,7 @@ function mount() {
     changed,
     notice,
     accountsChanged,
+    creations: props.creations,
     select(id: number) {
       current = session(id);
       render();
@@ -158,5 +161,28 @@ describe('task editor command lifetime', () => {
     editor!.props.onRetire(false, null, null);
     expect(flow.changed).not.toHaveBeenCalled();
     expect(flow.notice).not.toHaveBeenCalled();
+  });
+
+  it('keeps a creation through its hidden save and confirms it before the list refresh', () => {
+    const flow = mount();
+    const [editor] = flow.render();
+    const input = CreateTaskSchema.parse({ accountId: 'account', listId: 'list', title: 'ring64' });
+    editor!.props.onCreatePending!(input);
+    expect(flow.creations.start).toHaveBeenCalledWith(1, input);
+    editor!.props.onClose();
+    expect(flow.creations.remove).not.toHaveBeenCalled();
+    editor!.props.onSaved();
+    expect(flow.creations.confirm).toHaveBeenCalledWith(1);
+    expect(flow.creations.remove).not.toHaveBeenCalled();
+    expect(flow.changed).toHaveBeenCalledOnce();
+  });
+
+  it('removes a failed creation without changing another session', () => {
+    const flow = mount();
+    const [editor] = flow.render();
+    flow.select(2);
+    editor!.props.onRetire(true, 'google rejected this change.', 'receipt-1');
+    expect(flow.creations.remove).toHaveBeenCalledWith(1);
+    expect(flow.controller.session?.id).toBe(2);
   });
 });

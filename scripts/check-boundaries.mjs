@@ -87,6 +87,8 @@ const publicBrowserFiles = {
   tasks: [
     'browser/creation/InlineTaskCreate.tsx',
     'browser/creation/InlineTaskCreatePlaceholder.tsx',
+    'browser/creation/TaskCreationPreview.tsx',
+    'browser/creation/useTaskCreations.ts',
     'browser/items/TaskCard.tsx',
     'browser/items/TaskCardSkeleton.tsx',
     'browser/movement/task-move-model.ts',

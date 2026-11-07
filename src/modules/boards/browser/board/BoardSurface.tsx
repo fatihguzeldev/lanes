@@ -12,6 +12,8 @@ import { orderForPresentation } from './drag-model';
 import { SortableTask, TaskDropZone, taskDragSensors } from './TaskDrag';
 import { useBoardTaskDrag } from './useBoardTaskDrag';
 import './BoardSurface.css';
+import { TaskCreationPreview } from '../../../tasks/browser/creation/TaskCreationPreview';
+import type { PendingTaskCreation } from '../../../tasks/browser/creation/useTaskCreations';
 import type { SubtaskSummary } from '../../../tasks/contracts/query';
 
 export interface BoardColumn {
@@ -19,6 +21,7 @@ export interface BoardColumn {
   providerComplete?: boolean | undefined;
   list: TaskList;
   tasks: readonly Task[];
+  creations?: readonly PendingTaskCreation[];
   coverage: Coverage;
   status: 'loading' | 'ready' | 'error';
   orderedTaskIds?: readonly string[] | undefined;
@@ -135,10 +138,15 @@ function ListColumn({
   );
   const completed = entries.filter((task) => task.completed);
   const matching = column.matchedTaskIds ? new Set(column.matchedTaskIds) : null;
-  const openCount = countOpenTasks(
-    options.filtered && matching ? entries.filter((task) => matching.has(task.id)) : entries,
-    options.accountId,
+  const creations = (column.creations ?? []).filter(
+    (creation) =>
+      creation.input.accountId === options.accountId && creation.input.listId === list.id,
   );
+  const openCount =
+    countOpenTasks(
+      options.filtered && matching ? entries.filter((task) => matching.has(task.id)) : entries,
+      options.accountId,
+    ) + creations.length;
   const completedCoverage = column.completedCoverage ?? column.coverage;
   const canDrop = canReorder && (column.orderReady ?? column.coverage.complete);
   const rootIds = columnRootIds(column, options.accountId);
@@ -270,14 +278,20 @@ function ListColumn({
         label={`open tasks in ${title(list)}`}
       >
         {openCards.map((task) => renderCard(task))}
+        {creations.map((creation) => (
+          <TaskCreationPreview key={creation.id} creation={creation} />
+        ))}
         {entries.length === 0 && column.status === 'loading' && !column.coverage.complete && (
           <ColumnSkeleton />
         )}
-        {openCards.length === 0 && column.status !== 'error' && column.coverage.complete && (
-          <p className="board-column__empty">
-            {options.filtered ? 'no matching tasks.' : 'no tasks.'}
-          </p>
-        )}
+        {openCards.length === 0 &&
+          creations.length === 0 &&
+          column.status !== 'error' &&
+          column.coverage.complete && (
+            <p className="board-column__empty">
+              {options.filtered ? 'no matching tasks.' : 'no tasks.'}
+            </p>
+          )}
       </TaskDropZone>
       {column.nextCursor !== null && (
         <button
