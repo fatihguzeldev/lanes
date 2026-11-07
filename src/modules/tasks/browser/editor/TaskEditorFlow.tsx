@@ -6,10 +6,12 @@ import type { TaskEditorController, TaskEditorSession } from './useTaskEditor';
 import { TaskEditorWorkspace } from './TaskEditorWorkspace';
 import { LabelManager } from '../labels/LabelManager';
 import type { TaskCreationController } from '../creation/useTaskCreations';
+import type { TaskEditController } from './useTaskEdits';
 
 interface Props {
   controller: TaskEditorController;
   creations: TaskCreationController;
+  edits: TaskEditController;
   account: ConnectionSummary;
   boardId: string | null;
   labels: readonly Label[];
@@ -28,6 +30,7 @@ interface Props {
 export function TaskEditorFlow({
   controller,
   creations,
+  edits,
   account,
   boardId,
   labels,
@@ -74,6 +77,7 @@ export function TaskEditorFlow({
           onBusyChange={(busy) => controller.setSaving(id, busy)}
           onRetire={(hadWork, error, operationId) => {
             creations.remove(id);
+            edits.remove(id);
             retire(id);
             if (hadWork) onChanged();
             if (error)
@@ -94,11 +98,17 @@ export function TaskEditorFlow({
           }}
           onSaved={() => {
             creations.confirm(id);
+            edits.confirm(id);
             controller.closeSaved(id);
             retire(id);
             onChanged();
             onAccountsChanged();
           }}
+          onSubmitted={() => controller.closeSaved(id)}
+          onEditPending={(input) => {
+            if (editor.task) edits.start(id, input.baseline ?? editor.task, input);
+          }}
+          runEdit={edits.run}
           onCreatePending={(input) => creations.start(id, input)}
           onInspectChange={onInspect}
           onDirtyChange={(dirty) => controller.setDirty(dirty, id)}

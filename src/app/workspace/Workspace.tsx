@@ -21,6 +21,7 @@ import {
 } from '../../modules/operations/browser/status/ChangeInspection';
 import { useTaskEditor } from '../../modules/tasks/browser/editor/useTaskEditor';
 import { useTaskCreations } from '../../modules/tasks/browser/creation/useTaskCreations';
+import { useTaskEdits } from '../../modules/tasks/browser/editor/useTaskEdits';
 import { TaskEditorFlow } from '../../modules/tasks/browser/editor/TaskEditorFlow';
 import {
   useTaskCompletion,
@@ -138,6 +139,7 @@ export function Workspace({
   }, setNotice);
   const editorDirty = taskEditor.dirty;
   const creations = useTaskCreations(account.id, version);
+  const edits = useTaskEdits(account.id, version);
   const completion = useTaskCompletion();
   const taskMenu = useTaskMenu();
   const changed = useCallback(() => {
@@ -265,6 +267,7 @@ export function Workspace({
   } = useTaskActions(
     {
       accountId: account.id,
+      runTaskChange: (taskId, job) => edits.run(taskId, job),
       submit,
       confirm: setConfirmation,
       onNotice: setNotice,
@@ -643,6 +646,8 @@ export function Workspace({
           moveQueue={moveQueue}
           creations={creations.items.filter((item) => item.id !== taskEditor.session?.id)}
           onCreationRead={creations.remove}
+          edits={edits.items}
+          onEditRead={edits.remove}
           listCreation={
             boardManagement.listCreation.open &&
             boardManagement.listCreation.boardId === board?.id ? (
@@ -696,13 +701,14 @@ export function Workspace({
                 );
               });
             },
-            onReschedule: (intent) => void reschedule(intent),
+            onReschedule: (intent) => reschedule(intent),
           }}
         />
       </main>
       <TaskEditorFlow
         controller={taskEditor}
         creations={creations}
+        edits={edits}
         onNotice={setNotice}
         account={account}
         boardId={board?.id ?? null}

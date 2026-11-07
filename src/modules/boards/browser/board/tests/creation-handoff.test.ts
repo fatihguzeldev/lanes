@@ -30,7 +30,11 @@ const creation = (id = 1): PendingTaskCreation => ({
   confirmedAfter: 5,
 });
 const list = { id: 'list', accountId: 'account', boardId: 'board' };
-function render(column: Partial<BoardColumn>, creations = [creation()]) {
+function render(
+  column: Partial<BoardColumn>,
+  creations = [creation()],
+  extra: Partial<BoardWorkspaceProps> = {},
+) {
   hooks.index = 0;
   hooks.effects = [];
   hooks.slots = [{ list: { list, tasks: [], status: 'ready', nextCursor: null, ...column } }];
@@ -46,6 +50,7 @@ function render(column: Partial<BoardColumn>, creations = [creation()]) {
     creations,
     onCreationRead: acknowledged,
     moveQueue: { moves: [], reconcile() {} },
+    ...extra,
   } as unknown as BoardWorkspaceProps;
   const view = BoardWorkspace(props) as ReactElement<{
     children: [unknown, ReactElement<BoardSurfaceProps>];
@@ -131,4 +136,37 @@ describe('creation handoff to confirmed list data', () => {
     expect(column.creations).toEqual([]);
     expect(acknowledged).not.toHaveBeenCalled();
   });
+});
+
+it('keeps a submitted edit visible until a newer confirmed list read replaces it', () => {
+  const task = {
+    id: 'task',
+    accountId: 'account',
+    listId: 'list',
+    title: 'old',
+    revision: 1,
+  } as import('../../../../tasks/contracts/task').Task;
+  const edit = {
+    id: 3,
+    task,
+    input: {
+      accountId: 'account',
+      taskId: 'task',
+      listId: 'list',
+      expectedRevision: 1,
+      patch: { title: 'new' },
+    },
+    confirmedAfter: 5,
+  };
+  const onEditRead = vi.fn();
+  const pending = render({ readVersion: 5, tasks: [task] }, [], { edits: [edit], onEditRead });
+  expect(pending.column.tasks[0]?.title).toBe('new');
+  expect(pending.column.tasks[0]?.revision).toBe(1);
+  expect(onEditRead).not.toHaveBeenCalled();
+  const fresh = render({ readVersion: 6, tasks: [{ ...task, title: 'new', revision: 2 }] }, [], {
+    edits: [edit],
+    onEditRead,
+  });
+  expect(fresh.column.tasks[0]?.revision).toBe(2);
+  expect(onEditRead).toHaveBeenCalledExactlyOnceWith(3);
 });

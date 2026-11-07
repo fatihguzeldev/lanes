@@ -5,6 +5,29 @@ import { useOutsideDismiss } from '../../../../../shared/ui/dismiss/useOutsideDi
 import { TaskSchema } from '../../../contracts/task';
 import { TaskEditor } from '../TaskEditor';
 import type { TaskEditorProps } from '../editor-contract';
+import type { FormEvent, KeyboardEvent } from 'react';
+
+const handlers = vi.hoisted(() => ({
+  title: null as ((event: KeyboardEvent<HTMLTextAreaElement>) => void) | null,
+  submit: null as ((event: FormEvent<HTMLFormElement>) => void) | null,
+}));
+vi.mock('react/jsx-dev-runtime', async (original) => {
+  const runtime = await original<typeof import('react/jsx-dev-runtime')>();
+  const capture = (...args: Parameters<typeof runtime.jsxDEV>) => {
+    const [type, props] = args;
+    const fields = props as {
+      className?: string;
+      onKeyDown?: typeof handlers.title;
+      onSubmit?: typeof handlers.submit;
+    };
+    if (type === 'textarea' && fields.className === 'task-editor__title')
+      handlers.title = fields.onKeyDown ?? null;
+    if (type === 'form' && fields.className === 'task-editor')
+      handlers.submit = fields.onSubmit ?? null;
+    return runtime.jsxDEV(...args);
+  };
+  return { ...runtime, jsxDEV: capture };
+});
 
 vi.mock('../../../../../shared/ui/dismiss/useOutsideDismiss', () => ({
   useOutsideDismiss: vi.fn(),
@@ -94,6 +117,25 @@ describe('direct task editing', () => {
     expect(html).toContain('aria-label="checklist"');
     expect(html).toContain('role="checkbox"');
   });
+  it('finishes an unchanged title with enter without submitting a write', () => {
+    const onClose = vi.fn(),
+      onSave = vi.fn();
+    render({ onClose, onSave });
+    handlers.title!({
+      nativeEvent: { isComposing: false },
+      key: 'Enter',
+      shiftKey: false,
+      preventDefault() {},
+      currentTarget: {
+        form: {
+          requestSubmit: () =>
+            handlers.submit!({ preventDefault() {} } as FormEvent<HTMLFormElement>),
+        },
+      },
+    } as unknown as KeyboardEvent<HTMLTextAreaElement>);
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(onSave).not.toHaveBeenCalled();
+  });
   it('retains the draft fields and explicit error on failed saves', () => {
     const html = render({ error: { code: 'conflict', message: 'the task changed' } });
     expect(html).toContain('read a chapter');
@@ -129,7 +171,9 @@ describe('direct task editing', () => {
   });
 
   it('allows closing after a pending save has a captured receipt', () => {
-    render({ pending: true, submitted: true });
+    const html = render({ pending: true, submitted: true });
     expect(vi.mocked(useOutsideDismiss).mock.calls.at(-1)?.[2]?.enabled).toBe(true);
+    expect(html).not.toContain('saving…');
+    expect(html).not.toContain('saving your changes');
   });
 });

@@ -10,6 +10,11 @@ import {
   creationAcknowledged,
   type PendingTaskCreation,
 } from '../../../tasks/browser/creation/useTaskCreations';
+import {
+  editAcknowledged,
+  projectTaskEdits,
+  type PendingTaskEdit,
+} from '../../../tasks/browser/editor/useTaskEdits';
 import type { TaskMoveQueue } from '../../../tasks/browser/movement/useTaskMoveQueue';
 import { projectTaskMoves } from '../../../tasks/browser/movement/task-move-model';
 import type { InitialViewReadiness } from '../../../../shared/browser/resources/readiness';
@@ -169,6 +174,8 @@ export interface BoardWorkspaceProps extends Omit<
   moveQueue: TaskMoveQueue;
   creations?: readonly PendingTaskCreation[];
   onCreationRead?(id: number): void;
+  edits?: readonly PendingTaskEdit[];
+  onEditRead?(id: number): void;
 }
 export function BoardWorkspace({
   account,
@@ -184,6 +191,8 @@ export function BoardWorkspace({
   moveQueue,
   creations = [],
   onCreationRead,
+  edits = [],
+  onEditRead,
   ...props
 }: BoardWorkspaceProps) {
   const [data, setData] = useState<Record<string, BoardColumn>>({}),
@@ -244,6 +253,7 @@ export function BoardWorkspace({
   );
   const displayedColumns = queuedColumns.map((column) => ({
     ...column,
+    tasks: column.tasks.map((task) => projectTaskEdits(task, edits, column.readVersion)),
     creations: creations.filter(
       (creation) =>
         creation.input.accountId === account.id &&
@@ -251,6 +261,14 @@ export function BoardWorkspace({
         !creationAcknowledged(creation, column.readVersion),
     ),
   }));
+  useEffect(() => {
+    for (const edit of edits) {
+      const column = columns.find(
+        (item) => item.list.accountId === edit.task.accountId && item.list.id === edit.task.listId,
+      );
+      if (column && editAcknowledged(edit, column.readVersion)) onEditRead?.(edit.id);
+    }
+  }, [columns, edits, onEditRead]);
   useEffect(() => {
     for (const creation of creations) {
       const column = columns.find(

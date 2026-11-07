@@ -133,15 +133,18 @@ function ListColumn({
   const roots = entries.filter(
     (task) => !task.parentId || !byId.has(task.parentId) || byId.get(task.parentId)?.parentId,
   );
-  const openCards = roots.filter(
-    (task) => !task.completed || (children.get(task.id) ?? []).some((child) => !child.completed),
-  );
-  const completed = entries.filter((task) => task.completed);
-  const matching = column.matchedTaskIds ? new Set(column.matchedTaskIds) : null;
   const creations = (column.creations ?? []).filter(
     (creation) =>
       creation.input.accountId === options.accountId && creation.input.listId === list.id,
   );
+  const openCards = roots.filter(
+    (task) =>
+      !task.completed ||
+      (children.get(task.id) ?? []).some((child) => !child.completed) ||
+      creations.some((creation) => creation.input.parentId === task.id),
+  );
+  const completed = entries.filter((task) => task.completed);
+  const matching = column.matchedTaskIds ? new Set(column.matchedTaskIds) : null;
   const openCount =
     countOpenTasks(
       options.filtered && matching ? entries.filter((task) => matching.has(task.id)) : entries,
@@ -162,6 +165,7 @@ function ListColumn({
         key={`${task.accountId}:${task.id}`}
         task={task}
         subtasks={completedRow || task.parentId ? [] : (children.get(task.id) ?? [])}
+        pendingSubtasks={completedRow || task.parentId ? [] : creations}
         subtaskSummary={
           completedRow || task.parentId ? undefined : column.subtaskSummaries?.[task.id]
         }
@@ -278,9 +282,11 @@ function ListColumn({
         label={`open tasks in ${title(list)}`}
       >
         {openCards.map((task) => renderCard(task))}
-        {creations.map((creation) => (
-          <TaskCreationPreview key={creation.id} creation={creation} />
-        ))}
+        {creations
+          .filter((creation) => !creation.input.parentId || !byId.has(creation.input.parentId))
+          .map((creation) => (
+            <TaskCreationPreview key={creation.id} creation={creation} />
+          ))}
         {entries.length === 0 && column.status === 'loading' && !column.coverage.complete && (
           <ColumnSkeleton />
         )}

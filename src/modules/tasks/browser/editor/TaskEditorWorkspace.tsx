@@ -17,6 +17,7 @@ import { useCommands } from '../../../operations/browser/submission/useCommands'
 import { useServerConnection } from '../../../../shared/browser/connectivity/useServerConnection';
 import { useRecurrenceWork } from '../planning/useRecurrenceWork';
 import { TaskEditorSurface } from './TaskEditorSurface';
+import type { TaskEditController } from './useTaskEdits';
 
 interface Props {
   account: ConnectionSummary;
@@ -32,6 +33,9 @@ interface Props {
   onChanged: () => void;
   onClose: () => void;
   onSaved: () => void;
+  onSubmitted?(): void;
+  onEditPending?(input: TaskEditorSave): void;
+  runEdit?: TaskEditController['run'];
   onCreatePending?(input: CreateTask): void;
   onDirtyChange: (dirty: boolean) => void;
   onOpenTask: (task: Task) => void;
@@ -74,6 +78,9 @@ export function TaskEditorWorkspace({
   onChanged,
   onClose,
   onSaved,
+  onSubmitted,
+  onEditPending,
+  runEdit,
   onCreatePending,
   onDirtyChange,
   onOpenTask,
@@ -102,23 +109,32 @@ export function TaskEditorWorkspace({
     [readError, setReadError] = useState('');
   const [identity, setIdentity] = useState(() => newOperationId(clockOffset));
   const [submitting, setSubmitting] = useState(false);
+  const [submissionError, setSubmissionError] = useState('');
+  const submissionStarted = useRef(false);
   const commands = useCommands(account.id, clockOffset, onChanged);
   const submitted =
     commands.latest?.id === identity || commands.errorDetails?.operationId === identity;
   const pending = submitting || commands.busy || resumePending || repeatWork.busy;
-  const lifetime = useRef({ onBusyChange, onRetire, onSaved, onDirtyChange });
-  lifetime.current = { onBusyChange, onRetire, onSaved, onDirtyChange };
+  const lifetime = useRef({ onBusyChange, onRetire, onSaved, onDirtyChange, onSubmitted });
+  lifetime.current = { onBusyChange, onRetire, onSaved, onDirtyChange, onSubmitted };
   const hadWork = useRef(false),
-    retired = useRef(false);
+    retired = useRef(false),
+    creationClosed = useRef(false);
   useLayoutEffect(() => {
     if (pending) hadWork.current = true;
     lifetime.current.onBusyChange(pending);
     if (
-      selection.inlineCreate &&
-      !pending &&
-      commands.latest?.state === 'succeeded' &&
-      !retired.current
+      !selection.task &&
+      presented &&
+      commands.latest?.id === identity &&
+      !commands.error &&
+      !creationClosed.current
     ) {
+      creationClosed.current = true;
+      lifetime.current.onDirtyChange(false);
+      lifetime.current.onSubmitted?.();
+    }
+    if (!pending && commands.latest?.state === 'succeeded' && !retired.current) {
       retired.current = true;
       lifetime.current.onDirtyChange(false);
       lifetime.current.onSaved();
@@ -126,9 +142,9 @@ export function TaskEditorWorkspace({
     }
     if (!presented && !pending && !retired.current) {
       retired.current = true;
-      const error = commands.latest?.state === 'succeeded' ? '' : commands.error;
+      const error = commands.latest?.state === 'succeeded' ? '' : submissionError || commands.error;
       const discardedBeforeCapture =
-        selection.inlineCreate && !commands.latest && !commands.errorDetails?.operationId;
+        !selection.task && !commands.latest && !commands.errorDetails?.operationId;
       lifetime.current.onRetire(
         hadWork.current,
         hadWork.current && !discardedBeforeCapture
@@ -146,12 +162,17 @@ export function TaskEditorWorkspace({
     commands.errorDetails?.operationId,
     recurrenceError,
     repeatWork.error,
-    selection.inlineCreate,
+    selection.task,
+    identity,
+    submissionError,
   ]);
   useLayoutEffect(() => () => lifetime.current.onBusyChange(false), []);
   const retryFailed =
     submitted && commands.latest?.state === 'failed' && commands.latest.finished
       ? () => {
+          submissionStarted.current = false;
+          creationClosed.current = false;
+          setSubmissionError('');
           setIdentity(newOperationId(clockOffset));
           commands.clearError();
         }
@@ -309,22 +330,94 @@ export function TaskEditorWorkspace({
   const related = [
     ...new Map([...dependencies.page.items, ...resolved].map((task) => [task.id, task])).values(),
   ];
-  const finish = async (command: unknown, category: 'local' | 'provider') => {
+  const finish = async (
+    command: Record<string, unknown>,
+    category: 'local' | 'provider',
+    edit?: TaskEditorSave,
+  ) => {
+    if (submissionStarted.current) return;
+    submissionStarted.current = true;
     setSubmitting(true);
+    hadWork.current = true;
     lifetime.current.onBusyChange(true);
+    if (edit) {
+      onDirtyChange(false);
+      onSubmitted?.();
+    }
     try {
-      const result = await commands.submit(command, category, identity);
-      if (result?.state === 'succeeded') {
+      const submit = async (queued = false) => {
+        let input = command;
+        if (queued && edit && selection.task) {
+          const baseline = edit.baseline ?? selection.task;
+          const current = await request(
+            `${base}/tasks/${encodeURIComponent(edit.taskId)}`,
+            TaskSchema,
+          );
+          if (
+            current.accountId !== account.id ||
+            current.id !== edit.taskId ||
+            current.listId !== edit.listId
+          )
+            throw new Error('this task moved before its queued edit could save.');
+          const changedField = Object.keys(edit.patch).some((key) => {
+            const field = key as keyof typeof edit.patch;
+            const before = baseline[field],
+              after = current[field];
+            return (
+              JSON.stringify(Array.isArray(before) ? [...before].sort() : before) !==
+              JSON.stringify(Array.isArray(after) ? [...after].sort() : after)
+            );
+          });
+          if (changedField)
+            throw new Error(
+              'this task changed before its queued edit could save. open it to review the latest values.',
+            );
+          input = {
+            ...command,
+            [category === 'provider' ? 'revision' : 'expectedRevision']: current.revision,
+          };
+          if (edit.patch.blockedBy !== undefined) {
+            const currentGraph = await request(`${base}/dependency-graph`, graphSchema);
+            input.expectedGraphRevision = currentGraph.revision;
+          }
+        }
+        const result = await commands.submit(input, category, identity);
+        return result?.state === 'succeeded';
+      };
+      const saved = edit && runEdit ? await runEdit(edit.taskId, submit) : await submit();
+      if (saved) {
         retired.current = true;
         onDirtyChange(false);
         onSaved();
+      } else if (!commands.getErrorDetails?.()) {
+        setSubmissionError('couldn’t confirm this change. review its save before trying again.');
       }
+    } catch (error) {
+      setSubmissionError(error instanceof Error ? error.message : 'couldn’t save this change.');
     } finally {
       setSubmitting(false);
+      if (
+        !edit &&
+        !retired.current &&
+        commands.latest?.id !== identity &&
+        commands.errorDetails?.operationId !== identity &&
+        commands.getErrorDetails?.()?.operationId !== identity
+      )
+        submissionStarted.current = false;
     }
   };
   const save = (value: TaskEditorSave) => {
     if (value.accountId !== account.id || value.taskId !== selection.task?.id) return;
+    if (
+      value.baseline &&
+      (value.baseline.accountId !== account.id ||
+        value.baseline.id !== value.taskId ||
+        value.baseline.listId !== value.listId ||
+        value.baseline.revision !== value.expectedRevision)
+    )
+      return;
+    if (submissionStarted.current) return;
+    onEditPending?.(value);
     const provider = Object.keys(value.patch).some((field) => providerFields.has(field));
     void finish(
       provider
@@ -347,13 +440,15 @@ export function TaskEditorWorkspace({
               : { expectedGraphRevision: value.expectedGraphRevision }),
           },
       provider ? 'provider' : 'local',
+      value,
     );
   };
   const create = (value: TaskEditorCreate) => {
     if (value.accountId !== account.id || value.input.listId !== selection.list.id) return;
     const { accountId: capturedAccount, ...input } = value.input;
     if (capturedAccount !== account.id) return;
-    if (selection.inlineCreate) onCreatePending?.(value.input);
+    if (submissionStarted.current) return;
+    onCreatePending?.(value.input);
     void finish(
       {
         kind: 'task.create',

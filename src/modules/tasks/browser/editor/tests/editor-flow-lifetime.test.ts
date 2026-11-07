@@ -64,6 +64,7 @@ function mount() {
   const props = {
     controller,
     creations: { items: [], start: vi.fn(), confirm: vi.fn(), remove: vi.fn() },
+    edits: { items: [], start: vi.fn(), confirm: vi.fn(), remove: vi.fn(), run: vi.fn() },
     account: { id: 'account' } as ComponentProps<typeof TaskEditorFlow>['account'],
     boardId: 'board',
     labels: [],
@@ -90,6 +91,7 @@ function mount() {
     notice,
     accountsChanged,
     creations: props.creations,
+    edits: props.edits,
     select(id: number) {
       current = session(id);
       render();
@@ -119,6 +121,28 @@ describe('task editor command lifetime', () => {
     hidden!.props.onRetire(true, null, null);
     expect(flow.render()).toEqual([]);
     expect(flow.controller.setSaving).toHaveBeenLastCalledWith(1, false);
+  });
+
+  it('closes a submitted edit immediately while keeping its receipt owner and preview', () => {
+    const flow = mount();
+    const [editor] = flow.render();
+    const input = {
+      accountId: 'account',
+      taskId: 'task-1',
+      listId: 'list',
+      expectedRevision: 1,
+      patch: { title: 'new title' },
+    };
+    editor!.props.onEditPending!(input);
+    editor!.props.onBusyChange(true);
+    editor!.props.onSubmitted!();
+    expect(flow.edits.start).toHaveBeenCalledWith(1, editor!.props.selection.task, input);
+    expect(flow.controller.session).toBe(null);
+    expect(flow.render()[0]!.props.presented).toBe(false);
+    expect(flow.edits.remove).not.toHaveBeenCalled();
+    editor!.props.onSaved();
+    expect(flow.edits.confirm).toHaveBeenCalledWith(1);
+    expect(flow.render()).toEqual([]);
   });
 
   it('gives a new editor a separate owner and scopes late success to the old session', () => {

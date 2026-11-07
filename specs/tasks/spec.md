@@ -23,6 +23,10 @@ after admission closes the editor, keep the submitted task visible as a local ro
 
 open a task in its row, with its title selected for editing and notes immediately available. schedule, metadata, dependencies, and checklist controls reveal their own fields when requested. keep a retained non-modal editor when its card is outside the current view; changing presentation must not remount its draft or abandon a submitted save. closing or navigating away still applies the unsent-draft guard.
 
+enter or save on a valid existing-task draft captures the edit, closes the editor, and updates the displayed fields immediately. the user does not wait for google or see a saving label in the row. keep that preview until a fresh read after confirmation replaces it. a failed or uncertain save removes the preview, reports the failure, and retains any confirmed outcome for inspection. invalid input stays in the editor.
+
+serialize edits to the same task with its quick actions. each queued action uses a fresh revision; a queued edit also checks that its edited fields still match the captured baseline. failure or uncertainty stops dependent unsent changes without undoing earlier confirmed work. editing another task and changing the view remain available.
+
 clicking outside an editor requests the same close as its close control. clicks in its nested menus or an open dialog do not discard the editor. icon-only detail actions show their meaning on hover and keyboard focus, in addition to their accessible names.
 
 an admitted save continues when its editor closes. keep its operation identity and account fixed while it drains; a later result cannot close another editor or clear that editor's unsent input. a hidden save that needs recovery appears in the workspace's save status.
@@ -33,7 +37,7 @@ task menus contain secondary actions. completion remains on the task's checkbox 
 - create an open task in a selected list, at the end of the manual sibling order unless an insertion position was explicitly chosen.
 - notes are plain text. changing a title or note does not reset other fields or replace unrelated provider values.
 - a patch changes only the submitted fields. distinguish an omitted field from an explicit clear.
-- retain unsent input while a save fails. do not dismiss an editor or show saved until its operation has a confirmed outcome.
+- retain invalid input and a creation draft whose admission failed. closing a submitted editor does not claim that its save is confirmed; background failures remain actionable.
 - tasks discovered with an empty title remain visible with a presentation fallback. do not rewrite external data merely to satisfy lanes' creation validation.
 
 use the [google task resource](https://developers.google.com/workspace/tasks/reference/rest/v1/tasks) for provider field capabilities. google status values map to open and completed; columns are lists, not additional task statuses.
@@ -146,8 +150,10 @@ validation leaves the draft intact. stale revision conflicts offer refresh and e
 - `tasks-12`: rapid drops update presentation immediately while provider moves run serially; failed or uncertain moves stop dependent unsent work and preserve confirmed outcomes.
 - `tasks-13`: a lifted task follows the pointer and siblings move to make room before release. hover and cancellation submit no work; only a validated changed drop enters the move queue.
 
-- `tasks-14`: opening task details edits the existing row without a modal. optional fields appear on request; failed saves keep the same draft, including when its card leaves the visible collection.
+- `tasks-14`: opening task details edits the existing row without a modal. optional fields appear on request; validation preserves the draft, and a submitted edit continues when its card leaves the visible collection. a failed background edit restores confirmed data and reports the error.
 - `tasks-15`: outside dismissal preserves the unsent-draft guard and nested menus; an admitted hidden save continues independently without closing or clearing a newer editor.
 - `tasks-16`: adding a task opens its full editor in the list, without an approval control. enter or leaving captures one creation with all chosen fields; empty entries make no request, invalid input survives, and failed admission cannot lose its draft to the same outside navigation.
 - `tasks-17`: opening move destinations uses the workspace's loaded topology without duplicate reads or a source-validation wait. paging remains available; unvisited board lists load on demand. selecting a destination validates fresh source revisions and checklist coverage, and a cancelled preflight cannot submit from a late reply.
 - `tasks-18`: rapid stars and completion clicks remain interactive and save serially against fresh task revisions. failed or uncertain work stops later unsent changes to that task, preserves earlier confirmed changes, and exposes its error or receipt. closing a row or changing views does not drop admitted work; leaving an account or unloading cannot silently abandon queued changes.
+
+- `tasks-19`: submitting a valid existing-task edit closes its editor immediately and presents the edited values without a saving marker. failed saves restore confirmed data and report the error; queued edits use fresh revisions without overwriting externally changed fields.

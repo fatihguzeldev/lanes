@@ -7,10 +7,13 @@ import './TaskCard.css';
 import type { SubtaskSummary } from '../../contracts/query';
 import { TaskStarButton, type ToggleTaskStar } from './TaskStarButton';
 import { useTaskToggle, type ToggleTaskField } from './useTaskToggle';
+import type { PendingTaskCreation } from '../creation/useTaskCreations';
+import { TaskCreationPreview } from '../creation/TaskCreationPreview';
 
 export interface TaskCardProps {
   task: Task;
   subtasks: readonly Task[];
+  pendingSubtasks?: readonly PendingTaskCreation[] | undefined;
   subtaskSummary?: SubtaskSummary | undefined;
   blockingState?: BlockingState | undefined;
   relatedTasks: readonly Task[];
@@ -101,6 +104,7 @@ function CompletionButton({
 export function TaskCard({
   task,
   subtasks,
+  pendingSubtasks,
   subtaskSummary,
   blockingState,
   relatedTasks,
@@ -124,7 +128,19 @@ export function TaskCard({
   onMenu,
 }: TaskCardProps) {
   const [localExpanded, setLocalExpanded] = useState(initiallyExpanded);
-  const expanded = controlledExpanded ?? localExpanded;
+  const pendingChildren = (pendingSubtasks ?? []).filter(
+    (creation) =>
+      creation.input.accountId === task.accountId &&
+      creation.input.listId === task.listId &&
+      creation.input.parentId === task.id,
+  );
+  const selectedExpanded = controlledExpanded ?? localExpanded;
+  const expanded = selectedExpanded || pendingChildren.length > 0;
+  useEffect(() => {
+    if (!pendingChildren.length || selectedExpanded) return;
+    if (controlledExpanded === undefined) setLocalExpanded(true);
+    onExpandedChange?.(true);
+  }, [pendingChildren.length, selectedExpanded, controlledExpanded, onExpandedChange]);
   useEffect(() => {
     if (initiallyExpanded && controlledExpanded === undefined) setLocalExpanded(true);
   }, [initiallyExpanded, controlledExpanded]);
@@ -136,10 +152,11 @@ export function TaskCard({
       child.parentId === task.id,
   );
   const openChildren = countOpenTasks(children, task.accountId);
-  const childTotal = subtaskSummary?.total ?? children.length;
-  const childOpen = subtaskSummary?.open ?? openChildren;
+  const confirmedChildTotal = subtaskSummary?.total ?? children.length;
+  const childTotal = confirmedChildTotal + pendingChildren.length;
+  const childOpen = (subtaskSummary?.open ?? openChildren) + pendingChildren.length;
   const childCountsKnown = subtaskSummary?.complete ?? false;
-  const partialChildren = !childCountsKnown || childTotal > children.length;
+  const partialChildren = !childCountsKnown || confirmedChildTotal > children.length;
   const blocking = blockingState ?? getBlockingState(task, relatedTasks);
   const taskLabels = labels.filter(
     (label) => label.accountId === task.accountId && task.labelIds.includes(label.id),
@@ -298,7 +315,7 @@ export function TaskCard({
           </div>
         )}
       </div>
-      {children.length > 0 && (
+      {(children.length > 0 || pendingChildren.length > 0) && (
         <ul
           className="task-card__children"
           id={childrenId}
@@ -366,6 +383,10 @@ export function TaskCard({
                 </li>
               );
             })}
+          {expanded &&
+            pendingChildren.map((creation) => (
+              <TaskCreationPreview key={`creation:${creation.id}`} creation={creation} child />
+            ))}
         </ul>
       )}
       <div

@@ -12,6 +12,7 @@ import type { BoardViewPreferences } from '../../modules/boards/browser/view/vie
 import type { useBoardData } from '../../modules/boards/browser/navigation/useBoardData';
 import type { TaskMoveQueue } from '../../modules/tasks/browser/movement/useTaskMoveQueue';
 import type { PendingTaskCreation } from '../../modules/tasks/browser/creation/useTaskCreations';
+import type { PendingTaskEdit } from '../../modules/tasks/browser/editor/useTaskEdits';
 import type { InitialViewReadiness } from '../../shared/browser/resources/readiness';
 import { BoardWorkspace } from '../../modules/boards/browser/board/BoardWorkspace';
 import { CalendarWorkspace } from '../../modules/boards/browser/calendar/CalendarWorkspace';
@@ -61,6 +62,8 @@ interface Props {
   moveQueue: TaskMoveQueue;
   creations: readonly PendingTaskCreation[];
   onCreationRead(id: number): void;
+  edits: readonly PendingTaskEdit[];
+  onEditRead(id: number): void;
   listCreation: ReactNode;
   onInitialReady(state: InitialViewReadiness): void;
   actions: ViewActions;
@@ -91,6 +94,8 @@ export function WorkspaceViews({
   moveQueue,
   creations,
   onCreationRead,
+  edits,
+  onEditRead,
   listCreation,
   onInitialReady,
   actions,
@@ -141,6 +146,8 @@ export function WorkspaceViews({
             moveQueue={moveQueue}
             creations={creations}
             onCreationRead={onCreationRead}
+            edits={edits}
+            onEditRead={onEditRead}
           />
         )}
       {board &&
@@ -159,6 +166,10 @@ export function WorkspaceViews({
             onToggleComplete={actions.onToggleComplete}
             onToggleStar={actions.onToggleStar}
             onTaskMenu={actions.onTaskMenu}
+            creations={creations}
+            onCreationRead={onCreationRead}
+            edits={edits}
+            onEditRead={onEditRead}
             localActionsEnabled={localWritable}
             pendingTaskIds={pendingTaskIds}
             onOpenBoard={actions.onOpenBoard}
@@ -195,6 +206,8 @@ export function WorkspaceViews({
           version={version}
           onInitialReady={onInitialReady}
           onOpenTask={actions.onOpenTask}
+          edits={edits}
+          onEditRead={onEditRead}
           onReturn={actions.onReturnToBoard}
           onClearFilters={actions.onClearCompletedFilters}
           onTaskMenu={actions.onTaskMenu}

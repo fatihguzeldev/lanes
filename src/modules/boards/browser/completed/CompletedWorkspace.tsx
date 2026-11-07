@@ -8,6 +8,11 @@ import {
 import type { Task, TaskFilter, TaskList } from '../../../tasks/contracts/task';
 import { Icon } from '../../../../shared/ui/icon/Icon';
 import { useTaskQuery } from '../../../tasks/browser/queries/useTaskQuery';
+import {
+  editAcknowledged,
+  projectTaskEdits,
+  type PendingTaskEdit,
+} from '../../../tasks/browser/editor/useTaskEdits';
 import { usePlanningToday } from '../../../tasks/browser/planning/usePlanningToday';
 import { Select } from '../../../../shared/ui/select/Select';
 import { CompletedSummary } from './CompletedSummary';
@@ -28,6 +33,8 @@ export interface CompletedWorkspaceProps {
   onClearFilters(): void;
   onTaskMenu?: (task: Task, anchor: HTMLButtonElement) => void;
   onInitialReady?: (state: InitialViewReadiness) => void;
+  edits?: readonly PendingTaskEdit[];
+  onEditRead?(id: number): void;
 }
 export function CompletedWorkspace({
   account,
@@ -42,6 +49,8 @@ export function CompletedWorkspace({
   onClearFilters,
   onTaskMenu,
   onInitialReady,
+  edits = [],
+  onEditRead,
 }: CompletedWorkspaceProps) {
   const today = usePlanningToday(account.planningZone, clockOffset);
   const now = useMemo(() => new Date(Date.now() + clockOffset).toISOString(), [today, clockOffset]);
@@ -64,6 +73,13 @@ export function CompletedWorkspace({
     [valid, scope, board?.id, query, listId, filter],
   );
   const tasks = useTaskQuery(account.id, input, version);
+  const readVersion = tasks.settled && tasks.status === 'ready' ? version : undefined;
+  useEffect(() => {
+    for (const edit of edits) {
+      if (edit.input.accountId === account.id && editAcknowledged(edit, readVersion))
+        onEditRead?.(edit.id);
+    }
+  }, [account.id, edits, readVersion, onEditRead]);
   useEffect(() => {
     onInitialReady?.({
       version,
@@ -81,8 +97,11 @@ export function CompletedWorkspace({
   ]);
   const matched = useMemo(() => new Set(tasks.page.matchedTaskIds), [tasks.page.matchedTaskIds]);
   const rows = useMemo(
-    () => tasks.page.items.filter((task) => task.accountId === account.id),
-    [tasks.page.items, account.id],
+    () =>
+      tasks.page.items
+        .filter((task) => task.accountId === account.id)
+        .map((task) => projectTaskEdits(task, edits, readVersion)),
+    [tasks.page.items, account.id, edits, readVersion],
   );
   const options = {
     accountId: account.id,

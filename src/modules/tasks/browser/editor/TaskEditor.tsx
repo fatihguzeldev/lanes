@@ -239,7 +239,10 @@ function EditorForm(props: TaskEditorProps) {
       });
       return false;
     }
-    if (prepared.kind === 'unchanged') return false;
+    if (prepared.kind === 'unchanged') {
+      props.onClose();
+      return true;
+    }
     if (prepared.kind === 'create') {
       if (!providerEnabled || !localEnabled || !createParentValid) return false;
       if (prepared.input.blockedBy.length && snapshot.graphRevision === undefined) {
@@ -271,6 +274,7 @@ function EditorForm(props: TaskEditorProps) {
           ? { expectedGraphRevision: snapshot.graphRevision }
           : {}),
         patch: prepared.patch,
+        baseline: structuredClone(task),
       });
     }
     return true;
@@ -368,11 +372,6 @@ function EditorForm(props: TaskEditorProps) {
             open the task again.
           </p>
         )}
-        {!inlineCreate && props.submitted && !props.error && (
-          <p className="task-editor__notice" role="status">
-            saving…
-          </p>
-        )}
         {props.serverReachable === false && (
           <p className="task-editor__notice" role="status">
             the server connection is paused. you can keep editing; your draft stays in this editor.{' '}
@@ -443,7 +442,11 @@ function EditorForm(props: TaskEditorProps) {
             if (event.nativeEvent.isComposing) return;
             if (event.key === 'Enter' && !event.shiftKey) {
               event.preventDefault();
-              if (saveEnabled) event.currentTarget.form?.requestSubmit();
+              if (
+                saveEnabled ||
+                (task && !dirty && !pending && !props.submitted && !contextChanged)
+              )
+                event.currentTarget.form?.requestSubmit();
             }
           }}
         />
@@ -695,16 +698,14 @@ function EditorForm(props: TaskEditorProps) {
               {props.submitted ? 'close' : 'cancel'}
             </button>
             <button type="submit" className="task-editor__save" disabled={!saveEnabled}>
-              {pending ? 'saving…' : task ? 'save' : 'add task'}
-              {!pending && <Icon name="arrow" size={14} />}
+              {task ? 'save' : 'add task'}
+              <Icon name="arrow" size={14} />
             </button>
           </footer>
         )}
-        {!inlineCreate && (pending || (!props.providerWritesEnabled && providerChanges)) && (
+        {!inlineCreate && !props.providerWritesEnabled && providerChanges && (
           <p className="task-editor__save-note" role="status">
-            {pending
-              ? 'saving your changes… your draft stays here.'
-              : 'reconnect to save the google fields in this draft.'}
+            reconnect to save the google fields in this draft.
           </p>
         )}
       </form>

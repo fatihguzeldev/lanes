@@ -134,6 +134,30 @@ describe('board list presentation', () => {
     provider: { ...first.provider, position: '2' },
   };
 
+  it('keeps a submitted subtask under its parent and counts it as open', () => {
+    const markup = render({
+      tasks: [first],
+      subtaskSummaries: { [first.id]: { total: 0, open: 0, complete: true } },
+      creations: [
+        {
+          id: 1,
+          confirmedAfter: null,
+          input: CreateTaskSchema.parse({
+            accountId: 'account',
+            listId: 'list',
+            parentId: first.id,
+            title: 'new child',
+          }),
+        },
+      ],
+    });
+    expect(markup).toContain('aria-label="subtasks of first"');
+    expect(markup).toContain('0/1');
+    expect(markup.indexOf('new child')).toBeLessThan(markup.indexOf('</article>'));
+    expect(markup).not.toContain('class="task-card task-creation-preview"');
+    expect(markup).toMatch(/class="board-column__count"[^>]*>2</);
+  });
+
   it('renders queued ranks only in manual order, without rewriting task positions', () => {
     const column = { tasks: [first, second], orderedTaskIds: ['second', 'first'] };
     const manual = render(column);

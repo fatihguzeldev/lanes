@@ -22,6 +22,7 @@ export interface TaskEditorSave {
   expectedRevision: number;
   expectedGraphRevision?: number;
   patch: TaskPatch;
+  baseline?: Task;
 }
 export interface TaskEditorCreate {
   accountId: string;

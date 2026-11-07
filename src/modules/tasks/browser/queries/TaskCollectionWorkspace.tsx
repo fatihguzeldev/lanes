@@ -10,11 +10,13 @@ import {
   type TaskSort,
 } from '../../contracts/task';
 import { TaskCard } from '../items/TaskCard';
+import { creationAcknowledged, type PendingTaskCreation } from '../creation/useTaskCreations';
 import type { ToggleTaskStar } from '../items/TaskStarButton';
 import { countOpenTasks, getBlockingStates } from '../../model/task';
 import { Icon } from '../../../../shared/ui/icon/Icon';
 import { request } from '../../../../shared/browser/http/http';
 import { useTaskQuery } from './useTaskQuery';
+import { editAcknowledged, projectTaskEdits, type PendingTaskEdit } from '../editor/useTaskEdits';
 import './TaskCollectionWorkspace.css';
 import type { InitialViewReadiness } from '../../../../shared/browser/resources/readiness';
 
@@ -42,6 +44,10 @@ interface Props {
   onTaskMenu: (task: Task, anchor: HTMLButtonElement) => void;
   onOpenBoard: (id: string) => void;
   onInitialReady?: (state: InitialViewReadiness) => void;
+  creations?: readonly PendingTaskCreation[];
+  onCreationRead?(id: number): void;
+  edits?: readonly PendingTaskEdit[];
+  onEditRead?(id: number): void;
 }
 export function TaskCollectionWorkspace({
   account,
@@ -59,10 +65,32 @@ export function TaskCollectionWorkspace({
   onTaskMenu,
   onOpenBoard,
   onInitialReady,
+  creations = [],
+  onCreationRead,
+  edits = [],
+  onEditRead,
 }: Props) {
   const input = useMemo(() => ({ query, filter, sort }), [query, filter, sort]);
   const tasks = useTaskQuery(account.id, input, version);
-  const ids = [...new Set(tasks.page.items.map((task) => task.listId))];
+  const readVersion = tasks.settled && tasks.status === 'ready' ? version : undefined;
+  const displayedItems = tasks.page.items.map((task) => projectTaskEdits(task, edits, readVersion));
+  const pendingCreations = creations.filter(
+    (creation) =>
+      creation.input.accountId === account.id && !creationAcknowledged(creation, readVersion),
+  );
+  useEffect(() => {
+    for (const creation of creations) {
+      if (creation.input.accountId === account.id && creationAcknowledged(creation, readVersion))
+        onCreationRead?.(creation.id);
+    }
+  }, [account.id, creations, readVersion, onCreationRead]);
+  useEffect(() => {
+    for (const edit of edits) {
+      if (edit.input.accountId === account.id && editAcknowledged(edit, readVersion))
+        onEditRead?.(edit.id);
+    }
+  }, [account.id, edits, readVersion, onEditRead]);
+  const ids = [...new Set(displayedItems.map((task) => task.listId))];
   const key = JSON.stringify([account.id, ...ids.sort()]);
   const [context, setContext] = useState<{
     key: string;
@@ -133,12 +161,12 @@ export function TaskCollectionWorkspace({
   const placements = new Map(
     (context.key === key ? context.contexts : []).map((item) => [item.listId, item]),
   );
-  const byId = new Map(tasks.page.items.map((task) => [task.id, task]));
+  const byId = new Map(displayedItems.map((task) => [task.id, task]));
   const matched = new Set(tasks.page.matchedTaskIds);
-  const blocking = getBlockingStates(tasks.page.items);
+  const blocking = getBlockingStates(displayedItems);
   const groups = new Map<string, Task[]>(),
     children = new Map<string, Task[]>();
-  for (const task of tasks.page.items) {
+  for (const task of displayedItems) {
     if (!groups.has(task.listId)) groups.set(task.listId, []);
     groups.get(task.listId)!.push(task);
     if (task.parentId) {
@@ -189,11 +217,12 @@ export function TaskCollectionWorkspace({
                 task={task}
                 subtasks={children.get(task.id) ?? []}
                 subtaskSummary={tasks.page.subtaskSummaries[task.id]}
+                pendingSubtasks={pendingCreations}
                 blockingState={blocking.get(task)}
                 initiallyExpanded={(children.get(task.id) ?? []).some((child) =>
                   matched.has(child.id),
                 )}
-                relatedTasks={tasks.page.items}
+                relatedTasks={displayedItems}
                 labels={labels}
                 today={today}
                 accountTimeZone={account.planningZone}
