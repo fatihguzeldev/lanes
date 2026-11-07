@@ -42,7 +42,10 @@ export type EditorSubmission =
   | { ok: true; kind: 'unchanged' }
   | { ok: false; fields: Record<string, string> };
 
-export function createEditorDraft(task: Task | null, options: EditorDraftOptions): TaskEditorDraft {
+export function createEditorDraft(
+  task: Task | CreateTask | null,
+  options: EditorDraftOptions,
+): TaskEditorDraft {
   const rule = task?.repeatRule;
   const scheduledDay = task ? (task.scheduledDay ?? '') : (options.initialDay ?? '');
   const day = new Date(`${scheduledDay}T12:00:00Z`).getUTCDay();

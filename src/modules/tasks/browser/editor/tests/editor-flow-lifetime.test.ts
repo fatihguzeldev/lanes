@@ -60,10 +60,19 @@ function mount() {
     open: vi.fn(),
     create: vi.fn(),
     createSubtask: vi.fn(),
+    recoverCreate: vi.fn(),
   } as unknown as TaskEditorController;
   const props = {
     controller,
-    creations: { items: [], start: vi.fn(), confirm: vi.fn(), remove: vi.fn() },
+    creations: {
+      items: [] as import('../../creation/useTaskCreations').PendingTaskCreation[],
+      start: vi.fn(),
+      confirm: vi.fn(),
+      remove: vi.fn(),
+      fail: vi.fn(),
+      hasDrafts: false,
+      discardDrafts: vi.fn(),
+    },
     edits: { items: [], start: vi.fn(), confirm: vi.fn(), remove: vi.fn(), run: vi.fn() },
     account: { id: 'account' } as ComponentProps<typeof TaskEditorFlow>['account'],
     boardId: 'board',
@@ -209,4 +218,30 @@ describe('task editor command lifetime', () => {
     expect(flow.creations.remove).toHaveBeenCalledWith(1);
     expect(flow.controller.session?.id).toBe(2);
   });
+});
+
+it('keeps an unadmitted failed creation recoverable without interrupting a newer editor', () => {
+  hooks.slots = [];
+  hooks.index = 0;
+  hooks.effects = [];
+  const flow = mount();
+  const [owner] = flow.render();
+  owner!.props.selection.task = null;
+  const input = CreateTaskSchema.parse({
+    accountId: 'account',
+    listId: 'list',
+    title: 'keep my draft',
+  });
+  flow.creations.items.push({ id: 1, input, confirmedAfter: null });
+  flow.select(2);
+  const [hidden] = flow.render();
+  hidden!.props.onRetire(true, 'list changed', null);
+  expect(flow.creations.remove).not.toHaveBeenCalled();
+  expect(flow.creations.fail).toHaveBeenCalledWith(1, 'list changed', expect.any(Function));
+  expect(flow.controller.session?.id).toBe(2);
+  expect(flow.notice).toHaveBeenCalledWith('couldn’t add keep my draft. list changed');
+  const recover = flow.creations.fail.mock.calls[0]![2];
+  recover();
+  expect(flow.creations.remove).toHaveBeenCalledWith(1);
+  expect(flow.controller.recoverCreate).toHaveBeenCalledWith(hidden!.props.selection, input);
 });

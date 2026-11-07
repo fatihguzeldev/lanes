@@ -10,19 +10,19 @@ interface Options {
   onClose(): void;
 }
 
-/** A create entry can leave after admission; its retained workspace owns the save. */
+/** Valid input leaves immediately; the retained workspace owns admission and its result. */
 export function useTaskCreateExit(options: Options) {
   const leaving = useRef(false);
   useEffect(() => {
     if (!options.enabled || !leaving.current) return;
     if (options.failed) leaving.current = false;
-    else if (options.submitted) {
-      leaving.current = false;
-      options.onClose();
-    }
-  }, [options.enabled, options.submitted, options.failed, options.onClose]);
+  }, [options.enabled, options.failed]);
   const leave = (explicit: boolean) => {
     if (!options.enabled) {
+      options.onClose();
+      return;
+    }
+    if (!options.dirty) {
       options.onClose();
       return;
     }
@@ -35,12 +35,9 @@ export function useTaskCreateExit(options: Options) {
       return;
     }
     if ((options.failed && !explicit) || leaving.current) return;
-    if (!options.dirty) {
-      options.onClose();
-      return;
-    }
     leaving.current = true;
-    if (!options.onSubmit()) leaving.current = false;
+    if (options.onSubmit()) options.onClose();
+    else leaving.current = false;
   };
   return { close: () => leave(false), submit: () => leave(true) };
 }

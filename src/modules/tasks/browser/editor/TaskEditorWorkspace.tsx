@@ -142,14 +142,10 @@ export function TaskEditorWorkspace({
     }
     if (!presented && !pending && !retired.current) {
       retired.current = true;
-      const error = commands.latest?.state === 'succeeded' ? '' : submissionError || commands.error;
-      const discardedBeforeCapture =
-        !selection.task && !commands.latest && !commands.errorDetails?.operationId;
+      const error = commands.latest?.state === 'succeeded' ? '' : commands.error || submissionError;
       lifetime.current.onRetire(
         hadWork.current,
-        hadWork.current && !discardedBeforeCapture
-          ? error || recurrenceError || repeatWork.error || null
-          : null,
+        hadWork.current ? error || recurrenceError || repeatWork.error || null : null,
         commands.errorDetails?.operationId ?? commands.latest?.id ?? null,
       );
     }
@@ -476,6 +472,7 @@ export function TaskEditorWorkspace({
         accountLabel={account.email}
         task={latest}
         {...(selection.inlineCreate ? { inlineCreate: true } : {})}
+        {...(selection.initialCreate ? { initialCreate: selection.initialCreate } : {})}
         list={selection.list}
         labels={labels}
         labelPage={labelPage}

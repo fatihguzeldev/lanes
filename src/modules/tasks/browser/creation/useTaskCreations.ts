@@ -5,6 +5,7 @@ export interface PendingTaskCreation {
   id: number;
   input: CreateTask;
   confirmedAfter: number | null;
+  failure?: { message: string; onEdit(): void; onDiscard(): void };
 }
 
 export function creationAcknowledged(creation: PendingTaskCreation, readVersion?: number) {
@@ -38,7 +39,31 @@ export function useTaskCreations(accountId: string, version: number) {
         : previous,
     );
   }, []);
-  return { items, start, confirm, remove };
+  const fail = useCallback(
+    (id: number, message: string, onEdit: () => void) => {
+      setItems((previous) =>
+        previous.map((item) =>
+          item.id === id
+            ? { ...item, failure: { message, onEdit, onDiscard: () => remove(id) } }
+            : item,
+        ),
+      );
+    },
+    [remove],
+  );
+  const discardDrafts = useCallback(
+    () => setItems((previous) => previous.filter((item) => !item.failure)),
+    [],
+  );
+  return {
+    items,
+    start,
+    confirm,
+    remove,
+    fail,
+    hasDrafts: items.some((item) => !!item.failure),
+    discardDrafts,
+  };
 }
 
 export type TaskCreationController = ReturnType<typeof useTaskCreations>;

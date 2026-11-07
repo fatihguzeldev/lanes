@@ -149,7 +149,7 @@ function ListColumn({
     countOpenTasks(
       options.filtered && matching ? entries.filter((task) => matching.has(task.id)) : entries,
       options.accountId,
-    ) + creations.length;
+    ) + creations.filter((creation) => !creation.failure).length;
   const completedCoverage = column.completedCoverage ?? column.coverage;
   const canDrop = canReorder && (column.orderReady ?? column.coverage.complete);
   const rootIds = columnRootIds(column, options.accountId);

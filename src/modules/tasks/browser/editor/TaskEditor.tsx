@@ -71,7 +71,9 @@ function EditorForm(props: TaskEditorProps) {
     }),
     [snapshot],
   );
-  const [draft, setDraft] = useState(() => createEditorDraft(snapshot.task, options));
+  const [draft, setDraft] = useState(() =>
+    createEditorDraft(snapshot.task ?? props.initialCreate ?? null, options),
+  );
   const [localErrors, setLocalErrors] = useState<Record<string, string>>({});
   const [clearConfirmed, setClearConfirmed] = useState(false);
   const [dependencyQuery, setDependencyQuery] = useState('');

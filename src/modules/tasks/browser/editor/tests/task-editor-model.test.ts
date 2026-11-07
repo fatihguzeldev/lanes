@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { TaskSchema, type Task } from '../../../contracts/task';
+import { CreateTaskSchema, TaskSchema, type Task } from '../../../contracts/task';
 import {
   createEditorDraft,
   editorDraftIsDirty,
@@ -319,4 +319,32 @@ it('refuses to rebase a preserved draft onto another account or moved list', () 
   expect(() => rebaseEditorDraft(draft, previous, task({ accountId: 'b' }), base)).toThrow();
   expect(() => rebaseEditorDraft(draft, previous, task({ listId: 'elsewhere' }), base)).toThrow();
   expect(draft.notes).toBe('preserve me');
+});
+
+it('round-trips every captured creation field through a recovered draft', () => {
+  const input = CreateTaskSchema.parse({
+    accountId: 'a',
+    listId: 'list',
+    title: 'keep this title',
+    notes: 'notes\nwith a newline',
+    scheduledDay: '2026-11-12',
+    scheduledTime: '09:45',
+    timeZone: 'Europe/Istanbul',
+    repeatRule: {
+      frequency: 'weekly',
+      interval: 2,
+      anchorDay: '2026-11-12',
+      zone: 'Europe/Istanbul',
+      weekdays: [4],
+      weekStart: 1,
+      end: { type: 'count', count: 6 },
+    },
+    labelIds: ['label'],
+    priority: 'high',
+    starred: true,
+    blockedBy: ['blocker'],
+  });
+  const draft = createEditorDraft(input, base);
+  const result = prepareEditorSubmission(draft, { ...base, task: null });
+  expect(result).toEqual({ ok: true, kind: 'create', input });
 });

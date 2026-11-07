@@ -179,6 +179,25 @@ describe('hidden editor retirement', () => {
     expect(editor.saved).not.toHaveBeenCalled();
   });
 
+  it('reports a rejected creation even after its editor has closed', async () => {
+    const editor = mount(true);
+    state.commands.submit.mockResolvedValue(null);
+    editor.render()!.props.children.props.onCreate({
+      accountId: 'account',
+      listRevision: 1,
+      input: CreateTaskSchema.parse({
+        accountId: 'account',
+        listId: 'list',
+        title: 'keep my draft',
+      }),
+    });
+    state.commands.error = 'list changed';
+    await Promise.resolve();
+    await Promise.resolve();
+    editor.render(false);
+    expect(editor.retire).toHaveBeenCalledWith(true, 'list changed', null);
+  });
+
   it('finishes the edit interaction before waiting for its background receipt', () => {
     const editor = mount();
     editor.save();
@@ -444,14 +463,14 @@ describe('hidden editor retirement', () => {
     expect(editor.render()!.props.children.props.submitted).toBe(true);
   });
 
-  it('does not announce a deliberately discarded creation rejected before capture', () => {
+  it('reports a rejected creation that left before capture', () => {
     const editor = mount(true);
     state.commands.busy = true;
     editor.render();
     state.commands.busy = false;
     state.commands.error = 'the name was rejected';
     editor.render(false);
-    expect(editor.retire).toHaveBeenCalledWith(true, null, null);
+    expect(editor.retire).toHaveBeenCalledWith(true, 'the name was rejected', null);
   });
 
   it('closes inline creation when a lost response recovers a confirmed successful receipt', () => {

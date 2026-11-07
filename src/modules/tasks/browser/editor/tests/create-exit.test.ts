@@ -29,16 +29,16 @@ describe('inline task creation on exit', () => {
     hooks.current = false;
     hooks.effects = [];
   });
-  it('submits once and dismisses only after admission has a receipt', () => {
+  it('submits once and dismisses synchronously before admission has a receipt', () => {
     const { props, render } = mount();
     const close = render().close;
     close();
     close();
     expect(props.onSubmit).toHaveBeenCalledOnce();
-    expect(props.onClose).not.toHaveBeenCalled();
+    expect(props.onClose).toHaveBeenCalledOnce();
     props.pending = true;
     render();
-    expect(props.onClose).not.toHaveBeenCalled();
+    expect(props.onClose).toHaveBeenCalledOnce();
     props.submitted = true;
     render();
     expect(props.onClose).toHaveBeenCalledOnce();
@@ -46,6 +46,14 @@ describe('inline task creation on exit', () => {
   it('discards a pristine empty entry without creating a task', () => {
     const { props, render } = mount();
     props.dirty = false;
+    render().close();
+    expect(props.onSubmit).not.toHaveBeenCalled();
+    expect(props.onClose).toHaveBeenCalledOnce();
+  });
+  it('closes an empty entry without waiting for unrelated pending work', () => {
+    const { props, render } = mount();
+    props.dirty = false;
+    props.pending = true;
     render().close();
     expect(props.onSubmit).not.toHaveBeenCalled();
     expect(props.onClose).toHaveBeenCalledOnce();
@@ -59,13 +67,13 @@ describe('inline task creation on exit', () => {
     render().close();
     expect(props.onSubmit).toHaveBeenCalledTimes(2);
   });
-  it('keeps a failed admission visible and never retries it on another outside click', () => {
+  it('does not automatically retry a rejected creation on another outside click', () => {
     const { props, render } = mount();
     render().close();
     props.failed = true;
     render().close();
     expect(props.onSubmit).toHaveBeenCalledOnce();
-    expect(props.onClose).not.toHaveBeenCalled();
+    expect(props.onClose).toHaveBeenCalledOnce();
   });
   it('allows an explicit corrected retry after a known rejected admission', () => {
     const { props, render } = mount();

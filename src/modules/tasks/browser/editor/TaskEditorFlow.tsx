@@ -76,6 +76,19 @@ export function TaskEditorFlow({
           presented={id === session?.id}
           onBusyChange={(busy) => controller.setSaving(id, busy)}
           onRetire={(hadWork, error, operationId) => {
+            const creation = creations.items.find((item) => item.id === id);
+            if (!editor.task && hadWork && error && !operationId && creation) {
+              creations.fail(id, error, () =>
+                guard(() => {
+                  creations.remove(id);
+                  controller.recoverCreate(editor, creation.input);
+                }),
+              );
+              retire(id);
+              onChanged();
+              onNotice(`couldn’t add ${creation.input.title}. ${error}`);
+              return;
+            }
             creations.remove(id);
             edits.remove(id);
             retire(id);

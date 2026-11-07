@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import type { Task } from '../../contracts/task';
+import type { CreateTask, Task } from '../../contracts/task';
 import type { EditorLocation, EditorSelection } from './editor-contract';
 
 export interface TaskEditorSession {
@@ -115,6 +115,12 @@ export function useTaskEditor(
     createInline(location: EditorLocation) {
       intent.current++;
       select({ task: null, ...location, inlineCreate: true });
+    },
+    recoverCreate(selection: EditorSelection, input: CreateTask) {
+      if (input.accountId !== selection.list.accountId || input.listId !== selection.list.id)
+        return;
+      intent.current++;
+      select({ ...selection, task: null, initialCreate: structuredClone(input) });
     },
     createSubtask(task: Task) {
       const selection = current.current?.selection;

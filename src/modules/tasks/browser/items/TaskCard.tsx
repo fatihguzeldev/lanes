@@ -153,8 +153,9 @@ export function TaskCard({
   );
   const openChildren = countOpenTasks(children, task.accountId);
   const confirmedChildTotal = subtaskSummary?.total ?? children.length;
-  const childTotal = confirmedChildTotal + pendingChildren.length;
-  const childOpen = (subtaskSummary?.open ?? openChildren) + pendingChildren.length;
+  const creatingChildren = pendingChildren.filter((creation) => !creation.failure).length;
+  const childTotal = confirmedChildTotal + creatingChildren;
+  const childOpen = (subtaskSummary?.open ?? openChildren) + creatingChildren;
   const childCountsKnown = subtaskSummary?.complete ?? false;
   const partialChildren = !childCountsKnown || confirmedChildTotal > children.length;
   const blocking = blockingState ?? getBlockingState(task, relatedTasks);

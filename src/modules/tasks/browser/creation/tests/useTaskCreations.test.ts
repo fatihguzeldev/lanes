@@ -82,8 +82,35 @@ describe('submitted task visibility', () => {
     expect(render().items.map((item) => item.input.title)).toEqual(['corrected title']);
   });
 
+  it('keeps rejected input and explicit recovery without replaying a create', () => {
+    const edit = vi.fn();
+    render().start(1, input('keep my draft'));
+    render().fail(1, 'list changed', edit);
+    const failed = render().items[0]!;
+    expect(failed.input.title).toBe('keep my draft');
+    expect(failed.failure?.message).toBe('list changed');
+    expect(edit).not.toHaveBeenCalled();
+    failed.failure!.onEdit();
+    expect(edit).toHaveBeenCalledOnce();
+    failed.failure!.onDiscard();
+    expect(render().items).toEqual([]);
+  });
+
   it('rejects a creation from another account', () => {
     render().start(1, { ...input('ring64'), accountId: 'other' });
     expect(render().items).toEqual([]);
   });
+});
+
+it('guards failed drafts without discarding saves that are still running', () => {
+  hooks.index = 0;
+  hooks.slots = [];
+  render().start(1, input('rejected'));
+  render().start(2, input('still saving'));
+  expect(render().hasDrafts).toBe(false);
+  render().fail(1, 'list changed', () => {});
+  expect(render().hasDrafts).toBe(true);
+  render().discardDrafts();
+  expect(render().items.map((item) => item.id)).toEqual([2]);
+  expect(render().hasDrafts).toBe(false);
 });

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useTaskEditor } from '../useTaskEditor';
 import type { EditorLocation } from '../editor-contract';
-import type { Task } from '../../../contracts/task';
+import { CreateTaskSchema, type Task } from '../../../contracts/task';
 
 const hooks = vi.hoisted(() => ({ slots: [] as unknown[], index: 0 }));
 vi.mock('react', async (original) => ({
@@ -235,4 +235,26 @@ describe('task editor session ownership', () => {
     await Promise.resolve();
     expect(render().selection).toBeNull();
   });
+});
+
+it('opens captured failed input with a new session without reusing the old command owner', () => {
+  hooks.slots = [];
+  hooks.index = 0;
+  render().createInline(location);
+  const old = render().session!;
+  const input = CreateTaskSchema.parse({
+    accountId: 'account',
+    listId: 'list',
+    title: 'recover me',
+    notes: 'keep notes',
+  });
+  render().close(old.id);
+  render().recoverCreate(old.selection, input);
+  input.title = 'mutated later';
+  expect(render().session?.id).toBeGreaterThan(old.id);
+  expect(render().selection?.initialCreate?.title).toBe('recover me');
+  expect(render().selection?.initialCreate?.notes).toBe('keep notes');
+  const current = render().session!.id;
+  render().closeSaved(old.id);
+  expect(render().session?.id).toBe(current);
 });

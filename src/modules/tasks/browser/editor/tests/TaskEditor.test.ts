@@ -2,7 +2,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import { useOutsideDismiss } from '../../../../../shared/ui/dismiss/useOutsideDismiss';
-import { TaskSchema } from '../../../contracts/task';
+import { CreateTaskSchema, TaskSchema } from '../../../contracts/task';
 import { TaskEditor } from '../TaskEditor';
 import type { TaskEditorProps } from '../editor-contract';
 import type { FormEvent, KeyboardEvent } from 'react';
@@ -176,4 +176,21 @@ describe('direct task editing', () => {
     expect(html).not.toContain('saving…');
     expect(html).not.toContain('saving your changes');
   });
+});
+
+it('restores the full captured creation when editing a rejected row', () => {
+  const initialCreate = CreateTaskSchema.parse({
+    accountId: 'account',
+    listId: 'list',
+    title: 'recovered title',
+    notes: 'recovered notes',
+    scheduledDay: '2026-11-12',
+    priority: 'high',
+    starred: true,
+  });
+  const markup = renderToStaticMarkup(
+    createElement(TaskEditor, { ...base, task: null, initialCreate }),
+  );
+  expect(markup).toContain('recovered title');
+  expect(markup).toContain('recovered notes');
 });

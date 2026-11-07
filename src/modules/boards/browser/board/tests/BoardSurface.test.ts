@@ -105,6 +105,29 @@ describe('board list presentation', () => {
     expect(markup).toMatch(/class="board-column__count"[^>]*>1</);
   });
 
+  it('shows a rejected creation as an actionable error instead of a saving row', () => {
+    const markup = render({
+      creations: [
+        {
+          id: 1,
+          confirmedAfter: null,
+          input: CreateTaskSchema.parse({
+            accountId: 'account',
+            listId: 'list',
+            title: 'recover me',
+          }),
+          failure: { message: 'list changed', onEdit() {}, onDiscard() {} },
+        },
+      ],
+    });
+    expect(markup).toContain('role="alert"');
+    expect(markup).toContain('list changed');
+    expect(markup).toContain('aria-label="edit recover me"');
+    expect(markup).toContain('aria-label="discard recover me"');
+    expect(markup).not.toContain('aria-busy="true"');
+    expect(markup).toMatch(/class="board-column__count"[^>]*>0</);
+  });
+
   it('keeps the known list symbol identical while names and counts are unknown', () => {
     const symbol = (markup: string) =>
       markup.match(/<span class="board-column__symbol">([\s\S]*?)<\/span>/)?.[1];

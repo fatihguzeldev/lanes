@@ -312,7 +312,11 @@ export function Workspace({
       boardManagement.appearance.isSaving()
     )
       setNotice('wait for your changes to finish saving before leaving this account.');
-    else if (boardCreationDirty || listCreationDirty) setDiscard(() => action);
+    else if (boardCreationDirty || listCreationDirty || creations.hasDrafts)
+      setDiscard(() => () => {
+        creations.discardDrafts();
+        action();
+      });
     else guard(action);
   };
   useEffect(() => {
@@ -326,6 +330,7 @@ export function Workspace({
     const unload = (event: BeforeUnloadEvent) => {
       if (
         editorDirty ||
+        creations.hasDrafts ||
         templateDirty ||
         transferDirty ||
         boardCreationDirty ||
@@ -348,6 +353,7 @@ export function Workspace({
     return () => window.removeEventListener('beforeunload', unload);
   }, [
     editorDirty,
+    creations.hasDrafts,
     templateDirty,
     transferDirty,
     boardCreationDirty,

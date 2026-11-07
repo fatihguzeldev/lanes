@@ -1,3 +1,32 @@
 .task-creation-preview :is(.task-card__title, .task-card__child-title) {
   cursor: default;
 }
+
+.task-creation-preview__recovery {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin: 5px 0 0 23px;
+  color: var(--rust);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.task-creation-preview__recovery > span {
+  flex: 1 1 100%;
+  overflow-wrap: anywhere;
+}
+.task-creation-preview__recovery > button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--green);
+  font: inherit;
+  cursor: pointer;
+}
+.task-creation-preview__recovery > button:hover {
+  text-decoration: underline;
+}
+.task-card__child .task-creation-preview__recovery {
+  margin-left: 0;
+}

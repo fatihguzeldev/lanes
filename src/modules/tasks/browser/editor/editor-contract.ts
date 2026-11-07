@@ -11,6 +11,7 @@ export interface EditorLocation {
 export interface EditorSelection extends EditorLocation {
   task: Task | null;
   inlineCreate?: boolean;
+  initialCreate?: CreateTask;
   initialDay?: string | null;
   parent?: Task | null;
 }
@@ -37,6 +38,7 @@ export interface TaskEditorProps {
   accountLabel?: string;
   task: Task | null;
   inlineCreate?: boolean;
+  initialCreate?: CreateTask;
   list: TaskList;
   labels: readonly Label[];
   labelPage?: LabelPickerPage | undefined;
