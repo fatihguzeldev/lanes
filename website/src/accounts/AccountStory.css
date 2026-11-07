@@ -1,9 +1,9 @@
 .account-story {
   min-width: 0;
-  padding-block: clamp(64px, 6vw, 96px);
+  padding-block: clamp(48px, 5vw, 80px);
 }
 .account-story__intro {
-  margin-bottom: 32px;
+  margin-bottom: 24px;
 }
 .account-story__intro h2 {
   max-width: 22ch;
@@ -24,13 +24,13 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  min-height: 70px;
-  padding: 12px 24px;
+  min-height: 64px;
+  padding: 8px 20px;
   border-bottom: 1px solid var(--color-line);
 }
 .account-story__toolbar h3 {
-  flex: 1 1 180px;
-  min-width: 0;
+  flex: 1 1 0;
+  min-width: 8ch;
   margin: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -42,6 +42,7 @@
 }
 .account-story__accounts {
   display: flex;
+  flex: 0 0 auto;
   flex-wrap: wrap;
   gap: 4px;
   max-width: 100%;
@@ -79,7 +80,7 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: start;
   gap: 16px;
-  padding: 20px 24px 24px;
+  padding: 16px 20px 20px;
 }
 .account-story__list {
   min-width: 0;
@@ -93,7 +94,7 @@
   align-items: center;
   gap: 8px;
   min-height: 42px;
-  padding: 0 14px;
+  padding: 0 12px;
   border-bottom: 1px solid var(--color-fine);
 }
 .account-story__list-symbol {
@@ -118,12 +119,6 @@
   font-size: 12px;
   font-variant-numeric: tabular-nums;
 }
-.account-story__workspace .details-task__main {
-  padding-block: 12px;
-}
-.account-story__workspace .details-task__title {
-  font-size: 15px;
-}
 .account-story__completed {
   border-top: 1px solid var(--color-fine);
 }
@@ -133,7 +128,7 @@
   gap: 6px;
   width: 100%;
   min-height: 36px;
-  padding: 9px 14px;
+  padding: 8px 12px;
   border: 0;
   background: transparent;
   color: var(--color-muted);
@@ -155,28 +150,30 @@
 }
 @container account-workspace (max-width: 620px) {
   .account-story__toolbar {
+    gap: 8px;
     min-height: 56px;
-    padding: 5px 12px;
+    padding: 6px 12px;
+  }
+  .account-story__toolbar h3 {
+    font-size: 15px;
   }
   .account-story__lists {
     grid-template-columns: minmax(0, 1fr);
-    padding: 16px;
+    gap: 12px;
+    padding: 12px;
   }
 }
 @media (max-width: 640px) {
   .account-story {
-    padding-block: 48px;
+    padding-block: 32px 48px;
   }
   .account-story__intro {
-    margin-bottom: 24px;
+    margin-bottom: 20px;
   }
 }
 @media (any-pointer: coarse) {
   .account-story__accounts button,
   .account-story__completed-toggle {
     min-height: 44px;
-  }
-  .account-story__list-heading {
-    min-height: 52px;
   }
 }
