@@ -12,7 +12,7 @@ store a scheduled day as a calendar date, independent of timestamp formatting. g
 
 an optional scheduled time is a local wall-clock time stored by lanes with an iana time zone. require a day before adding a time or repeat rule. clearing a day also clears its time and stops repetition, with the consequence shown before saving.
 
-each connected account has a planning time zone and week-start preference. initialize the zone from the browser on first connection and store it explicitly. a browser traveling to another zone does not silently change schedules. default week start to monday and allow sunday.
+each connected account has a planning time zone and week-start preference. initialize the zone from the browser on first connection and store it explicitly. a browser traveling to another zone does not silently change schedules. default week start to monday and allow sunday. preference selections update immediately without disabling the other control. save them in order against fresh account revisions; failure restores confirmed values and remains visible after the settings menu closes.
 
 use the account zone to determine today, overdue, date-filter boundaries, calendar headings, and history day groups. existing timed tasks and rules retain their stored zones when the account preference changes. show a zone label when a task differs from the account zone; changing the preference does not rewrite google dates.
 

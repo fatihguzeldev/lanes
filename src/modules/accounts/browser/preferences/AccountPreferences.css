@@ -15,10 +15,6 @@
 .account-preferences label > .select {
   width: 100%;
 }
-.account-preferences__status {
-  color: var(--secondary);
-  font-size: 12px;
-}
 .account-preferences .error {
   color: var(--rust);
   line-height: 1.5;

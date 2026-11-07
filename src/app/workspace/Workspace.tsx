@@ -283,9 +283,20 @@ export function Workspace({
     },
     [taskEditor, templateDirty, transferDirty],
   );
+  const preferences = useAccountPreferences({
+    account,
+    clockOffset,
+    onError: setNotice,
+    onChanged: () => {
+      changed();
+      onAccountsChanged();
+    },
+  });
   const guardAccount = (action: () => void) => {
     if (
       movingTasks ||
+      preferences.busy ||
+      commands.isBusy() ||
       quickActionsBusy ||
       taskEditor.isSaving() ||
       boardManagement.placement.busy ||
@@ -313,6 +324,8 @@ export function Workspace({
         boardCreationDirty ||
         listCreationDirty ||
         movingTasks ||
+        preferences.busy ||
+        commands.isBusy() ||
         quickActionsBusy ||
         taskEditor.saving ||
         boardManagement.placement.busy
@@ -330,6 +343,8 @@ export function Workspace({
     boardCreationDirty,
     listCreationDirty,
     movingTasks,
+    preferences.busy,
+    commands.busy,
     quickActionsBusy,
     taskEditor.saving,
     boardManagement.placement.busy,
@@ -366,14 +381,6 @@ export function Workspace({
     metadataFailed: Boolean(boards.error || lists.error || labels.error || failedBoardLookup),
     viewRequired: Boolean(board) && lists.status !== 'error',
   });
-  const preferences = useAccountPreferences({
-    account,
-    clockOffset,
-    onChanged: () => {
-      changed();
-      onAccountsChanged();
-    },
-  });
   const settings = {
     preferences,
     onTransfer: () =>
@@ -400,6 +407,7 @@ export function Workspace({
     reachable: connection === 'reachable',
     busy:
       sync.busy ||
+      preferences.busy ||
       commands.busy ||
       quickActionsBusy ||
       repeatWork.busy ||
