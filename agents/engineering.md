@@ -24,7 +24,7 @@ avoid speculative provider frameworks, event buses, package splits, and abstract
 
 ## public website
 
-`website/` owns the public introduction and its browser-only demonstrations. it has an independent vite configuration and static build, sharing root package dependencies without importing application modules or worker code. see [the website guide](../website/README.md) for commands and deployment boundaries.
+`website/` owns the public introduction and its browser-only demonstrations. it has an independent vite configuration and static build, sharing root package dependencies without importing application modules or worker code.
 
 ## verification
 
