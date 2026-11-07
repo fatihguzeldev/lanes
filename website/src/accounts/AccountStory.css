@@ -20,6 +20,7 @@
 }
 .account-story__toolbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
@@ -28,6 +29,7 @@
   border-bottom: 1px solid var(--color-line);
 }
 .account-story__toolbar h3 {
+  flex: 1 1 180px;
   min-width: 0;
   margin: 0;
   overflow: hidden;
@@ -37,6 +39,40 @@
   font-weight: 550;
   line-height: 1.4;
   letter-spacing: -0.35px;
+}
+.account-story__accounts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-width: 100%;
+  margin-inline-start: auto;
+}
+.account-story__accounts button {
+  min-width: 44px;
+  min-height: 34px;
+  padding: 7px 12px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--color-muted);
+  font: inherit;
+  font-size: 13px;
+  line-height: 20px;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+.account-story__accounts button[aria-pressed='true'] {
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+.account-story__accounts button:focus-visible {
+  outline: none;
+  background-image: linear-gradient(currentColor, currentColor);
+  background-position: center calc(100% - 4px);
+  background-size: calc(100% - 24px) 2px;
+  background-repeat: no-repeat;
 }
 .account-story__lists {
   display: grid;
@@ -109,6 +145,10 @@
   font-variant-numeric: tabular-nums;
 }
 @media (hover: hover) {
+  .account-story__accounts button:hover:not([aria-pressed='true']) {
+    background-color: var(--color-soft);
+    color: var(--color-ink);
+  }
   .account-story__completed-toggle:hover {
     color: var(--color-accent);
   }
@@ -117,10 +157,6 @@
   .account-story__toolbar {
     min-height: 56px;
     padding: 5px 12px;
-  }
-  .account-story__toolbar .demo-account-menu__trigger {
-    width: 44px;
-    height: 44px;
   }
   .account-story__lists {
     grid-template-columns: minmax(0, 1fr);
@@ -136,6 +172,7 @@
   }
 }
 @media (any-pointer: coarse) {
+  .account-story__accounts button,
   .account-story__completed-toggle {
     min-height: 44px;
   }

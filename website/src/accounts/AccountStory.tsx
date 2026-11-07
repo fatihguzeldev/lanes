@@ -1,5 +1,4 @@
 import { useLayoutEffect, useRef, useState } from 'react';
-import { DemoAccountMenu } from '../demo/DemoAccountMenu';
 import {
   demoAccounts,
   updateDemoTask,
@@ -119,14 +118,20 @@ export function AccountStory() {
       >
         <header className="account-story__toolbar">
           <h3>{account.board}</h3>
-          <DemoAccountMenu
-            account={account}
-            accounts={Object.values(accounts)}
-            onSelect={(id) => {
-              if (id === selected || (id !== 'personal' && id !== 'work')) return;
-              editor.navigate(() => setSelected(id));
-            }}
-          />
+          <div className="account-story__accounts" role="group" aria-label="account">
+            {(['personal', 'work'] as const).map((id) => (
+              <button
+                key={id}
+                type="button"
+                aria-pressed={id === selected}
+                onClick={() => {
+                  if (id !== selected) editor.navigate(() => setSelected(id));
+                }}
+              >
+                {id}
+              </button>
+            ))}
+          </div>
         </header>
         <div className="account-story__lists">
           {account.lists.map((list) => {
