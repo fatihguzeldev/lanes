@@ -7,6 +7,7 @@ import './Dialog.css';
 export function Dialog({
   title,
   children,
+  presented = true,
   onClose,
   wide = false,
   side = false,
@@ -14,6 +15,7 @@ export function Dialog({
   dismissOnOutside = false,
 }: {
   title: string;
+  presented?: boolean;
   children: ReactNode;
   onClose: () => void;
   wide?: boolean;
@@ -34,6 +36,7 @@ export function Dialog({
   const keyboard = useRef(opener.current?.matches(':focus-visible') ?? false);
   const outsidePointer = useRef<number | null>(null);
   useLayoutEffect(() => {
+    if (!presented) return;
     const element = heading.current;
     if (!element) return;
     const update = () => setScrollableTitle(element.scrollHeight > element.clientHeight + 1);
@@ -41,8 +44,9 @@ export function Dialog({
     observer.observe(element);
     update();
     return () => observer.disconnect();
-  }, [title]);
+  }, [title, presented]);
   useLayoutEffect(() => {
+    if (!presented) return;
     const dialog = ref.current;
     const stopViewport = dialog
       ? observeViewport((bounds) => applyViewport(dialog, bounds))
@@ -62,10 +66,11 @@ export function Dialog({
           restoreFocus(opener.current, keyboard.current);
       });
     };
-  }, []);
+  }, [presented]);
   return (
     <dialog
       ref={ref}
+      hidden={!presented}
       className={`dialog${wide ? ' dialog--wide' : ''}${side ? ' dialog--side' : ''}`}
       aria-label={title}
       aria-busy={pending || undefined}

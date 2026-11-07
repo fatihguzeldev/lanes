@@ -1,15 +1,11 @@
-import { lazy, Suspense } from 'react';
 import { Brand } from '../../shared/ui/brand/Brand';
 import { WorkspaceSkeleton } from '../workspace/WorkspaceSkeleton';
+import { AccountWorkspaces } from './AccountWorkspaces';
 import { useTheme } from '../theme/theme';
 import { useOwnerSession } from '../../modules/accounts/browser/session/useOwnerSession';
 import { portabilityLanding } from '../../modules/transfer/browser/workspace/landing';
 import type { SessionSnapshot } from '../../modules/accounts/contracts/session';
 import './App.css';
-
-const Workspace = lazy(() =>
-  import('../workspace/Workspace').then((module) => ({ default: module.Workspace })),
-);
 
 export function App({
   initialSession = null,
@@ -43,22 +39,18 @@ export function App({
   if (session?.authenticated && selected)
     return (
       <>
-        <Suspense
-          fallback={<WorkspaceSkeleton theme={resolvedTheme} accountInitial={loadingInitial} />}
-        >
-          <Workspace
-            key={selected.id}
-            account={selected}
-            accounts={session.accounts!.items}
-            clockOffset={clockOffset}
-            theme={resolvedTheme}
-            onTheme={setTheme}
-            onSelectAccount={selectAccount}
-            onAuthorize={(purpose, id) => void authorize(purpose, id)}
-            onAccountsChanged={load}
-            onSignOut={signOut}
-          />
-        </Suspense>
+        <AccountWorkspaces
+          selected={selected}
+          loadingInitial={loadingInitial}
+          accounts={session.accounts!.items}
+          clockOffset={clockOffset}
+          theme={resolvedTheme}
+          onTheme={setTheme}
+          onSelectAccount={selectAccount}
+          onAuthorize={(purpose, id) => void authorize(purpose, id)}
+          onAccountsChanged={load}
+          onSignOut={signOut}
+        />
         {session.accounts!.nextCursor && (
           <button className="app-load-accounts" onClick={loadMoreAccounts}>
             load more google accounts

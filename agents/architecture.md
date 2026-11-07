@@ -87,6 +87,12 @@ account cleanup follows the existing bounded lifecycle order. each owner prepare
 
 feature controllers own their draft, selection, request, and dialog lifetimes. app composition supplies navigation callbacks. moving presentation into a popover must not move an ongoing save controller into the popover's shorter lifetime.
 
+app retains mutation owners for visited accounts while selection changes the visible workspace. inactive owners do not mount editors, menus, or foreground sync. captured work keeps its account, input, and receipt identity; failures remain reachable when its presentation closes or another account is selected. unsent drafts still use the navigation guard.
+
+tasks owns one account-level projection of pending task changes shared by board, list, calendar, today, starred, and completed views. presentation closes after validated capture; the owner serializes dependent writes and replaces optimistic values only after confirmation and a fresh read. this queue lives in the current online browser session. it does not persist through reload or provide offline editing. provider receipts remain the durable recovery boundary.
+
+wait for data that determines an action, including destination choices not yet loaded, consequence previews, authorization, and bulk import or template preparation. an admitted routine save does not keep its form open or lock unrelated controls.
+
 tasks owns editing, creation, completion, movement, labels, planning, and sync presentation. boards composes board/list/calendar views and owns board management. history owns opening a retained event's task; it uses a read capability and delegates editing back to the app.
 
 transfer groups imports, archive capture/restore, exports, sheets, parsing workers, and account copying. the browser form does not implement another version of the server import protocol. parser workers stay with the browser flow that starts them; portable format rules stay under `formats/`.

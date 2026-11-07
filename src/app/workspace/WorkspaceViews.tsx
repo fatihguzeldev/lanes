@@ -12,7 +12,8 @@ import type { BoardViewPreferences } from '../../modules/boards/browser/view/vie
 import type { useBoardData } from '../../modules/boards/browser/navigation/useBoardData';
 import type { TaskMoveQueue } from '../../modules/tasks/browser/movement/useTaskMoveQueue';
 import type { PendingTaskCreation } from '../../modules/tasks/browser/creation/useTaskCreations';
-import type { PendingTaskEdit } from '../../modules/tasks/browser/editor/useTaskEdits';
+import type { EditorLocation } from '../../modules/tasks/browser/editor/editor-contract';
+import type { PendingTaskChange } from '../../modules/tasks/browser/changes/useTaskChanges';
 import type { InitialViewReadiness } from '../../shared/browser/resources/readiness';
 import { BoardWorkspace } from '../../modules/boards/browser/board/BoardWorkspace';
 import { CalendarWorkspace } from '../../modules/boards/browser/calendar/CalendarWorkspace';
@@ -27,7 +28,7 @@ interface ViewActions {
   onClearCompletedFilters(): void;
   onAddList(): void;
   onAddTask(list: TaskList): void;
-  onOpenTask(task: Task): void;
+  onOpenTask(task: Task, location?: EditorLocation): void;
   onToggleComplete(task: Task, completed: boolean): Promise<boolean>;
   onToggleStar(task: Task, starred: boolean): Promise<boolean>;
   onTaskMenu(task: Task, anchor: HTMLButtonElement): void;
@@ -62,9 +63,10 @@ interface Props {
   moveQueue: TaskMoveQueue;
   creations: readonly PendingTaskCreation[];
   onCreationRead(id: number): void;
-  edits: readonly PendingTaskEdit[];
-  onEditRead(id: number): void;
+  edits: readonly PendingTaskChange[];
+  onEditRead(id: string | number): void;
   listCreation: ReactNode;
+  listCreationOpen?: boolean;
   onInitialReady(state: InitialViewReadiness): void;
   actions: ViewActions;
 }
@@ -97,6 +99,7 @@ export function WorkspaceViews({
   edits,
   onEditRead,
   listCreation,
+  listCreationOpen,
   onInitialReady,
   actions,
 }: Props) {
@@ -134,6 +137,7 @@ export function WorkspaceViews({
             onRetry={() => void lists.reload()}
             onAddList={actions.onAddList}
             listCreation={listCreation}
+            listCreationOpen={listCreationOpen ?? false}
             {...(lists.nextCursor ? { onLoadMoreLists: () => void lists.loadMore() } : {})}
             onAddTask={actions.onAddTask}
             onOpenTask={actions.onOpenTask}
@@ -168,6 +172,7 @@ export function WorkspaceViews({
             onTaskMenu={actions.onTaskMenu}
             creations={creations}
             onCreationRead={onCreationRead}
+            moves={moveQueue.moves}
             edits={edits}
             onEditRead={onEditRead}
             localActionsEnabled={localWritable}
@@ -181,6 +186,7 @@ export function WorkspaceViews({
           account={account}
           board={board}
           lists={visibleLists}
+          knownLists={lists}
           today={today}
           filter={activeFilter}
           query={search}
@@ -190,6 +196,7 @@ export function WorkspaceViews({
           providerActionsEnabled={writable}
           onOpenTask={actions.onOpenTask}
           onTaskMenu={actions.onTaskMenu}
+          moves={moveQueue.moves}
           edits={edits}
           onEditRead={onEditRead}
           creations={creations}
@@ -210,6 +217,7 @@ export function WorkspaceViews({
           version={version}
           onInitialReady={onInitialReady}
           onOpenTask={actions.onOpenTask}
+          moves={moveQueue.moves}
           edits={edits}
           onEditRead={onEditRead}
           onReturn={actions.onReturnToBoard}

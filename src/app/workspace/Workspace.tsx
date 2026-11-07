@@ -19,9 +19,13 @@ import {
   useChangeInspection,
   ChangeInspection,
 } from '../../modules/operations/browser/status/ChangeInspection';
+import type { EditorLocation } from '../../modules/tasks/browser/editor/editor-contract';
 import { useTaskEditor } from '../../modules/tasks/browser/editor/useTaskEditor';
-import { useTaskCreations } from '../../modules/tasks/browser/creation/useTaskCreations';
-import { useTaskEdits } from '../../modules/tasks/browser/editor/useTaskEdits';
+import {
+  useTaskCreations,
+  type CreationIntent,
+} from '../../modules/tasks/browser/creation/useTaskCreations';
+import { useTaskChanges } from '../../modules/tasks/browser/changes/useTaskChanges';
 import { TaskEditorFlow } from '../../modules/tasks/browser/editor/TaskEditorFlow';
 import {
   useTaskCompletion,
@@ -36,7 +40,7 @@ import { readListPlacement } from '../../modules/boards/browser/placement/querie
 import { useLabels } from '../../modules/tasks/browser/labels/useLabels';
 import { useUnfinishedChanges } from '../../modules/operations/browser/queries/useUnfinishedChanges';
 import { useTaskActions } from '../../modules/tasks/browser/actions/useTaskActions';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { WorkspaceSkeleton } from './WorkspaceSkeleton';
 import { Icon } from '../../shared/ui/icon/Icon';
 import { Dialog } from '../../shared/ui/dialog/Dialog';
@@ -77,6 +81,8 @@ import './Workspace.css';
 import './WorkspaceSkeleton.css';
 
 export interface WorkspaceProps {
+  active?: boolean;
+  onBackgroundNotice?: (message: string, operationId?: string | null) => void;
   account: ConnectionSummary;
   accounts: readonly ConnectionSummary[];
   clockOffset: number;
@@ -89,6 +95,8 @@ export interface WorkspaceProps {
 }
 
 export function Workspace({
+  active = true,
+  onBackgroundNotice,
   account,
   accounts,
   clockOffset,
@@ -120,15 +128,19 @@ export function Workspace({
   const [boardCreationDirty, setBoardCreationDirty] = useState(false);
   const [listCreationDirty, setListCreationDirty] = useState(false);
   const closeNavigation = useCallback(() => setNavOpen(false), []);
-  const navigation = useMobileNavigation(navOpen, closeNavigation);
+  const navigation = useMobileNavigation(active && navOpen, closeNavigation);
   const [prompt, setPrompt] = useState<Prompt | null>(null);
   const [discard, setDiscard] = useState<(() => void) | null>(null),
     [notice, setNoticeText] = useState('');
   const [confirmation, setConfirmation] = useState<ConfirmationChoice | null>(null);
   const [noticeOperationId, setNoticeOperationId] = useState<string | null>(null);
+  const noticeAudience = useRef({ active, onBackgroundNotice });
+  noticeAudience.current = { active, onBackgroundNotice };
   const setNotice = useCallback((message: string, operationId: string | null = null) => {
     setNoticeText(message);
     setNoticeOperationId(operationId);
+    if (!noticeAudience.current.active)
+      noticeAudience.current.onBackgroundNotice?.(message, operationId);
   }, []);
   const taskEditor = useTaskEditor(async (listId) => {
     const [list, membership] = await Promise.all([
@@ -138,8 +150,16 @@ export function Workspace({
     return { list, boardId: membership.boardId };
   }, setNotice);
   const editorDirty = taskEditor.dirty;
-  const creations = useTaskCreations(account.id, version);
-  const edits = useTaskEdits(account.id, version);
+  const edits = useTaskChanges(account.id, version);
+  const replayCreation = useRef<(task: Task, intent: CreationIntent) => Promise<boolean>>(
+    async () => false,
+  );
+  const creations = useTaskCreations(account.id, version, {
+    editable: account.state === 'connected' && connection === 'reachable',
+    onReady: (task, intent) => replayCreation.current(task, intent),
+    onChanged: () => changed(),
+    onError: setNotice,
+  });
   const completion = useTaskCompletion();
   const taskMenu = useTaskMenu();
   const changed = useCallback(() => {
@@ -173,7 +193,11 @@ export function Workspace({
   });
   const movingTasks = moveQueue.busy;
   const commands = useCommands(account.id, clockOffset, changed);
-  const repeatWork = useRecurrenceWork(account.id, account.state === 'connected', changed);
+  const repeatWork = useRecurrenceWork(
+    account.id,
+    active && account.state === 'connected',
+    changed,
+  );
   const syncChanged = useCallback(({ topology, tasks }: SyncChanges) => {
     if (topology) setTopologyVersion((value) => value + 1);
     if (tasks) setVersion((value) => value + 1);
@@ -184,6 +208,7 @@ export function Workspace({
     account.state === 'connected',
     clockOffset,
     repeatWork.run,
+    active,
   );
   const boardData = useBoardData({
     accountId: account.id,
@@ -248,6 +273,7 @@ export function Workspace({
     onChanged: changed,
     onNotice: setNotice,
     onInspect: inspection.inspect,
+    onMoveTask: (task, choice) => moveQueue.enqueuePlacement(task, choice),
     onBoardDraftChange: setBoardCreationDirty,
     onListDraftChange: setListCreationDirty,
     onMoved: (taskId) => {
@@ -255,8 +281,8 @@ export function Workspace({
     },
   });
   const displayedBoard = boardManagement.appearance.board(board);
-  const displayedBoards = boards.items.map((item) => boardManagement.appearance.board(item)!);
-  const displayedLists = visibleLists.map(boardManagement.appearance.list);
+  const displayedBoards = boardManagement.appearance.orderedBoards(boards.items);
+  const displayedLists = boardManagement.appearance.orderedLists(visibleLists, board?.id);
   const {
     toggleStar,
     toggleComplete,
@@ -264,24 +290,26 @@ export function Workspace({
     deleteList,
     reschedule,
     busy: quickActionsBusy,
+    applyCreation,
   } = useTaskActions(
     {
       accountId: account.id,
-      runTaskChange: (taskId, job) => edits.run(taskId, job),
+      changes: edits,
       submit,
       confirm: setConfirmation,
       onNotice: setNotice,
       onChanged: changed,
       onRepeat: repeatWork.run,
       onReopen: completion.openReopen,
-      onTaskDeleted: () => {
-        taskEditor.close();
-        taskMenu.close();
+      onTaskDeleted: (task) => {
+        if (taskEditor.selection?.task?.id === task.id) taskEditor.close();
+        if (taskMenu.task?.id === task.id) taskMenu.close();
       },
       onListDeleteReady: boardManagement.closeListMenu,
     },
     clockOffset,
   );
+  replayCreation.current = applyCreation;
   const guard = useCallback(
     (action: () => void) => {
       if (taskEditor.deferCreateExit(action)) return;
@@ -299,17 +327,18 @@ export function Workspace({
       onAccountsChanged();
     },
   });
-  const guardAccount = (action: () => void) => {
+  const guardAccount = (action: () => void, leavingPage = false) => {
     if (
-      movingTasks ||
-      preferences.busy ||
-      commands.isBusy() ||
-      quickActionsBusy ||
-      taskEditor.isSaving() ||
-      boardManagement.placement.busy ||
-      boardManagement.creation.isSaving() ||
-      boardManagement.listCreation.isSaving() ||
-      boardManagement.appearance.isSaving()
+      leavingPage &&
+      (movingTasks ||
+        preferences.busy ||
+        commands.isBusy() ||
+        quickActionsBusy ||
+        taskEditor.isSaving() ||
+        boardManagement.creation.isSaving() ||
+        boardManagement.listCreation.isSaving() ||
+        boardManagement.appearance.isSaving() ||
+        creations.busy)
     )
       setNotice('wait for your changes to finish saving before leaving this account.');
     else if (boardCreationDirty || listCreationDirty || creations.hasDrafts)
@@ -331,6 +360,7 @@ export function Workspace({
       if (
         editorDirty ||
         creations.hasDrafts ||
+        creations.busy ||
         templateDirty ||
         transferDirty ||
         boardCreationDirty ||
@@ -338,12 +368,11 @@ export function Workspace({
         movingTasks ||
         preferences.busy ||
         commands.isBusy() ||
-        boardManagement.creation.busy ||
-        boardManagement.listCreation.busy ||
+        boardManagement.creation.isSaving() ||
+        boardManagement.listCreation.isSaving() ||
         boardManagement.appearance.isSaving() ||
         quickActionsBusy ||
-        taskEditor.saving ||
-        boardManagement.placement.busy
+        taskEditor.saving
       ) {
         event.preventDefault();
         event.returnValue = '';
@@ -354,6 +383,7 @@ export function Workspace({
   }, [
     editorDirty,
     creations.hasDrafts,
+    creations.busy,
     templateDirty,
     transferDirty,
     boardCreationDirty,
@@ -361,16 +391,17 @@ export function Workspace({
     movingTasks,
     preferences.busy,
     commands.busy,
-    boardManagement.creation.busy,
-    boardManagement.listCreation.busy,
+    boardManagement.creation.isSaving(),
+    boardManagement.listCreation.isSaving(),
     boardManagement.appearance.pending,
     quickActionsBusy,
     taskEditor.saving,
-    boardManagement.placement.busy,
   ]);
-  const openTask = (task: Task) => {
+  const openTask = (task: Task, loaded?: EditorLocation) => {
     const list = lists.items.find((item) => item.id === task.listId);
-    guard(() => taskEditor.open(task, list ? { list, boardId: list.boardId } : undefined));
+    guard(() =>
+      taskEditor.open(task, loaded ?? (list ? { list, boardId: list.boardId } : undefined)),
+    );
   };
 
   const awaitingBoard =
@@ -432,9 +463,8 @@ export function Workspace({
       repeatWork.busy ||
       movingTasks ||
       taskEditor.saving ||
-      boardManagement.placement.busy ||
-      boardManagement.creation.busy ||
-      boardManagement.listCreation.busy,
+      boardManagement.creation.isSaving() ||
+      boardManagement.listCreation.isSaving(),
     error: sync.error,
     status: sync.status,
     onRefresh: () =>
@@ -451,267 +481,291 @@ export function Workspace({
   return (
     <div
       className={`workspace${navOpen ? ' workspace--nav-open' : ''}${!revealed ? ' workspace--loading' : ''}`}
-      inert={!revealed}
+      hidden={!active}
+      inert={!active || !revealed}
       aria-busy={!revealed || undefined}
     >
-      {!revealed && (
+      {active && !revealed && (
         <WorkspaceSkeleton
           theme={theme}
           accountInitial={Array.from(account.displayName.trim())[0] ?? '?'}
         />
       )}
-      <WorkspaceNavigation
-        navigation={navigation}
-        open={navOpen}
-        quick={quick}
-        onQuick={(next) =>
-          guard(() => {
-            setQuick(next);
-            updateBoardView({ view: 'board' });
-            setNavOpen(false);
-          })
-        }
-        onClose={() => setNavOpen(false)}
-        utilities={
-          <>
-            <SyncControl {...syncControl} labelled />
-            <div className="workspace__utility-pair">
-              <ThemeToggle theme={theme} onTheme={onTheme} labelled />
-              <WorkspaceSettings {...settings} labelled />
-            </div>
-          </>
-        }
-        boards={{
-          resource: { ...boards, items: displayedBoards },
-          selectedBoardId:
-            quick === 'all' && !(searchScope === 'account' && search) ? (board?.id ?? null) : null,
-          writable: localWritable,
-          creation: boardManagement.creation,
-          onCreate: boardManagement.createBoard,
-          onSelect: (item) =>
-            guard(() => {
-              leaveCompleted();
-              boardData.selectBoard(item);
-              setQuick('all');
-              setSearchScope('board');
-              setSearch('');
-              setQuery('');
-              setNavOpen(false);
-            }),
-          onReorder: (command) => {
-            void submit(command, 'local');
-          },
-        }}
-      />
-      <main className="workspace__main" inert={navOpen || undefined}>
-        {displayedBoard?.backgroundUrl && (
-          <img
-            key={displayedBoard.backgroundUrl}
-            className="workspace__background"
-            src={displayedBoard.backgroundUrl}
-            alt=""
-            aria-hidden="true"
-            referrerPolicy="no-referrer"
-            onError={(event) => {
-              event.currentTarget.hidden = true;
+      {active && (
+        <>
+          <WorkspaceNavigation
+            navigation={navigation}
+            open={navOpen}
+            quick={quick}
+            onQuick={(next) =>
+              guard(() => {
+                setQuick(next);
+                updateBoardView({ view: 'board' });
+                setNavOpen(false);
+              })
+            }
+            onClose={() => setNavOpen(false)}
+            utilities={
+              <>
+                <SyncControl {...syncControl} labelled />
+                <div className="workspace__utility-pair">
+                  <ThemeToggle theme={theme} onTheme={onTheme} labelled />
+                  <WorkspaceSettings {...settings} labelled />
+                </div>
+              </>
+            }
+            boards={{
+              resource: { ...boards, items: displayedBoards },
+              selectedBoardId:
+                quick === 'all' && !(searchScope === 'account' && search)
+                  ? (board?.id ?? null)
+                  : null,
+              writable: localWritable,
+              creation: boardManagement.creation,
+              onCreate: boardManagement.createBoard,
+              onSelect: (item) =>
+                guard(() => {
+                  leaveCompleted();
+                  boardData.selectBoard(item);
+                  setQuick('all');
+                  setSearchScope('board');
+                  setSearch('');
+                  setQuery('');
+                  setNavOpen(false);
+                }),
+              onReorder: (command) => {
+                const source = boards.items.find((item) => item.id === command.boardId);
+                if (source) boardManagement.appearance.reorderBoard(source, command.position);
+              },
             }}
           />
-        )}
-        <WorkspaceToolbar
-          navigationTrigger={navigation.trigger}
-          onOpenNavigation={() => setNavOpen(true)}
-          awaitingBoard={awaitingBoard}
-          quick={quick}
-          searchScope={searchScope}
-          search={search}
-          board={displayedBoard}
-          onBoardOptions={(anchor) => {
-            boardManagement.openBoardMenu(anchor);
-          }}
-          query={query}
-          onQuery={setQuery}
-          onScope={(value) => guard(() => setSearchScope(value))}
-          viewMenu={{
-            allowLayout: quick === 'all' && !(searchScope === 'account' && search),
-            view: view,
-            sort: sort,
-            filter: filter,
-            lists: visibleLists,
-            labels: labels.items,
-            today: today,
-            moreLists: !!lists.nextCursor,
-            moreLabels: !!labels.nextCursor,
-            onView: setView,
-            onSort: setSort,
-            onFilter: (next) => guard(() => setFilter(next)),
-            onClear: () =>
-              guard(() => {
-                setFilter({});
-                setSearch('');
-                setQuery('');
-              }),
-            onMoreLists: () => void lists.loadMore(),
-            onMoreLabels: () => void labels.loadMore(),
-          }}
-          syncControl={<SyncControl {...syncControl} compact />}
-          desktopControls={
-            <>
-              <ThemeToggle theme={theme} onTheme={onTheme} />
-              <WorkspaceSettings {...settings} />
-            </>
-          }
-          accountControl={
-            <AccountMenu
-              account={account}
-              accounts={accounts}
-              onSelect={(id) => guardAccount(() => onSelectAccount(id))}
-              onConnect={() => guardAccount(() => onAuthorize('link'))}
-              onManage={() => guard(() => setAccountLifecycleOpen(true))}
-              onSignOut={() => guardAccount(onSignOut)}
+          <main className="workspace__main" inert={navOpen || undefined}>
+            {displayedBoard?.backgroundUrl && (
+              <img
+                key={displayedBoard.backgroundUrl}
+                className="workspace__background"
+                src={displayedBoard.backgroundUrl}
+                alt=""
+                aria-hidden="true"
+                referrerPolicy="no-referrer"
+                onError={(event) => {
+                  event.currentTarget.hidden = true;
+                }}
+              />
+            )}
+            <WorkspaceToolbar
+              navigationTrigger={navigation.trigger}
+              onOpenNavigation={() => setNavOpen(true)}
+              awaitingBoard={awaitingBoard}
+              quick={quick}
+              searchScope={searchScope}
+              search={search}
+              board={displayedBoard}
+              onBoardOptions={(anchor) => {
+                boardManagement.openBoardMenu(anchor);
+              }}
+              query={query}
+              onQuery={setQuery}
+              onScope={(value) => guard(() => setSearchScope(value))}
+              viewMenu={{
+                allowLayout: quick === 'all' && !(searchScope === 'account' && search),
+                view: view,
+                sort: sort,
+                filter: filter,
+                lists: visibleLists,
+                labels: labels.items,
+                today: today,
+                moreLists: !!lists.nextCursor,
+                moreLabels: !!labels.nextCursor,
+                onView: setView,
+                onSort: setSort,
+                onFilter: (next) => guard(() => setFilter(next)),
+                onClear: () =>
+                  guard(() => {
+                    setFilter({});
+                    setSearch('');
+                    setQuery('');
+                  }),
+                onMoreLists: () => void lists.loadMore(),
+                onMoreLabels: () => void labels.loadMore(),
+              }}
+              syncControl={<SyncControl {...syncControl} compact />}
+              desktopControls={
+                <>
+                  <ThemeToggle theme={theme} onTheme={onTheme} />
+                  <WorkspaceSettings {...settings} />
+                </>
+              }
+              accountControl={
+                <AccountMenu
+                  account={account}
+                  accounts={accounts}
+                  onSelect={(id) => guardAccount(() => onSelectAccount(id))}
+                  onConnect={() => guardAccount(() => onAuthorize('link'), true)}
+                  onManage={() => guard(() => setAccountLifecycleOpen(true))}
+                  onSignOut={() => guardAccount(onSignOut, true)}
+                />
+              }
             />
-          }
-        />
-        {connection !== 'reachable' && (
-          <div className="workspace__connection" role="status">
-            <Icon name="warning" size={15} />
-            <p>
-              {connection === 'incompatible'
-                ? 'this page and server do not agree. reload before making another change.'
-                : 'the server connection is paused. unsent work stays in its editor.'}
-            </p>
-            <button
-              onClick={() => {
-                if (connection === 'incompatible') window.location.reload();
-                else
-                  void checkServerConnection().catch((error) =>
-                    setNotice(
-                      error instanceof Error ? error.message : 'the server is still unavailable.',
-                    ),
+            {connection !== 'reachable' && (
+              <div className="workspace__connection" role="status">
+                <Icon name="warning" size={15} />
+                <p>
+                  {connection === 'incompatible'
+                    ? 'this page and server do not agree. reload before making another change.'
+                    : 'the server connection is paused. unsent work stays in its editor.'}
+                </p>
+                <button
+                  onClick={() => {
+                    if (connection === 'incompatible') window.location.reload();
+                    else
+                      void checkServerConnection().catch((error) =>
+                        setNotice(
+                          error instanceof Error
+                            ? error.message
+                            : 'the server is still unavailable.',
+                        ),
+                      );
+                  }}
+                >
+                  {connection === 'incompatible' ? 'reload lanes' : 'check connection'}
+                </button>
+              </div>
+            )}
+            {account.state !== 'connected' && (
+              <div className="workspace__connection" role="status">
+                <Icon name={account.state === 'connecting' ? 'sync' : 'warning'} size={15} />
+                <p>
+                  {account.state === 'connecting'
+                    ? 'bringing your google lists and tasks into lanes…'
+                    : account.state === 'reconnect_required'
+                      ? 'this google connection has expired. your workspace is retained.'
+                      : `google connection: ${account.state.replaceAll('_', ' ')}.`}
+                </p>
+                {account.state === 'reconnect_required' && (
+                  <button
+                    onClick={() => guardAccount(() => onAuthorize('reconnect', account.id), true)}
+                  >
+                    reconnect
+                  </button>
+                )}
+              </div>
+            )}
+            {(commands.error || repeatWork.error || notice) && (
+              <div className="workspace__notice" role={commands.error ? 'alert' : 'status'}>
+                <span>{commands.error || repeatWork.error || notice}</span>
+                {noticeInspectionId && (
+                  <button onClick={() => inspection.inspect(noticeInspectionId)}>check save</button>
+                )}
+                <button
+                  aria-label="dismiss message"
+                  onClick={() => {
+                    commands.clearError();
+                    setNotice('');
+                  }}
+                >
+                  <Icon name="close" size={14} />
+                </button>
+              </div>
+            )}
+            <WorkspaceViews
+              account={account}
+              board={displayedBoard}
+              boardId={boardId}
+              boardsError={boards.error}
+              failedBoardLookup={failedBoardLookup}
+              awaitingBoard={awaitingBoard}
+              lists={lists}
+              visibleLists={displayedLists}
+              labels={labels.items}
+              today={today}
+              viewPreferences={viewPreferences}
+              quick={quick}
+              searchScope={searchScope}
+              search={search}
+              filter={filter}
+              activeFilter={activeFilter}
+              sort={sort}
+              version={version}
+              clockOffset={clockOffset}
+              writable={writable}
+              localWritable={localWritable}
+              pendingTaskIds={commands.pendingTaskIds}
+              moveQueue={moveQueue}
+              creations={creations.items.filter(
+                (item) =>
+                  item.id !== taskEditor.session?.id &&
+                  item.id !== taskEditor.session?.selection.pendingCreationId,
+              )}
+              onCreationRead={creations.acknowledge}
+              edits={edits.items}
+              onEditRead={edits.remove}
+              listCreationOpen={
+                boardManagement.listCreation.open &&
+                boardManagement.listCreation.boardId === board?.id
+              }
+              listCreation={
+                (boardManagement.listCreation.open &&
+                  boardManagement.listCreation.boardId === board?.id) ||
+                boardManagement.listCreation.previews.some((item) => item.boardId === board?.id) ? (
+                  <InlineListCreate controller={boardManagement.listCreation} writable={writable} />
+                ) : null
+              }
+              onInitialReady={onInitialReady}
+              actions={{
+                onChanged: changed,
+                onReturnToBoard: () =>
+                  guard(() => {
+                    leaveCompleted();
+                    setQuick('all');
+                    setSearchScope('board');
+                  }),
+                onClearCompletedFilters: () =>
+                  guard(() => {
+                    setFilter({});
+                    setSearch('');
+                    setQuery('');
+                  }),
+                onAddList: boardManagement.createList,
+                onAddTask: (list) => {
+                  if (list.accountId !== account.id) return;
+                  guard(() =>
+                    taskEditor.createInline({ list, ...(board ? { boardId: board.id } : {}) }),
                   );
+                },
+                onOpenTask: openTask,
+                onToggleComplete: toggleComplete,
+                onToggleStar: toggleStar,
+                onTaskMenu: taskMenu.open,
+                onListMenu: boardManagement.openListMenu,
+                onOpenBoard: (id) =>
+                  guard(() => {
+                    leaveCompleted();
+                    boardData.selectBoardId(id);
+                    setQuick('all');
+                    setSearchScope('board');
+                    setSearch('');
+                    setQuery('');
+                  }),
+                onCreateTask: (intent) => {
+                  if (intent.accountId !== account.id) return;
+                  guard(() => {
+                    const list = lists.items.find((list) => list.id === intent.listId);
+                    taskEditor.create(
+                      intent.listId,
+                      intent.scheduledDay,
+                      list ? { list, boardId: list.boardId } : undefined,
+                    );
+                  });
+                },
+                onReschedule: (intent, task) => reschedule(intent, task),
               }}
-            >
-              {connection === 'incompatible' ? 'reload lanes' : 'check connection'}
-            </button>
-          </div>
-        )}
-        {account.state !== 'connected' && (
-          <div className="workspace__connection" role="status">
-            <Icon name={account.state === 'connecting' ? 'sync' : 'warning'} size={15} />
-            <p>
-              {account.state === 'connecting'
-                ? 'bringing your google lists and tasks into lanes…'
-                : account.state === 'reconnect_required'
-                  ? 'this google connection has expired. your workspace is retained.'
-                  : `google connection: ${account.state.replaceAll('_', ' ')}.`}
-            </p>
-            {account.state === 'reconnect_required' && (
-              <button onClick={() => onAuthorize('reconnect', account.id)}>reconnect</button>
-            )}
-          </div>
-        )}
-        {(commands.error || repeatWork.error || notice) && (
-          <div className="workspace__notice" role={commands.error ? 'alert' : 'status'}>
-            <span>{commands.error || repeatWork.error || notice}</span>
-            {noticeInspectionId && (
-              <button onClick={() => inspection.inspect(noticeInspectionId)}>check save</button>
-            )}
-            <button
-              aria-label="dismiss message"
-              onClick={() => {
-                commands.clearError();
-                setNotice('');
-              }}
-            >
-              <Icon name="close" size={14} />
-            </button>
-          </div>
-        )}
-        <WorkspaceViews
-          account={account}
-          board={displayedBoard}
-          boardId={boardId}
-          boardsError={boards.error}
-          failedBoardLookup={failedBoardLookup}
-          awaitingBoard={awaitingBoard}
-          lists={lists}
-          visibleLists={displayedLists}
-          labels={labels.items}
-          today={today}
-          viewPreferences={viewPreferences}
-          quick={quick}
-          searchScope={searchScope}
-          search={search}
-          filter={filter}
-          activeFilter={activeFilter}
-          sort={sort}
-          version={version}
-          clockOffset={clockOffset}
-          writable={writable}
-          localWritable={localWritable}
-          pendingTaskIds={commands.pendingTaskIds}
-          moveQueue={moveQueue}
-          creations={creations.items.filter((item) => item.id !== taskEditor.session?.id)}
-          onCreationRead={creations.remove}
-          edits={edits.items}
-          onEditRead={edits.remove}
-          listCreation={
-            boardManagement.listCreation.open &&
-            boardManagement.listCreation.boardId === board?.id ? (
-              <InlineListCreate controller={boardManagement.listCreation} writable={writable} />
-            ) : null
-          }
-          onInitialReady={onInitialReady}
-          actions={{
-            onChanged: changed,
-            onReturnToBoard: () =>
-              guard(() => {
-                leaveCompleted();
-                setQuick('all');
-                setSearchScope('board');
-              }),
-            onClearCompletedFilters: () =>
-              guard(() => {
-                setFilter({});
-                setSearch('');
-                setQuery('');
-              }),
-            onAddList: boardManagement.createList,
-            onAddTask: (list) => {
-              if (list.accountId !== account.id) return;
-              guard(() =>
-                taskEditor.createInline({ list, ...(board ? { boardId: board.id } : {}) }),
-              );
-            },
-            onOpenTask: openTask,
-            onToggleComplete: toggleComplete,
-            onToggleStar: toggleStar,
-            onTaskMenu: taskMenu.open,
-            onListMenu: boardManagement.openListMenu,
-            onOpenBoard: (id) =>
-              guard(() => {
-                leaveCompleted();
-                boardData.selectBoardId(id);
-                setQuick('all');
-                setSearchScope('board');
-                setSearch('');
-                setQuery('');
-              }),
-            onCreateTask: (intent) => {
-              if (intent.accountId !== account.id) return;
-              guard(() => {
-                const list = lists.items.find((list) => list.id === intent.listId);
-                taskEditor.create(
-                  intent.listId,
-                  intent.scheduledDay,
-                  list ? { list, boardId: list.boardId } : undefined,
-                );
-              });
-            },
-            onReschedule: (intent) => reschedule(intent),
-          }}
-        />
-      </main>
+            />
+          </main>
+        </>
+      )}
       <TaskEditorFlow
+        active={active}
         controller={taskEditor}
         creations={creations}
         edits={edits}
@@ -730,15 +784,18 @@ export function Workspace({
         onToggleComplete={toggleComplete}
         onDelete={(task) => void deleteTask(task)}
       />
-      <TaskCompletionDialogs
-        controller={completion}
-        account={account}
-        clockOffset={clockOffset}
-        onChanged={changed}
-        onRepeat={repeatWork.run}
-        onInspect={inspection.inspect}
-      />
+      {active && (
+        <TaskCompletionDialogs
+          controller={completion}
+          account={account}
+          clockOffset={clockOffset}
+          onChanged={changed}
+          onRepeat={repeatWork.run}
+          onInspect={inspection.inspect}
+        />
+      )}
       <TransferDialog
+        active={active}
         controller={transferDialog}
         account={account}
         accounts={accounts}
@@ -751,6 +808,8 @@ export function Workspace({
         onNotice={setNotice}
       />
       <TemplateDialog
+        active={active}
+        onNotice={setNotice}
         controller={templateDialog}
         account={account}
         clockOffset={clockOffset}
@@ -765,191 +824,198 @@ export function Workspace({
           )
         }
       />
-      {confirmation && (
+      {active && confirmation && (
         <Confirmation
           choice={confirmation}
           clockOffset={clockOffset}
-          error={commands.error}
+          onError={setNotice}
           onClose={() => setConfirmation(null)}
         />
       )}
-      <BoardManagement
-        controller={boardManagement}
-        account={account}
-        board={displayedBoard}
-        boards={displayedBoards}
-        boardPage={boards}
-        lists={displayedLists}
-        clockOffset={clockOffset}
-        preferences={viewPreferences}
-        startBoardId={startBoardId}
-        loadedListCount={lists.items.length}
-        writable={writable}
-        localWritable={localWritable}
-        busy={commands.busy}
-        submit={submit}
-        guard={guard}
-        onPrompt={setPrompt}
-        onPreferences={updateBoardView}
-        onStartBoard={boardData.setStartBoard}
-        onChanged={changed}
-        onHistory={() => {
-          historyDialog.open();
-        }}
-        onCompleted={() =>
-          guard(() => {
-            setQuick('all');
-            setSearchScope('board');
-            updateBoardView({ view: 'completed' });
-          })
-        }
-        onInspect={inspection.inspect}
-        onRefresh={() =>
-          void sync.refresh(
-            'manual',
-            lists.items.map((list) => list.id),
-          )
-        }
-        onDeleteCompleted={completion.openDeletion}
-        onDeleteList={deleteList}
-      />
-      <HistoryDialog
-        controller={historyDialog}
-        clockOffset={clockOffset}
-        account={account}
-        board={board}
-        lists={lists.items}
-        version={version}
-        onOpenTask={openTask}
-        onNotice={setNotice}
-      />
-      {prompt && (
-        <PromptDialog
-          key={prompt.title + prompt.initial}
+      {active && (
+        <BoardManagement
+          controller={boardManagement}
+          account={account}
+          board={displayedBoard}
+          boards={displayedBoards}
+          boardPage={boards}
+          lists={displayedLists}
           clockOffset={clockOffset}
-          prompt={prompt}
-          onClose={() => setPrompt(null)}
-        />
-      )}
-      {discard && (
-        <Dialog title="leave this draft?" onClose={() => setDiscard(null)}>
-          <div className="dialog__body">
-            <p>your unsent changes will be discarded. changes already sent will keep saving.</p>
-            <footer>
-              <button onClick={() => setDiscard(null)}>keep editing</button>
-              <button
-                className="primary"
-                onClick={() => {
-                  const next = discard;
-                  setDiscard(null);
-                  if (!boardManagement.creation.isSaving() && !boardManagement.creation.locked)
-                    boardManagement.creation.discard();
-                  if (
-                    !boardManagement.listCreation.isSaving() &&
-                    !boardManagement.listCreation.locked
-                  ) {
-                    boardManagement.listCreation.discard();
-                    setListCreationDirty(false);
-                  }
-                  templateDialog.setDirty(false);
-                  transferDialog.setDirty(false);
-                  taskEditor.close();
-                  next();
-                }}
-              >
-                discard draft
-              </button>
-            </footer>
-          </div>
-        </Dialog>
-      )}
-      <TaskMenu
-        controller={taskMenu}
-        writable={writable}
-        localWritable={localWritable}
-        onToggleStar={toggleStar}
-        onHistory={(task) => {
-          historyDialog.open(task);
-        }}
-        onOpen={openTask}
-        onDuplicate={(task) => boardManagement.duplicateTask(task, board?.id ?? '')}
-        onMove={(task, anchor) => boardManagement.moveTask(task, anchor)}
-        moveOpen={Boolean(
-          boardManagement.placement.selection &&
-          boardManagement.placement.selection.task.id === taskMenu.task?.id,
-        )}
-        moveMenu={
-          boardManagement.placement.selection ? (
-            <TaskMovePicker controller={boardManagement.placement} workspace={boardData} embedded />
-          ) : null
-        }
-        onMoveClose={boardManagement.placement.close}
-        onDelete={(task) => void deleteTask(task)}
-      />
-      {accountLifecycleOpen && (
-        <AccountLifecycleDialog
-          account={account}
-          onClose={() => setAccountLifecycleOpen(false)}
-          onChanged={() => {
-            changed();
-            onAccountsChanged();
-            if (typeof BroadcastChannel !== 'undefined') {
-              const channel = new BroadcastChannel('lanes.session');
-              channel.postMessage({ type: 'account-changed' });
-              channel.close();
-            }
+          preferences={viewPreferences}
+          startBoardId={startBoardId}
+          loadedListCount={lists.items.length}
+          writable={writable}
+          localWritable={localWritable}
+          busy={commands.busy}
+          submit={submit}
+          guard={guard}
+          onPrompt={setPrompt}
+          onPreferences={updateBoardView}
+          onStartBoard={boardData.setStartBoard}
+          onChanged={changed}
+          onHistory={() => {
+            historyDialog.open();
           }}
-        />
-      )}
-      <ChangeInspection
-        controller={inspection}
-        account={account}
-        version={version}
-        clockOffset={clockOffset}
-        onChanged={changed}
-        onOpenTask={(id) =>
-          void readTask(account.id, id)
-            .then((task) => {
-              inspection.close();
-              openTask(task);
+          onCompleted={() =>
+            guard(() => {
+              setQuick('all');
+              setSearchScope('board');
+              updateBoardView({ view: 'completed' });
             })
-            .catch((error) =>
-              setNotice(
-                error instanceof Error
-                  ? error.message
-                  : 'this task is no longer available. its history is retained.',
-              ),
+          }
+          onInspect={inspection.inspect}
+          onRefresh={() =>
+            void sync.refresh(
+              'manual',
+              lists.items.map((list) => list.id),
             )
-        }
-        onOpenList={(id) =>
-          void readListPlacement(account.id, id)
-            .then((placement) =>
-              guard(() => {
-                leaveCompleted();
-                boardData.selectBoardId(placement.boardId);
-                setQuick('all');
-                inspection.close();
-              }),
-            )
-            .catch((error) =>
-              setNotice(
-                error instanceof Error ? error.message : 'this list is no longer available.',
-              ),
-            )
-        }
-      />
-      {inspection.resolutionId && (
-        <OperationResolutionDialog
-          account={account}
-          operationId={inspection.resolutionId}
-          onClose={() => inspection.closeResolution()}
-          onResolved={() => {
-            const id = inspection.resolutionId;
-            inspection.closeResolution();
-            changed();
-            if (id) void commands.advance(id);
-          }}
+          }
+          onDeleteCompleted={completion.openDeletion}
+          onDeleteList={deleteList}
         />
+      )}
+      {active && (
+        <>
+          <HistoryDialog
+            controller={historyDialog}
+            clockOffset={clockOffset}
+            account={account}
+            board={board}
+            lists={lists.items}
+            version={version}
+            onOpenTask={openTask}
+            onNotice={setNotice}
+          />
+          {prompt && (
+            <PromptDialog
+              onError={setNotice}
+              key={prompt.title + prompt.initial}
+              clockOffset={clockOffset}
+              prompt={prompt}
+              onClose={() => setPrompt(null)}
+            />
+          )}
+          {discard && (
+            <Dialog title="leave this draft?" onClose={() => setDiscard(null)}>
+              <div className="dialog__body">
+                <p>your unsent changes will be discarded. changes already sent will keep saving.</p>
+                <footer>
+                  <button onClick={() => setDiscard(null)}>keep editing</button>
+                  <button
+                    className="primary"
+                    onClick={() => {
+                      const next = discard;
+                      setDiscard(null);
+                      if (!boardManagement.creation.isSaving()) boardManagement.creation.discard();
+                      if (!boardManagement.listCreation.isSaving()) {
+                        boardManagement.listCreation.discard();
+                        setListCreationDirty(false);
+                      }
+                      templateDialog.setDirty(false);
+                      transferDialog.setDirty(false);
+                      taskEditor.close();
+                      next();
+                    }}
+                  >
+                    discard draft
+                  </button>
+                </footer>
+              </div>
+            </Dialog>
+          )}
+          <TaskMenu
+            controller={taskMenu}
+            writable={writable}
+            localWritable={localWritable}
+            onToggleStar={toggleStar}
+            onHistory={(task) => {
+              historyDialog.open(task);
+            }}
+            onOpen={openTask}
+            onDuplicate={(task) => boardManagement.duplicateTask(task, board?.id ?? '')}
+            onMove={(task, anchor) => boardManagement.moveTask(task, anchor)}
+            moveOpen={Boolean(
+              boardManagement.placement.selection &&
+              boardManagement.placement.selection.task.id === taskMenu.task?.id,
+            )}
+            moveMenu={
+              boardManagement.placement.selection ? (
+                <TaskMovePicker
+                  controller={boardManagement.placement}
+                  workspace={boardData}
+                  embedded
+                />
+              ) : null
+            }
+            onMoveClose={boardManagement.placement.close}
+            onDelete={(task) => void deleteTask(task)}
+          />
+          {accountLifecycleOpen && (
+            <AccountLifecycleDialog
+              account={account}
+              onClose={() => setAccountLifecycleOpen(false)}
+              onChanged={() => {
+                changed();
+                onAccountsChanged();
+                if (typeof BroadcastChannel !== 'undefined') {
+                  const channel = new BroadcastChannel('lanes.session');
+                  channel.postMessage({ type: 'account-changed' });
+                  channel.close();
+                }
+              }}
+            />
+          )}
+          <ChangeInspection
+            controller={inspection}
+            account={account}
+            version={version}
+            clockOffset={clockOffset}
+            onChanged={changed}
+            onOpenTask={(id) =>
+              void readTask(account.id, id)
+                .then((task) => {
+                  inspection.close();
+                  openTask(task);
+                })
+                .catch((error) =>
+                  setNotice(
+                    error instanceof Error
+                      ? error.message
+                      : 'this task is no longer available. its history is retained.',
+                  ),
+                )
+            }
+            onOpenList={(id) =>
+              void readListPlacement(account.id, id)
+                .then((placement) =>
+                  guard(() => {
+                    leaveCompleted();
+                    boardData.selectBoardId(placement.boardId);
+                    setQuick('all');
+                    inspection.close();
+                  }),
+                )
+                .catch((error) =>
+                  setNotice(
+                    error instanceof Error ? error.message : 'this list is no longer available.',
+                  ),
+                )
+            }
+          />
+          {inspection.resolutionId && (
+            <OperationResolutionDialog
+              account={account}
+              operationId={inspection.resolutionId}
+              onClose={() => inspection.closeResolution()}
+              onResolved={() => {
+                const id = inspection.resolutionId;
+                inspection.closeResolution();
+                changed();
+                if (id) void commands.advance(id);
+              }}
+            />
+          )}
+        </>
       )}
     </div>
   );

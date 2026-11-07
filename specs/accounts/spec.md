@@ -72,7 +72,9 @@ remember the last selected account per browser. selection is local to a tab; oth
 
 when a valid document bootstrap is unavailable and the owner session is unresolved, show only the themed canvas. apply the saved appearance, or the system appearance on a fresh visit, before the first paint; loading application code or checking the session must not change the canvas color. unavailable browser storage falls back to the system appearance. render the workspace loading shell after authorization confirms a selected account; a remembered account hint cannot choose that screen. keep that account's avatar initial visible while the authorized workspace loads. a tab may retain only its account reference and single initial for this display hint; it does not replace server session validation or expose workspace content. clear the hint on sign-out, session expiry, an unauthenticated response, or a mismatched account selection.
 
-when switching accounts, keep an in-progress editor attached to its original account and require saving or discarding its unsent draft. a submitted operation continues against its captured account and remains discoverable there. never copy an unsent draft into the newly selected account.
+when switching accounts, keep an in-progress editor attached to its original account and require saving or discarding its unsent draft. already captured saves do not block account selection. retain each visited account's mutation owner so its browser queue and admitted requests continue against the captured account. inactive workspaces do not mount dialogs or run foreground sync; an inactive save failure identifies its account and stays available there. never copy an unsent draft into the newly selected account.
+
+this retention lasts for the current browser session. it does not persist an offline queue or replay browser-only input after reload. warn before leaving the page while browser-owned work remains; reload recovers work already admitted by the server through its operation receipts. sign-out and oauth navigation remain separate from switching the visible account.
 
 ## connection states
 
@@ -112,7 +114,7 @@ token refresh for one connection must be serialized or coordinated through durab
 - `accounts-03`: reconnecting a subject preserves its workspace; returning a different subject cannot replace it.
 - `accounts-04`: a seven-day tasks grant expiry pauses provider work and exposes reconnect without removing local organization.
 - `accounts-05`: denied sheets permission leaves an existing tasks grant usable.
-- `accounts-06`: account switching cannot retarget a draft, submitted command, cache entry, or background job.
+- `accounts-06`: account switching cannot retarget a draft, submitted command, cache entry, or background job. captured saves retain their original owner without blocking selection, and failures from inactive owners remain visible.
 - `accounts-07`: callback replay, wrong state, wrong audience, and missing owner authorization are rejected.
 - `accounts-08`: sign-out blocks private requests; disconnect preserves google data and pauses schedules; explicit local removal affects only its account.
 - `accounts-09`: interrupted refresh and disconnect are exercised with concurrent requests, not only a single browser session.

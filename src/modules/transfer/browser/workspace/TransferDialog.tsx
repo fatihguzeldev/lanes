@@ -27,6 +27,7 @@ export function useTransferDialog(accountId: string) {
   };
 }
 interface Props {
+  active?: boolean;
   controller: ReturnType<typeof useTransferDialog>;
   account: ConnectionSummary;
   accounts: readonly ConnectionSummary[];
@@ -39,6 +40,7 @@ interface Props {
   onNotice(message: string): void;
 }
 export function TransferDialog({
+  active = true,
   controller,
   account,
   accounts,
@@ -54,6 +56,7 @@ export function TransferDialog({
     <>
       {controller.open && (
         <Dialog
+          presented={active}
           title="import, export and transfer"
           wide
           onClose={() =>

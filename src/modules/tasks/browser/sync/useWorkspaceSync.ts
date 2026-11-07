@@ -8,6 +8,7 @@ export function useWorkspaceSync(
   retainedWorkspace = false,
   clockOffset = 0,
   onRefreshed?: (() => void) | undefined,
+  enabled = true,
 ) {
   const [status, setStatus] = useState<SyncStatus | null>(null),
     [busy, setBusy] = useState(false),
@@ -15,6 +16,11 @@ export function useWorkspaceSync(
   const [initialTopologyReady, setInitialTopologyReady] = useState(false),
     [initialForegroundSettled, setInitialForegroundSettled] = useState(false);
   const topologySeen = useRef(false);
+  const enabledNow = useRef(enabled);
+  enabledNow.current = enabled;
+  const activation = useRef({ accountId, started: false });
+  if (activation.current.accountId !== accountId)
+    activation.current = { accountId, started: false };
   const callback = useRef(onChanged);
   callback.current = onChanged;
   const refreshed = useRef(onRefreshed);
@@ -30,6 +36,7 @@ export function useWorkspaceSync(
     timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const refresh = useCallback(
     async (reason: 'entry' | 'manual' | 'stale' = 'manual', visibleListIds: string[] = []) => {
+      if (!enabledNow.current) return;
       flight.current?.abort();
       if (timer.current) clearTimeout(timer.current);
       const controller = new AbortController(),
@@ -63,7 +70,8 @@ export function useWorkspaceSync(
         flight.current = null;
       };
       const advance = async (first: boolean): Promise<void> => {
-        if (controller.signal.aborted || generation.current !== epoch) return;
+        if (!enabledNow.current || controller.signal.aborted || generation.current !== epoch)
+          return;
         if (document.visibilityState !== 'visible') {
           settleChanges();
           setBusy(false);
@@ -80,7 +88,8 @@ export function useWorkspaceSync(
               signal: controller.signal,
             },
           );
-          if (controller.signal.aborted || generation.current !== epoch) return;
+          if (!enabledNow.current || controller.signal.aborted || generation.current !== epoch)
+            return;
           const next = progress.status;
           setStatus(next);
           if (
@@ -132,7 +141,7 @@ export function useWorkspaceSync(
           finish();
           if (successful) refreshed.current?.();
         } catch (error) {
-          if (!controller.signal.aborted && generation.current === epoch) {
+          if (enabledNow.current && !controller.signal.aborted && generation.current === epoch) {
             setError(error instanceof Error ? error.message : 'this account could not refresh.');
             topologySeen.current = true;
             setInitialTopologyReady(true);
@@ -151,7 +160,10 @@ export function useWorkspaceSync(
     [accountId],
   );
   useEffect(() => {
-    void refresh('entry');
+    if (!enabled) return;
+    const reason = activation.current.started ? 'stale' : 'entry';
+    activation.current.started = true;
+    void refresh(reason);
     const visible = () => {
       if (document.visibilityState === 'visible' && !flight.current) void refresh('stale');
     };
@@ -165,6 +177,6 @@ export function useWorkspaceSync(
       if (timer.current) clearTimeout(timer.current);
       document.removeEventListener('visibilitychange', visible);
     };
-  }, [refresh]);
+  }, [refresh, enabled]);
   return { status, busy, error, refresh, initialTopologyReady, initialForegroundSettled };
 }

@@ -183,6 +183,33 @@ describe('seeded owner session', () => {
     await render(seed).load();
     expect(render(seed).session?.accounts?.items).toEqual([refreshed, second]);
   });
+  it('retains the selected and visited accounts while a partial refresh resolves its later-page selection', async () => {
+    const seed = snapshot([first, second], 'more');
+    let finishSession!: (next: SessionSnapshot) => void;
+    let finishSelection!: (next: ConnectionSummary) => void;
+    vi.mocked(request).mockImplementation((path) =>
+      path === '/api/session'
+        ? new Promise((resolve) => {
+            finishSession = resolve;
+          })
+        : new Promise((resolve) => {
+            finishSelection = resolve;
+          }),
+    );
+    render(seed).selectAccount(second.id);
+    expect(render(seed).session?.accounts?.items).toEqual([first, second]);
+    expect(render(seed).selected?.id).toBe(second.id);
+    finishSession(snapshot([first], 'more'));
+    await settle();
+    // A selected account outside the first page is resolved before publishing the new session.
+    expect(render(seed).session?.accounts?.items).toEqual([first, second]);
+    expect(render(seed).selected?.id).toBe(second.id);
+    finishSelection(second);
+    await settle();
+    const owner = render(seed);
+    expect(owner.selected?.id).toBe(second.id);
+    expect(owner.session?.accounts?.items).toEqual([first, second]);
+  });
   it('ignores a stale account page after an authoritative session refresh', async () => {
     const seed = snapshot([first], 'more');
     let finish!: (page: NonNullable<SessionSnapshot['accounts']>) => void;
