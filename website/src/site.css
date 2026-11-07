@@ -2,6 +2,10 @@
 @import url('./base.css');
 @import url('./product-preview.css');
 
+:root {
+  --site-header-height: 88px;
+}
+
 .skip-link {
   position: fixed;
   z-index: var(--z-sticky-nav);
@@ -30,7 +34,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-lg);
-  min-height: 88px;
+  height: var(--site-header-height);
 }
 .site-header > .github-stars {
   margin-inline-start: auto;
@@ -76,18 +80,23 @@
   height: 24px;
 }
 .hero {
-  padding-block-end: 64px;
+  display: flex;
+  flex-direction: column;
+  height: calc(100dvh - var(--site-header-height));
+  padding-block-end: clamp(16px, 4dvh, 64px);
+  overflow-y: auto;
 }
 .hero__intro {
   display: grid;
+  flex: none;
   grid-template-columns: minmax(0, 1fr) minmax(260px, 0.42fr);
   align-items: end;
   gap: var(--space-2xl);
-  padding-block: 40px 56px;
+  padding-block: clamp(16px, 4dvh, 40px) clamp(20px, 5dvh, 56px);
 }
 .hero h1 {
   max-width: 18ch;
-  font-size: clamp(3rem, 6.2vw, 5.25rem);
+  font-size: clamp(2rem, min(6.2vw, 8.4dvh), 5.25rem);
   line-height: 1.06;
   letter-spacing: -0.05em;
 }
@@ -128,7 +137,11 @@
   color: var(--color-on-accent);
 }
 .workspace-section {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
   min-width: 0;
+  min-height: 206px;
   scroll-margin-block-start: var(--space-lg);
 }
 .site-footer {
@@ -170,27 +183,26 @@
   }
 }
 @media (max-width: 680px) {
-  .site-header {
-    min-height: 76px;
-    gap: var(--space-sm);
+  :root {
+    --site-header-height: 76px;
   }
-  .hero {
-    padding-block-end: 40px;
+  .site-header {
+    gap: var(--space-sm);
   }
   .hero__intro {
     grid-template-columns: minmax(0, 1fr);
-    gap: 24px;
-    padding-block: 32px;
+    gap: 16px;
+    padding-block: clamp(12px, 2dvh, 24px) clamp(16px, 3dvh, 32px);
   }
   .hero h1 {
-    font-size: clamp(2.5rem, 7.2vw + 0.5rem, 3.8rem);
+    font-size: clamp(2rem, min(7.2vw + 0.5rem, 8dvh), 3.8rem);
     max-width: 19ch;
   }
   .hero__summary {
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
-    gap: 24px;
+    gap: 16px;
   }
   .hero__description {
     max-width: 24ch;
@@ -198,6 +210,25 @@
   }
   .hero__summary .button {
     flex-shrink: 0;
+  }
+}
+@media (max-height: 700px) {
+  :root {
+    --site-header-height: 64px;
+  }
+  .hero__intro {
+    gap: 16px;
+    padding-block: 12px 20px;
+  }
+  .hero__summary {
+    gap: 12px;
+  }
+  .hero__description {
+    font-size: 16px;
+    line-height: 1.5;
+  }
+  .hero .button {
+    min-height: 44px;
   }
 }
 @media (max-width: 420px) {
