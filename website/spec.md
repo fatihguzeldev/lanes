@@ -10,6 +10,8 @@ introduce lanes as an open-source, self-hosted workspace for google tasks. help 
 
 styles, behavior and tests stay beside their owner. shared site tokens carry dm sans, the existing tilted three-lane mark, forest green and a light sage ground. product previews keep lanes' neutral surfaces, compact type, icons, colored labels and inline editing treatment.
 
+the html head loads the global stylesheet before first paint. the react root starts empty; the text fallback belongs in `noscript` so it cannot flash before the application mounts. component styles stay with their components.
+
 ## page
 
 - public copy is lowercase, including accessible names and metadata. preserve the case of filenames, commands and identifiers where it affects their meaning. the browser title is `lanes`.

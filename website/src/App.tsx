@@ -4,7 +4,6 @@ import { WorkspaceDemo } from './demo/WorkspaceDemo';
 import { TaskDetails } from './details/TaskDetails';
 import { AccountStory } from './accounts/AccountStory';
 import { SelfHosting } from './install/SelfHosting';
-import './site.css';
 
 export function App() {
   return (
