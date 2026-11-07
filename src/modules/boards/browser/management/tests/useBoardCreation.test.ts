@@ -1,7 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useBoardCreation } from '../useBoardCreation';
 
-const harness = vi.hoisted(() => ({ cursor: 0, slots: [] as unknown[] }));
+const harness = vi.hoisted(() => ({
+  cursor: 0,
+  slots: [] as unknown[],
+  effects: [] as (() => void)[],
+}));
 const command = vi.hoisted(() => ({
   busy: false,
   error: '',
@@ -21,7 +25,7 @@ vi.mock('react', async (original) => ({
     const index = harness.cursor++;
     return (harness.slots[index] ??= { current: initial });
   },
-  useEffect: () => undefined,
+  useEffect: (effect: () => void) => harness.effects.push(effect),
 }));
 vi.mock('../../../../operations/browser/submission/useCommands', () => ({
   useCommands: () => command,
@@ -31,21 +35,27 @@ vi.mock('../../../../operations/browser/submission/operation-identity', () => ({
 }));
 
 const notice = vi.fn();
-function render() {
+function render(version = 0, inventoryReady = true) {
   harness.cursor = 0;
-  return useBoardCreation({
+  harness.effects = [];
+  const result = useBoardCreation({
     accountId: 'account',
     clockOffset: 0,
+    version,
+    inventoryReady,
     onChanged: vi.fn(),
     onNotice: notice,
     onInspect: vi.fn(),
   });
+  harness.effects.forEach((effect) => effect());
+  return result;
 }
 
 describe('board entry completion', () => {
   beforeEach(() => {
     harness.cursor = 0;
     harness.slots = [];
+    harness.effects = [];
     command.busy = false;
     command.error = '';
     command.errorDetails = null;
@@ -88,6 +98,7 @@ describe('board entry completion', () => {
     render().change('  reading  ');
     const entry = render();
     const pending = entry.finish();
+    expect(render()).toMatchObject({ submitted: true, dirty: false, title: '  reading  ' });
     expect(entry.isSaving()).toBe(true);
     await entry.save();
     expect(command.submit).toHaveBeenCalledOnce();
@@ -98,8 +109,24 @@ describe('board entry completion', () => {
     ]);
     finish({ state: 'succeeded' });
     await pending;
-    expect(render()).toMatchObject({ open: false, title: '', locked: false, dirty: false });
+    expect(render()).toMatchObject({ submitted: true, dirty: false });
+    expect(render(1, false)).toMatchObject({ submitted: true });
+    render(1);
+    expect(render(1)).toMatchObject({ open: false, title: '', submitted: false, dirty: false });
     expect(entry.isSaving()).toBe(false);
+  });
+
+  it('restores an editable entry when a background creation is rejected', async () => {
+    let finish!: (value: null) => void;
+    command.submit.mockImplementation(() => new Promise((resolve) => (finish = resolve)));
+    render().show();
+    render().change('reading');
+    const pending = render().save();
+    expect(render()).toMatchObject({ submitted: true, dirty: false });
+    finish(null);
+    await pending;
+    expect(render()).toMatchObject({ submitted: false, open: true, title: 'reading', dirty: true });
+    expect(notice).toHaveBeenCalledWith(expect.stringContaining('not been confirmed'));
   });
 
   it('retains an uncertain name and identity without retrying on every blur', async () => {
@@ -116,7 +143,8 @@ describe('board entry completion', () => {
     command.submit.mockResolvedValue({ state: 'succeeded' });
     await entry.save();
     expect(command.submit.mock.calls[1]).toEqual(command.submit.mock.calls[0]);
-    entry = render();
+    render(1);
+    entry = render(1);
     expect(entry).toMatchObject({ open: false, title: '' });
   });
 
@@ -130,7 +158,8 @@ describe('board entry completion', () => {
     expect(render()).toMatchObject({ open: false, title: 'reading', locked: true });
     finish({ state: 'succeeded' });
     await pending;
-    expect(render()).toMatchObject({ open: false, title: '', locked: false });
+    render(1);
+    expect(render(1)).toMatchObject({ open: false, title: '', locked: false });
     expect(command.submit).toHaveBeenCalledOnce();
   });
 

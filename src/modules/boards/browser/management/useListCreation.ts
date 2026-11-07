@@ -9,6 +9,8 @@ export function useListCreation(options: {
   accountId: string;
   board: Board | null;
   clockOffset: number;
+  version: number;
+  inventoryReady: boolean;
   onChanged(): void;
   onNotice(message: string): void;
   onInspect(id: string): void;
@@ -18,10 +20,14 @@ export function useListCreation(options: {
     [target, setTarget] = useState<Board | null>(null),
     [title, setTitle] = useState(''),
     [validation, setValidation] = useState(''),
+    [submitted, setSubmitted] = useState(false),
+    [confirmedAfter, setConfirmedAfter] = useState<number | null>(null),
     [attempt, setAttempt] = useState<ReturnType<typeof captureListCreation> | null>(null);
   const commands = useCommands(options.accountId, options.clockOffset, options.onChanged);
   const flight = useRef(false),
-    dirtyCallback = useRef(options.onDirtyChange);
+    dirtyCallback = useRef(options.onDirtyChange),
+    version = useRef(options.version);
+  version.current = options.version;
   dirtyCallback.current = options.onDirtyChange;
   const rejected = listCreationRejected(
     commands.latest?.id === attempt?.identity ? commands.latest : null,
@@ -29,7 +35,9 @@ export function useListCreation(options: {
     !!commands.errorDetails?.operationId,
   );
   const locked = attempt !== null && !rejected;
-  const dirty = attempt !== null || (open && Boolean(title.trim()));
+  const acknowledged =
+    confirmedAfter !== null && options.inventoryReady && options.version > confirmedAfter;
+  const dirty = !submitted && (attempt !== null || (open && Boolean(title.trim())));
   useEffect(() => {
     dirtyCallback.current?.(dirty);
   }, [dirty]);
@@ -40,10 +48,21 @@ export function useListCreation(options: {
     setTitle('');
     setAttempt(null);
     setValidation('');
+    setSubmitted(false);
+    setConfirmedAfter(null);
     commands.clearError();
   };
+  useEffect(() => {
+    if (acknowledged) discard();
+  }, [confirmedAfter, options.version, options.inventoryReady]);
   async function save(notifyValidation = false) {
-    if (flight.current || commands.busy || !target || target.accountId !== options.accountId)
+    if (
+      flight.current ||
+      commands.busy ||
+      submitted ||
+      !target ||
+      target.accountId !== options.accountId
+    )
       return;
     if (!locked && !title.trim()) {
       discard();
@@ -67,28 +86,36 @@ export function useListCreation(options: {
     }
     setAttempt(captured);
     setValidation('');
+    setSubmitted(true);
     flight.current = true;
     try {
       const result = await commands.submit(captured.command, 'provider', captured.identity);
-      if (result?.state === 'succeeded') discard();
-      else
+      if (result?.state === 'succeeded') {
+        setConfirmedAfter(version.current);
+        options.onChanged();
+      } else {
+        setSubmitted(false);
+        setOpen(true);
         options.onNotice(
           'this list has not been confirmed yet. review its save before trying again.',
         );
+      }
     } finally {
       flight.current = false;
     }
   }
   return {
-    open,
+    open: open && !acknowledged,
     boardId: target?.id ?? null,
     title,
+    submitted: submitted && !acknowledged,
     dirty,
     busy: commands.busy,
     isSaving: () => flight.current,
     locked,
     error: validation || commands.error,
     show(board: Board) {
+      if (submitted) return;
       if (board.accountId !== options.accountId) return;
       if (target && target.id !== board.id && (title.trim() || attempt)) {
         options.onNotice('finish the open list entry before creating a list in another board.');

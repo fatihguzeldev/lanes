@@ -19,6 +19,20 @@
   flex: none;
   color: var(--icon);
 }
+.inline-list-create--submitted {
+  width: min(var(--board-column-width, 288px), calc(100cqi - 2 * var(--workspace-padding) - 16px));
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--paper);
+  color: var(--ink);
+}
+.inline-list-create--submitted strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: inherit;
+  font-weight: 600;
+}
 .inline-list-create__field input {
   min-width: 0;
   flex: 1;

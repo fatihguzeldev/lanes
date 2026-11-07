@@ -226,12 +226,13 @@ export function Workspace({
       onAccountsChanged();
       return true;
     }
-    if (result)
-      setNotice(
-        result.totalSteps > 1
-          ? `${result.confirmedSteps} of ${result.totalSteps} changes saved. check the remaining changes.`
-          : 'this change needs attention. check its save status.',
-      );
+    const failure = commands.getErrorDetails();
+    setNotice(
+      result && result.totalSteps > 1
+        ? `${result.confirmedSteps} of ${result.totalSteps} changes saved. check the remaining changes.`
+        : (failure?.message ?? 'this change needs attention. check its save status.'),
+      result?.id ?? failure?.operationId ?? null,
+    );
     return false;
   };
   const boardManagement = useBoardManagement(board, submit, {
@@ -239,6 +240,9 @@ export function Workspace({
     clockOffset,
     boards: boards.items,
     lists: visibleLists,
+    version: topologyVersion,
+    boardsReady: boards.status === 'ready' && boards.settled,
+    listsReady: lists.status === 'ready' && lists.settled,
     onChanged: changed,
     onNotice: setNotice,
     onInspect: inspection.inspect,
@@ -326,6 +330,9 @@ export function Workspace({
         movingTasks ||
         preferences.busy ||
         commands.isBusy() ||
+        boardManagement.creation.busy ||
+        boardManagement.listCreation.busy ||
+        boardManagement.appearance.isSaving() ||
         quickActionsBusy ||
         taskEditor.saving ||
         boardManagement.placement.busy
@@ -345,6 +352,9 @@ export function Workspace({
     movingTasks,
     preferences.busy,
     commands.busy,
+    boardManagement.creation.busy,
+    boardManagement.listCreation.busy,
+    boardManagement.appearance.pending,
     quickActionsBusy,
     taskEditor.saving,
     boardManagement.placement.busy,

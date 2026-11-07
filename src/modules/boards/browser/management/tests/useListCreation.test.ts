@@ -2,7 +2,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Board } from '../../../contracts/board';
 import { useListCreation } from '../useListCreation';
 
-const harness = vi.hoisted(() => ({ cursor: 0, slots: [] as unknown[] }));
+const harness = vi.hoisted(() => ({
+  cursor: 0,
+  slots: [] as unknown[],
+  effects: [] as (() => void)[],
+}));
 const command = vi.hoisted(() => ({
   busy: false,
   error: '',
@@ -22,7 +26,7 @@ vi.mock('react', async (original) => ({
     const index = harness.cursor++;
     return (harness.slots[index] ??= { current: initial });
   },
-  useEffect: () => undefined,
+  useEffect: (effect: () => void) => harness.effects.push(effect),
 }));
 vi.mock('../../../../operations/browser/submission/useCommands', () => ({
   useCommands: () => command,
@@ -44,22 +48,28 @@ const board: Board = {
   createdAt: '2026-11-05T12:00:00Z',
 };
 const notice = vi.fn();
-function render(currentBoard: Board | null = board) {
+function render(currentBoard: Board | null = board, version = 0, inventoryReady = true) {
   harness.cursor = 0;
-  return useListCreation({
+  harness.effects = [];
+  const result = useListCreation({
     accountId: 'account',
     board: currentBoard,
     clockOffset: 0,
+    version,
+    inventoryReady,
     onChanged: vi.fn(),
     onNotice: notice,
     onInspect: vi.fn(),
   });
+  harness.effects.forEach((effect) => effect());
+  return result;
 }
 
 describe('list entry completion', () => {
   beforeEach(() => {
     harness.cursor = 0;
     harness.slots = [];
+    harness.effects = [];
     command.busy = false;
     command.error = '';
     command.errorDetails = null;
@@ -106,6 +116,7 @@ describe('list entry completion', () => {
     render().change('  articles  ');
     const entry = render();
     const pending = entry.finish();
+    expect(render()).toMatchObject({ submitted: true, dirty: false });
     expect(entry.isSaving()).toBe(true);
     await entry.save();
     expect(command.submit).toHaveBeenCalledExactlyOnceWith(
@@ -115,7 +126,15 @@ describe('list entry completion', () => {
     );
     finish({ state: 'succeeded' });
     await pending;
-    expect(render()).toMatchObject({ open: false, title: '', locked: false, dirty: false });
+    expect(render()).toMatchObject({ submitted: true, dirty: false });
+    expect(render(board, 1, false)).toMatchObject({ submitted: true });
+    render(board, 1);
+    expect(render(board, 1)).toMatchObject({
+      open: false,
+      title: '',
+      submitted: false,
+      dirty: false,
+    });
   });
 
   it('retains its original target and identity after navigating away from an uncertain save', async () => {

@@ -27,6 +27,7 @@ interface Props {
   ) => Promise<boolean>;
   guard: (action: () => void) => void;
   onColor(color: string): Promise<boolean>;
+  onRename(title: string): Promise<boolean>;
   onClose: () => void;
   onDuplicate: (list: BoardList) => void;
   onDeleteCompleted: (list: BoardList) => void;
@@ -44,6 +45,7 @@ export function ListOptions({
   submit,
   guard,
   onColor,
+  onRename,
   onClose,
   onDuplicate,
   onDeleteCompleted,
@@ -67,15 +69,7 @@ export function ListOptions({
               maxLength={1024}
               disabled={!writable}
               onCommit={async (title) => {
-                const done = await submit(
-                  {
-                    kind: 'list.rename',
-                    listId: selectedList.id,
-                    revision: selectedList.revision,
-                    title,
-                  },
-                  'provider',
-                );
+                const done = await onRename(title);
                 if (done) onClose();
                 return done;
               }}

@@ -22,7 +22,7 @@ google has no board entity. creating, renaming, styling, or deleting an empty bo
 
 create a blank board with a nonblank title of at most 128 characters. an optional emoji and appearance do not affect identity. duplicate names are allowed, and actions must distinguish boards by identity and account.
 
-add a board in the navigation, without opening a dialog. open an empty name field without placeholder text or an approval button. enter or leaving a nonblank field creates the board; leaving an empty field closes it without creating anything. escape discards the unsubmitted entry. retain the draft across ordinary navigation rendering and background reads. blur and enter cannot submit twice. closing the entry does not cancel an already submitted operation. a failed save retains the name; an ambiguous retry keeps its original name and receipt identity. a confirmed save clears the entry.
+add a board in the navigation, without opening a dialog. open an empty name field without placeholder text or an approval button. enter or leaving a nonblank field creates the board; leaving an empty field closes it without creating anything. escape discards the unsubmitted entry. retain the draft across ordinary navigation rendering and background reads. blur and enter cannot submit twice. closing the entry does not cancel an already submitted operation. a failed save retains the name; an ambiguous retry keeps its original name and receipt identity. after a valid submission, replace the name field with its plain board title while saving in the background. a fresh inventory read after confirmation replaces that preview without a duplicate entry.
 
 rename or reorder a board without changing its lists or tasks. new boards append after existing boards. persist account-owned ordering on the server so another browser sees the same organization.
 
@@ -64,7 +64,7 @@ support board colors, an optional emoji, and an optional background image from b
 
 choose board and list colors from an anchored palette with a preview of the selected color. offer custom hex values in the same picker. board emoji has a searchable picker, a paste field, and a remove action. selecting a color, emoji, or bundled background applies it immediately without a save button. board names and custom image urls commit on enter or blur; escape discards the unsubmitted edit.
 
-preview appearance changes while saving, then restore confirmed values on failure. keep the write controller mounted when a picker or menu closes. accept another appearance write after the confirmed revision reaches the local view, so consecutive selections cannot reuse an older revision. unchanged selections issue no write.
+preview appearance and name changes immediately, then restore confirmed values on failure. close a submitted name field and keep the write controller mounted when a picker or menu closes. accept consecutive selections without waiting for an inventory read; queue them in order against confirmed revisions. a failed change stops dependent unsent changes for that resource while other resources remain usable. unchanged selections issue no write.
 
 validate image urls and render them only as images in the browser. do not server-fetch arbitrary urls or treat them as executable styles. selecting a remote image causes the browser to contact that host; do not describe it as privately hosted by the instance.
 

@@ -24,6 +24,9 @@ export function useBoardManagement(
   environment: {
     account: ConnectionSummary;
     clockOffset: number;
+    version: number;
+    boardsReady: boolean;
+    listsReady: boolean;
     boards: readonly Board[];
     lists: readonly BoardList[];
     onChanged(): void;
@@ -45,6 +48,8 @@ export function useBoardManagement(
   const creation = useBoardCreation({
     accountId: environment.account.id,
     clockOffset: environment.clockOffset,
+    version: environment.version,
+    inventoryReady: environment.boardsReady,
     onChanged: environment.onChanged,
     onNotice: environment.onNotice,
     onInspect: environment.onInspect,
@@ -55,6 +60,8 @@ export function useBoardManagement(
     accountId: environment.account.id,
     board,
     clockOffset: environment.clockOffset,
+    version: environment.version,
+    inventoryReady: environment.listsReady,
     onChanged: environment.onChanged,
     onNotice: environment.onNotice,
     onInspect: environment.onInspect,
@@ -145,7 +152,6 @@ export function BoardManagement({
   loadedListCount,
   writable,
   localWritable,
-  busy,
   submit,
   guard,
   onPrompt,
@@ -203,7 +209,7 @@ export function BoardManagement({
           onPreferences={onPreferences}
           onStartBoard={onStartBoard}
           writable={localWritable}
-          pending={busy || controller.appearance.pending}
+          pending={controller.appearance.pending}
           submit={submit}
           onChange={(patch) => controller.appearance.updateBoard(board, patch)}
           onClose={() => setBoardMenu(false)}
@@ -223,14 +229,20 @@ export function BoardManagement({
           boardPage={boardPage}
           lists={lists}
           loadedListCount={loadedListCount}
-          writable={writable && !busy && !controller.appearance.pending}
-          localWritable={localWritable && !busy && !controller.appearance.pending}
+          writable={writable}
+          localWritable={localWritable}
           submit={submit}
           guard={guard}
           onColor={(color) =>
             controller.appearance.updateListColor(
               lists.find((list) => list.id === listMenu.id) ?? listMenu,
               color,
+            )
+          }
+          onRename={(title) =>
+            controller.appearance.updateListTitle(
+              lists.find((list) => list.id === listMenu.id) ?? listMenu,
+              title,
             )
           }
           onClose={() => setListMenu(null)}

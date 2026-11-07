@@ -58,12 +58,12 @@ export function BoardOptions({
       className="board-options"
     >
       <div className="popover__menu">
-        <button type="button" className="popover__item" disabled={pending} onClick={onHistory}>
+        <button type="button" className="popover__item" onClick={onHistory}>
           <Icon name="history" size={15} /> history
         </button>
       </div>
       <div className="popover__menu board-options__section">
-        <button type="button" className="popover__item" disabled={pending} onClick={onCompleted}>
+        <button type="button" className="popover__item" onClick={onCompleted}>
           <Icon name="list-check" size={15} /> completed tasks
         </button>
       </div>
@@ -72,7 +72,7 @@ export function BoardOptions({
           <Icon name="palette" size={15} /> appearance
           <Icon name="down" size={13} className="board-options__chevron" />
         </summary>
-        <BoardAppearance board={board} disabled={!writable || pending} onChange={onChange} />
+        <BoardAppearance board={board} disabled={!writable} onChange={onChange} />
       </details>
       <details className="board-options__section">
         <summary>

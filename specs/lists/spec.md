@@ -55,6 +55,8 @@ once google deletion is confirmed, remove the active list projection and its boa
 
 external confirmed deletion has the same local cleanup. a stale inventory, denied request, or interrupted sync does not count as confirmation. if a create or delete outcome is unknown, follow [sync](../sync/spec.md#uncertain-outcomes) before changing capacity or retrying.
 
+creating a list replaces its submitted name field with a plain list preview while the provider save runs. a fresh inventory read after confirmation replaces the preview. rename commits immediately in the interface and saves in the background. failed creation restores its draft and receipt; failed rename restores confirmed text and reports the error.
+
 ## list quota
 
 lanes admits at most **2,000 google lists per connected account**, across all boards and including lists created outside lanes. this mirrors the [documented google limit](https://developers.google.com/resources/api-libraries/documentation/tasks/v1/python/latest/tasks_v1.tasklists.html). it is not a per-board allowance or a guarantee that google will accept every write below 2,000.

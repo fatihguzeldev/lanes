@@ -13,7 +13,16 @@ export function InlineBoardCreate({
   const input = useRef<HTMLInputElement>(null);
   useLayoutEffect(() => {
     input.current?.focus();
-  }, []);
+  }, [controller.submitted]);
+  if (controller.submitted)
+    return (
+      <div className="inline-board-create inline-board-create__row">
+        <span className="board-navigation__symbol">
+          <Icon name="board" size={18} />
+        </span>
+        <span className="inline-board-create__title">{controller.title.trim()}</span>
+      </div>
+    );
   return (
     <form
       className="inline-board-create"

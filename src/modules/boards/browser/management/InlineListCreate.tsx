@@ -13,7 +13,19 @@ export function InlineListCreate({
   const input = useRef<HTMLInputElement>(null);
   useLayoutEffect(() => {
     input.current?.focus();
-  }, []);
+  }, [controller.submitted]);
+  if (controller.submitted)
+    return (
+      <section
+        className="inline-list-create inline-list-create--submitted"
+        aria-label={controller.title.trim()}
+      >
+        <div className="inline-list-create__field">
+          <Icon name="list" size={16} />
+          <strong>{controller.title.trim()}</strong>
+        </div>
+      </section>
+    );
   return (
     <form
       className="inline-list-create"

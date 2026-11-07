@@ -21,6 +21,13 @@
   font-size: var(--field-font-size);
   border-radius: 0;
 }
+.inline-board-create__title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink);
+}
 .inline-board-create__row input:focus-visible {
   outline: none;
   box-shadow: inset 0 -1px var(--green);

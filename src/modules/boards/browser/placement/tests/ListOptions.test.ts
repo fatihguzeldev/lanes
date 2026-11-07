@@ -43,6 +43,7 @@ function props() {
     submit: vi.fn(async () => true),
     guard: (action: () => void) => action(),
     onColor: vi.fn(async () => true),
+    onRename: vi.fn(async () => true),
     onClose: vi.fn(),
     onDuplicate: vi.fn(),
     onDeleteCompleted: vi.fn(),
