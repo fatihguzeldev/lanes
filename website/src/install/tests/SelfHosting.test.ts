@@ -17,6 +17,7 @@ describe('in-page self hosting', () => {
     expect(markup).toContain(
       'href="https://github.com/fatihguzeldev/lanes/blob/main/agents/self-hosting.md"',
     );
+    expect(markup.indexOf('read the setup guide')).toBeLessThan(markup.indexOf(CLONE_COMMAND));
     expect(markup).not.toMatch(/<dialog|<textarea|<input|close setup/);
   });
 });

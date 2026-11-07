@@ -5,7 +5,7 @@ export function AgentPrompt() {
   return (
     <div className="agent-prompt-section">
       <p className="agent-prompt-label">then ask your coding agent:</p>
-      <div className="agent-prompt">
+      <div className="agent-prompt product-preview">
         <p id="setup-prompt" className="agent-prompt__text">
           {AGENT_PROMPT}
         </p>

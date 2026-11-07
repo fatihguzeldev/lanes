@@ -7,7 +7,7 @@
   padding: var(--space-xs) var(--space-md);
   border: 1px solid var(--color-line);
   border-radius: var(--radius-control);
-  background: var(--color-paper);
+  background: #294033;
   color: var(--color-ink);
 }
 
