@@ -123,7 +123,7 @@ use distinct codes for `unauthenticated`, `forbidden`, `validation_failed`, `con
 
 collection queries are paginated, default 50 and maximum 100 records per page. return explicit next-page/coverage/freshness information. bulk commands accept at most 10 normalized records and 64 kib of input per request, and can reduce a chunk further for runtime limits. a single valid task must fit the accepted envelope.
 
-the browser may show optimistic edits with a pending marker. reconcile against the operation outcome. reload retrieves admitted work from the server; it does not replay a forgotten browser queue. connection failure preserves only an unsent editor draft and disables submission until the server is reachable.
+routine edits update their presentation immediately and save through an account-scoped online queue. do not keep their editor open, show per-item saving messages, or disable unrelated controls while a save runs. preserve each queued command's captured input and receipt identity; a busy submission must not silently drop the next one. reconcile optimistic values against the operation outcome and a fresh read. failed or uncertain changes report an error and restore confirmed presentation; dependent unsent work stops. reload retrieves admitted work from the server; it does not replay a forgotten browser queue. connection failure preserves only an unsent editor draft and disables submission until the server is reachable.
 
 ## free-plan work bounds
 

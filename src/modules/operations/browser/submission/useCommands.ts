@@ -52,15 +52,32 @@ export function useCommands(accountId: string, clockOffset: number, onChanged: (
     callback = useRef(onChanged);
   callback.current = onChanged;
   const abort = useRef<AbortController | null>(null);
-  const submitting = useRef(false);
+  const queue = useRef<Promise<unknown>>(Promise.resolve());
+  const waiting = useRef(0);
+  const generation = useRef(0);
   const received = useRef<OperationSummary | null>(null);
   useEffect(() => {
     alive.current = true;
     return () => {
       alive.current = false;
+      generation.current++;
+      waiting.current = 0;
+      queue.current = Promise.resolve();
       abort.current?.abort();
     };
   }, [accountId]);
+  function enqueue<T>(run: () => Promise<T>, cancelled: T): Promise<T> {
+    const owner = generation.current;
+    waiting.current++;
+    setBusy(true);
+    const result = queue.current.then(() =>
+      alive.current && generation.current === owner ? run() : cancelled,
+    );
+    queue.current = result.catch(() => undefined);
+    return result.finally(() => {
+      if (alive.current && generation.current === owner && --waiting.current === 0) setBusy(false);
+    });
+  }
   const base = `/api/accounts/${encodeURIComponent(accountId)}`;
   function publish(operation: OperationSummary, signal: AbortSignal, monitoringStopped = false) {
     if (!alive.current || signal.aborted) return;
@@ -104,12 +121,19 @@ export function useCommands(accountId: string, clockOffset: number, onChanged: (
     }
     return operation;
   }
-  async function submit(
+  function submit(
+    command: unknown,
+    category: 'local' | 'provider',
+    identity = newOperationId(clockOffset),
+  ): Promise<OperationSummary | null> {
+    const captured = structuredClone(command);
+    return enqueue(() => submitCaptured(captured, category, identity), null);
+  }
+  async function submitCaptured(
     command: unknown,
     category: 'local' | 'provider',
     identity?: string,
   ): Promise<OperationSummary | null> {
-    if (submitting.current) return null;
     if (serverConnection() !== 'reachable') {
       const message =
         serverConnection() === 'incompatible'
@@ -119,10 +143,8 @@ export function useCommands(accountId: string, clockOffset: number, onChanged: (
       setErrorDetails(new RequestError('connection_paused', message));
       return null;
     }
-    submitting.current = true;
     const controller = new AbortController();
     abort.current = controller;
-    setBusy(true);
     setError('');
     setErrorDetails(null);
     setLatest(null);
@@ -195,19 +217,17 @@ export function useCommands(accountId: string, clockOffset: number, onChanged: (
       }
       return null;
     } finally {
-      submitting.current = false;
-      if (alive.current) {
-        setBusy(false);
+      if (alive.current && !controller.signal.aborted) {
         setPendingTaskIds(new Set());
       }
     }
   }
-  async function advance(operationId: string): Promise<void> {
-    if (submitting.current) return;
-    submitting.current = true;
+  function advance(operationId: string): Promise<void> {
+    return enqueue(() => advanceCaptured(operationId), undefined);
+  }
+  async function advanceCaptured(operationId: string): Promise<void> {
     const controller = new AbortController();
     abort.current = controller;
-    setBusy(true);
     setError('');
     setErrorDetails(null);
     try {
@@ -228,17 +248,13 @@ export function useCommands(accountId: string, clockOffset: number, onChanged: (
         setErrorDetails(details);
         callback.current();
       }
-    } finally {
-      submitting.current = false;
-      if (alive.current) {
-        setBusy(false);
-      }
     }
   }
   return {
     submit,
     advance,
     busy,
+    isBusy: () => waiting.current > 0,
     error,
     errorDetails,
     getErrorDetails: () => lastError.current,

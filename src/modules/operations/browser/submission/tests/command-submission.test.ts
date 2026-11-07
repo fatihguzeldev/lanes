@@ -143,3 +143,54 @@ describe('command submission recovery', () => {
     expect(state.read).toHaveBeenCalledTimes(2);
   });
 });
+
+describe('command submission queue', () => {
+  it('keeps distinct rapid changes in order instead of dropping a busy submission', async () => {
+    let finish!: (operation: OperationSummary) => void;
+    state.read
+      .mockImplementationOnce(
+        () =>
+          new Promise<OperationSummary>((resolve) => {
+            finish = resolve;
+          }),
+      )
+      .mockResolvedValueOnce(receipt({ id: 'second' }));
+    const commands = render();
+    const first = commands.submit({ kind: 'task.patch', taskId: 'one' }, 'local', identity);
+    const input = { kind: 'task.patch', taskId: 'two', patch: { starred: true } };
+    const second = commands.submit(input, 'local', 'second');
+    input.patch.starred = false;
+    await vi.waitFor(() => expect(state.read).toHaveBeenCalledOnce());
+    expect(render().busy).toBe(true);
+    finish(receipt());
+    expect(await first).toMatchObject({ id: identity });
+    expect(await second).toMatchObject({ id: 'second' });
+    expect(state.read).toHaveBeenCalledTimes(2);
+    expect(state.read.mock.calls[1]?.[2]).toMatchObject({
+      body: { operationId: 'second', command: { taskId: 'two', patch: { starred: true } } },
+    });
+    expect(render().busy).toBe(false);
+  });
+
+  it('does not dispatch queued work after its account owner unmounts', async () => {
+    let finish!: (operation: OperationSummary) => void;
+    state.read.mockImplementationOnce(
+      () =>
+        new Promise<OperationSummary>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const commands = render();
+    const cleanup = state.effects[0]!()!;
+    const first = commands.submit({ kind: 'task.patch' }, 'local', identity);
+    const second = commands.submit({ kind: 'task.patch' }, 'local', 'second');
+    await vi.waitFor(() => expect(state.read).toHaveBeenCalledOnce());
+    cleanup();
+    const writes = state.writes;
+    finish(receipt());
+    expect(await first).toBeNull();
+    expect(await second).toBeNull();
+    expect(state.read).toHaveBeenCalledOnce();
+    expect(state.writes).toBe(writes);
+  });
+});
