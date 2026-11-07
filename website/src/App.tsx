@@ -51,9 +51,9 @@ export function App() {
         <a className="brand-link" href="#" aria-label="lanes home">
           <Brand />
         </a>
-        <p>
-          made by <a href="https://fatihguzel.dev">fatih güzel</a>.
-        </p>
+        <a className="site-footer__credit" href="https://fatihguzel.dev">
+          made by fatih güzel.
+        </a>
         <a className="site-footer__source" href={GITHUB_URL}>
           source on github
         </a>
