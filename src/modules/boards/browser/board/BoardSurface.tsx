@@ -63,6 +63,7 @@ export interface BoardSurfaceProps {
   onRetry?: (() => void) | undefined;
   onAddList?: (() => void) | undefined;
   listCreation?: ReactNode;
+  listCreationOpen?: boolean;
   onLoadMoreLists?: (() => void) | undefined;
   onOpenTask: (task: Task) => void;
   onToggleComplete: TaskCardProps['onToggleComplete'];
@@ -454,17 +455,17 @@ export function BoardSurface(options: BoardSurfaceProps) {
               <Icon name="board" size={28} />
               <h2>this board is empty.</h2>
               <p>add a google tasks list to get started.</p>
-              {options.listCreation ??
-                (options.onAddList && (
-                  <button
-                    type="button"
-                    disabled={options.providerActionsEnabled === false}
-                    onClick={options.onAddList}
-                  >
-                    <Icon name="plus" size={14} />
-                    new list
-                  </button>
-                ))}
+              {options.listCreation}
+              {!options.listCreationOpen && options.onAddList && (
+                <button
+                  type="button"
+                  disabled={options.providerActionsEnabled === false}
+                  onClick={options.onAddList}
+                >
+                  <Icon name="plus" size={14} />
+                  new list
+                </button>
+              )}
             </div>
           ) : (
             <div className="board-surface__grid">
@@ -490,18 +491,18 @@ export function BoardSurface(options: BoardSurfaceProps) {
                   <Icon name="right" size={13} />
                 </button>
               )}
-              {options.listCreation ??
-                (options.onAddList && (
-                  <button
-                    className="board-surface__add-list"
-                    type="button"
-                    disabled={options.providerActionsEnabled === false}
-                    onClick={options.onAddList}
-                  >
-                    <Icon name="plus" size={14} />
-                    new list
-                  </button>
-                ))}
+              {options.listCreation}
+              {!options.listCreationOpen && options.onAddList && (
+                <button
+                  className="board-surface__add-list"
+                  type="button"
+                  disabled={options.providerActionsEnabled === false}
+                  onClick={options.onAddList}
+                >
+                  <Icon name="plus" size={14} />
+                  new list
+                </button>
+              )}
             </div>
           )}
         </div>

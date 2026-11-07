@@ -17,7 +17,7 @@ read [boards](../boards/spec.md), [tasks](../tasks/spec.md), and [sync](../sync/
 - rename only the provider title. preserve tasks, appearance, board membership, and references.
 - new lists discovered outside lanes go to that account's main board, after its existing lists, in a deterministic order.
 
-the board's new-list action becomes an inline name field in the same place. enter or leaving a nonblank field creates the list without a separate approval step. leaving an empty field or pressing escape closes the entry. retain a failed name for correction, and preserve an uncertain operation's captured name, board, account, and receipt identity. enter followed by blur must not create two lists.
+the board's new-list action becomes an inline name field in the same place. enter or leaving a nonblank field creates the list without a separate approval step. leaving an empty field or pressing escape closes the entry. retain a failed name for correction, and preserve an uncertain operation's captured name, board, account, and receipt identity. enter followed by blur must not create two lists. a valid entry closes immediately and leaves a plain title preview while its command runs. the new-list action remains available for another entry; each preview retains its own target board and recovery identity. a failed earlier creation does not replace a newer draft.
 
 renaming a list opens a flat name field in its anchored menu. enter or blur submits a changed nonblank name once, without a separate dialog or save button. escape restores the confirmed name. the provider write continues after the menu closes; failures leave the confirmed title intact.
 

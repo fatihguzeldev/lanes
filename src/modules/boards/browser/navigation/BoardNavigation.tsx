@@ -75,7 +75,9 @@ export function BoardNavigation({
         </button>
       </div>
       <nav className="board-navigation__boards" aria-label="boards">
-        {creation?.open && <InlineBoardCreate controller={creation} writable={writable} />}
+        {creation && (creation.open || creation.previews.length > 0) && (
+          <InlineBoardCreate controller={creation} writable={writable} />
+        )}
         {resource.items.map((item) => (
           <button
             key={item.id}

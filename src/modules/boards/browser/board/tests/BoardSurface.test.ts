@@ -94,6 +94,7 @@ describe('board list presentation', () => {
               title: 'ring64',
             }),
             confirmedAfter: null,
+            controls: { onEdit() {}, onStar() {}, onComplete() {}, onDelete() {} },
           },
         ],
       },
@@ -101,7 +102,10 @@ describe('board list presentation', () => {
     expect(markup).toContain('ring64');
     expect(markup).not.toContain('no tasks.');
     expect(markup).not.toContain('saving…');
-    expect(markup).toContain('aria-busy="true"');
+    expect(markup).not.toContain('aria-busy="true"');
+    expect(markup).toContain('aria-label="star ring64"');
+    expect(markup).toContain('aria-label="delete ring64"');
+    expect(markup).toMatch(/aria-label="complete ring64"(?![^>]*disabled)/);
     expect(markup).toMatch(/class="board-column__count"[^>]*>1</);
   });
 
@@ -332,6 +336,19 @@ describe('board list presentation', () => {
     );
   });
 
+  it('keeps adding lists available beside captured creation previews', () => {
+    const markup = render(
+      {},
+      {
+        onAddList() {},
+        listCreation: createElement('span', null, 'new reading list'),
+        listCreationOpen: false,
+      },
+    );
+    expect(markup).toContain('new reading list');
+    expect(markup).toContain('new list</button>');
+  });
+
   it.each([false, true])(
     'replaces the new-list action with its inline entry, empty=%s',
     (empty) => {
@@ -342,6 +359,7 @@ describe('board list presentation', () => {
           ...(empty ? { columns: [] } : {}),
           onAddList() {},
           listCreation: entry,
+          listCreationOpen: true,
         },
       );
       expect(markup).toContain('aria-label="new list name"');

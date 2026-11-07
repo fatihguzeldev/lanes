@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { z } from 'zod';
-import type { Board } from '../../contracts/board';
-import { useCommands } from '../../../operations/browser/submission/useCommands';
 import { newOperationId } from '../../../operations/browser/submission/operation-identity';
-import { captureListCreation, listCreationRejected } from './list-creation';
+import { useCreationQueue } from './useCreationQueue';
+import type { Board } from '../../contracts/board';
+import { captureListCreation } from './list-creation';
 
 export function useListCreation(options: {
   accountId: string;
@@ -16,65 +16,45 @@ export function useListCreation(options: {
   onInspect(id: string): void;
   onDirtyChange?: ((dirty: boolean) => void) | undefined;
 }) {
-  const [open, setOpen] = useState(false),
-    [target, setTarget] = useState<Board | null>(null),
-    [title, setTitle] = useState(''),
-    [validation, setValidation] = useState(''),
-    [submitted, setSubmitted] = useState(false),
-    [confirmedAfter, setConfirmedAfter] = useState<number | null>(null),
-    [attempt, setAttempt] = useState<ReturnType<typeof captureListCreation> | null>(null);
-  const commands = useCommands(options.accountId, options.clockOffset, options.onChanged);
-  const flight = useRef(false),
-    dirtyCallback = useRef(options.onDirtyChange),
-    version = useRef(options.version);
-  version.current = options.version;
+  const [open, setOpen] = useState(false);
+  const [title, setTitle] = useState('');
+  const [validation, setValidation] = useState('');
+  const [target, setTarget] = useState<Board | null>(null);
+  const draft = useRef({ open, title, target });
+  draft.current = { open, title, target };
+  const jobs = useCreationQueue({
+    ...options,
+    category: 'provider',
+    boardId: options.board?.id ?? null,
+  });
+  const dirtyCallback = useRef(options.onDirtyChange);
   dirtyCallback.current = options.onDirtyChange;
-  const rejected = listCreationRejected(
-    commands.latest?.id === attempt?.identity ? commands.latest : null,
-    commands.errorDetails?.code,
-    !!commands.errorDetails?.operationId,
-  );
-  const locked = attempt !== null && !rejected;
-  const acknowledged =
-    confirmedAfter !== null && options.inventoryReady && options.version > confirmedAfter;
-  const dirty = !submitted && (attempt !== null || (open && Boolean(title.trim())));
+  const dirty = open && Boolean(title.trim());
   useEffect(() => {
     dirtyCallback.current?.(dirty);
   }, [dirty]);
   useEffect(() => () => dirtyCallback.current?.(false), []);
   const discard = () => {
+    draft.current = { ...draft.current, open: false, title: '' };
     setOpen(false);
-    setTarget(null);
     setTitle('');
-    setAttempt(null);
     setValidation('');
-    setSubmitted(false);
-    setConfirmedAfter(null);
-    commands.clearError();
   };
-  useEffect(() => {
-    if (acknowledged) discard();
-  }, [confirmedAfter, options.version, options.inventoryReady]);
-  async function save(notifyValidation = false) {
-    if (
-      flight.current ||
-      commands.busy ||
-      submitted ||
-      !target ||
-      target.accountId !== options.accountId
-    )
-      return;
-    if (!locked && !title.trim()) {
+  function save(notifyValidation = false) {
+    const value = draft.current;
+    if (!value.open) return;
+    if (!value.target || value.target.accountId !== options.accountId) return;
+    if (!value.title.trim()) {
       discard();
       return;
     }
-    let captured: ReturnType<typeof captureListCreation>;
     try {
-      const board = options.board?.id === target.id ? options.board : target;
-      captured =
-        locked && attempt
-          ? attempt
-          : captureListCreation(board, title, () => newOperationId(options.clockOffset));
+      const board = options.board?.id === value.target.id ? options.board : value.target;
+      const captured = captureListCreation(board, value.title, () =>
+        newOperationId(options.clockOffset),
+      );
+      jobs.enqueue({ ...captured, title: value.title.trim(), boardId: board.id, board });
+      discard();
     } catch (error) {
       const message =
         error instanceof z.ZodError
@@ -82,67 +62,53 @@ export function useListCreation(options: {
           : 'check the list name.';
       setValidation(message);
       if (notifyValidation) options.onNotice(message);
-      return;
-    }
-    setAttempt(captured);
-    setValidation('');
-    setSubmitted(true);
-    flight.current = true;
-    try {
-      const result = await commands.submit(captured.command, 'provider', captured.identity);
-      if (result?.state === 'succeeded') {
-        setConfirmedAfter(version.current);
-        options.onChanged();
-      } else {
-        setSubmitted(false);
-        setOpen(true);
-        options.onNotice(
-          'this list has not been confirmed yet. review its save before trying again.',
-        );
-      }
-    } finally {
-      flight.current = false;
     }
   }
   return {
-    open: open && !acknowledged,
-    boardId: target?.id ?? null,
+    open,
     title,
-    submitted: submitted && !acknowledged,
     dirty,
-    busy: commands.busy,
-    isSaving: () => flight.current,
-    locked,
-    error: validation || commands.error,
-    show(board: Board) {
-      if (submitted) return;
-      if (board.accountId !== options.accountId) return;
-      if (target && target.id !== board.id && (title.trim() || attempt)) {
-        options.onNotice('finish the open list entry before creating a list in another board.');
+    error: validation,
+    previews: jobs.entries,
+    isSaving: jobs.isSaving,
+    inspect: jobs.inspect,
+    retry: jobs.retry,
+    editFailed(identity: string) {
+      if (draft.current.open && draft.current.title.trim()) {
+        options.onNotice('finish this name before opening another draft.');
         return;
       }
+      const entry = jobs.takeRejected(identity);
+      if (!entry) return;
+      const board = options.board?.id === entry.boardId ? options.board : entry.board;
+      if (!board) return;
       setTarget(board);
+      draft.current = { open: true, title: entry.title, target: board };
+      setTitle(entry.title);
+      setValidation('');
       setOpen(true);
     },
-    close() {
-      setOpen(false);
+    boardId: target?.id ?? null,
+    currentBoardId: options.board?.id ?? null,
+    show(board: Board) {
+      if (board.accountId !== options.accountId) return;
+      if (draft.current.open && draft.current.target?.id !== board.id && draft.current.title.trim())
+        save(true);
+      setTarget(board);
+      draft.current = { ...draft.current, target: board, open: true };
+      setOpen(true);
     },
+    close: discard,
     discard,
     change(value: string) {
-      if (locked || commands.busy) return;
+      draft.current = { ...draft.current, title: value };
       setTitle(value);
       setValidation('');
-      if (rejected) setAttempt(null);
-      commands.clearError();
-    },
-    inspect() {
-      const identity = commands.errorDetails?.operationId ?? attempt?.identity;
-      if (identity) options.onInspect(identity);
     },
     save,
     finish() {
-      if (locked || commands.busy || validation || commands.error) return;
-      return save(true);
+      if (validation) return;
+      save(true);
     },
   };
 }

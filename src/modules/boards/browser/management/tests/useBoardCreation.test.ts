@@ -5,6 +5,7 @@ const harness = vi.hoisted(() => ({
   cursor: 0,
   slots: [] as unknown[],
   effects: [] as (() => void)[],
+  identity: 0,
 }));
 const command = vi.hoisted(() => ({
   busy: false,
@@ -31,7 +32,7 @@ vi.mock('../../../../operations/browser/submission/useCommands', () => ({
   useCommands: () => command,
 }));
 vi.mock('../../../../operations/browser/submission/operation-identity', () => ({
-  newOperationId: () => 'creation-identity',
+  newOperationId: () => `creation-${++harness.identity}`,
 }));
 
 const notice = vi.fn();
@@ -51,11 +52,12 @@ function render(version = 0, inventoryReady = true) {
   return result;
 }
 
-describe('board entry completion', () => {
+describe('board entry capture and background queue', () => {
   beforeEach(() => {
     harness.cursor = 0;
     harness.slots = [];
     harness.effects = [];
+    harness.identity = 0;
     command.busy = false;
     command.error = '';
     command.errorDetails = null;
@@ -65,124 +67,96 @@ describe('board entry completion', () => {
     notice.mockReset();
     command.submit.mockResolvedValue({ state: 'succeeded' });
   });
-
-  it('opens a blank name and leaves an empty entry without creating a board', async () => {
+  const flush = async () => {
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+  };
+  it('discards an empty entry without creating anything', () => {
     render().show();
-    let entry = render();
-    expect(entry).toMatchObject({ open: true, title: '', dirty: false });
-    entry.change('   ');
-    await render().finish();
-    entry = render();
-    expect(entry).toMatchObject({ open: false, title: '', dirty: false });
+    render().change('  ');
+    render().finish();
+    expect(render()).toMatchObject({ open: false, title: '', dirty: false });
     expect(command.submit).not.toHaveBeenCalled();
   });
-
-  it('reports an invalid automatic save even when navigation can hide the entry', async () => {
+  it('retains an invalid draft and reports validation before capture', () => {
     render().show();
-    const title = 'x'.repeat(129);
-    render().change(title);
-    await render().finish();
-    const entry = render();
-    expect(entry).toMatchObject({ open: true, title, locked: false, dirty: true });
-    expect(entry.error).toContain('128');
-    expect(notice).toHaveBeenCalledExactlyOnceWith(entry.error);
-    expect(command.submit).not.toHaveBeenCalled();
-    await entry.finish();
+    render().change('x'.repeat(129));
+    render().finish();
+    expect(render().open).toBe(true);
+    expect(render().dirty).toBe(true);
     expect(notice).toHaveBeenCalledOnce();
+    expect(command.submit).not.toHaveBeenCalled();
   });
-
-  it('commits a nonblank name on blur and does not double-submit a following Enter', async () => {
-    let finish!: (value: { state: string }) => void;
-    command.submit.mockImplementation(() => new Promise((resolve) => (finish = resolve)));
+  it('closes at capture, accepts another draft, and serializes the creates', async () => {
+    let complete!: (value: { state: string }) => void;
+    command.submit.mockImplementationOnce(() => new Promise((resolve) => (complete = resolve)));
     render().show();
-    render().change('  reading  ');
+    render().change('first');
     const entry = render();
-    const pending = entry.finish();
-    expect(render()).toMatchObject({ submitted: true, dirty: false, title: '  reading  ' });
-    expect(entry.isSaving()).toBe(true);
-    await entry.save();
-    expect(command.submit).toHaveBeenCalledOnce();
-    expect(command.submit.mock.calls[0]).toMatchObject([
-      { kind: 'board.create', input: { title: 'reading' } },
-      'local',
-      'creation-identity',
-    ]);
-    finish({ state: 'succeeded' });
-    await pending;
-    expect(render()).toMatchObject({ submitted: true, dirty: false });
-    expect(render(1, false)).toMatchObject({ submitted: true });
-    render(1);
-    expect(render(1)).toMatchObject({ open: false, title: '', submitted: false, dirty: false });
-    expect(entry.isSaving()).toBe(false);
-  });
-
-  it('restores an editable entry when a background creation is rejected', async () => {
-    let finish!: (value: null) => void;
-    command.submit.mockImplementation(() => new Promise((resolve) => (finish = resolve)));
+    entry.finish();
+    entry.save();
+    expect(render()).toMatchObject({ open: false, title: '', dirty: false });
+    expect(render().previews.map((item) => item.title)).toEqual(['first']);
     render().show();
-    render().change('reading');
-    const pending = render().save();
-    expect(render()).toMatchObject({ submitted: true, dirty: false });
-    finish(null);
-    await pending;
-    expect(render()).toMatchObject({ submitted: false, open: true, title: 'reading', dirty: true });
-    expect(notice).toHaveBeenCalledWith(expect.stringContaining('not been confirmed'));
-  });
-
-  it('retains an uncertain name and identity without retrying on every blur', async () => {
-    command.submit.mockResolvedValue(null);
-    render().show();
-    render().change('reading');
-    await render().finish();
-    command.error = 'connection lost';
-    command.errorDetails = { code: 'server_unavailable', operationId: 'creation-identity' };
-    let entry = render();
-    expect(entry).toMatchObject({ open: true, title: 'reading', locked: true });
-    await entry.finish();
+    render().change('second');
+    render().save();
+    expect(render().previews.map((item) => item.title)).toEqual(['first', 'second']);
     expect(command.submit).toHaveBeenCalledOnce();
-    command.submit.mockResolvedValue({ state: 'succeeded' });
-    await entry.save();
-    expect(command.submit.mock.calls[1]).toEqual(command.submit.mock.calls[0]);
-    render(1);
-    entry = render(1);
-    expect(entry).toMatchObject({ open: false, title: '' });
-  });
-
-  it('lets an already submitted board finish after the entry closes', async () => {
-    let finish!: (value: { state: string }) => void;
-    command.submit.mockImplementation(() => new Promise((resolve) => (finish = resolve)));
-    render().show();
-    render().change('reading');
-    const pending = render().save();
-    render().close();
-    expect(render()).toMatchObject({ open: false, title: 'reading', locked: true });
-    finish({ state: 'succeeded' });
-    await pending;
-    render(1);
-    expect(render(1)).toMatchObject({ open: false, title: '', locked: false });
-    expect(command.submit).toHaveBeenCalledOnce();
-  });
-
-  it('keeps a rejected name editable and waits for an edit or explicit retry', async () => {
-    command.submit.mockResolvedValue(null);
-    render().show();
-    render().change('reading');
-    await render().finish();
-    command.error = 'check the name';
-    command.errorDetails = { code: 'validation_failed' };
-    let entry = render();
-    expect(entry).toMatchObject({ open: true, title: 'reading', locked: false });
-    await entry.finish();
-    expect(command.submit).toHaveBeenCalledOnce();
-    entry.change('books');
-    command.error = '';
-    entry = render();
-    command.submit.mockResolvedValue({ state: 'succeeded' });
-    await entry.finish();
+    complete({ state: 'succeeded' });
+    await flush();
     expect(command.submit).toHaveBeenCalledTimes(2);
-    expect(command.submit.mock.calls[1]?.[0]).toMatchObject({
-      kind: 'board.create',
-      input: { title: 'books' },
+    expect(command.submit.mock.calls.map((call) => call[2])).toEqual(['creation-1', 'creation-2']);
+    expect(render().isSaving()).toBe(false);
+    expect(render(1, false).previews).toHaveLength(2);
+    render(1);
+    expect(render(1).previews).toHaveLength(0);
+  });
+  it('retains a failed save without replacing the next open draft', async () => {
+    let complete!: (value: null) => void;
+    command.submit.mockImplementationOnce(() => new Promise((resolve) => (complete = resolve)));
+    render().show();
+    render().change('first');
+    render().save();
+    render().show();
+    render().change('next draft');
+    complete(null);
+    await flush();
+    expect(render()).toMatchObject({ open: true, title: 'next draft' });
+    expect(render().previews[0]).toMatchObject({
+      title: 'first',
+      state: 'failed',
+      identity: 'creation-1',
     });
+    render().finish();
+    await flush();
+    expect(command.submit).toHaveBeenCalledTimes(2);
+    expect(render().previews[0]!.state).toBe('failed');
+  });
+  it('retries only explicitly, preserving the exact original identity and input', async () => {
+    command.submit.mockResolvedValueOnce(null);
+    render().show();
+    render().change('original');
+    render().save();
+    await flush();
+    render().finish();
+    expect(command.submit).toHaveBeenCalledOnce();
+    render().retry('creation-1');
+    await flush();
+    expect(command.submit.mock.calls[1]).toEqual(command.submit.mock.calls[0]);
+  });
+  it('reopens a definitely rejected creation for correction with a fresh identity', async () => {
+    command.submit.mockResolvedValueOnce({ state: 'failed', finished: true, confirmedSteps: 0 });
+    render().show();
+    render().change('first name');
+    render().save();
+    await flush();
+    expect(render().previews[0]?.rejected).toBe(true);
+    render().editFailed('creation-1');
+    expect(render()).toMatchObject({ open: true, title: 'first name' });
+    render().change('corrected name');
+    render().save();
+    await flush();
+    expect(command.submit.mock.calls[1]?.[2]).toBe('creation-2');
   });
 });

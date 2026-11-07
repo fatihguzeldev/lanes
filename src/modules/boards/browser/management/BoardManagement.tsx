@@ -11,6 +11,7 @@ import { useListCreation } from './useListCreation';
 import { ListOptions } from '../placement/ListOptions';
 import { DuplicateDialog } from '../placement/DuplicateDialog';
 import { useTaskPlacement } from '../placement/useTaskPlacement';
+import type { PlacementChoice } from '../placement/placement-model';
 import { useBoardAppearance } from '../appearance/useBoardAppearance';
 
 type Submit = (
@@ -29,6 +30,7 @@ export function useBoardManagement(
     listsReady: boolean;
     boards: readonly Board[];
     lists: readonly BoardList[];
+    onMoveTask(task: Task, choice: PlacementChoice): boolean;
     onChanged(): void;
     onNotice(message: string): void;
     onInspect(id: string): void;
@@ -209,8 +211,8 @@ export function BoardManagement({
           onPreferences={onPreferences}
           onStartBoard={onStartBoard}
           writable={localWritable}
-          pending={controller.appearance.pending}
-          submit={submit}
+          pending={controller.appearance.pendingForBoard(board.id)}
+          onReorder={(position) => controller.appearance.reorderBoard(board, position)}
           onChange={(patch) => controller.appearance.updateBoard(board, patch)}
           onClose={() => setBoardMenu(false)}
           onDelete={() =>
@@ -231,7 +233,13 @@ export function BoardManagement({
           loadedListCount={loadedListCount}
           writable={writable}
           localWritable={localWritable}
-          submit={submit}
+          onPlacement={(boardId, position) =>
+            controller.appearance.placeList(
+              lists.find((list) => list.id === listMenu.id) ?? listMenu,
+              boardId,
+              position,
+            )
+          }
           guard={guard}
           onColor={(color) =>
             controller.appearance.updateListColor(

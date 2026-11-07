@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { z } from 'zod';
-import { useCommands } from '../../../operations/browser/submission/useCommands';
 import { newOperationId } from '../../../operations/browser/submission/operation-identity';
-import { boardCreationRejected, captureBoardCreation } from './board-creation';
+import { useCreationQueue } from './useCreationQueue';
+import { captureBoardCreation } from './board-creation';
 
 export function useBoardCreation(options: {
   accountId: string;
@@ -14,55 +14,36 @@ export function useBoardCreation(options: {
   onInspect(id: string): void;
   onDirtyChange?: ((dirty: boolean) => void) | undefined;
 }) {
-  const [open, setOpen] = useState(false),
-    [title, setTitle] = useState(''),
-    [validation, setValidation] = useState(''),
-    [submitted, setSubmitted] = useState(false),
-    [confirmedAfter, setConfirmedAfter] = useState<number | null>(null),
-    [attempt, setAttempt] = useState<ReturnType<typeof captureBoardCreation> | null>(null);
-  const commands = useCommands(options.accountId, options.clockOffset, options.onChanged);
-  const flight = useRef(false),
-    dirtyCallback = useRef(options.onDirtyChange),
-    version = useRef(options.version);
-  version.current = options.version;
+  const [open, setOpen] = useState(false);
+  const [title, setTitle] = useState('');
+  const [validation, setValidation] = useState('');
+  const draft = useRef({ open, title });
+  draft.current = { open, title };
+  const jobs = useCreationQueue({ ...options, category: 'local' });
+  const dirtyCallback = useRef(options.onDirtyChange);
   dirtyCallback.current = options.onDirtyChange;
-  const rejected = boardCreationRejected(
-    commands.latest?.id === attempt?.identity ? commands.latest : null,
-    commands.errorDetails?.code,
-    !!commands.errorDetails?.operationId,
-  );
-  const locked = attempt !== null && !rejected;
-  const acknowledged =
-    confirmedAfter !== null && options.inventoryReady && options.version > confirmedAfter;
-  const dirty = !submitted && (attempt !== null || (open && Boolean(title.trim())));
+  const dirty = open && Boolean(title.trim());
   useEffect(() => {
     dirtyCallback.current?.(dirty);
   }, [dirty]);
   useEffect(() => () => dirtyCallback.current?.(false), []);
   const discard = () => {
+    draft.current = { ...draft.current, open: false, title: '' };
     setOpen(false);
     setTitle('');
-    setAttempt(null);
     setValidation('');
-    setSubmitted(false);
-    setConfirmedAfter(null);
-    commands.clearError();
   };
-  useEffect(() => {
-    if (acknowledged) discard();
-  }, [confirmedAfter, options.version, options.inventoryReady]);
-  async function save(notifyValidation = false) {
-    if (flight.current || commands.busy || submitted) return;
-    if (!locked && !title.trim()) {
+  function save(notifyValidation = false) {
+    const value = draft.current;
+    if (!value.open) return;
+    if (!value.title.trim()) {
       discard();
       return;
     }
-    let captured: ReturnType<typeof captureBoardCreation>;
     try {
-      captured =
-        locked && attempt
-          ? attempt
-          : captureBoardCreation(title, () => newOperationId(options.clockOffset));
+      const captured = captureBoardCreation(value.title, () => newOperationId(options.clockOffset));
+      jobs.enqueue({ ...captured, title: value.title.trim() });
+      discard();
     } catch (error) {
       const message =
         error instanceof z.ZodError
@@ -70,60 +51,44 @@ export function useBoardCreation(options: {
           : 'check the board name.';
       setValidation(message);
       if (notifyValidation) options.onNotice(message);
-      return;
-    }
-    setAttempt(captured);
-    setValidation('');
-    setSubmitted(true);
-    flight.current = true;
-    try {
-      const result = await commands.submit(captured.command, 'local', captured.identity);
-      if (result?.state === 'succeeded') {
-        setConfirmedAfter(version.current);
-        options.onChanged();
-      } else {
-        setSubmitted(false);
-        setOpen(true);
-        options.onNotice(
-          'this board has not been confirmed yet. review its save before trying again.',
-        );
-      }
-    } finally {
-      flight.current = false;
     }
   }
   return {
-    open: open && !acknowledged,
+    open,
     title,
-    submitted: submitted && !acknowledged,
     dirty,
-    busy: commands.busy,
-    isSaving: () => flight.current,
-    locked,
-    error: validation || commands.error,
-    show() {
-      if (submitted) return;
+    error: validation,
+    previews: jobs.entries,
+    isSaving: jobs.isSaving,
+    inspect: jobs.inspect,
+    retry: jobs.retry,
+    editFailed(identity: string) {
+      if (draft.current.open && draft.current.title.trim()) {
+        options.onNotice('finish this name before opening another draft.');
+        return;
+      }
+      const entry = jobs.takeRejected(identity);
+      if (!entry) return;
+      draft.current = { open: true, title: entry.title };
+      setTitle(entry.title);
+      setValidation('');
       setOpen(true);
     },
-    close() {
-      setOpen(false);
+    show() {
+      draft.current = { ...draft.current, open: true };
+      setOpen(true);
     },
+    close: discard,
     discard,
     change(value: string) {
-      if (locked || commands.busy) return;
+      draft.current = { ...draft.current, title: value };
       setTitle(value);
       setValidation('');
-      if (rejected) setAttempt(null);
-      commands.clearError();
-    },
-    inspect() {
-      const identity = commands.errorDetails?.operationId ?? attempt?.identity;
-      if (identity) options.onInspect(identity);
     },
     save,
     finish() {
-      if (locked || commands.busy || validation || commands.error) return;
-      return save(true);
+      if (validation) return;
+      save(true);
     },
   };
 }
