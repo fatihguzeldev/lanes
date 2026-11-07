@@ -39,9 +39,10 @@
 }
 .workspace-demo {
   --demo-canvas-padding: 24px;
+  --demo-navigation-width: 192px;
   position: relative;
   display: grid;
-  grid-template-columns: 192px minmax(0, 1fr);
+  grid-template-columns: var(--demo-navigation-width) minmax(0, 1fr);
   min-width: 0;
   height: 500px;
   overflow: clip;
@@ -124,16 +125,21 @@
   white-space: nowrap;
 }
 .demo-workspace {
+  container: demo-workspace / inline-size;
   display: flex;
   flex-direction: column;
   min-width: 0;
   min-height: 0;
 }
 .demo-toolbar {
+  --demo-toolbar-gap: 16px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(120px, 240px) auto;
+  /* the right offset centers search on the full preview, including navigation. */
+  grid-template-columns:
+    minmax(115px, 1fr) minmax(200px, 320px)
+    max(0px, calc(var(--demo-navigation-width) - var(--demo-toolbar-gap))) minmax(0, 1fr);
   align-items: center;
-  gap: 16px;
+  gap: var(--demo-toolbar-gap);
   min-height: 70px;
   padding: 12px 24px;
   border-bottom: 1px solid var(--color-line);
@@ -158,6 +164,7 @@
   display: flex;
   align-items: center;
   min-width: 0;
+  width: 100%;
 }
 .demo-search {
   display: flex;
@@ -399,10 +406,26 @@
     color: var(--color-accent);
   }
 }
+@container demo-workspace (max-width: 860px) {
+  .demo-toolbar {
+    grid-template-columns:
+      minmax(0, 1fr)
+      max(0px, calc(var(--demo-navigation-width) - var(--demo-toolbar-gap)));
+  }
+  .demo-toolbar__title {
+    grid-column: 1 / -1;
+  }
+  .demo-search-controls {
+    grid-column: 1;
+    grid-row: 2;
+    justify-self: center;
+    width: min(100%, 320px);
+  }
+}
 @container workspace-preview (max-width: 1024px) {
   .workspace-demo {
     --demo-canvas-padding: 18px;
-    grid-template-columns: 172px minmax(0, 1fr);
+    --demo-navigation-width: 172px;
   }
   .demo-toolbar {
     gap: 10px 16px;
@@ -412,6 +435,7 @@
 @container workspace-preview (max-width: 768px) {
   .workspace-demo {
     --demo-canvas-padding: 16px;
+    --demo-navigation-width: 0px;
     grid-template-columns: minmax(0, 1fr);
   }
   .demo-sidebar {
@@ -472,14 +496,14 @@
   }
   .demo-search-controls,
   .demo-toolbar--searching .demo-toolbar__title,
-  .demo-toolbar--searching .demo-search-launch,
-  .demo-toolbar--searching .demo-account-menu__trigger {
+  .demo-toolbar--searching .demo-search-launch {
     display: none;
   }
   .demo-toolbar--searching .demo-search-controls {
     display: flex;
     flex: 1;
     gap: 4px;
+    width: auto;
   }
   .demo-search {
     height: 44px;
@@ -496,10 +520,6 @@
   }
   .demo-search input {
     padding-inline: 0;
-  }
-  .demo-toolbar .demo-account-menu__trigger {
-    width: 44px;
-    height: 44px;
   }
 }
 @media (any-pointer: coarse) {

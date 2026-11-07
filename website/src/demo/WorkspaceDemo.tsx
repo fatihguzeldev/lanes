@@ -1,16 +1,13 @@
 import { useId, useLayoutEffect, useRef, useState } from 'react';
 import {
   demoAccounts,
+  demoTasks,
   demoToday,
   demoWeek,
-  demoWorkspaces,
   selectDemoTasks,
-  updateDemoTask,
-  type DemoAccountId,
   type DemoScope,
   type DemoTask,
 } from './demo-model';
-import { DemoAccountMenu } from './DemoAccountMenu';
 import { TaskCard } from '../details/TaskCard';
 import { usePreviewTaskEditor, type PreviewTaskEditor } from '../details/usePreviewTaskEditor';
 import './WorkspaceDemo.css';
@@ -266,12 +263,10 @@ function DemoCalendar({ tasks }: { tasks: DemoTask[] }) {
 
 export function WorkspaceDemo() {
   const [view, setView] = useState<View>('board');
-  const [accountId, setAccountId] = useState<DemoAccountId>('personal');
-  const [workspaces, setWorkspaces] = useState(demoWorkspaces);
-  const account = demoAccounts[accountId];
-  const tasks = workspaces[accountId];
+  const [tasks, setTasks] = useState(demoTasks);
+  const account = demoAccounts.personal;
   const editor = usePreviewTaskEditor(tasks, (id, patch) =>
-    setWorkspaces((current) => updateDemoTask(current, accountId, id, patch)),
+    setTasks((current) => current.map((task) => (task.id === id ? { ...task, ...patch } : task))),
   );
   const [scope, setScope] = useState<DemoScope>('all');
   const [query, setQuery] = useState('');
@@ -504,22 +499,9 @@ export function WorkspaceDemo() {
             >
               <DemoIcon name="search" />
             </button>
-            <DemoAccountMenu
-              account={account}
-              accounts={Object.values(demoAccounts)}
-              onSelect={(id) => {
-                if (id === accountId || (id !== 'personal' && id !== 'work')) return;
-                editor.navigate(() => {
-                  setAccountId(id);
-                  setScope('all');
-                  setQuery('');
-                  setSearchOpen(false);
-                });
-              }}
-            />
           </header>
           <div className="demo-content" data-view={view}>
-            <div key={accountId + view}>
+            <div key={view}>
               {view === 'calendar' ? (
                 <DemoCalendar tasks={visible} />
               ) : (
