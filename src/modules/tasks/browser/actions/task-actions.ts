@@ -19,6 +19,7 @@ export interface TaskActionContext {
   onReopen: (selection: { task: Task; preview: ReopenPreview }) => void;
   onTaskDeleted: () => void;
   onListDeleteReady: () => void;
+  runTaskChange?: (taskId: string, job: () => Promise<boolean>) => Promise<boolean>;
 }
 
 export function createTaskActions({
@@ -235,20 +236,27 @@ export function createTaskActions({
       onNotice(error instanceof Error ? error.message : 'deletion could not be checked.');
     }
   };
-  const reschedule = async (intent: {
-    accountId: string;
-    taskId: string;
-    revision: number;
-    scheduledDay: string | null;
-  }) => {
-    if (intent.accountId !== accountId) return;
+  const reschedule = async (
+    intent: {
+      accountId: string;
+      taskId: string;
+      revision: number;
+      scheduledDay: string | null;
+    },
+    current?: Task,
+  ): Promise<boolean> => {
+    if (intent.accountId !== accountId) return false;
     try {
-      const task = await request(`${base}/tasks/${encodeURIComponent(intent.taskId)}`, TaskSchema);
+      const task =
+        current ??
+        (await request(`${base}/tasks/${encodeURIComponent(intent.taskId)}`, TaskSchema));
+      if (task.accountId !== accountId || task.id !== intent.taskId) return false;
       if (task.revision !== intent.revision) {
         onNotice('this task changed. review its current date before moving it.');
         onChanged();
-        return;
+        return false;
       }
+      if (task.scheduledDay === intent.scheduledDay) return true;
       const command = {
         kind: 'task.edit',
         taskId: task.id,
@@ -256,16 +264,24 @@ export function createTaskActions({
         patch: { scheduledDay: intent.scheduledDay },
       };
       if (intent.scheduledDay === null && (task.scheduledTime || task.repeatRule))
-        confirm({
-          title: `remove the date from ${task.title || 'this task'}?`,
-          message:
-            'its local time and repeat rule will also be removed. an unscheduled task cannot keep either.',
-          confirmLabel: 'remove date',
-          onConfirm: (identity) => submit(command, 'provider', identity),
-        });
-      else await submit(command, 'provider');
+        return await new Promise<boolean>((resolve) =>
+          confirm({
+            title: `remove the date from ${task.title || 'this task'}?`,
+            message:
+              'its local time and repeat rule will also be removed. an unscheduled task cannot keep either.',
+            confirmLabel: 'remove date',
+            onConfirm: async (identity) => {
+              const saved = await submit(command, 'provider', identity);
+              resolve(saved);
+              return saved;
+            },
+            onCancel: () => resolve(false),
+          }),
+        );
+      return await submit(command, 'provider');
     } catch (error) {
       onNotice(error instanceof Error ? error.message : 'the task could not be rescheduled.');
+      return false;
     }
   };
 

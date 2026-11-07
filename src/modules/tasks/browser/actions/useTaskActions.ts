@@ -17,40 +17,53 @@ export function useTaskActions(context: TaskActionContext, clockOffset: number) 
   const createQueue = () =>
     createTaskActionQueue(
       async ({ task: selected, field, value }) => {
-        const { context: current, commands, clockOffset } = latest.current;
-        const signal = abort.current.signal;
-        const task = await request(
-          `/api/accounts/${encodeURIComponent(current.accountId)}/tasks/${encodeURIComponent(selected.id)}`,
-          TaskSchema,
-          { signal },
-        );
-        if (signal.aborted) return false;
-        if (task.accountId !== current.accountId || task.id !== selected.id)
-          throw new Error('this task is no longer available in this account.');
-        let submitted = false;
-        const actions = createTaskActions({
-          ...current,
-          submit: async (command, category, identity = newOperationId(clockOffset)) => {
-            submitted = true;
-            const result = await commands.submit(command, category, identity);
-            if (signal.aborted) return false;
-            if (result?.state === 'succeeded') return true;
-            const failure = commands.getErrorDetails();
-            current.onNotice(
-              result?.error?.message ??
-                failure?.message ??
-                'couldn’t confirm this change. check its save before trying again.',
-              result?.id ?? failure?.operationId ?? null,
-            );
-            current.onChanged();
-            return false;
-          },
-        });
-        const saved = await (field === 'starred'
-          ? actions.toggleStar(task, value)
-          : actions.toggleComplete(task, value));
-        if (saved && !submitted && !signal.aborted) current.onChanged();
-        return saved;
+        const save = async () => {
+          const { context: current, commands, clockOffset } = latest.current;
+          const signal = abort.current.signal;
+          const task = await request(
+            `/api/accounts/${encodeURIComponent(current.accountId)}/tasks/${encodeURIComponent(selected.id)}`,
+            TaskSchema,
+            { signal },
+          );
+          if (signal.aborted) return false;
+          if (task.accountId !== current.accountId || task.id !== selected.id)
+            throw new Error('this task is no longer available in this account.');
+          let submitted = false;
+          const actions = createTaskActions({
+            ...current,
+            submit: async (command, category, identity = newOperationId(clockOffset)) => {
+              submitted = true;
+              const result = await commands.submit(command, category, identity);
+              if (signal.aborted) return false;
+              if (result?.state === 'succeeded') return true;
+              const failure = commands.getErrorDetails();
+              current.onNotice(
+                result?.error?.message ??
+                  failure?.message ??
+                  'couldn’t confirm this change. check its save before trying again.',
+                result?.id ?? failure?.operationId ?? null,
+              );
+              current.onChanged();
+              return false;
+            },
+          });
+          const saved = await (field === 'scheduledDay'
+            ? actions.reschedule(
+                {
+                  accountId: task.accountId,
+                  taskId: task.id,
+                  revision: task.revision,
+                  scheduledDay: value,
+                },
+                task,
+              )
+            : field === 'starred'
+              ? actions.toggleStar(task, value)
+              : actions.toggleComplete(task, value));
+          if (saved && !submitted && !signal.aborted) current.onChanged();
+          return saved;
+        };
+        return latest.current.context.runTaskChange?.(selected.id, save) ?? save();
       },
       setBusy,
       (error) => {
@@ -80,5 +93,18 @@ export function useTaskActions(context: TaskActionContext, clockOffset: number) 
     busy,
     toggleStar: (task: Task, starred: boolean) => enqueue(task, 'starred', starred),
     toggleComplete: (task: Task, completed: boolean) => enqueue(task, 'completed', completed),
+    reschedule: (intent: {
+      accountId: string;
+      taskId: string;
+      revision: number;
+      scheduledDay: string | null;
+    }) =>
+      intent.accountId === context.accountId
+        ? queue.current!.enqueue({
+            task: { id: intent.taskId, accountId: intent.accountId },
+            field: 'scheduledDay',
+            value: intent.scheduledDay,
+          })
+        : Promise.resolve(false),
   };
 }

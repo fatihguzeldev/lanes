@@ -46,6 +46,8 @@ const task = {
   completed: false,
   repeatRule: null,
   seriesId: null,
+  scheduledDay: '2026-11-05',
+  scheduledTime: null,
 } as Task;
 let current: Task;
 let context: TaskActionContext;
@@ -89,7 +91,9 @@ beforeEach(() => {
       revision: current.revision + 1,
       ...(command.kind === 'task.patch'
         ? command.patch
-        : { completed: command.kind === 'task.complete' }),
+        : command.kind === 'task.edit'
+          ? command.patch
+          : { completed: command.kind === 'task.complete' }),
     };
     return { id: 'quick-receipt', state: 'succeeded' };
   });
@@ -123,6 +127,55 @@ describe('queued task actions', () => {
     expect(current).toMatchObject({ revision: 10, starred: false, completed: true });
     expect(context.submit).not.toHaveBeenCalled();
     expect(render().busy).toBe(false);
+  });
+
+  it('queues calendar dates after quick actions and rebases each change on its confirmed revision', async () => {
+    let finish!: () => void;
+    const blocked = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    const save = state.submit.getMockImplementation()!;
+    state.submit.mockImplementationOnce(async (...args) => {
+      await blocked;
+      return save(...args);
+    });
+    const actions = render();
+    const star = actions.toggleStar(task, true);
+    const move = actions.reschedule({
+      accountId: task.accountId,
+      taskId: task.id,
+      revision: task.revision,
+      scheduledDay: '2026-11-07',
+    });
+    const moveAgain = actions.reschedule({
+      accountId: task.accountId,
+      taskId: task.id,
+      revision: task.revision,
+      scheduledDay: '2026-11-08',
+    });
+    await vi.waitFor(() => expect(state.submit).toHaveBeenCalledOnce());
+    expect(context.submit).not.toHaveBeenCalled();
+    finish();
+    expect(await Promise.all([star, move, moveAgain])).toEqual([true, true, true]);
+    expect(state.submit.mock.calls.map(([command]) => command)).toEqual([
+      { kind: 'task.patch', taskId: 'task', expectedRevision: 7, patch: { starred: true } },
+      { kind: 'task.edit', taskId: 'task', revision: 8, patch: { scheduledDay: '2026-11-07' } },
+      { kind: 'task.edit', taskId: 'task', revision: 9, patch: { scheduledDay: '2026-11-08' } },
+    ]);
+    expect(state.read).toHaveBeenCalledTimes(3);
+  });
+
+  it('does not send an unchanged calendar date and still refreshes a stale view', async () => {
+    expect(
+      await render().reschedule({
+        accountId: task.accountId,
+        taskId: task.id,
+        revision: task.revision,
+        scheduledDay: task.scheduledDay,
+      }),
+    ).toBe(true);
+    expect(state.submit).not.toHaveBeenCalled();
+    expect(context.onChanged).toHaveBeenCalledOnce();
   });
 
   it('preserves the receipt and rolls back dependent queued intents after uncertainty', async () => {

@@ -457,17 +457,19 @@ describe('calendar date changes', () => {
         timeZone: 'Europe/Istanbul',
       }),
     });
-    await action.reschedule({
+    const saved = action.reschedule({
       accountId: 'account',
       taskId: task.id,
       revision: task.revision,
       scheduledDay: null,
     });
+    await vi.waitFor(() => expect(action.confirm).toHaveBeenCalledOnce());
     expect(action.submit).not.toHaveBeenCalled();
     expect(action.confirmation().message).toContain(
       'local time and repeat rule will also be removed',
     );
     await action.confirmation().onConfirm(identity);
+    expect(await saved).toBe(true);
     expect(action.submit).toHaveBeenCalledWith(
       {
         kind: 'task.edit',
