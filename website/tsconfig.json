@@ -1,4 +1,5 @@
 {
   "extends": "../tsconfig.json",
+  "compilerOptions": { "allowImportingTsExtensions": true },
   "include": ["src", "vite.config.ts"]
 }

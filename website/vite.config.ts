@@ -1,11 +1,12 @@
 import { fileURLToPath } from 'node:url';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
+import { prerenderWebsite } from './prerender.ts';
 
 export default defineConfig({
   root: fileURLToPath(new URL('.', import.meta.url)),
-  plugins: [react()],
+  plugins: [react(), prerenderWebsite()],
   server: { host: '127.0.0.1', port: 5174, strictPort: true },
   preview: { host: '127.0.0.1', port: 4174, strictPort: true },
-  build: { outDir: 'dist', sourcemap: false },
+  build: { outDir: 'dist', sourcemap: false, cssCodeSplit: false },
 });

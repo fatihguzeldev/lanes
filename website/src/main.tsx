@@ -1,9 +1,13 @@
 import { StrictMode } from 'react';
-import { createRoot } from 'react-dom/client';
+import { createRoot, hydrateRoot } from 'react-dom/client';
 import { App } from './App';
 
-createRoot(document.getElementById('root')!).render(
+const root = document.getElementById('root')!;
+const page = (
   <StrictMode>
     <App />
-  </StrictMode>,
+  </StrictMode>
 );
+
+if (import.meta.env.PROD) hydrateRoot(root, page);
+else createRoot(root).render(page);
