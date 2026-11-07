@@ -189,6 +189,12 @@
   .site-header {
     gap: var(--space-sm);
   }
+  .hero {
+    justify-content: center;
+  }
+  .workspace-section {
+    max-height: 480px;
+  }
   .hero__intro {
     grid-template-columns: minmax(0, 1fr);
     gap: 16px;

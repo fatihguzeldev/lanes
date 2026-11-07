@@ -35,6 +35,7 @@ the html head loads the global stylesheet before first paint. the react root sta
 ## responsive behavior
 
 - support 320px through wide desktop without document-level horizontal overflow. only an identified workspace canvas may scroll sideways.
+- touch targets stay at least 44px without adding a second layer of row padding. task titles, notes, metadata and checklists share a leading edge; within-task spacing is smaller than the separation between tasks. phone columns use the available width with a small next-column peek, and the hero preview is capped at 480px rather than stretching through a tall phone viewport.
 - at a hero preview width of 768px or less, navigation becomes a contained drawer and search replaces the compact toolbar rather than adding a row. closing the drawer or search restores focus. a query survives resizing.
 - board columns fit the canvas on wide screens and leave a glimpse of the next column on narrow screens. lists and forms reflow; calendar scrolling stays inside its canvas and opens with the current demo day visible.
 - feature close-ups stack when their content needs space. preserve readable product text and controls rather than scaling the interface. setup switches to a single column when its two tracks no longer fit; commands and prompt text wrap inside their container.

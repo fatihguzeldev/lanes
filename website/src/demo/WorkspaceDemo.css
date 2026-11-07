@@ -15,7 +15,7 @@
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 4px;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 .demo-view-controls button {
   display: inline-flex;
@@ -44,6 +44,7 @@
 }
 .workspace-demo {
   --demo-canvas-padding: 24px;
+  --demo-column-gap: 16px;
   --demo-navigation-width: 192px;
   position: relative;
   display: grid;
@@ -73,10 +74,11 @@
   flex-direction: column;
   min-width: 0;
   min-height: 0;
-  padding: 22px 12px;
+  padding: 16px 12px;
   border-right: 1px solid var(--color-line);
   background: var(--color-sidebar);
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .demo-sidebar__close,
 .demo-navigation-toggle,
@@ -88,7 +90,7 @@
 .demo-shortcuts {
   display: grid;
   gap: 2px;
-  margin-bottom: 27px;
+  margin-bottom: 16px;
 }
 .demo-shortcuts button,
 .demo-boards button {
@@ -218,9 +220,9 @@
 .demo-board {
   display: flex;
   align-items: start;
-  gap: 16px;
+  gap: var(--demo-column-gap);
   min-width: 0;
-  padding: 18px var(--demo-canvas-padding) 24px;
+  padding: 16px var(--demo-canvas-padding);
   overflow-x: auto;
   overscroll-behavior-inline: contain;
   scroll-padding-inline: var(--demo-canvas-padding);
@@ -295,10 +297,10 @@
   max-width: 1048px;
 }
 .demo-calendar {
-  padding: 24px var(--demo-canvas-padding);
+  padding: 16px var(--demo-canvas-padding);
 }
 .demo-calendar__period {
-  margin-bottom: 18px;
+  margin-bottom: 12px;
   font-size: 19px;
   font-weight: 550;
   letter-spacing: -0.4px;
@@ -313,7 +315,7 @@
 }
 .demo-calendar__table {
   width: 100%;
-  min-width: 980px;
+  min-width: 840px;
   table-layout: fixed;
   border-collapse: separate;
   border-spacing: 0;
@@ -334,8 +336,8 @@
   font-weight: 450;
 }
 .demo-calendar__table td {
-  height: 300px;
-  padding: 8px 7px 10px;
+  height: 240px;
+  padding: 8px 6px;
   vertical-align: top;
   border-right: 1px solid var(--color-fine, var(--color-line));
 }
@@ -345,12 +347,12 @@
 .demo-calendar__number {
   display: grid;
   place-items: center;
-  width: 26px;
-  height: 26px;
-  margin: 0 3px 16px;
+  width: 24px;
+  height: 24px;
+  margin: 0 2px 8px;
   border-radius: 50%;
   color: var(--color-muted);
-  font-size: 16px;
+  font-size: 13px;
   font-weight: 500;
   line-height: 1;
 }
@@ -363,7 +365,7 @@
 }
 .demo-calendar__event {
   margin-bottom: 8px;
-  padding: 11px 10px;
+  padding: 8px;
   border: 1px solid color-mix(in srgb, var(--color-accent) 13%, var(--color-paper));
   border-radius: 6px;
   background: color-mix(in srgb, var(--color-soft) 52%, var(--color-paper));
@@ -397,11 +399,13 @@
   margin-top: 7px;
   color: var(--color-muted);
   font-size: 12px;
+  line-height: 1.5;
 }
 .demo-calendar__list {
   margin-top: 5px;
   color: var(--color-muted);
   font-size: 12px;
+  line-height: 1.5;
 }
 @media (hover: hover) {
   .demo-view-controls button:hover:not([aria-pressed='true']) {
@@ -421,6 +425,8 @@
     grid-template-columns:
       minmax(0, 1fr)
       max(0px, calc(var(--demo-navigation-width) - var(--demo-toolbar-gap)));
+    row-gap: 8px;
+    padding-block: 8px;
   }
   .demo-toolbar__title {
     grid-column: 1 / -1;
@@ -438,13 +444,12 @@
     --demo-navigation-width: 172px;
   }
   .demo-toolbar {
-    gap: 10px 16px;
     padding-inline: 18px;
   }
 }
 @container workspace-preview (max-width: 768px) {
   .workspace-demo {
-    --demo-canvas-padding: 16px;
+    --demo-canvas-padding: 12px;
     --demo-navigation-width: 0px;
     grid-template-columns: minmax(0, 1fr);
   }
@@ -486,13 +491,13 @@
   }
   .demo-sidebar__close {
     align-self: end;
-    margin-bottom: 12px;
+    margin-bottom: 8px;
   }
   .demo-toolbar {
     display: flex;
     gap: 4px;
-    min-height: 56px;
-    padding: 5px 12px;
+    min-height: 52px;
+    padding: 4px 8px;
   }
   .demo-toolbar__title {
     flex: 1;
@@ -502,7 +507,7 @@
     font-size: 15px;
   }
   .demo-board {
-    padding-block-start: 16px;
+    padding-block: 12px;
   }
   .demo-search-controls,
   .demo-toolbar--searching .demo-toolbar__title,
@@ -532,6 +537,30 @@
     padding-inline: 0;
   }
 }
+@container demo-content (max-width: 620px) {
+  .demo-board {
+    --demo-column-gap: 12px;
+  }
+  .demo-column {
+    flex: 0 0 calc(100cqi - var(--demo-canvas-padding) - var(--demo-column-gap) - 24px);
+  }
+  .demo-column__header {
+    min-height: 38px;
+    padding-inline: 12px;
+  }
+  .demo-completed__toggle {
+    padding-inline: 12px;
+  }
+  .demo-calendar {
+    padding-block: 12px;
+  }
+  .demo-calendar__period {
+    font-size: 17px;
+  }
+  .demo-calendar__table td {
+    height: 180px;
+  }
+}
 @media (any-pointer: coarse) {
   .demo-view-controls button,
   .demo-shortcuts button,
@@ -554,35 +583,7 @@
 }
 
 .demo-empty {
-  padding: 32px 0;
+  padding: 12px 0;
   color: var(--color-muted);
   font-size: 14px;
-}
-.workspace-demo .details-task__title,
-.workspace-demo .workbench-editor__title {
-  font-size: 15px;
-}
-.workspace-demo .details-task__notes {
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  font-size: 13px;
-}
-.workspace-demo .workbench-subtask {
-  font-size: 13px;
-}
-.workspace-demo .details-task__main {
-  padding-block: 12px;
-}
-.workspace-demo .details-task__children {
-  padding-bottom: 4px;
-}
-@media (any-pointer: coarse) {
-  .workspace-demo .workbench-editor__title {
-    font-size: 16px;
-  }
-}
-@media (prefers-reduced-motion: no-preference) {
-  .workspace-demo .workbench-subtask input:checked + span {
-    transition: color 120ms var(--ease-out);
-  }
 }
