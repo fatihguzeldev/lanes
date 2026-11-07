@@ -15,7 +15,7 @@ import type { TaskFilter, TaskList, TaskSort } from '../../../tasks/contracts/ta
 import type { TaskQueryInput } from '../../../tasks/contracts/query';
 import { addCalendarDays } from '../../../tasks/model/planning';
 import { useTaskQuery } from '../../../tasks/browser/queries/useTaskQuery';
-import { CalendarDestinationDialog } from './CalendarDestinationDialog';
+import { CalendarDestinationMenu } from './CalendarDestinationMenu';
 import './CalendarWorkspace.css';
 import type { InitialViewReadiness } from '../../../../shared/browser/resources/readiness';
 
@@ -103,7 +103,9 @@ export function CalendarWorkspace({
 }: CalendarWorkspaceProps) {
   const [mode, setMode] = useState<CalendarMode>('month');
   const [scope, setScope] = useState<CalendarScope>('board');
-  const [createDay, setCreateDay] = useState<CalendarDaySelection | null>(null);
+  const [createDay, setCreateDay] = useState<
+    (CalendarDaySelection & { anchor: HTMLElement }) | null
+  >(null);
   const [range, setRange] = useState<CalendarRangeRequest>(() => ({
     accountId: account.id,
     boardId: board.id,
@@ -207,13 +209,13 @@ export function CalendarWorkspace({
     <section className="calendar-workspace" aria-label="task calendar">
       <CalendarView
         {...actions}
-        onCreateTask={(selection) => {
+        onCreateTask={(selection, anchor) => {
           if (
             selection.accountId === account.id &&
             actions.providerActionsEnabled !== false &&
             account.state === 'connected'
           )
-            setCreateDay(selection);
+            setCreateDay({ ...selection, anchor });
         }}
         key={`${account.id}:${board.id}`}
         accountId={account.id}
@@ -287,7 +289,8 @@ export function CalendarWorkspace({
         </footer>
       )}
       {createDay?.accountId === account.id && (
-        <CalendarDestinationDialog
+        <CalendarDestinationMenu
+          anchor={createDay.anchor}
           accountId={account.id}
           board={board}
           scope={scope}

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ComponentProps } from 'react';
 import type { ConnectionSummary } from '../../../accounts/contracts/connection';
 import type { Task, TaskList } from '../../../tasks/contracts/task';
 import type { Board, BoardList } from '../../contracts/board';
@@ -11,6 +11,7 @@ import { useListCreation } from './useListCreation';
 import { ListOptions } from '../placement/ListOptions';
 import { DuplicateDialog } from '../placement/DuplicateDialog';
 import { useTaskPlacement } from '../placement/useTaskPlacement';
+import { useBoardAppearance } from '../appearance/useBoardAppearance';
 
 type Submit = (
   command: unknown,
@@ -23,6 +24,8 @@ export function useBoardManagement(
   environment: {
     account: ConnectionSummary;
     clockOffset: number;
+    boards: readonly Board[];
+    lists: readonly BoardList[];
     onChanged(): void;
     onNotice(message: string): void;
     onInspect(id: string): void;
@@ -31,6 +34,14 @@ export function useBoardManagement(
     onListDraftChange?: ((dirty: boolean) => void) | undefined;
   },
 ) {
+  const appearance = useBoardAppearance({
+    accountId: environment.account.id,
+    board,
+    boards: environment.boards,
+    lists: environment.lists,
+    submit,
+    onNotice: environment.onNotice,
+  });
   const creation = useBoardCreation({
     accountId: environment.account.id,
     clockOffset: environment.clockOffset,
@@ -57,6 +68,7 @@ export function useBoardManagement(
     { kind: 'list'; list: BoardList } | { kind: 'task'; task: Task; boardId: string } | null
   >(null);
   return {
+    appearance,
     creation,
     listCreation,
     placement,
@@ -98,6 +110,7 @@ interface Props {
   account: ConnectionSummary;
   board: Board | null;
   boards: readonly Board[];
+  boardPage: ComponentProps<typeof ListOptions>['boardPage'];
   lists: readonly BoardList[];
   clockOffset: number;
   preferences: BoardViewPreferences;
@@ -105,6 +118,7 @@ interface Props {
   loadedListCount: number;
   writable: boolean;
   localWritable: boolean;
+  busy: boolean;
   submit: Submit;
   guard(action: () => void): void;
   onPrompt(prompt: Prompt): void;
@@ -123,6 +137,7 @@ export function BoardManagement({
   account,
   board,
   boards,
+  boardPage,
   lists,
   clockOffset,
   preferences,
@@ -130,6 +145,7 @@ export function BoardManagement({
   loadedListCount,
   writable,
   localWritable,
+  busy,
   submit,
   guard,
   onPrompt,
@@ -180,15 +196,16 @@ export function BoardManagement({
             setBoardMenu(false);
             onCompleted();
           }}
-          account={account}
           board={board}
           boards={boards}
-          clockOffset={clockOffset}
           preferences={preferences}
           startBoardId={startBoardId}
           onPreferences={onPreferences}
           onStartBoard={onStartBoard}
-          onChanged={onChanged}
+          writable={localWritable}
+          pending={busy || controller.appearance.pending}
+          submit={submit}
+          onChange={(patch) => controller.appearance.updateBoard(board, patch)}
           onClose={() => setBoardMenu(false)}
           onDelete={() =>
             guard(() => {
@@ -200,16 +217,22 @@ export function BoardManagement({
       )}
       {listMenu && listMenuAnchor && (
         <ListOptions
-          list={listMenu}
+          list={lists.find((list) => list.id === listMenu.id) ?? listMenu}
           anchor={listMenuAnchor}
           boards={boards}
+          boardPage={boardPage}
           lists={lists}
           loadedListCount={loadedListCount}
-          writable={writable}
-          localWritable={localWritable}
+          writable={writable && !busy && !controller.appearance.pending}
+          localWritable={localWritable && !busy && !controller.appearance.pending}
           submit={submit}
           guard={guard}
-          onPrompt={onPrompt}
+          onColor={(color) =>
+            controller.appearance.updateListColor(
+              lists.find((list) => list.id === listMenu.id) ?? listMenu,
+              color,
+            )
+          }
           onClose={() => setListMenu(null)}
           onDuplicate={(list) => setCopying({ kind: 'list', list })}
           onDeleteCompleted={onDeleteCompleted}

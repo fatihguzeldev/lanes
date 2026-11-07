@@ -86,7 +86,10 @@ describe('direct task editing', () => {
     expect(html).not.toContain('type="date"');
     expect(html).not.toContain('type="time"');
     expect(html).toContain('aria-label="schedule"');
-    expect(html).toContain('aria-label="labels and priority"');
+    expect(html).toContain('aria-label="labels"');
+    expect(html).toContain('aria-label="priority"');
+    expect(html).not.toContain('labels and priority');
+    expect(html).not.toContain('task-editor__metadata-row');
     expect(html).toContain('aria-label="dependencies"');
     expect(html).toContain('aria-label="checklist"');
     expect(html).toContain('role="checkbox"');

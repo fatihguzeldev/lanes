@@ -1,26 +1,22 @@
-import { useState } from 'react';
-import type { ConnectionSummary } from '../../../accounts/contracts/connection';
-import { BoardPatchSchema, type Board } from '../../contracts/board';
+import type { Board, BoardPatch } from '../../contracts/board';
 import type { BoardViewPreferences } from '../view/view-preferences';
 import { Icon } from '../../../../shared/ui/icon/Icon';
 import { AnchoredPopover } from '../../../../shared/ui/popover/Popover';
-import { Select } from '../../../../shared/ui/select/Select';
-import { newOperationId } from '../../../operations/browser/submission/operation-identity';
-import { useCommands } from '../../../operations/browser/submission/useCommands';
-import { useServerConnection } from '../../../../shared/browser/connectivity/useServerConnection';
+import { BoardAppearance } from '../appearance/BoardAppearance';
 import './BoardOptions.css';
 
 interface Props {
   anchor: HTMLElement;
-  account: ConnectionSummary;
   board: Board;
   boards: readonly Board[];
-  clockOffset: number;
   preferences: BoardViewPreferences;
   startBoardId: string | null;
   onPreferences: (patch: Partial<BoardViewPreferences>) => void;
   onStartBoard: (id: string | null) => void;
-  onChanged: () => void;
+  writable: boolean;
+  pending: boolean;
+  onChange(input: BoardPatch): Promise<boolean>;
+  submit(command: unknown, category: 'local'): Promise<boolean>;
   onClose: () => void;
   onDelete: () => void;
   onHistory: () => void;
@@ -28,46 +24,31 @@ interface Props {
 }
 export function BoardOptions({
   anchor,
-  account,
   board,
   boards,
-  clockOffset,
   preferences,
   startBoardId,
   onPreferences,
   onStartBoard,
-  onChanged,
+  writable,
+  pending,
+  onChange,
+  submit,
   onClose,
   onDelete,
   onHistory,
   onCompleted,
 }: Props) {
-  const [title, setTitle] = useState(board.title),
-    [emoji, setEmoji] = useState(board.emoji ?? ''),
-    [color, setColor] = useState(board.color);
-  const [background, setBackground] = useState(board.backgroundUrl ?? ''),
-    [error, setError] = useState('');
-  const [identity, setIdentity] = useState(() => newOperationId(clockOffset));
-  const commands = useCommands(account.id, clockOffset, onChanged),
-    connection = useServerConnection();
-  const writable =
-    connection === 'reachable' && !['disconnecting', 'disconnected'].includes(account.state);
-  const recorded = commands.latest?.id === identity,
-    index = boards.findIndex((item) => item.id === board.id);
-  const dirty =
-    title !== board.title ||
-    emoji !== (board.emoji ?? '') ||
-    color !== board.color ||
-    background !== (board.backgroundUrl ?? '');
-  const reorder = (position: number) =>
-    void commands
-      .submit(
+  const index = boards.findIndex((item) => item.id === board.id);
+  const reorder = async (position: number) => {
+    if (
+      await submit(
         { kind: 'board.reorder', boardId: board.id, revision: board.revision, position },
         'local',
       )
-      .then((result) => {
-        if (result?.state === 'succeeded') onClose();
-      });
+    )
+      onClose();
+  };
 
   return (
     <AnchoredPopover
@@ -77,22 +58,12 @@ export function BoardOptions({
       className="board-options"
     >
       <div className="popover__menu">
-        <button
-          type="button"
-          className="popover__item"
-          disabled={commands.busy}
-          onClick={onHistory}
-        >
+        <button type="button" className="popover__item" disabled={pending} onClick={onHistory}>
           <Icon name="history" size={15} /> history
         </button>
       </div>
       <div className="popover__menu board-options__section">
-        <button
-          type="button"
-          className="popover__item"
-          disabled={commands.busy}
-          onClick={onCompleted}
-        >
+        <button type="button" className="popover__item" disabled={pending} onClick={onCompleted}>
           <Icon name="list-check" size={15} /> completed tasks
         </button>
       </div>
@@ -101,109 +72,7 @@ export function BoardOptions({
           <Icon name="palette" size={15} /> appearance
           <Icon name="down" size={13} className="board-options__chevron" />
         </summary>
-        <form
-          className="board-options__fields"
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (!dirty || !writable || commands.busy || recorded) return;
-            const parsed = BoardPatchSchema.safeParse({
-              ...(title !== board.title ? { title } : {}),
-              ...(emoji !== (board.emoji ?? '') ? { emoji: emoji || null } : {}),
-              ...(color !== board.color ? { color } : {}),
-              ...(background !== (board.backgroundUrl ?? '')
-                ? { backgroundUrl: background || null }
-                : {}),
-            });
-            if (!parsed.success) {
-              setError(parsed.error.issues[0]?.message ?? 'check these board settings.');
-              return;
-            }
-            setError('');
-            void commands
-              .submit(
-                {
-                  kind: 'board.update',
-                  boardId: board.id,
-                  revision: board.revision,
-                  input: parsed.data,
-                },
-                'local',
-                identity,
-              )
-              .then((result) => {
-                if (result?.state === 'succeeded') onClose();
-              });
-          }}
-        >
-          <fieldset disabled={!writable || commands.busy || recorded}>
-            <label>
-              name
-              <input
-                value={title}
-                onChange={(event) => setTitle(event.target.value)}
-                required
-                maxLength={256}
-              />
-            </label>
-            <div className="board-options__pair">
-              <label>
-                emoji
-                <input
-                  value={emoji}
-                  onChange={(event) => setEmoji(event.target.value)}
-                  maxLength={64}
-                  placeholder="🌱"
-                />
-              </label>
-              <label>
-                color
-                <input
-                  value={color}
-                  onChange={(event) => setColor(event.target.value)}
-                  spellCheck={false}
-                  placeholder="#f1f0e9"
-                />
-              </label>
-            </div>
-            <label>
-              background
-              <Select
-                value={
-                  background.startsWith('/backgrounds/') ? background : background ? 'custom' : ''
-                }
-                onChange={(value) => setBackground(value === 'custom' ? 'https://' : value)}
-                aria-label="board background"
-                options={[
-                  { value: '', label: 'color only' },
-                  { value: '/backgrounds/lines.svg', label: 'quiet lines' },
-                  { value: '/backgrounds/circles.svg', label: 'soft shapes' },
-                  { value: 'custom', label: 'an image url' },
-                ]}
-              />
-            </label>
-            {!!background && !background.startsWith('/backgrounds/') && (
-              <label>
-                https image url
-                <input
-                  type="url"
-                  value={background}
-                  onChange={(event) => setBackground(event.target.value)}
-                  maxLength={4096}
-                />
-                <small>your browser contacts this image host when opening the board.</small>
-              </label>
-            )}
-          </fieldset>
-          {dirty && (
-            <button
-              type="submit"
-              className="board-options__save"
-              disabled={!writable || commands.busy || recorded}
-            >
-              {commands.busy ? 'saving…' : 'save appearance'}
-            </button>
-          )}
-        </form>
+        <BoardAppearance board={board} disabled={!writable || pending} onChange={onChange} />
       </details>
       <details className="board-options__section">
         <summary>
@@ -244,7 +113,7 @@ export function BoardOptions({
           <button
             type="button"
             className="popover__item"
-            disabled={!writable || commands.busy || dirty || index <= 0}
+            disabled={!writable || pending || index <= 0}
             onClick={() => reorder(index - 1)}
           >
             <Icon name="up" size={14} /> move up
@@ -252,37 +121,18 @@ export function BoardOptions({
           <button
             type="button"
             className="popover__item"
-            disabled={
-              !writable || commands.busy || dirty || index < 0 || index === boards.length - 1
-            }
+            disabled={!writable || pending || index < 0 || index === boards.length - 1}
             onClick={() => reorder(index + 1)}
           >
             <Icon name="down" size={14} /> move down
           </button>
         </div>
       </details>
-      {(error || commands.error) && (
-        <p className="board-options__error" role="alert">
-          {error || commands.error}
-        </p>
-      )}
-      {recorded && commands.latest?.state === 'failed' && commands.latest.finished && (
-        <button
-          type="button"
-          className="popover__item"
-          onClick={() => {
-            setIdentity(newOperationId(clockOffset));
-            commands.clearError();
-          }}
-        >
-          <Icon name="sync" size={15} /> start a new attempt
-        </button>
-      )}
       <div className="board-options__delete">
         <button
           type="button"
           className="popover__item danger"
-          disabled={board.isMain || !writable || commands.busy}
+          disabled={board.isMain || !writable || pending}
           onClick={onDelete}
           title={board.isMain ? 'the main board cannot be deleted' : undefined}
         >

@@ -19,7 +19,7 @@ function render(completed = false) {
       anchor: {} as HTMLElement,
       writable: true,
       localWritable: true,
-      submit: async () => true,
+      onToggleStar: async () => true,
       onClose() {},
       onHistory() {},
       onOpen() {},

@@ -33,4 +33,10 @@ export const SessionSnapshotSchema = z
       });
   });
 export type SessionSnapshot = z.infer<typeof SessionSnapshotSchema>;
+export const entryUnavailableMessage = 'lanes could not open this workspace. try again.';
+export const EntryBootstrapSchema = z.discriminatedUnion('state', [
+  z.object({ state: z.literal('ready'), session: SessionSnapshotSchema }).strict(),
+  z.object({ state: z.literal('error'), message: z.string().min(1) }).strict(),
+]);
+export type EntryBootstrap = z.infer<typeof EntryBootstrapSchema>;
 export const OAuthStartResponseSchema = z.object({ authorizationUrl: z.string().url() }).strict();

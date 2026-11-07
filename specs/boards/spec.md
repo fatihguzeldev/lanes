@@ -62,6 +62,10 @@ show exact task counts only when the query and provider coverage establish the t
 
 support board colors, an optional emoji, and an optional background image from bundled assets or a user-supplied https image url. keep list colors and names readable in light and dark themes. image loading failure falls back to the chosen color. file uploads, an image hosting service, and an image search integration are not required.
 
+choose board and list colors from an anchored palette with a preview of the selected color. offer custom hex values in the same picker. board emoji has a searchable picker, a paste field, and a remove action. selecting a color, emoji, or bundled background applies it immediately without a save button. board names and custom image urls commit on enter or blur; escape discards the unsubmitted edit.
+
+preview appearance changes while saving, then restore confirmed values on failure. keep the write controller mounted when a picker or menu closes. accept another appearance write after the confirmed revision reaches the local view, so consecutive selections cannot reuse an older revision. unchanged selections issue no write.
+
 validate image urls and render them only as images in the browser. do not server-fetch arbitrary urls or treat them as executable styles. selecting a remote image causes the browser to contact that host; do not describe it as privately hosted by the instance.
 
 support kanban, stacked-list, and calendar views over the same tasks. remember view choice per board and browser. changing a view does not create records or change task ordering. allow showing task counts and completed sections without altering their contents.
@@ -88,7 +92,7 @@ query a paginated, server-owned task projection. return coverage and freshness w
 
 ## filters and sorts
 
-filters support list, completion, labels, priority, star, dependencies, and scheduled date: overdue, today, a chosen range, or no date. combine different filter types with and; multiple values inside one type use or. labels additionally allow an explicit match-all option. clearing filters restores the unfiltered view.
+filters support list, completion, labels, priority, star, dependencies, and scheduled date: overdue, today, a chosen range, or no date. combine different filter types with and; multiple values inside one type use or. labels additionally allow an explicit match-all option. clearing filters restores the unfiltered view. filter selections apply as they change and keep the menu open; there is no apply step. an incomplete or reversed date range keeps the last valid filter and shows the field error.
 
 overdue means an open task's scheduled day is before today in the account's planning time zone. a time earlier today does not make a separate deadline state. date filters include descendants by their own dates and keep parent context visible.
 
@@ -120,3 +124,5 @@ read/write conflicts, missing destinations, and local storage failures keep conf
 - `boards-12`: a paused or failed initial refresh exposes recovery; later background refreshes retain the revealed workspace and do not require unloaded list pages.
 - `boards-13`: a returning connected account reveals its retained workspace after the current local read batch settles, even while provider coverage is partial. a first connection does not flash an empty board before topology is known.
 - `boards-14`: adding a board uses an empty inline name; enter or leaving a nonblank field submits once, leaving a blank field creates nothing, and failed or ambiguous saves retain their draft and receipt identity.
+- `boards-15`: color and emoji pickers show their selection, support keyboard use and custom input, and apply without a separate approval. background selection applies directly; invalid image urls never become previews or writes.
+- `boards-16`: closing an appearance menu does not cancel its write. failed writes restore confirmed appearance, and the next edit uses the refreshed revision.

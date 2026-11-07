@@ -2,35 +2,34 @@
 
 a self-hosted workspace for google tasks.
 
-your google lists become columns, grouped into boards. labels, planning, templates and history live in your own cloudflare account.
+google tasks lists become columns, grouped into boards. lanes stores labels, planning, templates and history in your cloudflare account.
 
-one installation, one owner, several google accounts. each account keeps its own tasks and organization.
-
-## make it yours
-
-clone the repository and give your agent [AGENTS.md](AGENTS.md) and the [self-hosting guide](agents/self-hosting.md). ask it to host lanes in your cloudflare account.
-
-you handle account sign-in, two-factor authentication and google consent. the agent handles the build, database, configuration and deployment. it can also handle google console configuration when you give it authorized browser access.
-
-your deployment settings stay in ignored `wrangler.deploy.jsonc`. live secrets stay in cloudflare.
-
-the default setup uses a worker, static assets, d1 and a `workers.dev` address. it is designed for the free plan; quotas can pause work. no custom domain or paid service is required by the application.
-
-google oauth stays in testing mode. add every connected account to the project’s test users and reconnect when its seven-day authorization expires.
+each installation has one owner and can connect several google accounts. accounts keep their tasks and organization separate.
 
 ## features
 
-- boards, lists, subtasks, notes, stars, labels, priorities and dependencies.
-- kanban, stacked lists, a calendar, search and account-wide today and starred views.
+- kanban, list and calendar views.
+- search, today and starred views across an account's boards.
+- subtasks, notes, stars, labels, priorities and dependencies.
 - scheduled days, local times, repeat rules, personal templates and scheduled checklists.
-- confirmed change history and visible progress for interrupted operations.
+- task history.
 - file and google sheets import, csv and sheets export, account transfers and workspace archives.
 
-an interrupted request stays visible; an uncertain create is not silently sent again.
+## self-hosting
 
-## work on lanes
+clone the repository and give your agent [AGENTS.md](AGENTS.md) and the [self-hosting guide](agents/self-hosting.md). ask it to host lanes in your cloudflare account.
 
-use the node version in [.node-version](.node-version), then:
+the agent handles the build, database, configuration and deployment. you handle sign-in, two-factor authentication and google consent. with authorized browser access, the agent can also configure google console.
+
+your deployment settings stay in ignored `wrangler.deploy.jsonc`. live secrets stay in cloudflare.
+
+the default setup uses a cloudflare worker, static assets, d1 and a `workers.dev` address. it is designed for the free plan; quotas can pause work. you do not need a custom domain or paid service.
+
+google oauth uses testing mode. add each connected account to the project's test users and reconnect when its seven-day authorization expires.
+
+## development
+
+use the node version in [.node-version](.node-version). copy [.dev.vars.example](.dev.vars.example) to ignored `.dev.vars` and fill in local settings and credentials.
 
 ```sh
 npm ci
@@ -38,13 +37,13 @@ npm run db:migrate
 npm run dev
 ```
 
-copy [.dev.vars.example](.dev.vars.example) to ignored `.dev.vars` for local settings and credentials. local development uses the tracked config and a separate local database; it does not need your private deploy config. without valid owner configuration, the public client opens a setup screen and private endpoints stay closed.
+local development uses the tracked config and a separate local database.
 
 ```sh
 npm run check
 ```
 
-this runs formatting, type checking, import boundary checks, tests and the production build. local tests use real sqlite transactions behind the d1 interface. live google behavior and cloudflare limits need their own controlled checks.
+this runs formatting, type checking, import boundary checks, tests and the production build.
 
 read [contributing](agents/contributing.md) before changing a contract or opening a pull request.
 

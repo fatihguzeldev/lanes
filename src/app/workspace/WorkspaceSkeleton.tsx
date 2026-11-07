@@ -74,13 +74,15 @@ export function WorkspaceSkeleton({
           <div className="workspace__search-controls">
             <label className="workspace__search">
               <Icon name="search" size={16} />
-              <input placeholder="search tasks" readOnly tabIndex={-1} />
+              <input type="search" placeholder="search tasks" readOnly tabIndex={-1} />
               <kbd>/</kbd>
             </label>
             <div className="workspace__search-actions">
-              <button type="button" tabIndex={-1} className="workspace__icon-button">
-                <Icon name="filter" size={16} />
-              </button>
+              <span className="workspace__desktop-view">
+                <button type="button" tabIndex={-1} className="workspace__icon-button">
+                  <Icon name="filter" size={16} />
+                </button>
+              </span>
             </div>
           </div>
           <div className="workspace__global-controls">

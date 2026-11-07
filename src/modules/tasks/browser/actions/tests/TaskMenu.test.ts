@@ -15,7 +15,7 @@ describe('task menu destination lifetime', () => {
       >['controller'],
       writable: true,
       localWritable: true,
-      submit: async () => true,
+      onToggleStar: async () => true,
       onHistory() {},
       onOpen() {},
       onDuplicate() {},

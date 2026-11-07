@@ -5,6 +5,8 @@ import { countOpenTasks, getBlockingState } from '../../model/task';
 import { addCalendarDays } from '../../model/planning';
 import './TaskCard.css';
 import type { SubtaskSummary } from '../../contracts/query';
+import { TaskStarButton, type ToggleTaskStar } from './TaskStarButton';
+import { useTaskToggle, type ToggleTaskField } from './useTaskToggle';
 
 export interface TaskCardProps {
   task: Task;
@@ -18,6 +20,8 @@ export interface TaskCardProps {
   pending?: boolean;
   pendingTaskIds?: ReadonlySet<string>;
   providerActionsEnabled?: boolean;
+  localActionsEnabled?: boolean;
+  onToggleStar?: ToggleTaskStar | undefined;
   contextOnly?: boolean;
   parentTitle?: string;
   initiallyExpanded?: boolean;
@@ -26,7 +30,7 @@ export interface TaskCardProps {
   showNotes?: boolean;
   layout?: 'column' | 'row';
   onOpen: (task: Task) => void;
-  onToggleComplete: (task: Task, completed: boolean) => void;
+  onToggleComplete: ToggleTaskField;
   onMenu?: (task: Task, anchor: HTMLButtonElement) => void;
 }
 
@@ -77,18 +81,19 @@ function CompletionButton({
   disabled: boolean;
   onToggle: TaskCardProps['onToggleComplete'];
 }) {
+  const { value: completed, toggle } = useTaskToggle(task, 'completed', disabled, onToggle);
   return (
     <button
-      className={`task-card__check${task.completed ? ' task-card__check--completed' : ''}`}
+      className={`task-card__check${completed ? ' task-card__check--completed' : ''}`}
       type="button"
       role="checkbox"
-      aria-checked={task.completed}
-      aria-label={`${task.completed ? 'reopen' : 'complete'} ${taskTitle(task)}`}
+      aria-checked={completed}
+      aria-label={`${completed ? 'reopen' : 'complete'} ${taskTitle(task)}`}
       title={disabled ? 'completion is unavailable; open the task for details' : undefined}
       disabled={disabled}
-      onClick={() => onToggle(task, !task.completed)}
+      onClick={() => void toggle()}
     >
-      {task.completed && <Icon name="check" size={11} />}
+      {completed && <Icon name="check" size={11} />}
     </button>
   );
 }
@@ -105,6 +110,8 @@ export function TaskCard({
   pending = false,
   pendingTaskIds,
   providerActionsEnabled = true,
+  localActionsEnabled = false,
+  onToggleStar,
   contextOnly = false,
   parentTitle,
   initiallyExpanded = false,
@@ -171,8 +178,8 @@ export function TaskCard({
           <button className="task-card__title" type="button" onClick={() => onOpen(task)}>
             {taskTitle(task)}
           </button>
-          {task.starred && (
-            <Icon name="star" size={12} title="starred" className="task-card__star" />
+          {task.starred && !onToggleStar && (
+            <Icon name="star" size={12} title="starred" className="task-card__star-mark" />
           )}
           {task.priority !== 'none' && (
             <span
@@ -195,15 +202,27 @@ export function TaskCard({
               <Icon name={task.unsupportedHierarchy ? 'warning' : 'lock'} size={12} />
             </span>
           )}
-          {onMenu && (
-            <button
-              className="task-card__menu"
-              type="button"
-              aria-label={`options for ${taskTitle(task)}`}
-              onClick={(event) => onMenu(task, event.currentTarget)}
-            >
-              <Icon name="more" size={15} />
-            </button>
+          {(onMenu || onToggleStar) && (
+            <span className="task-card__actions">
+              {onToggleStar && (
+                <TaskStarButton
+                  key={`${task.accountId}:${task.id}`}
+                  task={task}
+                  disabled={pending || !localActionsEnabled}
+                  onToggle={onToggleStar}
+                />
+              )}
+              {onMenu && (
+                <button
+                  className="task-card__menu"
+                  type="button"
+                  aria-label={`options for ${taskTitle(task)}`}
+                  onClick={(event) => onMenu(task, event.currentTarget)}
+                >
+                  <Icon name="more" size={15} />
+                </button>
+              )}
+            </span>
           )}
         </div>
         {contextOnly && <span className="task-card__context-label">parent context</span>}
@@ -322,15 +341,27 @@ export function TaskCard({
                     data-task-editor-host={child.id}
                     data-account-id={child.accountId}
                   />
-                  {onMenu && (
-                    <button
-                      className="task-card__menu"
-                      type="button"
-                      aria-label={`options for ${taskTitle(child)}`}
-                      onClick={(event) => onMenu(child, event.currentTarget)}
-                    >
-                      <Icon name="more" size={14} />
-                    </button>
+                  {(onMenu || onToggleStar) && (
+                    <span className="task-card__actions">
+                      {onToggleStar && (
+                        <TaskStarButton
+                          key={`${child.accountId}:${child.id}`}
+                          task={child}
+                          disabled={pending || childPending || !localActionsEnabled}
+                          onToggle={onToggleStar}
+                        />
+                      )}
+                      {onMenu && (
+                        <button
+                          className="task-card__menu"
+                          type="button"
+                          aria-label={`options for ${taskTitle(child)}`}
+                          onClick={(event) => onMenu(child, event.currentTarget)}
+                        >
+                          <Icon name="more" size={14} />
+                        </button>
+                      )}
+                    </span>
                   )}
                 </li>
               );

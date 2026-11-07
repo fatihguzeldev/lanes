@@ -4,7 +4,7 @@ import type { BoardViewPreferences } from './view-preferences';
 import { Icon } from '../../../../shared/ui/icon/Icon';
 import { Popover } from '../../../../shared/ui/popover/Popover';
 import { Select } from '../../../../shared/ui/select/Select';
-import { TaskFiltersForm } from './TaskFiltersForm';
+import { TaskFilters } from './TaskFilters';
 
 import './WorkspaceViewMenu.css';
 
@@ -61,15 +61,7 @@ export function WorkspaceViewMenu(props: Props) {
             <button ref={backAction} className="popover__item" onClick={() => setFiltering(false)}>
               <Icon name="left" size={14} /> view options
             </button>
-            <TaskFiltersForm
-              {...props}
-              onChange={props.onFilter}
-              onClear={props.onClear}
-              onClose={() => {
-                setFiltering(false);
-                close();
-              }}
-            />
+            <TaskFilters {...props} onChange={props.onFilter} onClear={props.onClear} />
           </div>
         ) : (
           <div className="workspace-view-menu__body">

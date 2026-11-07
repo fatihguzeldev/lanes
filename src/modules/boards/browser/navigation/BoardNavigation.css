@@ -65,9 +65,10 @@
 .board-navigation__symbol {
   display: grid;
   place-items: center;
-  width: 16px;
+  width: 20px;
+  height: 20px;
   flex: none;
-  color: color-mix(in srgb, var(--board-color, var(--icon)) 25%, var(--icon));
+  color: color-mix(in srgb, var(--board-color, #f1f0e9) 35%, var(--green));
 }
 .board-navigation__note {
   padding: 10px;
@@ -96,11 +97,6 @@
   display: flex;
   align-items: center;
   height: 1lh;
-}
-.board-navigation__placeholder-symbol {
-  width: 15px;
-  height: 15px;
-  flex: none;
 }
 .board-navigation__placeholder-line {
   width: 72px;

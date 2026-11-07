@@ -320,6 +320,26 @@ describe('background move queue', () => {
     expect(changed).toHaveBeenCalledTimes(publications);
     expect(failed).not.toHaveBeenCalled();
   });
+  it('does not publish a late rejection from a disposed move queue', async () => {
+    let reject!: (error: Error) => void;
+    const failed = vi.fn();
+    const changed = vi.fn();
+    const queue = createTaskMoveQueue(
+      () =>
+        new Promise<boolean>((_resolve, fail) => {
+          reject = fail;
+        }),
+      changed,
+      failed,
+    );
+    queue.enqueue(move('a', null));
+    const publications = changed.mock.calls.length;
+    queue.dispose();
+    reject(new Error('old account request aborted'));
+    await turn();
+    expect(failed).not.toHaveBeenCalled();
+    expect(changed).toHaveBeenCalledTimes(publications);
+  });
   it('shows queued intents immediately and sends them sequentially', async () => {
     let finish!: (saved: boolean) => void;
     const save = vi

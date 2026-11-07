@@ -27,7 +27,9 @@ export function InlineBoardCreate({
       }}
     >
       <div className="inline-board-create__row">
-        <Icon name="board" size={15} />
+        <span className="board-navigation__symbol">
+          <Icon name="board" size={18} />
+        </span>
         <input
           ref={input}
           aria-label="new board name"

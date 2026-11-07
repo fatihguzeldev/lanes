@@ -1,5 +1,7 @@
 .task-card {
   container: task-card / inline-size;
+  --task-action-size: 23px;
+  --task-action-height: 25px;
   position: relative;
   margin: 0 12px;
   border-bottom: 1px solid var(--fine, #e5e4dc);
@@ -19,7 +21,7 @@
   transition: background 130ms ease;
 }
 .task-card:hover::before,
-.task-card:focus-within::before {
+.task-card:has(:focus-visible:not([data-pointer-focus]))::before {
   background: var(--paper-hover);
 }
 .task-card__main {
@@ -31,7 +33,7 @@
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  padding-right: 24px;
+  padding-right: calc(2 * var(--task-action-size) + 2px);
 }
 .task-card__title,
 .task-card__child-title {
@@ -97,15 +99,20 @@
   opacity: 0.55;
   cursor: not-allowed;
 }
-.task-card__menu {
+.task-card__actions {
   position: absolute;
   top: 0;
   right: -2px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.task-card__menu {
   display: grid;
   place-items: center;
-  width: 23px;
-  height: 25px;
-  margin: -1px 0 0;
+  width: var(--task-action-size);
+  height: var(--task-action-height);
+  margin: 0;
   padding: 0;
   border: 0;
   border-radius: 4px;
@@ -114,19 +121,26 @@
   opacity: 0;
   cursor: pointer;
 }
-.task-card__main:hover .task-card__top > .task-card__menu,
-.task-card__main:focus-within .task-card__top > .task-card__menu,
-.task-card__child:hover > .task-card__menu,
-.task-card__child:focus-within > .task-card__menu,
-.task-card__menu:focus-visible {
+.task-card__actions .task-star-button {
+  opacity: 0;
+}
+.task-card__main:hover .task-card__actions :is(.task-card__menu, .task-star-button),
+.task-card__main:has(:focus-visible:not([data-pointer-focus]))
+  .task-card__actions
+  :is(.task-card__menu, .task-star-button),
+.task-card__child:hover > .task-card__actions :is(.task-card__menu, .task-star-button),
+.task-card__child:has(:focus-visible:not([data-pointer-focus]))
+  > .task-card__actions
+  :is(.task-card__menu, .task-star-button),
+.task-card__actions .task-star-button[aria-pressed='true'] {
   opacity: 1;
   color: var(--green);
 }
-.task-card__star {
+.task-card__star-mark {
   margin-top: 3px;
   flex-shrink: 0;
-  color: var(--star, #997c3c);
-  fill: color-mix(in srgb, var(--star, #997c3c) 35%, transparent);
+  color: var(--green);
+  fill: color-mix(in srgb, var(--green) 24%, transparent);
 }
 .task-card__priority {
   min-width: 10px;
@@ -258,8 +272,9 @@
 .task-card__child .task-card__date {
   font-size: 11.5px;
 }
-.task-card__child .task-card__menu {
+.task-card__child .task-card__actions {
   position: static;
+  flex: none;
   margin-top: -3px;
 }
 .task-card__children[hidden] {
@@ -317,10 +332,10 @@
   outline: 2px solid var(--green, #7a9569);
   outline-offset: 3px;
 }
-.task-card button.task-card__menu:focus-visible {
+.task-card button:is(.task-card__menu, .task-star-button):focus-visible {
   outline: none;
 }
-.task-card__menu:focus-visible:not([data-pointer-focus]) {
+:is(.task-card__menu, .task-star-button):focus-visible:not([data-pointer-focus]) {
   background-image: linear-gradient(var(--focus), var(--focus));
   background-position: center calc(100% - 4px);
   background-size: 14px 2px;
@@ -353,8 +368,8 @@
 .task-card--row:has(.task-card__parent) .task-card__meta {
   grid-row: 2;
 }
-@media (hover: none) {
-  .task-card__menu {
+@media (hover: none), (pointer: coarse) {
+  .task-card__actions :is(.task-card__menu, .task-star-button) {
     opacity: 1;
   }
 }
@@ -383,11 +398,15 @@
   }
 }
 @media (pointer: coarse) {
+  .task-card {
+    --task-action-size: var(--control-size);
+    --task-action-height: var(--control-size);
+  }
   .task-card__main {
     padding-block: 4px;
   }
   .task-card__top {
-    padding-right: 36px;
+    padding-right: calc(2 * var(--task-action-size) - 4px);
   }
   .task-card__title,
   .task-card__child-title {
@@ -422,12 +441,11 @@
   .task-card__check > .icon {
     position: relative;
   }
-  .task-card .task-card__menu {
-    width: var(--control-size);
-    height: var(--control-size);
-    flex: none;
-    margin: 0;
+  .task-card__top > .task-card__actions {
     right: -8px;
+  }
+  .task-card__child .task-card__actions {
+    margin-top: 0;
   }
   .task-card__notes,
   .task-card__meta,

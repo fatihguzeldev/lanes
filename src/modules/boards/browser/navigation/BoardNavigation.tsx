@@ -33,7 +33,7 @@ function BoardNavigationPlaceholder() {
       tabIndex={-1}
     >
       <span className="board-navigation__symbol">
-        <Skeleton className="board-navigation__placeholder-symbol" />
+        <Icon name="board" size={18} />
       </span>
       <span className="board-navigation__placeholder-name">
         <Skeleton className="board-navigation__placeholder-line" />
@@ -109,7 +109,7 @@ export function BoardNavigation({
               className="board-navigation__symbol"
               style={{ '--board-color': item.color } as CSSProperties}
             >
-              {item.emoji ?? <Icon name="board" size={15} />}
+              {item.emoji ?? <Icon name="board" size={18} />}
             </span>
             <span>{item.title || 'untitled board'}</span>
           </button>

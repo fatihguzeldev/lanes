@@ -70,6 +70,8 @@ keep a confirmed move's displayed placement until fresh source and destination r
 
 moving a top-level task between columns moves it between google lists in the same account. confirm the destination account/list in the command. a subtask can move to another eligible parent or become top level; its destination parent must be in the destination list.
 
+the move menu reuses the workspace's loaded boards and current-board lists, including their paging controls. opening it does not refetch known destinations or wait for a task preflight. read an unvisited board's lists when its submenu opens. after a destination is chosen, validate the current task and its complete tree before capturing the move; closing the menu cancels an unfinished preflight, while an admitted save keeps running.
+
 moving a parent carries its subtasks. treat a provider move's descendant behavior as an integration check: verify the returned tree and mapping before claiming success. if google requires several requests, execute a resumable grouped operation and expose partial state. never implement movement as a silent copy followed by destructive deletion.
 
 preserve lanes identity, labels, priority, star, time, repeat rule, dependencies, and recorded history on movement. update list mappings and provider ids from confirmed responses. a move does not reset a task's scheduled day or completion.
@@ -78,7 +80,15 @@ account-to-account movement is outside this command. offer the explicit source-p
 
 ## labels, priorities, and stars
 
+choose task labels in a compact anchored picker, with search and removable selected chips in the editor. priority has its own control. opening either control does not expand a generic details form, and an empty label selection shows no quota counter. label selection remains part of the task draft until that task is saved.
+
+label creation and management stay in an anchored menu beside the task. account switching waits for pending label writes, including writes whose menu has closed. label names use inline editing: enter or leaving a changed nonblank name saves it, and escape cancels the draft. label colors apply from the shared picker without a save form. retain submitted writes when the labels view closes; failures keep the draft and explain the error.
+
 labels belong to an account. each has a name and a color; tasks may carry up to 20. require a trimmed name of 1–64 characters and compare names case-insensitively for uniqueness within that account. preserve the chosen spelling. renaming a label keeps its identity; deleting it removes associations without deleting tasks. this per-task bound keeps editing, rendering, and import requests bounded.
+
+task rows expose a direct star control immediately before their options menu. unstarred controls appear on row hover or keyboard focus; starred controls remain visible. touch keeps the control visible. reserve its space so interaction does not shift the title, and use the accent without a separate hover tile or tooltip.
+
+quick stars and completion toggles preview immediately without disabling either control. serialize their online saves in click order and read the current task when each action starts, rather than reusing the clicked row's revision. confirmation for blocked tasks and checklists remains required. cancellation, failure, an uncertain save, or handoff to the recurring-reopen workflow drops later unsent actions for that task and restores their confirmed presentation; unrelated tasks can continue. queued work belongs to the current account and browser session. leaving the account waits for it; reload does not replay an unsent queue.
 
 priority is one of none, low, medium, or high. starring is an independent boolean. both are lanes metadata and do not claim to set google's native star. default to no priority, no labels, and not starred.
 
@@ -137,3 +147,5 @@ validation leaves the draft intact. stale revision conflicts offer refresh and e
 - `tasks-14`: opening task details edits the existing row without a modal. optional fields appear on request; failed saves keep the same draft, including when its card leaves the visible collection.
 - `tasks-15`: outside dismissal preserves the unsent-draft guard and nested menus; an admitted hidden save continues independently without closing or clearing a newer editor.
 - `tasks-16`: adding a task opens its full editor in the list, without an approval control. enter or leaving captures one creation with all chosen fields; empty entries make no request, invalid input survives, and failed admission cannot lose its draft to the same outside navigation.
+- `tasks-17`: opening move destinations uses the workspace's loaded topology without duplicate reads or a source-validation wait. paging remains available; unvisited board lists load on demand. selecting a destination validates fresh source revisions and checklist coverage, and a cancelled preflight cannot submit from a late reply.
+- `tasks-18`: rapid stars and completion clicks remain interactive and save serially against fresh task revisions. failed or uncertain work stops later unsent changes to that task, preserves earlier confirmed changes, and exposes its error or receipt. closing a row or changing views does not drop admitted work; leaving an account or unloading cannot silently abandon queued changes.

@@ -93,20 +93,15 @@
   font-size: 11px;
 }
 .task-editor
-  label:not(
-    .task-editor__inline-check,
-    .task-editor__check-note,
-    .task-editor__labels label,
-    .task-editor__weekdays label
-  ) {
+  label:not(.task-editor__inline-check, .task-editor__check-note, .task-editor__weekdays label) {
   display: grid;
   gap: 6px;
   color: var(--secondary);
   font-size: 11px;
   line-height: 1.5;
 }
-.task-editor input:not([type='checkbox']),
-.task-editor .select__trigger {
+.task-editor input:not([type='checkbox']):not([popover] *),
+.task-editor .select__trigger:not([popover] *) {
   width: 100%;
   min-height: var(--field-height);
   padding: 7px 9px;
@@ -117,8 +112,8 @@
   font-size: var(--field-font-size);
   line-height: 1.5;
 }
-.task-editor input:not([type='checkbox']):hover:not(:disabled),
-.task-editor .select__trigger:hover:not(:disabled) {
+.task-editor input:not([type='checkbox']):not([popover] *):hover:not(:disabled),
+.task-editor .select__trigger:not([popover] *):hover:not(:disabled) {
   border-color: var(--secondary);
 }
 .task-editor input:disabled,
@@ -387,91 +382,6 @@
   outline: 2px solid var(--green);
   outline-offset: 3px;
 }
-.task-editor__metadata-row {
-  display: flex;
-  align-items: flex-end;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-bottom: 12px;
-}
-.task-editor__metadata-row > label {
-  width: min(155px, 100%);
-}
-.task-editor__star {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  min-height: 36px;
-  padding: 7px 0;
-  border: 0;
-  background: none;
-  color: var(--secondary);
-  font-size: 12px;
-}
-.task-editor__star.is-starred {
-  color: var(--rust);
-}
-.task-editor__star.is-starred .icon {
-  fill: color-mix(in srgb, var(--rust) 14%, transparent);
-}
-.task-editor__labels {
-  padding: 0;
-  margin: 0;
-  border: 0;
-}
-.task-editor__labels legend {
-  width: 100%;
-  padding: 0;
-  margin-bottom: 9px;
-  color: var(--secondary);
-  font-size: 11px;
-}
-.task-editor__labels legend span {
-  float: right;
-  color: var(--muted);
-  font-size: 10px;
-}
-.task-editor__labels > div {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-.task-editor__labels label,
-.task-editor__labels button {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  min-height: 28px;
-  padding: 4px 8px;
-  border: 1px solid var(--fine);
-  border-radius: 4px;
-  background: var(--paper);
-  color: var(--secondary);
-  font-size: 11px;
-  line-height: 1.6;
-  cursor: pointer;
-}
-.task-editor__labels label.is-selected {
-  background: color-mix(in srgb, var(--label-color) 10%, var(--paper));
-  border-color: color-mix(in srgb, var(--label-color) 40%, var(--line));
-  color: var(--ink);
-}
-.task-editor__labels label i {
-  width: 4px;
-  height: 4px;
-  flex-shrink: 0;
-  border-radius: 50%;
-  background: var(--label-color);
-}
-.task-editor__labels label input {
-  width: 11px;
-  height: 11px;
-  margin: 0;
-}
-.task-editor__labels label small {
-  color: var(--muted);
-  font-size: 9px;
-}
 .task-editor__text-button {
   display: inline-flex;
   align-items: center;
@@ -483,9 +393,6 @@
   font-size: 11px;
   line-height: 1.7;
   text-align: left;
-}
-.task-editor__labels + .task-editor__text-button {
-  margin-top: 6px;
 }
 .task-editor__dependencies {
   padding-top: 6px;
@@ -832,10 +739,6 @@
 .task-editor__close:hover {
   color: var(--green);
 }
-.task-editor__tools button:hover {
-  background: var(--paper-hover);
-  color: var(--green);
-}
 .task-editor__tools {
   display: flex;
   align-items: center;
@@ -843,7 +746,9 @@
   gap: 4px;
   padding-top: 4px;
 }
-.task-editor__tools button {
+.task-editor__tools > button,
+.task-editor__tools > .tooltip > button,
+.task-editor__tools > .tooltip > .popover > button {
   display: grid;
   place-items: center;
   width: var(--control-size);
@@ -854,10 +759,20 @@
   background: transparent;
   color: var(--icon);
 }
-.task-editor__tools button[aria-expanded='true'],
-.task-editor__tools button[aria-pressed='true'] {
+.task-editor__tools > .tooltip > button[aria-expanded='true'],
+.task-editor__tools > .tooltip > button[aria-pressed='true'],
+.task-editor__tools > .tooltip > .popover > button[aria-expanded='true'] {
   color: var(--green);
   background: var(--green-soft);
+}
+.task-editor__tools > button[aria-pressed='true'] {
+  color: var(--green);
+}
+.task-editor__tools > button > .icon {
+  fill: transparent;
+}
+.task-editor__tools > button[aria-pressed='true'] > .icon {
+  fill: color-mix(in srgb, var(--green) 24%, transparent);
 }
 .task-editor-surface--detached .task-editor {
   padding-left: 0;
@@ -919,7 +834,6 @@
   }
   .task-editor__footer button,
   .task-editor__disclosure > summary,
-  .task-editor__labels label,
   .task-editor__weekdays span,
   .task-editor__dependency-results > button,
   .task-editor__text-button {
@@ -980,5 +894,31 @@
   }
   .task-editor__subtasks li > button:not(.task-editor__complete) {
     min-height: var(--control-size);
+  }
+}
+
+@media (hover: hover) {
+  .task-editor__tools > button:hover:not(:disabled) {
+    color: var(--green);
+  }
+  .task-editor__tools > .tooltip > button:hover:not(:disabled),
+  .task-editor__tools > .tooltip > .popover > button:hover:not(:disabled) {
+    background: var(--paper-hover);
+    color: var(--green);
+  }
+}
+@media (hover: hover) and (pointer: fine) {
+  .task-editor__tools > button:hover:not(:disabled) > .icon {
+    fill: var(--green);
+  }
+}
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .task-editor__tools > button > .icon {
+    transition:
+      fill 120ms ease,
+      transform 120ms ease;
+  }
+  .task-editor__tools > button:hover:not(:disabled) > .icon {
+    transform: scale(1.1);
   }
 }

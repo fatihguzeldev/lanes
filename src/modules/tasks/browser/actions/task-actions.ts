@@ -11,9 +11,9 @@ import {
 
 export interface TaskActionContext {
   accountId: string;
-  submit: (command: unknown, category: 'provider', identity?: string) => Promise<boolean>;
+  submit: (command: unknown, category: 'local' | 'provider', identity?: string) => Promise<boolean>;
   confirm: (choice: ConfirmationChoice) => void;
-  onNotice: (message: string) => void;
+  onNotice: (message: string, operationId?: string | null) => void;
   onChanged: () => void;
   onRepeat: () => Promise<unknown>;
   onReopen: (selection: { task: Task; preview: ReopenPreview }) => void;
@@ -33,7 +33,27 @@ export function createTaskActions({
   onListDeleteReady,
 }: TaskActionContext) {
   const base = `/api/accounts/${encodeURIComponent(accountId)}`;
+  const toggleStar = async (task: Task, starred: boolean) => {
+    if (task.accountId !== accountId) return false;
+    if (task.starred === starred) return true;
+    try {
+      return await submit(
+        {
+          kind: 'task.patch',
+          taskId: task.id,
+          expectedRevision: task.revision,
+          patch: { starred },
+        },
+        'local',
+      );
+    } catch (error) {
+      onNotice(error instanceof Error ? error.message : 'couldn’t save this star.');
+      return false;
+    }
+  };
   const toggleComplete = async (task: Task, completed: boolean) => {
+    if (task.accountId !== accountId) return false;
+    if (task.completed === completed) return true;
     if (!completed) {
       if (task.repeatRule || task.seriesId) {
         try {
@@ -42,11 +62,10 @@ export function createTaskActions({
             RecurrenceStatusSchema.nullable(),
           );
           if (!status?.occurrenceId) {
-            await submit(
+            return await submit(
               { kind: 'task.reopen', taskId: task.id, revision: task.revision },
               'provider',
             );
-            return;
           }
           await request(
             `${base}/tasks/${encodeURIComponent(task.id)}/recurrence/advance`,
@@ -58,14 +77,18 @@ export function createTaskActions({
             ReopenPreviewSchema,
           );
           onReopen({ task, preview });
+          return false;
         } catch (error) {
           onNotice(
             error instanceof Error ? error.message : 'the repeat occurrence could not be checked.',
           );
+          return false;
         }
-      } else
-        await submit({ kind: 'task.reopen', taskId: task.id, revision: task.revision }, 'provider');
-      return;
+      }
+      return await submit(
+        { kind: 'task.reopen', taskId: task.id, revision: task.revision },
+        'provider',
+      );
     }
     try {
       const preview = await request(
@@ -75,11 +98,11 @@ export function createTaskActions({
       if (preview.revision !== task.revision) {
         onNotice('this task changed. review its current values before completing it.');
         onChanged();
-        return;
+        return false;
       }
       if (!preview.coverageComplete) {
         onNotice('refresh the complete list before completing this task and its checklist.');
-        return;
+        return false;
       }
       const command = {
         kind: 'task.complete',
@@ -96,34 +119,47 @@ export function createTaskActions({
         preview.openBlockedSubtaskCount ||
         preview.unknownBlockerCount
       ) {
-        confirm({
-          title: `complete ${preview.title || 'this task'}?`,
-          message: [
-            preview.openSubtaskCount
-              ? `${preview.openSubtaskCount} open subtasks will also complete.`
-              : '',
-            preview.openBlockerCount
-              ? `this task has ${preview.openBlockerCount} open blockers.`
-              : '',
-            preview.openBlockedSubtaskCount
-              ? `${preview.openBlockedSubtaskCount} open subtasks are blocked.`
-              : '',
-            preview.unknownBlockerCount
-              ? `${preview.unknownBlockerCount} blockers have an unresolved identity.`
-              : '',
-          ]
-            .filter(Boolean)
-            .join(' '),
-          confirmLabel: 'complete',
-          onConfirm: async (identity) => {
-            const done = await submit(command, 'provider', identity);
-            if (done) void onRepeat();
-            return done;
-          },
-        });
-      } else if (await submit(command, 'provider')) void onRepeat();
+        return await new Promise<boolean>((resolve) =>
+          confirm({
+            title: `complete ${preview.title || 'this task'}?`,
+            message: [
+              preview.openSubtaskCount
+                ? `${preview.openSubtaskCount} open subtasks will also complete.`
+                : '',
+              preview.openBlockerCount
+                ? `this task has ${preview.openBlockerCount} open blockers.`
+                : '',
+              preview.openBlockedSubtaskCount
+                ? `${preview.openBlockedSubtaskCount} open subtasks are blocked.`
+                : '',
+              preview.unknownBlockerCount
+                ? `${preview.unknownBlockerCount} blockers have an unresolved identity.`
+                : '',
+            ]
+              .filter(Boolean)
+              .join(' '),
+            confirmLabel: 'complete',
+            onConfirm: async (identity) => {
+              try {
+                const done = await submit(command, 'provider', identity);
+                if (done) void onRepeat();
+                resolve(done);
+                return done;
+              } catch (error) {
+                resolve(false);
+                throw error;
+              }
+            },
+            onCancel: () => resolve(false),
+          }),
+        );
+      }
+      const done = await submit(command, 'provider');
+      if (done) void onRepeat();
+      return done;
     } catch (error) {
       onNotice(error instanceof Error ? error.message : 'completion could not be checked.');
+      return false;
     }
   };
   const deleteTask = async (task: Task) => {
@@ -233,5 +269,5 @@ export function createTaskActions({
     }
   };
 
-  return { toggleComplete, deleteTask, deleteList, reschedule };
+  return { toggleStar, toggleComplete, deleteTask, deleteList, reschedule };
 }

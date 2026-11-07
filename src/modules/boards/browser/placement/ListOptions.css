@@ -5,3 +5,23 @@
 .list-options__boards .popover__item > .icon:last-child {
   margin-left: auto;
 }
+.list-options__color-preview {
+  margin-left: auto;
+  display: inline-flex;
+}
+.list-options__colors {
+  width: 240px;
+}
+.list-options__rename {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 10px;
+}
+.list-options__rename > .icon {
+  flex: none;
+  color: var(--icon);
+}
+.list-options__rename > .inline-field {
+  flex: 1;
+}

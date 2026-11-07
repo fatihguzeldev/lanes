@@ -1,3 +1,4 @@
+import type { LabelPickerPage } from '../labels/useLabels';
 import { useLayoutEffect, useState } from 'react';
 import type { ConnectionSummary } from '../../../accounts/contracts/connection';
 import type { Label, Task } from '../../contracts/task';
@@ -10,6 +11,7 @@ interface Props {
   account: ConnectionSummary;
   boardId: string | null;
   labels: readonly Label[];
+  labelPage?: LabelPickerPage | undefined;
   version: number;
   clockOffset: number;
   guard(action: () => void): void;
@@ -26,6 +28,7 @@ export function TaskEditorFlow({
   account,
   boardId,
   labels,
+  labelPage,
   version,
   clockOffset,
   guard,
@@ -53,7 +56,9 @@ export function TaskEditorFlow({
     controller.setSaving(id, false);
     setSessions((current) => current.filter((item) => item.id !== id));
   };
-  const [labelsOpen, setLabelsOpen] = useState(false);
+  const [labelsOpen, setLabelsOpen] = useState<{ anchor: HTMLElement; create: boolean } | null>(
+    null,
+  );
   return (
     <>
       {sessions.map(({ id, selection: editor, boardId: editorBoard }) => (
@@ -74,10 +79,12 @@ export function TaskEditorFlow({
               );
           }}
           labels={labels}
+          labelPage={labelPage}
           version={version}
           clockOffset={clockOffset}
           onChanged={onChanged}
           onClose={() => {
+            if (labelsOpen) return;
             if (editor.inlineCreate) controller.close(id);
             else guard(() => controller.close(id));
           }}
@@ -93,16 +100,19 @@ export function TaskEditorFlow({
           onToggleComplete={onToggleComplete}
           onDelete={onDelete}
           onCreateSubtask={(task) => guard(() => controller.createSubtask(task))}
-          onManageLabels={() => setLabelsOpen(true)}
+          onManageLabels={(anchor, create) => setLabelsOpen({ anchor, create: !!create })}
         />
       ))}
       {labelsOpen && (
         <LabelManager
           account={account}
+          anchor={labelsOpen.anchor}
+          initialCreate={labelsOpen.create}
+          onBusyChange={(busy) => controller.setSaving('labels', busy)}
           version={version}
           clockOffset={clockOffset}
           onChanged={onChanged}
-          onClose={() => setLabelsOpen(false)}
+          onClose={() => setLabelsOpen(null)}
         />
       )}
     </>

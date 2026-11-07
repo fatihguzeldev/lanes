@@ -26,7 +26,8 @@ interface ViewActions {
   onAddList(): void;
   onAddTask(list: TaskList): void;
   onOpenTask(task: Task): void;
-  onToggleComplete(task: Task, completed: boolean): void;
+  onToggleComplete(task: Task, completed: boolean): Promise<boolean>;
+  onToggleStar(task: Task, starred: boolean): Promise<boolean>;
   onTaskMenu(task: Task, anchor: HTMLButtonElement): void;
   onListMenu(list: BoardList | null, anchor: HTMLButtonElement): void;
   onOpenBoard(id: string): void;
@@ -54,6 +55,7 @@ interface Props {
   version: number;
   clockOffset: number;
   writable: boolean;
+  localWritable: boolean;
   pendingTaskIds: ReadonlySet<string>;
   moveQueue: TaskMoveQueue;
   listCreation: ReactNode;
@@ -81,6 +83,7 @@ export function WorkspaceViews({
   version,
   clockOffset,
   writable,
+  localWritable,
   pendingTaskIds,
   moveQueue,
   listCreation,
@@ -113,6 +116,7 @@ export function WorkspaceViews({
             }
             showNotes={viewPreferences.showNotes}
             providerActionsEnabled={writable}
+            localActionsEnabled={localWritable}
             filtered={!!search || quick !== 'all' || Object.keys(filter).length > 0}
             status={lists.status}
             pendingTaskIds={pendingTaskIds}
@@ -124,6 +128,7 @@ export function WorkspaceViews({
             onAddTask={actions.onAddTask}
             onOpenTask={actions.onOpenTask}
             onToggleComplete={actions.onToggleComplete}
+            onToggleStar={actions.onToggleStar}
             onTaskMenu={actions.onTaskMenu}
             onListMenu={(list, anchor) =>
               actions.onListMenu(visibleLists.find((item) => item.id === list.id) ?? null, anchor)
@@ -145,7 +150,10 @@ export function WorkspaceViews({
             onInitialReady={onInitialReady}
             onOpenTask={actions.onOpenTask}
             onToggleComplete={actions.onToggleComplete}
+            onToggleStar={actions.onToggleStar}
             onTaskMenu={actions.onTaskMenu}
+            localActionsEnabled={localWritable}
+            pendingTaskIds={pendingTaskIds}
             onOpenBoard={actions.onOpenBoard}
           />
         )}

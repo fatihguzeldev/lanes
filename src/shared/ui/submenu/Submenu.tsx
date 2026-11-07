@@ -54,6 +54,11 @@ export function Submenu(props: Props) {
       }}
       onPointerLeave={(event) => {
         if (event.pointerType === 'touch' || !window.matchMedia('(hover: hover)').matches) return;
+        if (
+          region.current?.contains(document.activeElement) &&
+          document.activeElement?.matches('input, textarea, [contenteditable="true"]')
+        )
+          return;
         if (event.relatedTarget instanceof Node && region.current?.contains(event.relatedTarget))
           return;
         if (pointerMode.current) timeout.current = setTimeout(close, 220);
@@ -107,6 +112,7 @@ export function Submenu(props: Props) {
               if (event.pointerType !== 'touch') pointerMode.current = true;
             }}
             onKeyDown={(event) => {
+              cancelClose();
               pointerMode.current = false;
               if (
                 (event.key === 'ArrowLeft' || event.key === 'Escape') &&

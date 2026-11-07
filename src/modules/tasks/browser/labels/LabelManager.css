@@ -1,24 +1,52 @@
+.label-manager {
+  width: 280px;
+}
+.label-manager__body {
+  padding: 5px 7px;
+}
+.label-manager__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.label-manager__heading h3 {
+  margin: 0;
+  color: var(--secondary);
+  font-size: 12px;
+  font-weight: 500;
+}
+.label-manager__heading > button {
+  display: grid;
+  place-items: center;
+  min-width: var(--control-size);
+  min-height: var(--control-size);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--icon);
+}
 .label-manager__new {
   display: flex;
   align-items: center;
   gap: 7px;
   padding: 8px 11px;
-  background: var(--canvas);
-  border: 1px solid var(--line);
-  border-radius: 5px;
-  margin-top: 22px;
+  border: 0;
+  background: transparent;
+  color: var(--green);
+  margin-top: 8px;
   font-size: 12px;
 }
 .label-manager__labels {
   list-style: none;
   padding: 0;
-  margin: 22px 0 0;
+  margin: 8px 0 0;
 }
 .label-manager__labels li {
   display: flex;
   align-items: center;
   gap: 11px;
-  padding: 13px 0;
+  padding: 7px 0;
   border-top: 1px solid var(--fine);
 }
 .label-manager__labels strong {
@@ -28,7 +56,8 @@
   flex: 1;
   overflow-wrap: anywhere;
 }
-.label-manager__labels button {
+.label-manager__labels > li > button,
+.label-manager__labels > li > .popover > .popover__trigger {
   min-width: var(--control-size);
   min-height: var(--control-size);
   border: 0;
@@ -41,36 +70,13 @@
   color: var(--secondary);
   font-size: 11px;
 }
-.label-manager__swatch {
-  width: 9px;
-  height: 9px;
-  border-radius: 3px;
-  flex: none;
-}
-.label-manager__form {
-  margin-top: 18px;
-  padding: 16px;
-  border: 1px solid var(--line);
-  background: var(--canvas);
-  border-radius: 7px;
+.label-manager__draft {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 66px;
-  gap: 12px;
+  gap: 8px;
+  margin-top: 5px;
 }
-.label-manager__form label {
-  margin: 0;
-}
-.label-manager__form input {
-  background: var(--paper);
-  height: 40px;
-}
-.label-manager__form input[type='color'] {
-  padding: 5px;
-}
-.label-manager__form footer,
-.label-manager__form .error {
-  grid-column: 1/-1;
-  margin: 0;
+.label-manager__draft > .error {
+  grid-column: 1 / -1;
 }
 .label-manager__jobs {
   margin-top: 24px;

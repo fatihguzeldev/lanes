@@ -55,7 +55,7 @@ export interface CalendarViewProps {
   onScopeChange: (scope: CalendarScope) => void;
   onOpenTask: (task: Task) => void;
   onTaskMenu: (task: Task, anchor: HTMLButtonElement) => void;
-  onCreateTask: (intent: CalendarDaySelection) => void;
+  onCreateTask: (intent: CalendarDaySelection, anchor: HTMLElement) => void;
   onReschedule: (intent: CalendarRescheduleIntent) => void;
   onLoadMore: () => void;
   onRetry: () => void;
@@ -280,8 +280,11 @@ function DayCell({
             type="button"
             disabled={options.providerActionsEnabled === false}
             aria-label={`new task on ${dateLabel}`}
-            onClick={() =>
-              options.onCreateTask({ accountId: options.accountId, scheduledDay: day.date })
+            onClick={(event) =>
+              options.onCreateTask(
+                { accountId: options.accountId, scheduledDay: day.date },
+                event.currentTarget,
+              )
             }
           >
             <Icon name="plus" size={13} />
@@ -616,8 +619,11 @@ export function CalendarView(options: CalendarViewProps) {
               className="calendar-view__unscheduled-add"
               type="button"
               disabled={options.providerActionsEnabled === false}
-              onClick={() =>
-                options.onCreateTask({ accountId: options.accountId, scheduledDay: null })
+              onClick={(event) =>
+                options.onCreateTask(
+                  { accountId: options.accountId, scheduledDay: null },
+                  event.currentTarget,
+                )
               }
             >
               <Icon name="plus" size={13} />

@@ -1,3 +1,4 @@
+import type { LabelPickerPage } from '../labels/useLabels';
 import { CoverageSchema } from '../../../../shared/contracts/coverage';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { z } from 'zod';
@@ -25,6 +26,7 @@ interface Props {
   onRetire(hadWork: boolean, error: string | null, operationId: string | null): void;
   boardId: string | null;
   labels: readonly Label[];
+  labelPage?: LabelPickerPage | undefined;
   version: number;
   clockOffset: number;
   onChanged: () => void;
@@ -35,7 +37,7 @@ interface Props {
   onToggleComplete: (task: Task, completed: boolean) => void;
   onDelete: (task: Task) => void;
   onCreateSubtask: (task: Task) => void;
-  onManageLabels: () => void;
+  onManageLabels: (anchor: HTMLElement, create?: boolean) => void;
   onInspectChange: (id: string) => void;
 }
 const graphSchema = z.object({ revision: z.number().int().nonnegative() }).strict();
@@ -65,6 +67,7 @@ export function TaskEditorWorkspace({
   onRetire,
   boardId,
   labels,
+  labelPage,
   version,
   clockOffset,
   onChanged,
@@ -376,6 +379,7 @@ export function TaskEditorWorkspace({
         {...(selection.inlineCreate ? { inlineCreate: true } : {})}
         list={selection.list}
         labels={labels}
+        labelPage={labelPage}
         relatedTasks={related}
         timeZone={account.planningZone}
         weekStart={account.weekStart}

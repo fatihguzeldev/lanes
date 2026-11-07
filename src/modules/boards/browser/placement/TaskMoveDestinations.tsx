@@ -3,22 +3,17 @@ import { Skeleton } from '../../../../shared/ui/skeleton/Skeleton';
 import { Submenu } from '../../../../shared/ui/submenu/Submenu';
 import { usePagedResource } from '../../../../shared/browser/resources/usePagedResource';
 import { request } from '../../../../shared/browser/http/http';
-import { BoardPageSchema, BoardListPageSchema } from '../../contracts/query';
+import { BoardListPageSchema } from '../../contracts/query';
+import type { useBoardData } from '../navigation/useBoardData';
 import { TaskMovePlacement, type TaskMoveContext } from './TaskMovePlacement';
 
-export function TaskMoveDestinations(props: TaskMoveContext & { boardId: string | null }) {
-  const { task, boardId } = props;
-  const base = `/api/accounts/${encodeURIComponent(task.accountId)}`;
-  const boards = usePagedResource(
-    `${task.accountId}:move-boards`,
-    (cursor, signal) =>
-      request(
-        `${base}/boards${cursor ? '?cursor=' + encodeURIComponent(cursor) : ''}`,
-        BoardPageSchema,
-        { signal },
-      ),
-    (item) => item.id,
-  );
+export type TaskMoveWorkspace = Pick<ReturnType<typeof useBoardData>, 'board' | 'boards' | 'lists'>;
+
+export function TaskMoveDestinations(
+  props: TaskMoveContext & { boardId: string | null; workspace: TaskMoveWorkspace },
+) {
+  const { task, boardId, workspace } = props;
+  const boards = workspace.boards;
   const destinations = boards.items.filter(
     (board) => board.accountId === task.accountId && board.id !== boardId,
   );
@@ -80,12 +75,17 @@ export function TaskMoveDestinations(props: TaskMoveContext & { boardId: string 
   );
 }
 
-function TaskMoveLists({
-  controller,
-  task,
-  disabled,
-  boardId,
-}: TaskMoveContext & { boardId: string }) {
+function TaskMoveLists(props: TaskMoveContext & { boardId: string; workspace: TaskMoveWorkspace }) {
+  if (
+    props.workspace.board?.accountId === props.task.accountId &&
+    props.workspace.board.id === props.boardId
+  )
+    return <TaskMoveListRows {...props} lists={props.workspace.lists} />;
+  return <TaskMoveRemoteLists {...props} />;
+}
+
+function TaskMoveRemoteLists(props: TaskMoveContext & { boardId: string }) {
+  const { task, boardId } = props;
   const base = `/api/accounts/${encodeURIComponent(task.accountId)}`;
   const lists = usePagedResource(
     `${task.accountId}:move-lists:${boardId}`,
@@ -97,10 +97,20 @@ function TaskMoveLists({
       ),
     (item) => item.id,
   );
+  return <TaskMoveListRows {...props} lists={lists} />;
+}
+
+function TaskMoveListRows({
+  controller,
+  task,
+  disabled,
+  boardId,
+  lists,
+}: TaskMoveContext & { boardId: string; lists: TaskMoveWorkspace['lists'] }) {
   return (
     <>
       {lists.items
-        .filter((list) => list.accountId === task.accountId)
+        .filter((list) => list.accountId === task.accountId && list.boardId === boardId)
         .map((list) => (
           <div className="task-move-picker__destination" key={list.id}>
             <button

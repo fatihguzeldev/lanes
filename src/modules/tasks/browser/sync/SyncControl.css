@@ -32,14 +32,14 @@
 }
 .sync-control:hover,
 .sync-control[aria-expanded='true'] {
-  color: var(--ink);
+  color: var(--green);
   background: var(--paper-hover);
 }
 .sync-control--syncing .icon {
   animation: sync-breathe 1.6s ease-in-out infinite;
 }
-.sync-control--error,
-.sync-control--paused {
+.sync-control.sync-control--error,
+.sync-control.sync-control--paused {
   color: var(--rust);
 }
 .sync-control__panel {

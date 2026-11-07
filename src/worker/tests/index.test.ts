@@ -30,9 +30,9 @@ function fixture(configured: boolean) {
 describe('worker access entry points', () => {
   it('serves public assets while an incomplete installation stays closed', async () => {
     const { env, db } = fixture(false);
-    expect(await (await handleRequest(new Request('https://lanes.example/'), env)).text()).toBe(
-      'public static client',
-    );
+    expect(
+      await (await handleRequest(new Request('https://lanes.example/favicon.svg'), env)).text(),
+    ).toBe('public static client');
     expect(
       await (await handleRequest(new Request('https://lanes.example/api/session'), env)).json(),
     ).toMatchObject({ configured: false, authenticated: false });

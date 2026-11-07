@@ -9,11 +9,7 @@ interface Props {
   anchor: HTMLElement;
   writable: boolean;
   localWritable: boolean;
-  submit: (
-    command: unknown,
-    category?: 'local' | 'provider',
-    identity?: string,
-  ) => Promise<boolean>;
+  onToggleStar: (task: Task, starred: boolean) => Promise<boolean>;
   onClose: () => void;
   onHistory: (task: Task) => void;
   onOpen: (task: Task) => void;
@@ -29,7 +25,7 @@ export function TaskOptions({
   anchor,
   writable,
   localWritable,
-  submit,
+  onToggleStar,
   onClose,
   onHistory,
   onOpen,
@@ -61,12 +57,7 @@ export function TaskOptions({
         <button
           disabled={!localWritable}
           onClick={() => {
-            void submit({
-              kind: 'task.patch',
-              taskId: task.id,
-              expectedRevision: task.revision,
-              patch: { starred: !task.starred },
-            }).then((done) => {
+            void onToggleStar(task, !task.starred).then((done) => {
               if (done) onClose();
             });
           }}

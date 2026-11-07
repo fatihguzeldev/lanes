@@ -42,7 +42,12 @@ export function useCommands(accountId: string, clockOffset: number, onChanged: (
     [error, setError] = useState('');
   const [latest, setLatest] = useState<OperationSummary | null>(null);
   const [pendingTaskIds, setPendingTaskIds] = useState<Set<string>>(() => new Set());
-  const [errorDetails, setErrorDetails] = useState<RequestError | null>(null);
+  const [errorDetails, setErrorDetailsState] = useState<RequestError | null>(null);
+  const lastError = useRef<RequestError | null>(null);
+  const setErrorDetails = (details: RequestError | null) => {
+    lastError.current = details;
+    setErrorDetailsState(details);
+  };
   const alive = useRef(true),
     callback = useRef(onChanged);
   callback.current = onChanged;
@@ -69,13 +74,14 @@ export function useCommands(accountId: string, clockOffset: number, onChanged: (
     signal: AbortSignal,
   ): Promise<OperationSummary> {
     const deadline = Date.now() + 30_000;
+    const serverNow = () => Date.now() + clockOffset;
     while (
       progressing.has(operation.state) &&
       !operation.finished &&
       Date.now() < deadline &&
       !signal.aborted
     ) {
-      if (operation.nextAttemptAt && operation.nextAttemptAt - Date.now() > 2_000) break;
+      if (operation.nextAttemptAt && operation.nextAttemptAt - serverNow() > 2_000) break;
       await new Promise<void>((resolve, reject) => {
         const done = () => {
           clearTimeout(timer);
@@ -86,7 +92,7 @@ export function useCommands(accountId: string, clockOffset: number, onChanged: (
           clearTimeout(timer);
           reject(new DOMException('aborted', 'AbortError'));
         };
-        const timer = setTimeout(done, Math.max(350, (operation.nextAttemptAt ?? 0) - Date.now()));
+        const timer = setTimeout(done, Math.max(350, (operation.nextAttemptAt ?? 0) - serverNow()));
         signal.addEventListener('abort', cancel, { once: true });
       });
       operation = await request(
@@ -135,8 +141,10 @@ export function useCommands(accountId: string, clockOffset: number, onChanged: (
         body: { operationId, command },
         signal: controller.signal,
       });
+      if (!alive.current || controller.signal.aborted) return null;
       publish(admitted, controller.signal);
       const result = category === 'provider' ? await follow(admitted, controller.signal) : admitted;
+      if (!alive.current || controller.signal.aborted) return null;
       publish(result, controller.signal, true);
       if (result.state !== 'succeeded' && alive.current) {
         const message =
@@ -164,15 +172,21 @@ export function useCommands(accountId: string, clockOffset: number, onChanged: (
         setError(details.message);
         setErrorDetails(details);
         let recovered = false;
-        if (!(error instanceof RequestError && error.code === 'unauthenticated')) {
+        if (details.operationId && details.code !== 'unauthenticated') {
           try {
             const recorded = await request(
               `${base}/operations/${encodeURIComponent(operationId)}`,
               OperationSummarySchema,
               { signal: controller.signal },
             );
+            if (!alive.current || controller.signal.aborted) return null;
             publish(recorded, controller.signal);
             recovered = true;
+            if (recorded.state === 'succeeded') {
+              setError('');
+              setErrorDetails(null);
+              return recorded;
+            }
           } catch {
             /* A missing or unreachable receipt keeps the same identity for an unchanged-input retry. */
           }
@@ -202,8 +216,10 @@ export function useCommands(accountId: string, clockOffset: number, onChanged: (
         OperationSummarySchema,
         { method: 'POST', body: {}, signal: controller.signal },
       );
+      if (!alive.current || controller.signal.aborted) return;
       publish(operation, controller.signal);
       const result = await follow(operation, controller.signal);
+      if (!alive.current || controller.signal.aborted) return;
       publish(result, controller.signal, true);
     } catch (error) {
       if (!controller.signal.aborted && alive.current) {
@@ -225,6 +241,7 @@ export function useCommands(accountId: string, clockOffset: number, onChanged: (
     busy,
     error,
     errorDetails,
+    getErrorDetails: () => lastError.current,
     latest,
     pendingTaskIds,
     clearError: () => {

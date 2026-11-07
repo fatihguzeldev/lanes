@@ -1,12 +1,22 @@
-import { writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import ts from 'typescript';
 
-if (!process.env.LANES_DEPLOY_CONFIG) throw new Error('LANES_DEPLOY_CONFIG is required.');
+const privatePath = 'wrangler.deploy.jsonc';
+const existing = existsSync(privatePath);
+const supplied = process.env.LANES_DEPLOY_CONFIG !== undefined;
+if (!existing && !supplied)
+  throw new Error('private deployment configuration or LANES_DEPLOY_CONFIG is required.');
 
 let config;
 try {
-  config = JSON.parse(process.env.LANES_DEPLOY_CONFIG);
+  if (supplied) config = JSON.parse(process.env.LANES_DEPLOY_CONFIG);
+  else {
+    const parsed = ts.parseConfigFileTextToJson(privatePath, readFileSync(privatePath, 'utf8'));
+    if (parsed.error) throw new Error();
+    config = parsed.config;
+  }
 } catch {
-  throw new Error('LANES_DEPLOY_CONFIG must contain valid JSON.');
+  throw new Error('private deployment configuration must contain valid JSON.');
 }
 
 const database = Array.isArray(config?.d1_databases)
@@ -35,7 +45,50 @@ if (
     'private deployment configuration allows only application origin, owner and token key id vars.',
   );
 
-writeFileSync('wrangler.deploy.jsonc', JSON.stringify(config, null, 2) + '\n', {
+if (
+  config.assets !== undefined &&
+  (!config.assets || typeof config.assets !== 'object' || Array.isArray(config.assets))
+)
+  throw new Error('private deployment assets configuration must be an object.');
+const routes = config.assets?.run_worker_first;
+if (
+  routes !== undefined &&
+  typeof routes !== 'boolean' &&
+  (!Array.isArray(routes) || routes.some((route) => typeof route !== 'string'))
+)
+  throw new Error('private deployment worker routes must be a boolean or string array.');
+const requiredRoutes = ['/', '/index.html', '/api/*', '/auth/*'];
+const configuredRoutes = Array.isArray(routes) ? routes : [];
+const covers = (pattern, route) =>
+  pattern === route || (pattern.endsWith('*') && route.startsWith(pattern.slice(0, -1)));
+if (
+  configuredRoutes.some(
+    (route) =>
+      route.startsWith('!') &&
+      requiredRoutes.some(
+        (required) => covers(route.slice(1), required) || covers(required, route.slice(1)),
+      ),
+  )
+)
+  throw new Error(
+    'private deployment exclusions must not bypass document, api or auth worker routes.',
+  );
+const combined = [...new Set([...configuredRoutes, ...requiredRoutes])];
+config.assets = {
+  ...config.assets,
+  run_worker_first:
+    routes === true
+      ? true
+      : combined.filter(
+          (route) =>
+            route.startsWith('!') ||
+            !combined.some(
+              (other) => other !== route && !other.startsWith('!') && covers(other, route),
+            ),
+        ),
+};
+
+writeFileSync(privatePath, JSON.stringify(config, null, 2) + '\n', {
   mode: 0o600,
-  flag: 'wx',
+  flag: existing ? 'w' : 'wx',
 });

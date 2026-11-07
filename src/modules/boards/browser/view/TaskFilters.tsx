@@ -6,7 +6,7 @@ import {
   type TaskList,
 } from '../../../tasks/contracts/task';
 import { Select } from '../../../../shared/ui/select/Select';
-import './TaskFiltersForm.css';
+import './TaskFilters.css';
 
 interface Props {
   filter: TaskFilter;
@@ -15,20 +15,18 @@ interface Props {
   today: string;
   onChange: (filter: TaskFilter) => void;
   onClear: () => void;
-  onClose: () => void;
   moreLists?: boolean;
   moreLabels?: boolean;
   onMoreLists: () => void;
   onMoreLabels: () => void;
 }
-export function TaskFiltersForm({
+export function TaskFilters({
   filter,
   lists,
   labels,
   today,
   onChange,
   onClear,
-  onClose,
   moreLists,
   moreLabels,
   onMoreLists,
@@ -40,44 +38,35 @@ export function TaskFiltersForm({
       filter.scheduled?.kind === 'range' ? filter.scheduled.from : today,
     ),
     [to, setTo] = useState(filter.scheduled?.kind === 'range' ? filter.scheduled.to : today);
-  const patch = (value: Partial<TaskFilter>) => setDraft((previous) => ({ ...previous, ...value }));
+  const change = (next: TaskFilter) => {
+    setDraft(next);
+    const normalized = { ...next };
+    for (const field of ['listIds', 'labelIds', 'priorities', 'dependencyStates'] as const)
+      if (!normalized[field]?.length) delete normalized[field];
+    if (!normalized.labelIds) delete normalized.labelMatch;
+    if (normalized.completion === 'open') delete normalized.completion;
+    const parsed = TaskFilterSchema.safeParse(normalized);
+    if (!parsed.success) {
+      setError(parsed.error.issues[0]?.message ?? 'check these filters.');
+      return;
+    }
+    setError('');
+    onChange(parsed.data);
+  };
+  const patch = (value: Partial<TaskFilter>) => change({ ...draft, ...value });
   const toggle = (
     field: 'listIds' | 'labelIds' | 'priorities' | 'dependencyStates',
     value: string,
-  ) =>
-    setDraft((previous) => {
-      const values = (previous[field] ?? []) as string[];
-      return {
-        ...previous,
-        [field]: values.includes(value)
-          ? values.filter((item) => item !== value)
-          : [...values, value],
-      };
+  ) => {
+    const values = (draft[field] ?? []) as string[];
+    patch({
+      [field]: values.includes(value)
+        ? values.filter((item) => item !== value)
+        : [...values, value],
     });
+  };
   return (
-    <form
-      className="dialog__body task-filters"
-      onSubmit={(event) => {
-        event.preventDefault();
-        const next = {
-          ...draft,
-          ...(draft.scheduled?.kind === 'range'
-            ? { scheduled: { kind: 'range' as const, from, to } }
-            : {}),
-        };
-        for (const field of ['listIds', 'labelIds', 'priorities', 'dependencyStates'] as const)
-          if (!next[field]?.length) delete next[field];
-        if (!next.labelIds) delete next.labelMatch;
-        if (next.completion === 'open') delete next.completion;
-        const parsed = TaskFilterSchema.safeParse(next);
-        if (!parsed.success) {
-          setError(parsed.error.issues[0]?.message ?? 'check these filters.');
-          return;
-        }
-        onChange(parsed.data);
-        onClose();
-      }}
-    >
+    <div className="dialog__body task-filters">
       <label>
         completion
         <Select
@@ -99,16 +88,14 @@ export function TaskFiltersForm({
           value={draft.scheduled?.kind ?? 'any'}
           onChange={(selectedValue) => {
             const value = selectedValue;
-            setDraft((previous) => {
-              const next = { ...previous };
-              if (value === 'any') delete next.scheduled;
-              else
-                next.scheduled =
-                  value === 'range'
-                    ? { kind: 'range', from, to }
-                    : { kind: value as 'today' | 'overdue' | 'none' };
-              return next;
-            });
+            const next = { ...draft };
+            if (value === 'any') delete next.scheduled;
+            else
+              next.scheduled =
+                value === 'range'
+                  ? { kind: 'range', from, to }
+                  : { kind: value as 'today' | 'overdue' | 'none' };
+            change(next);
           }}
           aria-label="scheduled"
           options={[
@@ -127,7 +114,10 @@ export function TaskFiltersForm({
             <input
               type="date"
               value={from}
-              onChange={(event) => setFrom(event.target.value)}
+              onChange={(event) => {
+                setFrom(event.target.value);
+                patch({ scheduled: { kind: 'range', from: event.target.value, to } });
+              }}
               required
             />
           </label>
@@ -136,7 +126,10 @@ export function TaskFiltersForm({
             <input
               type="date"
               value={to}
-              onChange={(event) => setTo(event.target.value)}
+              onChange={(event) => {
+                setTo(event.target.value);
+                patch({ scheduled: { kind: 'range', from, to: event.target.value } });
+              }}
               required
             />
           </label>
@@ -148,12 +141,10 @@ export function TaskFiltersForm({
           value={draft.starred === undefined ? 'any' : String(draft.starred)}
           onChange={(selectedValue) => {
             const value = selectedValue;
-            setDraft((previous) => {
-              const next = { ...previous };
-              if (value === 'any') delete next.starred;
-              else next.starred = value === 'true';
-              return next;
-            });
+            const next = { ...draft };
+            if (value === 'any') delete next.starred;
+            else next.starred = value === 'true';
+            change(next);
           }}
           aria-label="star"
           options={[
@@ -262,15 +253,13 @@ export function TaskFiltersForm({
           type="button"
           onClick={() => {
             onClear();
-            onClose();
+            setDraft({});
+            setError('');
           }}
         >
           clear all
         </button>
-        <button className="primary" type="submit">
-          apply filters
-        </button>
       </footer>
-    </form>
+    </div>
   );
 }

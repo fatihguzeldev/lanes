@@ -6,7 +6,7 @@ import { Icon, type IconName } from '../../../../shared/ui/icon/Icon';
 import { Skeleton } from '../../../../shared/ui/skeleton/Skeleton';
 import type { Label, Task, TaskList, TaskSort } from '../../../tasks/contracts/task';
 import { countOpenTasks, getBlockingStates, sortTasks } from '../../../tasks/model/task';
-import { TaskCard } from '../../../tasks/browser/items/TaskCard';
+import { TaskCard, type TaskCardProps } from '../../../tasks/browser/items/TaskCard';
 import { BoardSkeleton, ColumnSkeleton } from './BoardSkeleton';
 import { orderForPresentation } from './drag-model';
 import { SortableTask, TaskDropZone, taskDragSensors } from './TaskDrag';
@@ -52,6 +52,8 @@ export interface BoardSurfaceProps {
   filtered?: boolean | undefined;
   sort?: TaskSort | undefined;
   providerActionsEnabled?: boolean | undefined;
+  localActionsEnabled?: boolean | undefined;
+  onToggleStar?: TaskCardProps['onToggleStar'];
   pendingTaskIds?: ReadonlySet<string> | undefined;
   status?: 'loading' | 'ready' | 'error' | undefined;
   errorMessage?: string | undefined;
@@ -60,7 +62,7 @@ export interface BoardSurfaceProps {
   listCreation?: ReactNode;
   onLoadMoreLists?: (() => void) | undefined;
   onOpenTask: (task: Task) => void;
-  onToggleComplete: (task: Task, completed: boolean) => void;
+  onToggleComplete: TaskCardProps['onToggleComplete'];
   onTaskMenu: (task: Task, anchor: HTMLButtonElement) => void;
   onAddTask?: ((list: TaskList) => void) | undefined;
   renderTaskCreate?: ((list: TaskList) => ReactNode) | undefined;
@@ -169,6 +171,8 @@ function ListColumn({
         pending={options.pendingTaskIds?.has(task.id) ?? false}
         {...(options.pendingTaskIds ? { pendingTaskIds: options.pendingTaskIds } : {})}
         providerActionsEnabled={options.providerActionsEnabled ?? true}
+        localActionsEnabled={options.localActionsEnabled ?? false}
+        onToggleStar={options.onToggleStar}
         contextOnly={!completedRow && task.completed}
         {...(parentTitle(task) ? { parentTitle: parentTitle(task)! } : {})}
         showNotes={options.showNotes ?? true}
@@ -215,7 +219,7 @@ function ListColumn({
     >
       <header className="board-column__header">
         <span className="board-column__symbol">
-          <Icon name={column.icon ?? 'list'} size={16} />
+          <Icon name={column.icon ?? 'list'} size={18} />
         </span>
         <h2 id={headingId}>{title(list)}</h2>
         {options.showCounts !== false &&

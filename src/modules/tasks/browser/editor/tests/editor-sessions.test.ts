@@ -40,6 +40,18 @@ describe('task editor session ownership', () => {
     notice.mockReset();
   });
 
+  it('keeps label writes in the account guard after a task save retires', () => {
+    render().open(task('first'), location);
+    const id = render().session!.id;
+    render().setSaving('labels', true);
+    render().setSaving(id, true);
+    render().close(id);
+    render().setSaving(id, false);
+    expect(render().isSaving()).toBe(true);
+    render().setSaving('labels', false);
+    expect(render().isSaving()).toBe(false);
+  });
+
   it('retains saving ownership after the editor presentation closes', () => {
     render().open(task('first'), location);
     const current = render();

@@ -34,6 +34,7 @@ class Element extends EventTarget {
   focus = vi.fn();
   setAttribute = vi.fn();
   removeAttribute = vi.fn();
+  matches = vi.fn(() => false);
   contains(element: unknown) {
     return element === this || this.children.includes(element as Element);
   }
@@ -77,6 +78,7 @@ describe('cascading submenu interaction', () => {
     vi.stubGlobal('Node', Element);
     vi.stubGlobal('Element', Element);
     vi.stubGlobal('window', { matchMedia: vi.fn(() => ({ matches: true })) });
+    vi.stubGlobal('document', { activeElement: null });
   });
   afterEach(() => {
     vi.useRealTimers();
@@ -113,6 +115,28 @@ describe('cascading submenu interaction', () => {
     expect(menu.trigger.props.popoverTarget).toBe((menu.panel as UI).props.id);
     expect(menu.trigger.props.popoverTargetAction).toBe('show');
     menu.trigger.props.onClick({ detail: 1 });
+    expect(menu.trigger.props['aria-expanded']).toBe(true);
+  });
+
+  it('keeps a picker open while its input has focus', () => {
+    const menu = mount();
+    menu.wrapper.props.onPointerEnter(pointer());
+    const input = new Element();
+    input.matches.mockReturnValue(true);
+    menu.wrapper.props.ref.current.children.push(input);
+    vi.stubGlobal('document', { activeElement: input });
+    menu.wrapper.props.onPointerLeave(pointer());
+    vi.advanceTimersByTime(500);
+    expect(menu.trigger.props['aria-expanded']).toBe(true);
+  });
+
+  it('cancels a pointer-close timer when keyboard interaction starts', () => {
+    const menu = mount();
+    menu.wrapper.props.onPointerEnter(pointer());
+    menu.wrapper.props.onPointerLeave(pointer());
+    const content = (menu.panel as UI).props.children as UI;
+    content.props.onKeyDown(key('a'));
+    vi.advanceTimersByTime(500);
     expect(menu.trigger.props['aria-expanded']).toBe(true);
   });
 

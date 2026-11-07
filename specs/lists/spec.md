@@ -19,6 +19,8 @@ read [boards](../boards/spec.md), [tasks](../tasks/spec.md), and [sync](../sync/
 
 the board's new-list action becomes an inline name field in the same place. enter or leaving a nonblank field creates the list without a separate approval step. leaving an empty field or pressing escape closes the entry. retain a failed name for correction, and preserve an uncertain operation's captured name, board, account, and receipt identity. enter followed by blur must not create two lists.
 
+renaming a list opens a flat name field in its anchored menu. enter or blur submits a changed nonblank name once, without a separate dialog or save button. escape restores the confirmed name. the provider write continues after the menu closes; failures leave the confirmed title intact.
+
 load all provider list pages before calling the account inventory complete. an empty or partially loaded page is not evidence that other lists were deleted. see [google's list resource](https://developers.google.com/workspace/tasks/reference/rest/v1/tasklists).
 
 ## default list

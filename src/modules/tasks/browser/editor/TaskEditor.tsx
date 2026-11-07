@@ -9,7 +9,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type CSSProperties,
   type FormEvent,
 } from 'react';
 import { Icon, type IconName } from '../../../../shared/ui/icon/Icon';
@@ -24,10 +23,11 @@ import {
 } from './task-editor-model';
 import { TaskRecurrence } from './TaskRecurrence';
 import { TaskDependants } from './TaskDependants';
-import { Select } from '../../../../shared/ui/select/Select';
 import { Tooltip } from '../../../../shared/ui/tooltip/Tooltip';
 import { useOutsideDismiss } from '../../../../shared/ui/dismiss/useOutsideDismiss';
 import { useTaskCreateExit } from './useTaskCreateExit';
+import { TaskLabelPicker, TaskLabelChips } from '../labels/TaskLabelPicker';
+import { TaskPriorityPicker } from './TaskPriorityPicker';
 import './TaskEditor.css';
 
 const title = (task: Task) => task.title.trim() || 'untitled task';
@@ -75,9 +75,7 @@ function EditorForm(props: TaskEditorProps) {
   const [localErrors, setLocalErrors] = useState<Record<string, string>>({});
   const [clearConfirmed, setClearConfirmed] = useState(false);
   const [dependencyQuery, setDependencyQuery] = useState('');
-  const [section, setSection] = useState<
-    'schedule' | 'details' | 'dependencies' | 'checklist' | null
-  >(null);
+  const [section, setSection] = useState<'schedule' | 'dependencies' | 'checklist' | null>(null);
   const task = snapshot.task,
     pending = props.pending ?? false;
   const inlineCreate = !!props.inlineCreate && !task;
@@ -168,15 +166,17 @@ function EditorForm(props: TaskEditorProps) {
   }
   useLayoutEffect(resizeFields, [draft.title, draft.notes]);
   useEffect(() => {
-    const form = titleInput.current?.form;
-    if (!form) return;
-    let width = form.clientWidth;
+    const fields = [titleInput.current, notesInput.current].filter((input) => input !== null);
+    let widths = fields.map((input) => input.clientWidth);
     const observer = new ResizeObserver(() => {
-      if (form.clientWidth === width) return;
-      width = form.clientWidth;
+      const next = fields.map((input) => input.clientWidth);
+      if (next.every((width, index) => width === widths[index])) return;
+      widths = next;
       resizeFields();
     });
-    observer.observe(form);
+    fields.forEach((input) => observer.observe(input));
+    // The surface attaches its portal host after the fields' first layout effect.
+    resizeFields();
     return () => observer.disconnect();
   }, []);
   useEffect(() => {
@@ -307,6 +307,18 @@ function EditorForm(props: TaskEditorProps) {
     props.onRetryFailed?.();
   }
 
+  const sectionTool = (value: Exclude<typeof section, null>, icon: IconName, label: string) => (
+    <Tooltip label={label}>
+      <button
+        type="button"
+        aria-label={label}
+        aria-expanded={section === value}
+        onClick={() => setSection(section === value ? null : value)}
+      >
+        <Icon name={icon} size={16} />
+      </button>
+    </Tooltip>
+  );
   return (
     <section
       ref={surface}
@@ -456,37 +468,39 @@ function EditorForm(props: TaskEditorProps) {
         )}
 
         <div className="task-editor__tools" aria-label="task details">
-          {(
-            [
-              ['schedule', 'calendar', 'schedule'],
-              ['details', 'filter', 'labels and priority'],
-              ['dependencies', 'link', 'dependencies'],
-              ...(!task?.parentId && task ? [['checklist', 'subtasks', 'checklist']] : []),
-            ] as const
-          ).map(([value, icon, label]) => (
-            <Tooltip key={value} label={label}>
-              <button
-                type="button"
-                aria-label={label}
-                aria-expanded={section === value}
-                onClick={() => setSection(section === value ? null : (value as typeof section))}
-              >
-                <Icon name={icon as IconName} size={16} />
-              </button>
-            </Tooltip>
-          ))}
-          <Tooltip label={draft.starred ? 'remove star' : 'star task'}>
-            <button
-              type="button"
-              aria-label={draft.starred ? 'remove star' : 'star task'}
-              aria-pressed={draft.starred}
-              disabled={!localEnabled}
-              onClick={() => set('starred', !draft.starred)}
-            >
-              <Icon name="star" size={16} />
-            </button>
-          </Tooltip>
+          {sectionTool('schedule', 'calendar', 'schedule')}
+          <TaskLabelPicker
+            labels={labels}
+            page={props.labelPage}
+            selected={draft.labelIds}
+            disabled={!localEnabled}
+            deleting={props.pendingLabelIds}
+            onToggle={(id) => toggle('labelIds', id)}
+            onManage={props.onManageLabels}
+          />
+          <TaskPriorityPicker
+            value={draft.priority}
+            disabled={!localEnabled}
+            onChange={(value) => set('priority', value)}
+          />
+          {sectionTool('dependencies', 'link', 'dependencies')}
+          {!task?.parentId && task && sectionTool('checklist', 'subtasks', 'checklist')}
+          <button
+            type="button"
+            aria-label={draft.starred ? 'remove star' : 'star task'}
+            aria-pressed={draft.starred}
+            disabled={!localEnabled}
+            onClick={() => set('starred', !draft.starred)}
+          >
+            <Icon name="star" size={16} />
+          </button>
         </div>
+        <TaskLabelChips
+          labels={labels}
+          selected={draft.labelIds}
+          disabled={!localEnabled}
+          onToggle={(id) => toggle('labelIds', id)}
+        />
         {section === 'schedule' && (
           <TaskScheduleFields
             draft={draft}
@@ -528,81 +542,6 @@ function EditorForm(props: TaskEditorProps) {
           />
         )}
 
-        {section === 'details' && (
-          <section className="task-editor__section" aria-labelledby={inputId('details-heading')}>
-            <h3 id={inputId('details-heading')}>
-              <Icon name="filter" size={14} />
-              details
-            </h3>
-            <div className="task-editor__metadata-row">
-              <label>
-                priority
-                <Select
-                  value={draft.priority}
-                  onChange={(selectedValue) =>
-                    set('priority', selectedValue as TaskEditorDraft['priority'])
-                  }
-                  disabled={!localEnabled}
-                  aria-label="priority"
-                  options={[
-                    { value: 'none', label: 'none' },
-                    { value: 'low', label: 'low' },
-                    { value: 'medium', label: 'medium' },
-                    { value: 'high', label: 'high' },
-                  ]}
-                />
-              </label>
-            </div>
-            <fieldset className="task-editor__labels" disabled={!localEnabled}>
-              <legend>
-                labels <span>{draft.labelIds.length}/20</span>
-              </legend>
-              <div>
-                {labels.map((label) => (
-                  <label
-                    className={draft.labelIds.includes(label.id) ? 'is-selected' : ''}
-                    style={{ '--label-color': label.color } as CSSProperties}
-                    key={label.id}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={draft.labelIds.includes(label.id)}
-                      disabled={
-                        !draft.labelIds.includes(label.id) &&
-                        (draft.labelIds.length >= 20 || props.pendingLabelIds?.has(label.id))
-                      }
-                      onChange={() => toggle('labelIds', label.id)}
-                    />
-                    <i aria-hidden="true" />
-                    {label.name}
-                    {props.pendingLabelIds?.has(label.id) && <small>deleting</small>}
-                  </label>
-                ))}
-                {draft.labelIds
-                  .filter((id) => !labels.some((label) => label.id === id))
-                  .map((id) => (
-                    <button type="button" key={id} onClick={() => toggle('labelIds', id)}>
-                      label not loaded <Icon name="close" size={11} />
-                    </button>
-                  ))}
-              </div>
-              {!labels.length && !draft.labelIds.length && (
-                <p className="task-editor__hint">no labels in this account yet.</p>
-              )}
-            </fieldset>
-            {props.onManageLabels && (
-              <button
-                className="task-editor__text-button"
-                type="button"
-                disabled={pending}
-                onClick={props.onManageLabels}
-              >
-                manage labels
-                <Icon name="right" size={12} />
-              </button>
-            )}
-          </section>
-        )}
         {section === 'dependencies' && (
           <section className="task-editor__section" aria-label="dependencies">
             <TaskDependencies

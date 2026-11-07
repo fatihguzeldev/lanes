@@ -1,0 +1,65 @@
+.color-preview {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
+  border-radius: 50%;
+  flex: none;
+}
+.color-picker {
+  width: 216px;
+  max-width: 100%;
+  padding: 6px;
+}
+.color-picker__choices {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+.color-picker__choices > button {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  height: max(38px, var(--control-size));
+  padding: 4px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+}
+.color-picker__swatch {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid color-mix(in srgb, var(--ink) 15%, transparent);
+  border-radius: 50%;
+}
+.color-picker__choices > button[aria-pressed='true'] {
+  border-color: var(--green);
+  background: var(--green-soft);
+}
+.color-picker__custom {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-height: var(--control-size);
+  margin-top: 8px;
+  padding: 7px 4px;
+  border: 0;
+  background: transparent;
+  color: var(--secondary);
+  font-size: 12px;
+  text-align: left;
+}
+.color-picker__custom > span:nth-child(2) {
+  flex: 1;
+}
+@media (hover: hover) {
+  .color-picker__choices > button:hover:not(:disabled) {
+    background: var(--paper-hover);
+  }
+}
+.color-picker button:disabled {
+  opacity: 0.45;
+}
