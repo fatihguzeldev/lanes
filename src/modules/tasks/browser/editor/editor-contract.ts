@@ -12,6 +12,7 @@ export interface EditorSelection extends EditorLocation {
   task: Task | null;
   inlineCreate?: boolean;
   initialCreate?: CreateTask;
+  pendingCreationId?: number;
   initialDay?: string | null;
   parent?: Task | null;
 }

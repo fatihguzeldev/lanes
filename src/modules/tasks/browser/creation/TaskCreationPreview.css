@@ -1,4 +1,4 @@
-.task-creation-preview :is(.task-card__title, .task-card__child-title) {
+.task-creation-preview span:is(.task-card__title, .task-card__child-title) {
   cursor: default;
 }
 

@@ -122,6 +122,17 @@ export function useTaskEditor(
       intent.current++;
       select({ ...selection, task: null, initialCreate: structuredClone(input) });
     },
+    editCreation(id: number, selection: EditorSelection, input: CreateTask) {
+      if (input.accountId !== selection.list.accountId || input.listId !== selection.list.id)
+        return;
+      intent.current++;
+      select({
+        ...selection,
+        task: null,
+        initialCreate: structuredClone(input),
+        pendingCreationId: id,
+      });
+    },
     createSubtask(task: Task) {
       const selection = current.current?.selection;
       if (!selection) return;

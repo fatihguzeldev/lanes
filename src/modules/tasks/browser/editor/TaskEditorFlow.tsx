@@ -6,12 +6,13 @@ import type { TaskEditorController, TaskEditorSession } from './useTaskEditor';
 import { TaskEditorWorkspace } from './TaskEditorWorkspace';
 import { LabelManager } from '../labels/LabelManager';
 import type { TaskCreationController } from '../creation/useTaskCreations';
-import type { TaskEditController } from './useTaskEdits';
+import type { TaskChangeController } from '../changes/useTaskChanges';
 
 interface Props {
+  active?: boolean;
   controller: TaskEditorController;
   creations: TaskCreationController;
-  edits: TaskEditController;
+  edits: TaskChangeController;
   account: ConnectionSummary;
   boardId: string | null;
   labels: readonly Label[];
@@ -28,6 +29,7 @@ interface Props {
   onNotice(message: string, operationId?: string | null): void;
 }
 export function TaskEditorFlow({
+  active = true,
   controller,
   creations,
   edits,
@@ -73,11 +75,11 @@ export function TaskEditorFlow({
           account={account}
           selection={editor}
           boardId={editorBoard}
-          presented={id === session?.id}
+          presented={active && id === session?.id}
           onBusyChange={(busy) => controller.setSaving(id, busy)}
-          onRetire={(hadWork, error, operationId) => {
+          onRetire={(hadWork, error, operationId, rejected) => {
             const creation = creations.items.find((item) => item.id === id);
-            if (!editor.task && hadWork && error && !operationId && creation) {
+            if (!editor.task && hadWork && error && (!operationId || rejected) && creation) {
               creations.fail(id, error, () =>
                 guard(() => {
                   creations.remove(id);
@@ -86,7 +88,15 @@ export function TaskEditorFlow({
               );
               retire(id);
               onChanged();
-              onNotice(`couldn’t add ${creation.input.title}. ${error}`);
+              const message = `couldn’t add ${creation.input.title}. ${error}`;
+              if (operationId) onNotice(message, operationId);
+              else onNotice(message);
+              return;
+            }
+            if (!editor.task && hadWork && error && operationId && creation) {
+              creations.hold(id, operationId, error);
+              retire(id);
+              onNotice(`couldn’t confirm ${creation.input.title}. ${error}`, operationId);
               return;
             }
             creations.remove(id);
@@ -106,15 +116,16 @@ export function TaskEditorFlow({
           onChanged={onChanged}
           onClose={() => {
             if (labelsOpen) return;
-            if (editor.inlineCreate) controller.close(id);
+            if (!editor.task) controller.close(id);
             else guard(() => controller.close(id));
           }}
-          onSaved={() => {
-            creations.confirm(id);
+          onSaved={(operationId) => {
+            if (!editor.task && operationId) void creations.finish(id, operationId);
+            else creations.confirm(id);
             edits.confirm(id);
             controller.closeSaved(id);
             retire(id);
-            onChanged();
+            if (editor.task || !operationId) onChanged();
             onAccountsChanged();
           }}
           onSubmitted={() => controller.closeSaved(id)}
@@ -122,7 +133,12 @@ export function TaskEditorFlow({
             if (editor.task) edits.start(id, input.baseline ?? editor.task, input);
           }}
           runEdit={edits.run}
-          onCreatePending={(input) => creations.start(id, input)}
+          onCreatePending={(input) =>
+            creations.start(id, input, (latestInput) =>
+              guard(() => controller.editCreation(id, editor, latestInput)),
+            )
+          }
+          onUpdateCreation={creations.update}
           onInspectChange={onInspect}
           onDirtyChange={(dirty) => controller.setDirty(dirty, id)}
           onOpenTask={onOpenTask}
@@ -135,12 +151,14 @@ export function TaskEditorFlow({
       {labelsOpen && (
         <LabelManager
           account={account}
+          presented={active}
           anchor={labelsOpen.anchor}
           initialCreate={labelsOpen.create}
           onBusyChange={(busy) => controller.setSaving('labels', busy)}
           version={version}
           clockOffset={clockOffset}
           onChanged={onChanged}
+          onError={onNotice}
           onClose={() => setLabelsOpen(null)}
         />
       )}

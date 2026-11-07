@@ -10,7 +10,12 @@ const state = vi.hoisted(() => ({
   effects: [] as Array<() => unknown>,
   commands: {
     busy: false,
-    latest: null as { id: string; state: string; finished?: boolean } | null,
+    latest: null as {
+      id: string;
+      state: string;
+      finished?: boolean;
+      confirmedSteps?: number;
+    } | null,
     error: '',
     errorDetails: null as { operationId: string } | null,
     submit: vi.fn(),
@@ -137,7 +142,7 @@ function mount(
     });
     return resolve;
   };
-  return { retire, saved, preview, submitted, editPreview, render, save };
+  return { retire, saved, preview, submitted, editPreview, render, save, props };
 }
 
 describe('hidden editor retirement', () => {
@@ -175,7 +180,7 @@ describe('hidden editor retirement', () => {
       'provider',
       'receipt',
     );
-    expect(editor.submitted).not.toHaveBeenCalled();
+    expect(editor.submitted).toHaveBeenCalledOnce();
     expect(editor.saved).not.toHaveBeenCalled();
   });
 
@@ -210,7 +215,7 @@ describe('hidden editor retirement', () => {
     expect(editor.retire).not.toHaveBeenCalled();
   });
 
-  it('closes calendar and subtask creation after admission while its save runs', () => {
+  it('closes calendar and subtask creation before admission while its save runs', () => {
     const editor = mount(false, undefined, true);
     const input = CreateTaskSchema.parse({
       accountId: 'account',
@@ -222,7 +227,7 @@ describe('hidden editor retirement', () => {
       .render()!
       .props.children.props.onCreate({ accountId: 'account', listRevision: 1, input });
     expect(editor.preview).toHaveBeenCalledWith(input);
-    expect(editor.submitted).not.toHaveBeenCalled();
+    expect(editor.submitted).toHaveBeenCalledOnce();
     state.commands.latest = { id: 'receipt', state: 'accepted' };
     state.commands.busy = true;
     editor.render();
@@ -246,7 +251,7 @@ describe('hidden editor retirement', () => {
     await Promise.resolve();
     await Promise.resolve();
     expect(editor.render()!.props.children.props.error?.message).toBe('the title was rejected');
-    expect(editor.submitted).not.toHaveBeenCalled();
+    expect(editor.submitted).toHaveBeenCalledOnce();
     expect(editor.retire).not.toHaveBeenCalled();
   });
 
@@ -358,7 +363,7 @@ describe('hidden editor retirement', () => {
       input: { ...input, title: 'corrected' },
     });
     expect(state.commands.submit).toHaveBeenCalledTimes(2);
-    expect(editor.submitted).not.toHaveBeenCalled();
+    expect(editor.submitted).toHaveBeenCalledTimes(2);
   });
 
   it('allows an explicit creation retry after a terminal failed receipt', async () => {
@@ -484,5 +489,40 @@ describe('hidden editor retirement', () => {
     editor.render();
     expect(editor.saved).toHaveBeenCalledOnce();
     expect(editor.retire).not.toHaveBeenCalled();
+  });
+
+  it('captures edits to an admitted local creation without submitting a second create', () => {
+    const editor = mount(true);
+    const update = vi.fn(),
+      close = vi.fn(),
+      dirty = vi.fn();
+    editor.props.selection.pendingCreationId = 42;
+    editor.props.onUpdateCreation = update;
+    editor.props.onClose = close;
+    editor.props.onDirtyChange = dirty;
+    const input = CreateTaskSchema.parse({
+      accountId: 'account',
+      listId: 'list',
+      title: 'renamed while saving',
+    });
+    editor
+      .render()!
+      .props.children.props.onCreate({ accountId: 'account', listRevision: 1, input });
+    expect(update).toHaveBeenCalledWith(42, input);
+    expect(close).toHaveBeenCalledOnce();
+    expect(dirty).toHaveBeenCalledWith(false);
+    expect(editor.preview).not.toHaveBeenCalled();
+    expect(state.commands.submit).not.toHaveBeenCalled();
+  });
+
+  it('distinguishes a definitely rejected zero-step create receipt from uncertainty', () => {
+    const editor = mount(true);
+    state.commands.busy = true;
+    editor.render();
+    state.commands.busy = false;
+    state.commands.error = 'invalid parent';
+    state.commands.latest = { id: 'receipt', state: 'failed', finished: true, confirmedSteps: 0 };
+    editor.render(false);
+    expect(editor.retire).toHaveBeenCalledWith(true, 'invalid parent', 'receipt', true);
   });
 });

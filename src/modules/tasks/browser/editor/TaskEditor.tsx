@@ -282,7 +282,7 @@ function EditorForm(props: TaskEditorProps) {
     return true;
   }
   const creationExit = useTaskCreateExit({
-    enabled: inlineCreate,
+    enabled: !task,
     dirty,
     pending,
     submitted: !!props.submitted,
@@ -292,12 +292,12 @@ function EditorForm(props: TaskEditorProps) {
   });
   const requestClose = creationExit.close;
   const discardCreate =
-    inlineCreate && !props.submitted && (!!props.error || Object.keys(localErrors).length > 0);
+    !task && !props.submitted && (!!props.error || Object.keys(localErrors).length > 0);
   const closeLabel = discardCreate ? 'discard task' : 'close task';
   useOutsideDismiss(surface, requestClose, { enabled: !pending || !!props.submitted });
   function submit(event: FormEvent) {
     event.preventDefault();
-    if (inlineCreate) creationExit.submit();
+    if (!task) creationExit.submit();
     else commit();
   }
   function reapply() {

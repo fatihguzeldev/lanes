@@ -61,6 +61,7 @@ function mount() {
     create: vi.fn(),
     createSubtask: vi.fn(),
     recoverCreate: vi.fn(),
+    editCreation: vi.fn(),
   } as unknown as TaskEditorController;
   const props = {
     controller,
@@ -70,10 +71,22 @@ function mount() {
       confirm: vi.fn(),
       remove: vi.fn(),
       fail: vi.fn(),
+      finish: vi.fn(),
+      hold: vi.fn(),
+      acknowledge: vi.fn(),
+      update: vi.fn(),
+      busy: false,
       hasDrafts: false,
       discardDrafts: vi.fn(),
     },
-    edits: { items: [], start: vi.fn(), confirm: vi.fn(), remove: vi.fn(), run: vi.fn() },
+    edits: {
+      items: [],
+      start: vi.fn(),
+      confirm: vi.fn(),
+      remove: vi.fn(),
+      run: vi.fn(),
+      project: vi.fn((task) => task),
+    },
     account: { id: 'account' } as ComponentProps<typeof TaskEditorFlow>['account'],
     boardId: 'board',
     labels: [],
@@ -88,9 +101,11 @@ function mount() {
     onToggleComplete() {},
     onDelete() {},
   };
-  const render = () => {
+  const render = (active = true) => {
     hooks.index = 0;
-    const view = TaskEditorFlow(props) as ReactElement<{ children: [WorkspaceUI[]] }>;
+    const view = TaskEditorFlow({ ...props, active }) as ReactElement<{
+      children: [WorkspaceUI[]];
+    }>;
     return view.props.children[0];
   };
   return {
@@ -201,13 +216,66 @@ describe('task editor command lifetime', () => {
     const [editor] = flow.render();
     const input = CreateTaskSchema.parse({ accountId: 'account', listId: 'list', title: 'ring64' });
     editor!.props.onCreatePending!(input);
-    expect(flow.creations.start).toHaveBeenCalledWith(1, input);
+    expect(flow.creations.start).toHaveBeenCalledWith(1, input, expect.any(Function));
     editor!.props.onClose();
     expect(flow.creations.remove).not.toHaveBeenCalled();
     editor!.props.onSaved();
     expect(flow.creations.confirm).toHaveBeenCalledWith(1);
     expect(flow.creations.remove).not.toHaveBeenCalled();
     expect(flow.changed).toHaveBeenCalledOnce();
+  });
+
+  it('resolves creation identity before asking views to refresh and binds edits to the captured local draft', () => {
+    const flow = mount();
+    const [editor] = flow.render();
+    editor!.props.selection.task = null;
+    const input = CreateTaskSchema.parse({ accountId: 'account', listId: 'list', title: 'ring64' });
+    editor!.props.onCreatePending!(input);
+    const edit = flow.creations.start.mock.calls[0]![2];
+    edit({ ...input, title: 'newer title' });
+    expect(flow.controller.editCreation).toHaveBeenCalledWith(1, editor!.props.selection, {
+      ...input,
+      title: 'newer title',
+    });
+    editor!.props.onSaved('receipt');
+    expect(flow.creations.finish).toHaveBeenCalledWith(1, 'receipt');
+    expect(flow.creations.confirm).not.toHaveBeenCalled();
+    expect(flow.changed).not.toHaveBeenCalled();
+  });
+
+  it('retains an uncertain creation and its original receipt without recreating it', () => {
+    const flow = mount();
+    const [editor] = flow.render();
+    editor!.props.selection.task = null;
+    const input = CreateTaskSchema.parse({ accountId: 'account', listId: 'list', title: 'ring64' });
+    flow.creations.items.push({ id: 1, input, confirmedAfter: null });
+    editor!.props.onRetire(true, 'result unknown', 'receipt');
+    expect(flow.creations.hold).toHaveBeenCalledWith(1, 'receipt', 'result unknown');
+    expect(flow.creations.remove).not.toHaveBeenCalled();
+    expect(flow.controller.recoverCreate).not.toHaveBeenCalled();
+  });
+
+  it('offers explicit draft editing after a known failed create saved no steps', () => {
+    const flow = mount();
+    const [editor] = flow.render();
+    editor!.props.selection.task = null;
+    const input = CreateTaskSchema.parse({ accountId: 'account', listId: 'list', title: 'ring64' });
+    flow.creations.items.push({ id: 1, input, confirmedAfter: null });
+    editor!.props.onRetire(true, 'invalid parent', 'receipt', true);
+    expect(flow.creations.fail).toHaveBeenCalledWith(1, 'invalid parent', expect.any(Function));
+    expect(flow.creations.hold).not.toHaveBeenCalled();
+    flow.creations.fail.mock.calls[0]![2]();
+    expect(flow.controller.recoverCreate).toHaveBeenCalledWith(editor!.props.selection, input);
+  });
+
+  it('hides presentation without unmounting an inactive account’s save owner', () => {
+    const flow = mount();
+    const [active] = flow.render();
+    active!.props.onBusyChange(true);
+    const [hidden] = flow.render(false);
+    expect(hidden!.key).toBe(active!.key);
+    expect(hidden!.props.presented).toBe(false);
+    expect(flow.controller.setSaving).toHaveBeenLastCalledWith(1, true);
   });
 
   it('removes a failed creation without changing another session', () => {
