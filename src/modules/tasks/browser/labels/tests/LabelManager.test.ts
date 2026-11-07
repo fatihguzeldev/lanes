@@ -116,6 +116,9 @@ it('finishes a name write before closing and preserves its captured revision', a
       }),
   );
   const pending = draft.props.onSubmit('books', '#82966f', 'same-receipt');
+  const captured = render();
+  expect(captured.some((node) => node.props.onReview)).toBe(false);
+  expect(captured.find((node) => node.type === 'strong')?.props.children).toBe('books');
   const dialog = nodes.find((node) => node.props.label === 'labels')!;
   expect(dialog.props.pending).toBeUndefined();
   dialog.props.onClose();
@@ -134,6 +137,23 @@ it('finishes a name write before closing and preserves its captured revision', a
   await pending;
   render();
   expect(close).toHaveBeenCalledOnce();
+});
+it('shows a new label immediately after its name is submitted', async () => {
+  render()
+    .find((node) => node.props.className === 'label-manager__new')!
+    .props.onClick();
+  let finish!: (value: { state: string }) => void;
+  harness.submit.mockImplementation(() => new Promise((resolve) => (finish = resolve)));
+  const pending = render()
+    .find((node) => node.props.onReview)!
+    .props.onSubmit('books', '#82966f');
+  const captured = render();
+  expect(captured.some((node) => node.props.onReview)).toBe(false);
+  expect(captured.some((node) => node.type === 'strong' && node.props.children === 'books')).toBe(
+    true,
+  );
+  finish({ state: 'succeeded' });
+  await pending;
 });
 it('keeps a rejected name draft visible instead of completing its queued close', async () => {
   render()

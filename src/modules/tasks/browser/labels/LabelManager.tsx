@@ -59,7 +59,15 @@ export function LabelManager({
   const nameFlight = useRef(false);
   const [closing, setClosing] = useState(false);
   const [nameDraft, setNameDraft] = useState<string | null>(null);
+  const [nameChange, setNameChange] = useState<{
+    source: Label | null;
+    name: string;
+    color: string;
+    confirmedAfter: number | null;
+  } | null>(null);
   const [nameIdentity, setNameIdentity] = useState(() => newOperationId(clockOffset));
+  const readVersion = useRef(version);
+  readVersion.current = version;
   const busyListener = useRef(onBusyChange);
   busyListener.current = onBusyChange;
   const connection = useServerConnection();
@@ -100,6 +108,16 @@ export function LabelManager({
     version,
   );
   const pending = new Set(jobs.items.map((job) => job.labelId));
+  const nameAcknowledged =
+    nameChange?.confirmedAfter !== null &&
+    nameChange?.confirmedAfter !== undefined &&
+    labels.settled &&
+    !labels.error &&
+    version > nameChange.confirmedAfter;
+  const displayedNameChange = nameAcknowledged ? null : nameChange;
+  useEffect(() => {
+    if (nameAcknowledged) setNameChange(null);
+  }, [nameAcknowledged]);
   useEffect(() => {
     if (!colorChange?.confirmed) return;
     const current = labels.items.find((label) => label.id === colorChange.source.id);
@@ -112,7 +130,14 @@ export function LabelManager({
   const writable =
     !['disconnected', 'disconnecting'].includes(account.state) && connection === 'reachable';
   async function changeColor(label: Label, color: string) {
-    if (colorFlight.current || colorChange || commands.busy || !writable || form !== false)
+    if (
+      colorFlight.current ||
+      colorChange ||
+      nameChange ||
+      commands.busy ||
+      !writable ||
+      form !== false
+    )
       return false;
     if (label.color === color) return true;
     colorFlight.current = true;
@@ -242,6 +267,8 @@ export function LabelManager({
                   setForm(false);
                 }}
                 onSubmit={async (name, color) => {
+                  if (nameFlight.current || nameChange) return false;
+                  const source = form || null;
                   const command = form
                     ? {
                         kind: 'label.update',
@@ -252,12 +279,20 @@ export function LabelManager({
                     : { kind: 'label.create', input: { name, color } };
                   nameFlight.current = true;
                   setNameDraft(name);
+                  setNameChange({ source, name, color, confirmedAfter: null });
+                  setForm(false);
                   busyListener.current?.(true);
                   try {
                     const result = await commands.submit(command, 'local', nameIdentity);
                     if (result?.state === 'succeeded') {
                       setNameDraft(null);
-                      setForm(false);
+                      const confirmedAfter = readVersion.current;
+                      setNameChange({ source, name, color, confirmedAfter });
+                      onChanged();
+                    } else {
+                      setNameChange(null);
+                      setForm(source);
+                      setClosing(false);
                     }
                     return result?.state === 'succeeded';
                   } finally {
@@ -269,7 +304,7 @@ export function LabelManager({
             ) : (
               <button
                 className="label-manager__new"
-                disabled={!writable || commands.busy || !!colorChange}
+                disabled={!writable || commands.busy || !!colorChange || !!nameChange}
                 onClick={() => {
                   setNameDraft(null);
                   setNameIdentity(newOperationId(clockOffset));
@@ -281,6 +316,12 @@ export function LabelManager({
               </button>
             )}
             <ul className="label-manager__labels">
+              {displayedNameChange && !displayedNameChange.source && (
+                <li>
+                  <ColorPreview value={displayedNameChange.color} />
+                  <strong>{displayedNameChange.name}</strong>
+                </li>
+              )}
               {labels.items.map((label) => (
                 <li key={label.id}>
                   <Popover
@@ -289,6 +330,7 @@ export function LabelManager({
                       !writable ||
                       commands.busy ||
                       !!colorChange ||
+                      !!nameChange ||
                       pending.has(label.id) ||
                       form !== false
                     }
@@ -314,13 +356,17 @@ export function LabelManager({
                       />
                     )}
                   </Popover>
-                  <strong>{label.name}</strong>
+                  <strong>
+                    {displayedNameChange?.source?.id === label.id
+                      ? displayedNameChange.name
+                      : label.name}
+                  </strong>
                   {pending.has(label.id) ? (
                     <small>deleting…</small>
                   ) : (
                     <>
                       <button
-                        disabled={!writable || commands.busy || !!colorChange}
+                        disabled={!writable || commands.busy || !!colorChange || !!nameChange}
                         onClick={() => {
                           setNameDraft(null);
                           setNameIdentity(newOperationId(clockOffset));
@@ -331,7 +377,7 @@ export function LabelManager({
                         <Icon name="pen" size={14} />
                       </button>
                       <button
-                        disabled={!writable || commands.busy || !!colorChange}
+                        disabled={!writable || commands.busy || !!colorChange || !!nameChange}
                         onClick={() => remove(label)}
                         aria-label={`delete ${label.name}`}
                       >
