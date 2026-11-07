@@ -37,7 +37,7 @@ describe('submitted task visibility', () => {
     render().start(1, draft);
     draft.title = 'changed later';
     render().start(2, input('another task'));
-    expect(render().items.map((item) => item.input.title)).toEqual(['ring64', 'another task']);
+    expect(render().items.map((item) => item.input.title)).toEqual(['another task', 'ring64']);
     expect(render().items.every((item) => item.confirmedAfter === null)).toBe(true);
   });
 

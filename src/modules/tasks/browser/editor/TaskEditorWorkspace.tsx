@@ -453,6 +453,7 @@ export function TaskEditorWorkspace({
       {
         kind: 'task.create',
         ...input,
+        previousId: null,
         listRevision: value.listRevision,
         ...(selection.parent ? { parentRevision: selection.parent.revision } : {}),
         ...(value.expectedGraphRevision === undefined

@@ -323,6 +323,10 @@ export function TaskCard({
           hidden={!expanded}
         >
           {expanded &&
+            pendingChildren.map((creation) => (
+              <TaskCreationPreview key={`creation:${creation.id}`} creation={creation} child />
+            ))}
+          {expanded &&
             children.map((child) => {
               const childPending = pendingTaskIds?.has(child.id) ?? false;
               return (
@@ -383,10 +387,6 @@ export function TaskCard({
                 </li>
               );
             })}
-          {expanded &&
-            pendingChildren.map((creation) => (
-              <TaskCreationPreview key={`creation:${creation.id}`} creation={creation} child />
-            ))}
         </ul>
       )}
       <div

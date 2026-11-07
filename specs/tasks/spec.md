@@ -34,7 +34,7 @@ an admitted save continues when its editor closes. keep its operation identity a
 task menus contain secondary actions. completion remains on the task's checkbox rather than a duplicate menu item. show each row's options control on hover or keyboard focus, and keep it available on devices without hover.
 
 - require a nonblank title, at most 1,024 characters. trim outer whitespace when the owner submits it. notes allow up to 8,192 characters and preserve line breaks.
-- create an open task in a selected list, at the end of the manual sibling order unless an insertion position was explicitly chosen.
+- create an open task from the editor at the start of the manual sibling order. new subtasks also start their sibling group. show submitted creations in that position immediately, with the newest entry first. explicit insertion positions in duplication, templates, and portability retain their own contracts.
 - notes are plain text. changing a title or note does not reset other fields or replace unrelated provider values.
 - a patch changes only the submitted fields. distinguish an omitted field from an explicit clear.
 - retain invalid input and a creation draft whose admission failed. closing a submitted editor does not claim that its save is confirmed; background failures remain actionable.

@@ -281,12 +281,12 @@ function ListColumn({
         hasItems={openCards.length > 0}
         label={`open tasks in ${title(list)}`}
       >
-        {openCards.map((task) => renderCard(task))}
         {creations
           .filter((creation) => !creation.input.parentId || !byId.has(creation.input.parentId))
           .map((creation) => (
             <TaskCreationPreview key={creation.id} creation={creation} />
           ))}
+        {openCards.map((task) => renderCard(task))}
         {entries.length === 0 && column.status === 'loading' && !column.coverage.complete && (
           <ColumnSkeleton />
         )}

@@ -19,7 +19,7 @@ export function useTaskCreations(accountId: string, version: number) {
     (id: number, input: CreateTask) => {
       if (input.accountId !== accountId) return;
       const creation = { id, input: structuredClone(input), confirmedAfter: null };
-      setItems((previous) => [...previous.filter((item) => item.id !== id), creation]);
+      setItems((previous) => [creation, ...previous.filter((item) => item.id !== id)]);
     },
     [accountId],
   );

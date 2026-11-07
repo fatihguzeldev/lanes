@@ -170,6 +170,11 @@ describe('hidden editor retirement', () => {
       input,
     });
     expect(editor.preview).toHaveBeenCalledWith(input);
+    expect(state.commands.submit).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: 'task.create', previousId: null }),
+      'provider',
+      'receipt',
+    );
     expect(editor.submitted).not.toHaveBeenCalled();
     expect(editor.saved).not.toHaveBeenCalled();
   });

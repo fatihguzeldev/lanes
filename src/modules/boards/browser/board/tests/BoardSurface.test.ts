@@ -134,6 +134,24 @@ describe('board list presentation', () => {
     provider: { ...first.provider, position: '2' },
   };
 
+  it('places a newly captured task above existing tasks', () => {
+    const markup = render({
+      tasks: [first, second],
+      creations: [
+        {
+          id: 1,
+          confirmedAfter: null,
+          input: CreateTaskSchema.parse({
+            accountId: 'account',
+            listId: 'list',
+            title: 'new arrival',
+          }),
+        },
+      ],
+    });
+    expect(markup.indexOf('new arrival')).toBeLessThan(markup.indexOf('data-task-id="first"'));
+  });
+
   it('keeps a submitted subtask under its parent and counts it as open', () => {
     const markup = render({
       tasks: [first],
