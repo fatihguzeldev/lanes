@@ -1,5 +1,6 @@
 import { Brand } from './Brand';
 import { GitHubStars } from './github/GitHubStars';
+import { GITHUB_URL } from './github/github-stars';
 import { WorkspaceDemo } from './demo/WorkspaceDemo';
 import { TaskDetails } from './details/TaskDetails';
 import { AccountStory } from './accounts/AccountStory';
@@ -11,7 +12,7 @@ export function App() {
       <a className="skip-link" href="#main">
         skip to content
       </a>
-      <div className="site-header-field">
+      <div className="site-header-field brand-field">
         <header className="site-header container">
           <a className="brand-link" href="#" aria-label="lanes home">
             <Brand />
@@ -20,7 +21,7 @@ export function App() {
         </header>
       </div>
       <main id="main">
-        <section className="hero" aria-labelledby="hero-title">
+        <section className="hero brand-field" aria-labelledby="hero-title">
           <div className="hero__intro container">
             <h1 id="hero-title">
               <span>google tasks.</span>
@@ -47,9 +48,15 @@ export function App() {
         <SelfHosting />
       </main>
       <footer className="site-footer container">
+        <a className="brand-link" href="#" aria-label="lanes home">
+          <Brand />
+        </a>
         <p>
           made by <a href="https://fatihguzel.dev">fatih güzel</a>.
         </p>
+        <a className="site-footer__source" href={GITHUB_URL}>
+          source on github
+        </a>
       </footer>
     </>
   );
