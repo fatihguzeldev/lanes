@@ -20,11 +20,7 @@ interface Props {
   loadedListCount: number;
   writable: boolean;
   localWritable: boolean;
-  submit: (
-    command: unknown,
-    category?: 'local' | 'provider',
-    identity?: string,
-  ) => Promise<boolean>;
+  onPlacement(boardId: string, position?: number): boolean;
   guard: (action: () => void) => void;
   onColor(color: string): Promise<boolean>;
   onRename(title: string): Promise<boolean>;
@@ -42,7 +38,7 @@ export function ListOptions({
   loadedListCount,
   writable,
   localWritable,
-  submit,
+  onPlacement,
   guard,
   onColor,
   onRename,
@@ -123,14 +119,7 @@ export function ListOptions({
                 disabled={item.id === selectedList.boardId}
                 onClick={() =>
                   guard(() => {
-                    void submit({
-                      kind: 'list.placement',
-                      listId: selectedList.id,
-                      boardId: item.id,
-                      revision: selectedList.membershipRevision,
-                    }).then((done) => {
-                      if (done) onClose();
-                    });
+                    if (onPlacement(item.id)) onClose();
                   })
                 }
               >
@@ -167,15 +156,7 @@ export function ListOptions({
           onClick={() => {
             const list = selectedList;
             const index = lists.findIndex((item) => item.id === list.id);
-            void submit({
-              kind: 'list.placement',
-              listId: list.id,
-              boardId: list.boardId,
-              revision: list.membershipRevision,
-              position: index - 1,
-            }).then((done) => {
-              if (done) onClose();
-            });
+            if (onPlacement(list.boardId, index - 1)) onClose();
           }}
         >
           <Icon name="left" size={16} />
@@ -191,15 +172,7 @@ export function ListOptions({
           onClick={() => {
             const list = selectedList;
             const index = lists.findIndex((item) => item.id === list.id);
-            void submit({
-              kind: 'list.placement',
-              listId: list.id,
-              boardId: list.boardId,
-              revision: list.membershipRevision,
-              position: index + 1,
-            }).then((done) => {
-              if (done) onClose();
-            });
+            if (onPlacement(list.boardId, index + 1)) onClose();
           }}
         >
           <Icon name="right" size={16} />

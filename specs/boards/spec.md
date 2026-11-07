@@ -22,9 +22,9 @@ google has no board entity. creating, renaming, styling, or deleting an empty bo
 
 create a blank board with a nonblank title of at most 128 characters. an optional emoji and appearance do not affect identity. duplicate names are allowed, and actions must distinguish boards by identity and account.
 
-add a board in the navigation, without opening a dialog. open an empty name field without placeholder text or an approval button. enter or leaving a nonblank field creates the board; leaving an empty field closes it without creating anything. escape discards the unsubmitted entry. retain the draft across ordinary navigation rendering and background reads. blur and enter cannot submit twice. closing the entry does not cancel an already submitted operation. a failed save retains the name; an ambiguous retry keeps its original name and receipt identity. after a valid submission, replace the name field with its plain board title while saving in the background. a fresh inventory read after confirmation replaces that preview without a duplicate entry.
+add a board in the navigation, without opening a dialog. open an empty name field without placeholder text or an approval button. enter or leaving a nonblank field creates the board; leaving an empty field closes it without creating anything. escape discards the unsubmitted entry. retain the draft across ordinary navigation rendering and background reads. blur and enter cannot submit twice. closing the entry does not cancel an already submitted operation. a failed save retains the name; an ambiguous retry keeps its original name and receipt identity. after a valid submission, replace the name field with its plain board title while saving in the background. a fresh inventory read after confirmation replaces that preview without a duplicate entry. the create action accepts another board immediately; each submitted title has its own captured operation and recovery state. a failed earlier save cannot replace a newer name draft.
 
-rename or reorder a board without changing its lists or tasks. new boards append after existing boards. persist account-owned ordering on the server so another browser sees the same organization.
+rename or reorder a board without changing its lists or tasks. new boards append after existing boards. persist account-owned ordering on the server so another browser sees the same organization. reorder the displayed navigation immediately and queue the write in the background. because moving one board changes its neighbours' revisions, later queued changes read the current resource revision rather than incrementing a captured number.
 
 allow choosing a start board per account and browser. default to the main board. a removed or inaccessible preference falls back to the main board without losing the rest of the workspace settings.
 
@@ -34,7 +34,7 @@ move a list to another board of the same account. remove it from the source and 
 
 reject cross-account board references. the default list cannot leave the main board. concurrent moves use a board/list revision so one list cannot acquire two memberships or silently overwrite a newer placement.
 
-moving a list does not create, delete, or move its tasks in google. a disappeared destination fails without removing the source placement.
+moving a list does not create, delete, or move its tasks in google. preview placement and column order immediately, close the menu at capture, and queue changes against current membership revisions. failed changes restore confirmed placement and discard dependent unsent changes. a disappeared destination fails without removing the source placement.
 
 ## deleting a board
 
@@ -64,7 +64,7 @@ support board colors, an optional emoji, and an optional background image from b
 
 choose board and list colors from an anchored palette with a preview of the selected color. offer custom hex values in the same picker. board emoji has a searchable picker, a paste field, and a remove action. selecting a color, emoji, or bundled background applies it immediately without a save button. board names and custom image urls commit on enter or blur; escape discards the unsubmitted edit.
 
-preview appearance and name changes immediately, then restore confirmed values on failure. close a submitted name field and keep the write controller mounted when a picker or menu closes. accept consecutive selections without waiting for an inventory read; queue them in order against confirmed revisions. a failed change stops dependent unsent changes for that resource while other resources remain usable. unchanged selections issue no write.
+preview appearance and name changes immediately, then restore confirmed values on failure. close a submitted name field and keep the write controller mounted when a picker or menu closes. accept consecutive selections without waiting for an inventory read; queue them in order against confirmed revisions. a failed change stops dependent unsent changes for that resource while other resources remain usable. unchanged selections issue no write. a confirmed appearance preview awaiting a read does not lock actions on another board.
 
 validate image urls and render them only as images in the browser. do not server-fetch arbitrary urls or treat them as executable styles. selecting a remote image causes the browser to contact that host; do not describe it as privately hosted by the instance.
 

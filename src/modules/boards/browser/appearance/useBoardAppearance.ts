@@ -10,16 +10,24 @@ import {
 import { TaskListSchema } from '../../../tasks/contracts/task';
 import { request } from '../../../../shared/browser/http/http';
 import { captureBoardChange, captureListColor } from './appearance-change';
+import { BoardCommandSchema } from '../../contracts/commands';
 import { ProviderCommandSchema } from '../../../tasks/contracts/provider-commands';
 
 type Change =
   | { kind: 'board'; source: Board; patch: BoardPatch }
   | { kind: 'list-color'; source: BoardList; color: string }
-  | { kind: 'list-title'; source: BoardList; title: string };
+  | { kind: 'list-title'; source: BoardList; title: string }
+  | { kind: 'board-order'; source: Board; position: number }
+  | { kind: 'list-placement'; source: BoardList; boardId: string; position?: number };
 type Attempt = Change & { id: number; confirmed: boolean };
-const key = (change: Change) => `${change.kind === 'board' ? 'board' : 'list'}:${change.source.id}`;
+const isBoard = (change: Change) => change.kind === 'board' || change.kind === 'board-order';
+const isMembership = (change: Change) =>
+  change.kind === 'list-color' || change.kind === 'list-placement';
+const key = (change: Change) => `${isBoard(change) ? 'board' : 'list'}:${change.source.id}`;
 const revision = (change: Change) =>
-  change.kind === 'list-color' ? change.source.membershipRevision : change.source.revision;
+  'membershipRevision' in change.source && isMembership(change)
+    ? change.source.membershipRevision
+    : change.source.revision;
 function patchBoard(value: Board, patch: BoardPatch): Board {
   return {
     ...value,
@@ -64,11 +72,13 @@ export function useBoardAppearance(options: {
     if (!value) return null;
     return current.current.reduce(
       (shown, attempt) =>
-        attempt.kind === 'board' &&
+        (attempt.kind === 'board' || attempt.kind === 'board-order') &&
         value.id === attempt.source.id &&
         value.accountId === attempt.source.accountId &&
         (!attempt.confirmed || value.revision <= attempt.source.revision)
-          ? patchBoard(shown, attempt.patch)
+          ? attempt.kind === 'board'
+            ? patchBoard(shown, attempt.patch)
+            : { ...shown, position: attempt.position }
           : shown,
       value,
     );
@@ -76,17 +86,23 @@ export function useBoardAppearance(options: {
   function list(value: BoardList): BoardList {
     return current.current.reduce(
       (shown, attempt) =>
-        attempt.kind !== 'board' &&
+        (attempt.kind === 'list-color' ||
+          attempt.kind === 'list-title' ||
+          attempt.kind === 'list-placement') &&
         value.id === attempt.source.id &&
         value.accountId === attempt.source.accountId &&
         (!attempt.confirmed ||
-          (attempt.kind === 'list-color' ? value.membershipRevision : value.revision) <=
-            revision(attempt))
+          (isMembership(attempt) ? value.membershipRevision : value.revision) <= revision(attempt))
           ? {
               ...shown,
               ...(attempt.kind === 'list-color'
                 ? { color: attempt.color }
-                : { title: attempt.title }),
+                : attempt.kind === 'list-title'
+                  ? { title: attempt.title }
+                  : {
+                      boardId: attempt.boardId,
+                      ...(attempt.position === undefined ? {} : { position: attempt.position }),
+                    }),
             }
           : shown,
       value,
@@ -95,15 +111,14 @@ export function useBoardAppearance(options: {
   useEffect(() => {
     const items = current.current.filter((attempt) => {
       if (!attempt.confirmed) return true;
-      const source =
-        attempt.kind === 'board'
-          ? options.board?.id === attempt.source.id
-            ? options.board
-            : options.boards.find((item) => item.id === attempt.source.id)
-          : options.lists.find((item) => item.id === attempt.source.id);
+      const source = isBoard(attempt)
+        ? options.board?.id === attempt.source.id
+          ? options.board
+          : options.boards.find((item) => item.id === attempt.source.id)
+        : options.lists.find((item) => item.id === attempt.source.id);
       if (!source) return true;
       const read =
-        attempt.kind === 'list-color' && 'membershipRevision' in source
+        isMembership(attempt) && 'membershipRevision' in source
           ? source.membershipRevision
           : source.revision;
       return read <= revision(attempt);
@@ -117,12 +132,11 @@ export function useBoardAppearance(options: {
     try {
       while (alive.current && queue.current.length) {
         const attempt = queue.current.shift()!;
-        const latest =
-          attempt.kind === 'board'
-            ? environment.current.board?.id === attempt.source.id
-              ? environment.current.board
-              : environment.current.boards.find((item) => item.id === attempt.source.id)
-            : environment.current.lists.find((item) => item.id === attempt.source.id);
+        const latest = isBoard(attempt)
+          ? environment.current.board?.id === attempt.source.id
+            ? environment.current.board
+            : environment.current.boards.find((item) => item.id === attempt.source.id)
+          : environment.current.lists.find((item) => item.id === attempt.source.id);
         let source = attempt.source;
         if (latest) {
           if ('membershipRevision' in source && 'membershipRevision' in latest)
@@ -146,11 +160,15 @@ export function useBoardAppearance(options: {
         let saved = false;
         try {
           // Receipts confirm completion without returning the resource's current revision.
-          if (settled.current.has(key(attempt))) {
+          if (
+            settled.current.has(key(attempt)) ||
+            (isBoard(attempt) && settled.current.has('board-order')) ||
+            (isMembership(attempt) && settled.current.has('list-placement'))
+          ) {
             const controller = new AbortController();
             readFlight.current = controller;
             const base = `/api/accounts/${encodeURIComponent(options.accountId)}`;
-            if (attempt.kind === 'board')
+            if (isBoard(attempt))
               source = await request(
                 `${base}/boards/${encodeURIComponent(source.id)}`,
                 BoardSchema,
@@ -182,18 +200,56 @@ export function useBoardAppearance(options: {
             readFlight.current = null;
           }
           if (!alive.current) break;
+          if (attempt.kind === 'board') {
+            const baseline = attempt.source;
+            const currentBoard = source as Board;
+            if (
+              Object.keys(attempt.patch).some(
+                (field) => currentBoard[field as keyof Board] !== baseline[field as keyof Board],
+              )
+            )
+              throw new Error(
+                'this board changed elsewhere. review it before applying these fields.',
+              );
+          } else if (attempt.kind === 'list-title' && source.title !== attempt.source.title)
+            throw new Error(
+              'this list name changed elsewhere. review it before applying this name.',
+            );
+          else if (
+            attempt.kind === 'list-color' &&
+            'color' in source &&
+            source.color !== attempt.source.color
+          )
+            throw new Error(
+              'this list color changed elsewhere. review it before applying this color.',
+            );
           rebased = { ...attempt, source } as Attempt;
           const command =
             rebased.kind === 'board'
               ? captureBoardChange(rebased.source, rebased.patch)
-              : rebased.kind === 'list-color'
-                ? captureListColor(rebased.source, rebased.color)
-                : ProviderCommandSchema.parse({
-                    kind: 'list.rename',
-                    listId: rebased.source.id,
+              : rebased.kind === 'board-order'
+                ? BoardCommandSchema.parse({
+                    kind: 'board.reorder',
+                    boardId: rebased.source.id,
                     revision: rebased.source.revision,
-                    title: rebased.title,
-                  });
+                    position: rebased.position,
+                  })
+                : rebased.kind === 'list-placement'
+                  ? BoardCommandSchema.parse({
+                      kind: 'list.placement',
+                      listId: rebased.source.id,
+                      revision: rebased.source.membershipRevision,
+                      boardId: rebased.boardId,
+                      ...(rebased.position === undefined ? {} : { position: rebased.position }),
+                    })
+                  : rebased.kind === 'list-color'
+                    ? captureListColor(rebased.source, rebased.color)
+                    : ProviderCommandSchema.parse({
+                        kind: 'list.rename',
+                        listId: rebased.source.id,
+                        revision: rebased.source.revision,
+                        title: rebased.title,
+                      });
           saved =
             !command ||
             (await environment.current.submit(
@@ -209,6 +265,8 @@ export function useBoardAppearance(options: {
         if (!alive.current) break;
         if (saved) {
           settled.current.add(key(rebased));
+          if (rebased.kind === 'board-order' || rebased.kind === 'list-placement')
+            settled.current.add(rebased.kind);
           update(
             current.current.map((item) =>
               item.id === attempt.id ? { ...rebased, confirmed: true } : item,
@@ -233,14 +291,79 @@ export function useBoardAppearance(options: {
     return true;
   }
   return {
-    pending: attempts.length > 0,
+    pending: attempts.some((attempt) => !attempt.confirmed),
+    pendingForBoard(boardId: string) {
+      return current.current.some(
+        (attempt) =>
+          !attempt.confirmed &&
+          (isBoard(attempt)
+            ? attempt.source.id === boardId
+            : 'boardId' in attempt.source &&
+              (attempt.source.boardId === boardId ||
+                (attempt.kind === 'list-placement' && attempt.boardId === boardId))),
+      );
+    },
+    orderedBoards(values: readonly Board[]) {
+      let shown = values.map((item) => board(item)!);
+      for (const attempt of current.current) {
+        if (attempt.kind !== 'board-order') continue;
+        const value = values.find((item) => item.id === attempt.source.id);
+        if (!value || (attempt.confirmed && value.revision > attempt.source.revision)) continue;
+        const index = shown.findIndex((item) => item.id === value.id);
+        const [moved] = shown.splice(index, 1);
+        shown.splice(Math.min(attempt.position, shown.length), 0, moved!);
+      }
+      return shown.map((item, position) => ({ ...item, position }));
+    },
+    orderedLists(values: readonly BoardList[], boardId = options.board?.id) {
+      const known = new Map(values.map((item) => [item.id, item]));
+      for (const attempt of current.current)
+        if (
+          attempt.kind === 'list-placement' &&
+          attempt.boardId === boardId &&
+          !known.has(attempt.source.id)
+        )
+          known.set(attempt.source.id, attempt.source);
+      let shown = [...known.values()]
+        .map(list)
+        .filter((item) => !boardId || item.boardId === boardId);
+      for (const attempt of current.current) {
+        if (attempt.kind !== 'list-placement' || attempt.boardId !== boardId) continue;
+        const value = known.get(attempt.source.id);
+        if (
+          !value ||
+          (attempt.confirmed && value.membershipRevision > attempt.source.membershipRevision)
+        )
+          continue;
+        const index = shown.findIndex((item) => item.id === value.id);
+        if (index < 0) continue;
+        const [moved] = shown.splice(index, 1);
+        shown.splice(Math.min(attempt.position ?? shown.length, shown.length), 0, moved!);
+      }
+      return shown.map((item, position) => ({ ...item, position }));
+    },
+    reorderBoard(source: Board, position: number) {
+      if (!Number.isSafeInteger(position) || position < 0) return false;
+      return capture({ kind: 'board-order', source, position });
+    },
+    placeList(source: BoardList, boardId: string, position?: number) {
+      if (!boardId || (position !== undefined && (!Number.isSafeInteger(position) || position < 0)))
+        return false;
+      if (list(source).boardId === boardId && position === undefined) return true;
+      return capture({
+        kind: 'list-placement',
+        source,
+        boardId,
+        ...(position === undefined ? {} : { position }),
+      });
+    },
     isSaving: () => saving.current || queue.current.length > 0,
     board,
     list,
     async updateBoard(source: Board, input: BoardPatch) {
       try {
         const command = captureBoardChange(board(source)!, input);
-        return !command || capture({ kind: 'board', source, patch: command.input });
+        return !command || capture({ kind: 'board', source: board(source)!, patch: command.input });
       } catch (error) {
         options.onNotice(
           error instanceof z.ZodError
@@ -253,7 +376,9 @@ export function useBoardAppearance(options: {
     async updateListColor(source: BoardList, color: string) {
       try {
         const command = captureListColor(list(source), color);
-        return !command || capture({ kind: 'list-color', source, color: command.color });
+        return (
+          !command || capture({ kind: 'list-color', source: list(source), color: command.color })
+        );
       } catch {
         options.onNotice('choose a hexadecimal color.');
         return false;
@@ -270,7 +395,7 @@ export function useBoardAppearance(options: {
         if (command.kind !== 'list.rename') return false;
         return (
           command.title === list(source).title ||
-          capture({ kind: 'list-title', source, title: command.title })
+          capture({ kind: 'list-title', source: list(source), title: command.title })
         );
       } catch (error) {
         options.onNotice(

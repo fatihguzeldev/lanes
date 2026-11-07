@@ -16,7 +16,7 @@ interface Props {
   writable: boolean;
   pending: boolean;
   onChange(input: BoardPatch): Promise<boolean>;
-  submit(command: unknown, category: 'local'): Promise<boolean>;
+  onReorder(position: number): boolean;
   onClose: () => void;
   onDelete: () => void;
   onHistory: () => void;
@@ -33,21 +33,15 @@ export function BoardOptions({
   writable,
   pending,
   onChange,
-  submit,
+  onReorder,
   onClose,
   onDelete,
   onHistory,
   onCompleted,
 }: Props) {
   const index = boards.findIndex((item) => item.id === board.id);
-  const reorder = async (position: number) => {
-    if (
-      await submit(
-        { kind: 'board.reorder', boardId: board.id, revision: board.revision, position },
-        'local',
-      )
-    )
-      onClose();
+  const reorder = (position: number) => {
+    if (onReorder(position)) onClose();
   };
 
   return (
@@ -113,7 +107,7 @@ export function BoardOptions({
           <button
             type="button"
             className="popover__item"
-            disabled={!writable || pending || index <= 0}
+            disabled={!writable || index <= 0}
             onClick={() => reorder(index - 1)}
           >
             <Icon name="up" size={14} /> move up
@@ -121,7 +115,7 @@ export function BoardOptions({
           <button
             type="button"
             className="popover__item"
-            disabled={!writable || pending || index < 0 || index === boards.length - 1}
+            disabled={!writable || index < 0 || index === boards.length - 1}
             onClick={() => reorder(index + 1)}
           >
             <Icon name="down" size={14} /> move down

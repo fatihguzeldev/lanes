@@ -252,3 +252,62 @@ describe('immediate board appearance', () => {
     });
   });
 });
+
+it('does not block another board while an offscreen list preview awaits its read', async () => {
+  lists = [
+    {
+      id: 'list',
+      accountId: 'account',
+      boardId: board.id,
+      title: 'todo',
+      color: '#f1f0e9',
+      membershipRevision: 1,
+      revision: 1,
+      position: 0,
+    } as BoardList,
+  ];
+  const list = lists[0]!;
+  submit.mockResolvedValue(true);
+  await render().updateListColor(list, '#82966f');
+  await Promise.resolve();
+  const sourceBoard = board.id;
+  board = { ...board, id: 'another-board' };
+  lists = [];
+  expect(render().pendingForBoard(board.id)).toBe(false);
+  expect(render().isSaving()).toBe(false);
+  expect(render().pendingForBoard(sourceBoard)).toBe(false);
+});
+
+it('projects rapid board reorders immediately and reads the actual revision for the next', async () => {
+  const other = { ...board, id: 'another', position: 1 };
+  let finish!: (saved: boolean) => void;
+  submit
+    .mockImplementationOnce(() => new Promise<boolean>((resolve) => (finish = resolve)))
+    .mockResolvedValue(true);
+  const owner = render();
+  expect(owner.reorderBoard(board, 1)).toBe(true);
+  expect(owner.orderedBoards([board, other]).map((item) => item.id)).toEqual(['another', 'board']);
+  expect(render().reorderBoard(board, 0)).toBe(true);
+  finish(true);
+  await Promise.resolve();
+  await Promise.resolve();
+  await Promise.resolve();
+  expect(submit.mock.calls[1]?.[0]).toMatchObject({
+    kind: 'board.reorder',
+    revision: 4,
+    position: 0,
+  });
+});
+it('does not replace an externally changed name when a queued name edit starts', async () => {
+  let finish!: (saved: boolean) => void;
+  submit.mockImplementationOnce(() => new Promise((resolve) => (finish = resolve)));
+  render().updateBoard(board, { color: '#82966f' });
+  render().updateBoard(board, { title: 'books' });
+  harness.read.mockResolvedValue({ ...board, title: 'changed elsewhere', revision: 5 });
+  finish(true);
+  await Promise.resolve();
+  await Promise.resolve();
+  await Promise.resolve();
+  expect(submit).toHaveBeenCalledOnce();
+  expect(notice).toHaveBeenCalledWith(expect.stringContaining('changed elsewhere'));
+});

@@ -40,7 +40,7 @@ function props() {
     loadedListCount: 1,
     writable: true,
     localWritable: true,
-    submit: vi.fn(async () => true),
+    onPlacement: vi.fn(() => true),
     guard: (action: () => void) => action(),
     onColor: vi.fn(async () => true),
     onRename: vi.fn(async () => true),
@@ -77,22 +77,15 @@ describe('list destination submenu', () => {
     );
   });
 
-  it('submits a revision-guarded placement and dismisses only when confirmed', async () => {
+  it('captures placement and dismisses before its background save', () => {
     const options = props();
     const choices = Children.toArray(destination(options).props.children) as UI[];
     choices[1]!.props.onClick();
-    expect(options.submit).toHaveBeenCalledWith({
-      kind: 'list.placement',
-      listId: 'list',
-      boardId: 'work',
-      revision: 7,
-    });
-    await Promise.resolve();
+    expect(options.onPlacement).toHaveBeenCalledWith('work');
     expect(options.onClose).toHaveBeenCalledOnce();
-    options.submit.mockResolvedValue(false);
+    options.onPlacement.mockReturnValue(false);
     options.onClose.mockClear();
     choices[1]!.props.onClick();
-    await Promise.resolve();
     expect(options.onClose).not.toHaveBeenCalled();
   });
 
