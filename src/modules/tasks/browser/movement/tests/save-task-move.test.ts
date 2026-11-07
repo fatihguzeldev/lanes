@@ -314,3 +314,33 @@ describe('durable task move driver', () => {
     },
   );
 });
+
+it('captures fresh parent and sibling revisions for a queued menu placement', async () => {
+  const parent = { ...task, id: 'parent', revision: 13 };
+  const previous = { ...task, id: 'sibling', parentId: parent.id, revision: 17 };
+  const calls = network((call) => {
+    if (call.path === `${base}/tasks/parent`) return parent;
+    if (call.path === `${base}/tasks/sibling`) return previous;
+    if (call.path === `${base}/commands/provider`) return succeeded();
+    return undefined;
+  });
+  await saveTaskMove(
+    {
+      ...intent,
+      parentId: parent.id,
+      previousTaskId: previous.id,
+      position: 'after',
+      sourceParentId: null,
+      allowCompleted: true,
+    },
+    operationId,
+  );
+  expect(calls.find((call) => call.path === `${base}/commands/provider`)!.body).toMatchObject({
+    command: {
+      parentId: parent.id,
+      parentRevision: 13,
+      previousId: previous.id,
+      previousRevision: 17,
+    },
+  });
+});

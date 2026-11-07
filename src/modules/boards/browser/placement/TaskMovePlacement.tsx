@@ -63,29 +63,26 @@ export function TaskMovePlacement({
           mode="after"
         />
       </Submenu>
-      {!parent &&
-        task.capabilities.canNest &&
-        !task.repeatRule &&
-        !controller.source?.preview.subtaskCount && (
-          <Submenu
-            label="under a task"
-            trigger={
-              <>
-                <Icon name="subtasks" size={14} />
-                <span>under a task</span>
-              </>
-            }
+      {!parent && task.capabilities.canNest && !task.repeatRule && (
+        <Submenu
+          label="under a task"
+          trigger={
+            <>
+              <Icon name="subtasks" size={14} />
+              <span>under a task</span>
+            </>
+          }
+          disabled={disabled}
+        >
+          <TaskMoveTasks
+            controller={controller}
+            task={task}
             disabled={disabled}
-          >
-            <TaskMoveTasks
-              controller={controller}
-              task={task}
-              disabled={disabled}
-              list={list}
-              mode="parents"
-            />
-          </Submenu>
-        )}
+            list={list}
+            mode="parents"
+          />
+        </Submenu>
+      )}
     </>
   );
 }

@@ -253,6 +253,9 @@ export interface TaskMoveIntent {
   revision: number;
   sourceListId: string;
   destinationListId: string;
-  parentId: null;
+  parentId: string | null;
   previousTaskId: string | null;
+  position?: 'first' | 'last' | 'after';
+  sourceParentId?: string | null;
+  allowCompleted?: boolean;
 }

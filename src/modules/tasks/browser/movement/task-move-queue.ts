@@ -47,9 +47,9 @@ export function createTaskMoveQueue(
       publish();
       void drain();
     },
-    reconcile(columns: readonly TaskMoveList[], scope: string) {
+    reconcile(columns: readonly TaskMoveList[], _scope: string) {
       const retained = moves.filter(
-        (move) => !move.confirmed || (move.scope === scope && !movesAcknowledged(columns, [move])),
+        (move) => !move.confirmed || !movesAcknowledged(columns, [move]),
       );
       if (retained.length !== moves.length) {
         moves = retained;

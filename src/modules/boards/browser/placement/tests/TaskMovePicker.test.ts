@@ -73,15 +73,10 @@ function workspace(): TaskMoveWorkspace {
     },
   } as TaskMoveWorkspace;
 }
-function controller(complete = true): TaskPlacement {
+function controller(): TaskPlacement {
   return {
     selection: { task, anchor: {} as HTMLElement, boardId: 'main' },
-    source: { task, preview: { coverageComplete: complete, subtaskCount: 0 } },
     enabled: true,
-    sourceLoading: false,
-    busy: false,
-    locked: false,
-    confirmation: null,
     error: '',
   } as unknown as TaskPlacement;
 }
@@ -168,54 +163,6 @@ describe('task move destinations', () => {
     expect(html).not.toContain('foreign task list');
     expect(html).not.toContain('another board list');
     expect(html).toContain('in progress');
-  });
-
-  it('withholds movement choices until source coverage is established', () => {
-    const html = renderToStaticMarkup(
-      createElement(TaskMovePicker, {
-        controller: controller(false),
-        workspace: workspace(),
-        embedded: true,
-      }),
-    );
-    expect(html).toContain('refresh the source list before moving this task.');
-    expect(html).toMatch(/disabled=""[^>]*>.*?in progress/s);
-  });
-
-  it('allows choosing a known destination before reading the move preflight', () => {
-    const movement = controller();
-    movement.source = null;
-    const html = renderToStaticMarkup(
-      createElement(TaskMovePicker, {
-        controller: movement,
-        workspace: workspace(),
-        embedded: true,
-      }),
-    );
-    const destination = [...html.matchAll(/<button\b([^>]*)>(.*?)<\/button>/gs)].find((match) =>
-      match[2]?.includes('<span>in progress</span>'),
-    );
-    expect(destination).toBeDefined();
-    expect(destination![1]).not.toContain('disabled');
-    expect(resources.keys).toEqual([]);
-  });
-
-  it('retains checklist confirmation rather than showing a fresh destination menu', () => {
-    const movement = controller();
-    movement.confirmation = {
-      subtaskCount: 2,
-      listTitle: 'in progress',
-    } as TaskPlacement['confirmation'];
-    const html = renderToStaticMarkup(
-      createElement(TaskMovePicker, {
-        controller: movement,
-        workspace: workspace(),
-        embedded: true,
-      }),
-    );
-    expect(html).toContain('move checklist');
-    expect(html).toContain('its 2 subtasks');
-    expect(resources.keys).toEqual([]);
   });
 
   it('retains ordering controls while withholding unsupported nesting', () => {

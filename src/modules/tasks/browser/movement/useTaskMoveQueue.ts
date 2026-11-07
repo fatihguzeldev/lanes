@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import type { TaskMoveIntent } from '../../contracts/task';
-import type { TaskMoveList } from './task-move-model';
+import type { Task, TaskMoveIntent } from '../../contracts/task';
+import type { TaskMoveChoice, TaskMoveList } from './task-move-model';
 import { createTaskMoveQueue } from './task-move-queue';
 import { latestTasks, projectTaskMoves, type QueuedTaskMove } from './task-move-model';
 import { saveTaskMove } from './save-task-move';
@@ -17,6 +17,7 @@ export function useTaskMoveQueue(
   },
 ) {
   const [moves, setMoves] = useState<readonly QueuedTaskMove[]>([]);
+  const current = useRef(moves);
   const live = useRef(true);
   const latest = useRef(options);
   latest.current = options;
@@ -37,7 +38,10 @@ export function useTaskMoveQueue(
         return saved;
       },
       (next) => {
-        if (live.current) setMoves(next);
+        if (live.current) {
+          current.current = next;
+          setMoves(next);
+        }
       },
       (error) => {
         if (live.current) {
@@ -66,16 +70,13 @@ export function useTaskMoveQueue(
       queue.current!.reconcile(columns, scope);
     },
     enqueue(intent: TaskMoveIntent, columns: readonly TaskMoveList[], scope: string) {
-      if (intent.accountId !== accountId) return;
-      const projected = projectTaskMoves(
-        columns,
-        moves.filter((move) => move.scope === scope),
-      );
+      if (intent.accountId !== accountId) return false;
+      const projected = projectTaskMoves(columns, current.current);
       const entries = latestTasks(projected.flatMap((column) => column.tasks));
       const task = entries.find(
         (task) => task.accountId === accountId && task.id === intent.taskId,
       );
-      if (!task) return;
+      if (!task) return false;
       queue.current!.enqueue({
         id: newOperationId(options.clockOffset),
         intent,
@@ -89,6 +90,71 @@ export function useTaskMoveQueue(
           .filter((column) => column.orderReady || column.coverage.complete)
           .map((column) => column.list.id),
       });
+      return true;
+    },
+    enqueuePlacement(
+      task: Task,
+      choice: TaskMoveChoice,
+      columns: readonly TaskMoveList[] = [],
+      scope = 'account',
+    ) {
+      const parent = choice.parent ?? null;
+      const previous = choice.previous ?? null;
+      if (
+        task.accountId !== accountId ||
+        choice.list.accountId !== accountId ||
+        !task.capabilities.canMove ||
+        task.unsupportedHierarchy
+      )
+        return false;
+      if (
+        parent &&
+        (parent.accountId !== accountId ||
+          parent.listId !== choice.list.id ||
+          parent.id === task.id ||
+          parent.parentId ||
+          !parent.capabilities.canHaveChildren ||
+          parent.unsupportedHierarchy ||
+          !task.capabilities.canNest ||
+          task.repeatRule)
+      )
+        return false;
+      if (
+        choice.position === 'after' &&
+        (!previous ||
+          previous.accountId !== accountId ||
+          previous.listId !== choice.list.id ||
+          previous.parentId !== (parent?.id ?? null) ||
+          previous.id === task.id)
+      )
+        return false;
+      const projected = projectTaskMoves(columns, current.current);
+      const entries = latestTasks(projected.flatMap((column) => column.tasks));
+      queue.current!.enqueue({
+        id: newOperationId(latest.current.clockOffset),
+        intent: {
+          accountId,
+          taskId: task.id,
+          revision: task.revision,
+          sourceListId: task.listId,
+          sourceParentId: task.parentId,
+          destinationListId: choice.list.id,
+          parentId: parent?.id ?? null,
+          previousTaskId: previous?.id ?? null,
+          position: choice.position,
+          allowCompleted: true,
+        },
+        task,
+        scope,
+        confirmed: false,
+        children: entries.filter(
+          (child) => child.accountId === accountId && child.parentId === task.id,
+        ),
+        readyListIds: projected
+          .filter((column) => column.orderReady || column.coverage.complete)
+          .map((column) => column.list.id),
+      });
+      return true;
     },
   };
 }

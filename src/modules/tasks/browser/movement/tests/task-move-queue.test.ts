@@ -189,9 +189,11 @@ describe('optimistic task positions', () => {
     const projected = projectTaskMoves(original, [move('a', null, 'two')]);
     expect(projected[1]!.subtaskSummaries).toBeUndefined();
   });
-  it('keeps a task visible when its destination or anchor is no longer available', () => {
+  it('projects a known move to an offscreen destination and keeps stale anchors unchanged', () => {
     const original = [column('one', [task('a'), task('b')])];
-    expect(projectTaskMoves(original, [move('a', null, 'removed')])).toEqual(original);
+    expect(
+      projectTaskMoves(original, [move('a', null, 'removed')])[0]!.tasks.map((item) => item.id),
+    ).toEqual(['b']);
     expect(projectTaskMoves(original, [move('a', 'removed')])).toEqual(original);
   });
   it('acknowledges a confirmed position from a newer complete provider read rather than its rank', () => {
@@ -269,7 +271,7 @@ describe('background move queue', () => {
       expect(remaining.map((item) => item.listId)).toEqual(outcome === 'moved' ? ['three'] : []);
     },
   );
-  it('retires confirmed work from an older scope while retaining a pending move in this scope', async () => {
+  it('retires confirmed work only when its actual resources have a fresh read', async () => {
     let finish!: () => void;
     let snapshot: readonly QueuedTaskMove[] = [];
     const save = vi.fn(async (queued: QueuedTaskMove) => {
@@ -417,5 +419,57 @@ describe('background move queue', () => {
     await turn();
     expect(snapshot).toEqual([]);
     expect(failed).not.toHaveBeenCalled();
+  });
+});
+
+it('projects a menu move out of the loaded board before the destination is loaded', () => {
+  const pending = move('a', null, 'offscreen');
+  expect(
+    projectTaskMoves([column('one', [task('a'), task('b')])], [pending])[0]!.tasks.map(
+      (item) => item.id,
+    ),
+  ).toEqual(['b']);
+});
+it('projects nesting and sibling placement using the same queue as a drag move', () => {
+  const pending = move('a', 'child', 'two');
+  pending.intent.parentId = 'parent';
+  pending.intent.position = 'after';
+  const projected = projectTaskMoves(
+    [
+      column('one', [task('a')]),
+      column('two', [task('parent', 'two'), task('child', 'two', 'parent')]),
+    ],
+    [pending],
+  );
+  expect(projected[0]!.tasks).toEqual([]);
+  expect(projected[1]!.tasks.find((item) => item.id === 'a')).toMatchObject({
+    listId: 'two',
+    parentId: 'parent',
+  });
+  expect(projected[1]!.orderedTaskIds).toEqual(['parent', 'child', 'a']);
+});
+it('retains a confirmed move when navigating to a different read scope', async () => {
+  let snapshot: readonly QueuedTaskMove[] = [];
+  const queue = createTaskMoveQueue(
+    async () => true,
+    (moves) => (snapshot = moves),
+    vi.fn(),
+  );
+  queue.enqueue(move('a', null));
+  await turn();
+  queue.reconcile([column('two', [])], 'another-board');
+  expect(snapshot).toHaveLength(1);
+});
+
+it('keeps a newer task edit while projecting its pending move across views', async () => {
+  const { projectMovedTasks } = await import('../task-move-model');
+  const pending = move('a', null, 'two');
+  const newer = { ...task('a'), revision: 9, title: 'edited title', starred: false };
+  expect(projectMovedTasks([newer], [pending])[0]).toMatchObject({
+    id: 'a',
+    listId: 'two',
+    revision: 9,
+    title: 'edited title',
+    starred: false,
   });
 });

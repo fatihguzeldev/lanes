@@ -17,6 +17,13 @@ export interface TaskMoveList {
 import type { Task } from '../../contracts/task';
 import { sortTasks } from '../../model/task';
 
+export interface TaskMoveChoice {
+  list: TaskList;
+  parent?: Task | null;
+  previous?: Task | null;
+  position: 'first' | 'last' | 'after';
+}
+
 export interface QueuedTaskMove {
   id: string;
   intent: TaskMoveIntent;
@@ -70,9 +77,26 @@ export function projectTaskMoves<T extends TaskMoveList>(
   for (const move of moves) {
     const { intent } = move;
     const destination = projected.find((column) => column.list.id === intent.destinationListId);
-    if (!destination || destination.list.accountId !== intent.accountId) continue;
-    const order = openTaskOrder(destination).filter((id) => id !== intent.taskId);
-    if (intent.previousTaskId !== null && !order.includes(intent.previousTaskId)) continue;
+    if (destination && destination.list.accountId !== intent.accountId) continue;
+    const parentId = intent.parentId;
+    const siblings = destination
+      ? sortTasks(
+          latestTasks(destination.tasks).filter(
+            (task) => task.accountId === intent.accountId && task.parentId === parentId,
+          ),
+          'manual',
+        ).map((task) => task.id)
+      : [];
+    const order = (parentId === null && destination ? openTaskOrder(destination) : siblings).filter(
+      (id) => id !== intent.taskId,
+    );
+    if (
+      destination &&
+      intent.position !== 'last' &&
+      intent.previousTaskId !== null &&
+      !order.includes(intent.previousTaskId)
+    )
+      continue;
     const entries = latestTasks(projected.flatMap((column) => column.tasks));
     const task =
       entries.find((task) => task.accountId === intent.accountId && task.id === intent.taskId) ??
@@ -96,14 +120,18 @@ export function projectTaskMoves<T extends TaskMoveList>(
         children.set(child.id, child);
     const moving = new Set([task.id, ...children.keys()]);
     order.splice(
-      intent.previousTaskId === null ? 0 : order.indexOf(intent.previousTaskId) + 1,
+      intent.position === 'last'
+        ? order.length
+        : intent.previousTaskId === null
+          ? 0
+          : Math.max(0, order.indexOf(intent.previousTaskId) + 1),
       0,
       task.id,
     );
     projected = projected.map((column) => {
       if (column.list.accountId !== intent.accountId) return column;
       const remaining = latestTasks(column.tasks).filter((task) => !moving.has(task.id));
-      const target = column.list.id === destination.list.id;
+      const target = column.list.id === intent.destinationListId;
       let subtaskSummaries = column.subtaskSummaries;
       if (subtaskSummaries?.[task.id] || (target && summary)) {
         subtaskSummaries = { ...subtaskSummaries };
@@ -116,11 +144,18 @@ export function projectTaskMoves<T extends TaskMoveList>(
         tasks: target
           ? [
               ...remaining,
-              { ...task, listId: destination.list.id, parentId: null },
-              ...[...children.values()].map((child) => ({ ...child, listId: destination.list.id })),
+              { ...task, listId: intent.destinationListId, parentId },
+              ...[...children.values()].map((child) => ({
+                ...child,
+                listId: intent.destinationListId,
+              })),
             ]
           : remaining,
-        orderedTaskIds: target ? order : openTaskOrder(column).filter((id) => !moving.has(id)),
+        orderedTaskIds: target
+          ? parentId === null
+            ? order
+            : [...openTaskOrder(column).filter((id) => !moving.has(id)), ...order]
+          : (column.orderedTaskIds ?? openTaskOrder(column)).filter((id) => !moving.has(id)),
         orderReady:
           column.orderReady ||
           column.coverage.complete ||
@@ -145,4 +180,52 @@ export function movesAcknowledged(
       );
     }),
   );
+}
+
+/** Project account-owned moves before a consumer applies its list or query scope. */
+export function projectMovedTasks(
+  tasks: readonly Task[],
+  moves: readonly QueuedTaskMove[],
+): Task[] {
+  let shown = latestTasks(tasks);
+  for (const move of moves) {
+    const { intent } = move;
+    const task =
+      shown.find((item) => item.accountId === intent.accountId && item.id === intent.taskId) ??
+      move.task;
+    if (task.accountId !== intent.accountId) continue;
+    const children = latestTasks([
+      ...move.children,
+      ...shown.filter((item) => item.accountId === intent.accountId && item.parentId === task.id),
+    ]);
+    const moving = new Set([task.id, ...children.map((item) => item.id)]);
+    const remaining = shown.filter(
+      (item) => item.accountId !== intent.accountId || !moving.has(item.id),
+    );
+    const siblings = remaining.filter(
+      (item) =>
+        item.accountId === intent.accountId &&
+        item.listId === intent.destinationListId &&
+        item.parentId === intent.parentId,
+    );
+    const previous =
+      intent.position === 'last'
+        ? siblings.at(-1)
+        : intent.previousTaskId
+          ? siblings.find((item) => item.id === intent.previousTaskId)
+          : null;
+    const insertion = previous
+      ? remaining.indexOf(previous) + 1
+      : siblings[0]
+        ? remaining.indexOf(siblings[0])
+        : remaining.length;
+    remaining.splice(
+      insertion,
+      0,
+      { ...task, listId: intent.destinationListId, parentId: intent.parentId },
+      ...children.map((child) => ({ ...child, listId: intent.destinationListId })),
+    );
+    shown = remaining;
+  }
+  return shown;
 }

@@ -90,13 +90,45 @@ export async function saveTaskMove(
   if (
     task.accountId !== intent.accountId ||
     task.listId !== intent.sourceListId ||
-    task.parentId !== null ||
-    task.completed ||
+    task.parentId !== (intent.sourceParentId ?? null) ||
+    (task.completed && !intent.allowCompleted) ||
+    task.unsupportedHierarchy ||
     !task.capabilities.canMove ||
     !preview.coverageComplete ||
     preview.revision !== task.revision
   )
     throw new TaskMoveError('this task changed. its last confirmed position has been restored.');
+  const [parent, previous] = await Promise.all([
+    intent.parentId
+      ? send(`${base}/tasks/${encodeURIComponent(intent.parentId)}`, TaskSchema)
+      : null,
+    intent.position === 'after' && intent.previousTaskId
+      ? send(`${base}/tasks/${encodeURIComponent(intent.previousTaskId)}`, TaskSchema)
+      : null,
+  ]);
+  if (
+    parent &&
+    (parent.id === task.id ||
+      parent.accountId !== intent.accountId ||
+      parent.listId !== destination.id ||
+      parent.parentId !== null ||
+      !parent.capabilities.canHaveChildren ||
+      parent.unsupportedHierarchy ||
+      !task.capabilities.canNest ||
+      task.repeatRule !== null ||
+      preview.subtaskCount > 0)
+  )
+    throw new TaskMoveError(
+      'this parent is no longer eligible. the confirmed task position has been restored.',
+    );
+  if (
+    previous &&
+    (previous.id === task.id ||
+      previous.accountId !== intent.accountId ||
+      previous.listId !== destination.id ||
+      previous.parentId !== intent.parentId)
+  )
+    throw new TaskMoveError('this sibling changed. the confirmed task position has been restored.');
   if (
     preview.subtaskCount &&
     task.listId !== destination.id &&
@@ -117,8 +149,10 @@ export async function saveTaskMove(
           revision: task.revision,
           listId: destination.id,
           listRevision: destination.revision,
-          parentId: null,
-          previousId: intent.previousTaskId,
+          parentId: intent.parentId,
+          ...(parent ? { parentRevision: parent.revision } : {}),
+          ...(intent.position === 'last' ? {} : { previousId: intent.previousTaskId }),
+          ...(previous ? { previousRevision: previous.revision } : {}),
           confirmSubtaskCount: preview.subtaskCount,
         },
       },
