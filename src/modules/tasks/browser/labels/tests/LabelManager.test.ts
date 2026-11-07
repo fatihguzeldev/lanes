@@ -78,109 +78,105 @@ beforeEach(() => {
   harness.submit.mockReset();
   close.mockClear();
 });
-it('captures a color-only command and restores the preview after rejection', async () => {
+const flush = async () => {
+  await Promise.resolve();
+  await Promise.resolve();
+  await Promise.resolve();
+};
+it('captures a color-only command, closes the picker immediately, and rolls back after rejection', async () => {
   let finish!: (value: null) => void;
-  harness.submit.mockImplementation(
-    () =>
-      new Promise((resolve) => {
-        finish = resolve;
-      }),
-  );
+  harness.submit.mockImplementation(() => new Promise((resolve) => (finish = resolve)));
   const popover = render().find((node) => node.props.label === 'reading color')!;
-  const picker = popover.props.children(vi.fn());
-  const pending = picker.props.onChange('#bd91a1');
+  const closePicker = vi.fn();
+  const picker = popover.props.children(closePicker);
+  await picker.props.onChange('#bd91a1');
+  expect(closePicker).toHaveBeenCalledOnce();
   expect(harness.submit).toHaveBeenCalledExactlyOnceWith(
     { kind: 'label.update', labelId: 'label', expectedRevision: 3, input: { color: '#bd91a1' } },
     'local',
+    expect.any(String),
   );
   expect(
     render().find((node) => node.props.label === 'reading color')!.props.trigger.props.value,
   ).toBe('#bd91a1');
+  expect(render().find((node) => node.props['aria-label'] === 'edit reading')!.props.disabled).toBe(
+    false,
+  );
   finish(null);
-  await pending;
+  await flush();
   expect(
     render().find((node) => node.props.label === 'reading color')!.props.trigger.props.value,
   ).toBe('#82966f');
 });
-it('finishes a name write before closing and preserves its captured revision', async () => {
+it('hides a captured name edit immediately and keeps its owner while closed', async () => {
   render()
     .find((node) => node.props['aria-label'] === 'edit reading')!
     .props.onClick();
-  const nodes = render();
-  const draft = nodes.find((node) => node.props.onReview)!;
+  const draft = render().find((node) => node.props.onSubmit)!;
   let finish!: (value: { state: string }) => void;
-  harness.submit.mockImplementation(
-    () =>
-      new Promise((resolve) => {
-        finish = resolve;
-      }),
+  harness.submit.mockImplementation(() => new Promise((resolve) => (finish = resolve)));
+  await draft.props.onSubmit('books', '#82966f');
+  const nodes = render();
+  expect(nodes.some((node) => node.props.onSubmit)).toBe(false);
+  expect(nodes.find((node) => node.type === 'strong')?.props.children).toBe('books');
+  expect(nodes.find((node) => node.props.className === 'label-manager__new')!.props.disabled).toBe(
+    false,
   );
-  const pending = draft.props.onSubmit('books', '#82966f', 'same-receipt');
-  const captured = render();
-  expect(captured.some((node) => node.props.onReview)).toBe(false);
-  expect(captured.find((node) => node.type === 'strong')?.props.children).toBe('books');
-  const dialog = nodes.find((node) => node.props.label === 'labels')!;
-  expect(dialog.props.pending).toBeUndefined();
-  dialog.props.onClose();
+  nodes.find((node) => node.props.label === 'labels')!.props.onClose();
+  expect(render().some((node) => node.props.label === 'labels')).toBe(false);
   expect(close).not.toHaveBeenCalled();
-  expect(harness.submit).toHaveBeenCalledExactlyOnceWith(
-    {
-      kind: 'label.update',
-      labelId: 'label',
-      expectedRevision: 3,
-      input: { name: 'books', color: '#82966f' },
-    },
-    'local',
-    expect.any(String),
-  );
   finish({ state: 'succeeded' });
-  await pending;
+  await flush();
   render();
   expect(close).toHaveBeenCalledOnce();
 });
-it('shows a new label immediately after its name is submitted', async () => {
+it('accepts a second new label while the first is still queued', async () => {
   render()
     .find((node) => node.props.className === 'label-manager__new')!
     .props.onClick();
   let finish!: (value: { state: string }) => void;
-  harness.submit.mockImplementation(() => new Promise((resolve) => (finish = resolve)));
-  const pending = render()
-    .find((node) => node.props.onReview)!
+  harness.submit
+    .mockImplementationOnce(() => new Promise((resolve) => (finish = resolve)))
+    .mockResolvedValue({ state: 'succeeded' });
+  await render()
+    .find((node) => node.props.onSubmit)!
     .props.onSubmit('books', '#82966f');
+  render()
+    .find((node) => node.props.className === 'label-manager__new')!
+    .props.onClick();
+  await render()
+    .find((node) => node.props.onSubmit)!
+    .props.onSubmit('projects', '#bd91a1');
   const captured = render();
-  expect(captured.some((node) => node.props.onReview)).toBe(false);
-  expect(captured.some((node) => node.type === 'strong' && node.props.children === 'books')).toBe(
-    true,
-  );
+  expect(
+    captured.filter((node) => node.type === 'strong').map((node) => node.props.children),
+  ).toEqual(['reading', 'books', 'projects']);
+  expect(harness.submit).toHaveBeenCalledOnce();
   finish({ state: 'succeeded' });
-  await pending;
+  await flush();
+  expect(harness.submit).toHaveBeenCalledTimes(2);
 });
-it('keeps a rejected name draft visible instead of completing its queued close', async () => {
+it('keeps failure recovery separate from a newer draft and retries the exact captured command', async () => {
   render()
     .find((node) => node.props['aria-label'] === 'edit reading')!
     .props.onClick();
-  const nodes = render();
   let finish!: (value: null) => void;
-  harness.submit.mockImplementation(
-    () =>
-      new Promise((resolve) => {
-        finish = resolve;
-      }),
-  );
-  const pending = nodes
-    .find((node) => node.props.onReview)!
-    .props.onSubmit('books', '#82966f', 'receipt');
-  nodes.find((node) => node.props.label === 'labels')!.props.onClose();
-  harness.error = 'could not save';
+  harness.submit
+    .mockImplementationOnce(() => new Promise((resolve) => (finish = resolve)))
+    .mockResolvedValue({ state: 'succeeded' });
+  await render()
+    .find((node) => node.props.onSubmit)!
+    .props.onSubmit('books', '#82966f');
+  render()
+    .find((node) => node.props.className === 'label-manager__new')!
+    .props.onClick();
   finish(null);
-  await pending;
-  render();
-  const recovered = render().find((node) => node.props.onReview)!;
-  expect(recovered.props.error).toBe('could not save');
-  expect(recovered.props.draftName).toBe('books');
-  const identity = harness.submit.mock.calls[0]![2];
-  harness.submit.mockResolvedValue({ state: 'succeeded' });
-  await recovered.props.onSubmit('books', '#82966f');
-  expect(harness.submit.mock.calls[1]![2]).toBe(identity);
-  expect(close).not.toHaveBeenCalled();
+  await flush();
+  const nodes = render();
+  expect(nodes.find((node) => node.props.onSubmit)!.props.label).toBeNull();
+  nodes
+    .find((node) => node.type === 'button' && node.props.children === 'retry this save')!
+    .props.onClick();
+  await flush();
+  expect(harness.submit.mock.calls[1]).toEqual(harness.submit.mock.calls[0]);
 });
