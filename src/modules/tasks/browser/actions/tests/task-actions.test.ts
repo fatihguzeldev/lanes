@@ -347,13 +347,15 @@ describe('destructive task and list actions', () => {
         taskPreview: consequences({ assignmentSource: 'docs', subtaskCount: 3 }),
         saveSucceeded,
       });
-      await action.deleteTask(task);
+      const saving = action.deleteTask(task);
+      await vi.waitFor(() => expect(action.confirmation()).toBeTruthy());
       const choice = action.confirmation();
       expect(choice.message).toContain('and 3 subtasks');
       expect(choice.message).toContain('source assignment will also be removed');
       expect(action.onTaskDeleted).not.toHaveBeenCalled();
       expect(action.submit).not.toHaveBeenCalled();
       expect(await choice.onConfirm(identity)).toBe(saveSucceeded);
+      expect(await saving).toBe(saveSucceeded);
       expect(action.submit).toHaveBeenCalledWith(
         {
           kind: 'task.delete',

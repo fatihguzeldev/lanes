@@ -10,9 +10,17 @@ import { Icon } from '../../../../shared/ui/icon/Icon';
 import { request } from '../../../../shared/browser/http/http';
 import { BoardListPageSchema, BoardPageSchema } from '../../contracts/query';
 import { usePagedResource } from '../../../../shared/browser/resources/usePagedResource';
+import type { PagedResource } from '../../../../shared/browser/resources/usePagedResource';
+import type { TaskList } from '../../../tasks/contracts/task';
 import { useServerConnection } from '../../../../shared/browser/connectivity/useServerConnection';
 import { Select } from '../../../../shared/ui/select/Select';
 import './CalendarDestinationMenu.css';
+
+export interface CalendarKnownLists extends Omit<PagedResource<TaskList>, 'items' | 'scope'> {
+  items: readonly TaskList[];
+  reload(): void | Promise<void>;
+  loadMore(): void | Promise<void>;
+}
 
 export function CalendarDestinationMenu({
   anchor,
@@ -22,6 +30,7 @@ export function CalendarDestinationMenu({
   scheduledDay,
   enabled,
   version,
+  knownLists,
   onChoose,
   onClose,
 }: {
@@ -32,6 +41,7 @@ export function CalendarDestinationMenu({
   scheduledDay: string | null;
   enabled: boolean;
   version: number;
+  knownLists?: CalendarKnownLists | undefined;
   onChoose: (intent: CalendarCreateIntent) => void;
   onClose: () => void;
 }) {
@@ -49,8 +59,10 @@ export function CalendarDestinationMenu({
     (item) => item.id,
     version,
   );
-  const lists = usePagedResource(
-    `${accountId}:calendar-destination:${boardId}`,
+  const knownBoardLists =
+    board.accountId === accountId && boardId === board.id ? knownLists : undefined;
+  const fetchedLists = usePagedResource(
+    knownBoardLists ? null : `${accountId}:calendar-destination:${boardId}`,
     (cursor, signal) =>
       request(
         `${base}/boards/${encodeURIComponent(boardId)}/lists?limit=50${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`,
@@ -60,6 +72,7 @@ export function CalendarDestinationMenu({
     (item) => item.id,
     version,
   );
+  const lists = knownBoardLists ?? fetchedLists;
   const choices = [
     ...new Map(
       [board, ...boards.items]
@@ -68,7 +81,7 @@ export function CalendarDestinationMenu({
     ).values(),
   ];
   const destinations = lists.items.filter(
-    (item) => item.accountId === accountId && item.boardId === boardId,
+    (item) => item.accountId === accountId && (!('boardId' in item) || item.boardId === boardId),
   );
   return (
     <AnchoredPopover
@@ -138,7 +151,12 @@ export function CalendarDestinationMenu({
                   type="button"
                   disabled={!enabled || connection !== 'reachable'}
                   onClick={() => {
-                    const intent = calendarCreateIntent(accountId, boardId, list, scheduledDay);
+                    const intent = calendarCreateIntent(
+                      accountId,
+                      boardId,
+                      { ...list, boardId },
+                      scheduledDay,
+                    );
                     if (intent && enabled && connection === 'reachable') onChoose(intent);
                   }}
                 >

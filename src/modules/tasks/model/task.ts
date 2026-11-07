@@ -248,7 +248,10 @@ export function validateDependencyGraph(tasks: readonly Task[]): ModelIssue[] {
   return [...issues, ...cycleIssues(index, (task) => task.blockedBy, 'dependency_cycle')];
 }
 
-function blockingState(task: Task, index: ReadonlyMap<string, Task>): BlockingState {
+function blockingState(
+  task: Pick<Task, 'accountId' | 'blockedBy'>,
+  index: ReadonlyMap<string, Task>,
+): BlockingState {
   const openBlockers: Task[] = [];
   const missingBlockerIds: string[] = [];
   for (const id of new Set(task.blockedBy)) {
@@ -275,8 +278,19 @@ export function getBlockingStates(
   return new Map(tasks.map((task) => [task, blockingState(task, index)]));
 }
 
+type TaskFilterValue = Pick<
+  Task,
+  | 'accountId'
+  | 'listId'
+  | 'completed'
+  | 'priority'
+  | 'starred'
+  | 'labelIds'
+  | 'blockedBy'
+  | 'scheduledDay'
+>;
 function matchesFilter(
-  task: Task,
+  task: TaskFilterValue,
   filter: TaskFilter,
   today: string,
   index: ReadonlyMap<string, Task>,
@@ -311,6 +325,15 @@ function matchesFilter(
   )
     return false;
   return true;
+}
+
+export function matchesTaskFilter(
+  task: TaskFilterValue,
+  filter: TaskFilter,
+  today: string,
+  relatedTasks: readonly Task[] = [],
+) {
+  return matchesFilter(task, filter, today, indexedTasks(relatedTasks));
 }
 
 export function selectTasksWithContext(

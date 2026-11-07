@@ -15,17 +15,18 @@ import type { TaskFilter, TaskList, TaskSort } from '../../../tasks/contracts/ta
 import type { TaskQueryInput } from '../../../tasks/contracts/query';
 import { addCalendarDays } from '../../../tasks/model/planning';
 import { useTaskQuery } from '../../../tasks/browser/queries/useTaskQuery';
-import { CalendarDestinationMenu } from './CalendarDestinationMenu';
-import { useCalendarReschedules } from './useCalendarReschedules';
+import { CalendarDestinationMenu, type CalendarKnownLists } from './CalendarDestinationMenu';
+import { selectTasksWithContext } from '../../../tasks/model/task';
 import {
   creationAcknowledged,
   type PendingTaskCreation,
 } from '../../../tasks/browser/creation/useTaskCreations';
 import {
-  editAcknowledged,
-  projectTaskEdits,
-  type PendingTaskEdit,
-} from '../../../tasks/browser/editor/useTaskEdits';
+  taskChangeAcknowledged,
+  projectTaskCollection,
+  type PendingTaskChange,
+} from '../../../tasks/browser/changes/useTaskChanges';
+import type { QueuedTaskMove } from '../../../tasks/browser/movement/task-move-model';
 import './CalendarWorkspace.css';
 import type { InitialViewReadiness } from '../../../../shared/browser/resources/readiness';
 
@@ -90,6 +91,7 @@ export interface CalendarWorkspaceProps extends Pick<
   account: ConnectionSummary;
   board: Board;
   lists: readonly TaskList[];
+  knownLists?: CalendarKnownLists;
   today: string;
   filter: TaskFilter;
   query: string;
@@ -98,14 +100,16 @@ export interface CalendarWorkspaceProps extends Pick<
   onInitialReady?: (state: InitialViewReadiness) => void;
   creations?: readonly PendingTaskCreation[];
   onCreationRead?: (id: number) => void;
-  edits?: readonly PendingTaskEdit[];
-  onEditRead?: (id: number) => void;
+  edits?: readonly PendingTaskChange[];
+  moves?: readonly QueuedTaskMove[];
+  onEditRead?: (id: string | number) => void;
 }
 const emptySelectionCoverage = { complete: true, lastSyncedAt: null, stale: false };
 export function CalendarWorkspace({
   account,
   board,
   lists,
+  knownLists,
   today,
   filter,
   query,
@@ -114,6 +118,7 @@ export function CalendarWorkspace({
   onCreateTask,
   onInitialReady,
   edits = [],
+  moves = [],
   onEditRead,
   creations = [],
   onCreationRead,
@@ -217,7 +222,7 @@ export function CalendarWorkspace({
       : undefined;
   useEffect(() => {
     for (const edit of edits)
-      if (edit.input.accountId === account.id && editAcknowledged(edit, readVersion))
+      if (edit.input.accountId === account.id && taskChangeAcknowledged(edit, readVersion))
         onEditRead?.(edit.id);
   }, [edits, account.id, readVersion, onEditRead]);
   const scopedCreations = creations.filter(
@@ -229,18 +234,29 @@ export function CalendarWorkspace({
     for (const creation of scopedCreations)
       if (creationAcknowledged(creation, readVersion)) onCreationRead?.(creation.id);
   }, [scopedCreations, readVersion, onCreationRead]);
-  const dates = useCalendarReschedules(
-    account.id,
-    items.map((task) => projectTaskEdits(task, edits, readVersion)),
-    version,
+  const projected = projectTaskCollection(
+    items,
+    edits,
     readVersion,
-    actions.onReschedule,
-  );
-  const matched = new Set([
-    ...dates.taskIds,
-    ...(inputs.dated ? dated.page.matchedTaskIds : []),
-    ...(inputs.unscheduled ? undated.page.matchedTaskIds : []),
-  ]);
+    (task) => task.accountId === account.id,
+    moves,
+  )
+    .filter((task) => scope === 'account' || lists.some((list) => list.id === task.listId))
+    .filter(
+      (task) =>
+        !scopedCreations.some(
+          (creation) =>
+            !creationAcknowledged(creation, readVersion) && creation.resolvedTaskId === task.id,
+        ),
+    );
+  const selection = selectTasksWithContext(projected, {
+    accountId: account.id,
+    today,
+    query,
+    filter,
+    lists,
+  });
+  const matched = new Set(selection.matchedTaskIds);
   const errors = [
     inputs.dated && dated.error ? `dated tasks: ${dated.error}` : '',
     inputs.unscheduled && undated.error ? `unscheduled tasks: ${undated.error}` : '',
@@ -267,11 +283,16 @@ export function CalendarWorkspace({
         accountId={account.id}
         boardId={board.id}
         creations={scopedCreations.filter(
-          (creation) => !creationAcknowledged(creation, readVersion),
+          (creation) => !creation.deleted && !creationAcknowledged(creation, readVersion),
         )}
-        tasks={dates.tasks}
-        relatedTasks={dates.tasks}
-        onReschedule={(intent) => dates.reschedule(intent)}
+        tasks={selection.tasks}
+        relatedTasks={selection.tasks}
+        onReschedule={(intent) =>
+          actions.onReschedule(
+            intent,
+            projected.find((task) => task.id === intent.taskId),
+          )
+        }
         lists={lists}
         today={today}
         accountTimeZone={account.planningZone}
@@ -340,6 +361,7 @@ export function CalendarWorkspace({
       )}
       {createDay?.accountId === account.id && (
         <CalendarDestinationMenu
+          {...(knownLists ? { knownLists } : {})}
           anchor={createDay.anchor}
           accountId={account.id}
           board={board}

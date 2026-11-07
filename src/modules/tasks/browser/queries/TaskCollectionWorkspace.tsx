@@ -10,13 +10,22 @@ import {
   type TaskSort,
 } from '../../contracts/task';
 import { TaskCard } from '../items/TaskCard';
+import type { EditorLocation } from '../editor/editor-contract';
 import { creationAcknowledged, type PendingTaskCreation } from '../creation/useTaskCreations';
 import type { ToggleTaskStar } from '../items/TaskStarButton';
-import { countOpenTasks, getBlockingStates } from '../../model/task';
+import { countOpenTasks, getBlockingStates, sortTasks } from '../../model/task';
+import { collectionCreationMatches, selectCollectionTasks } from './collection-selection';
+import { TaskCreationPreview } from '../creation/TaskCreationPreview';
+import { projectSubtaskSummary } from '../changes/project-subtask-summary';
 import { Icon } from '../../../../shared/ui/icon/Icon';
 import { request } from '../../../../shared/browser/http/http';
 import { useTaskQuery } from './useTaskQuery';
-import { editAcknowledged, projectTaskEdits, type PendingTaskEdit } from '../editor/useTaskEdits';
+import {
+  taskChangeAcknowledged,
+  projectTaskCollection,
+  type PendingTaskChange,
+} from '../changes/useTaskChanges';
+import type { QueuedTaskMove } from '../movement/task-move-model';
 import './TaskCollectionWorkspace.css';
 import type { InitialViewReadiness } from '../../../../shared/browser/resources/readiness';
 
@@ -36,7 +45,7 @@ interface Props {
   filter: TaskFilter;
   sort: TaskSort;
   version: number;
-  onOpenTask: (task: Task) => void;
+  onOpenTask: (task: Task, location?: EditorLocation) => void;
   onToggleComplete: (task: Task, completed: boolean) => Promise<boolean> | void;
   onToggleStar?: ToggleTaskStar | undefined;
   localActionsEnabled?: boolean;
@@ -46,8 +55,9 @@ interface Props {
   onInitialReady?: (state: InitialViewReadiness) => void;
   creations?: readonly PendingTaskCreation[];
   onCreationRead?(id: number): void;
-  edits?: readonly PendingTaskEdit[];
-  onEditRead?(id: number): void;
+  edits?: readonly PendingTaskChange[];
+  moves?: readonly QueuedTaskMove[];
+  onEditRead?(id: string | number): void;
 }
 export function TaskCollectionWorkspace({
   account,
@@ -68,12 +78,19 @@ export function TaskCollectionWorkspace({
   creations = [],
   onCreationRead,
   edits = [],
+  moves = [],
   onEditRead,
 }: Props) {
   const input = useMemo(() => ({ query, filter, sort }), [query, filter, sort]);
   const tasks = useTaskQuery(account.id, input, version);
   const readVersion = tasks.settled && tasks.status === 'ready' ? version : undefined;
-  const displayedItems = tasks.page.items.map((task) => projectTaskEdits(task, edits, readVersion));
+  const projected = projectTaskCollection(
+    tasks.page.items,
+    edits,
+    readVersion,
+    (task) => task.accountId === account.id,
+    moves,
+  );
   const pendingCreations = creations.filter(
     (creation) =>
       creation.input.accountId === account.id && !creationAcknowledged(creation, readVersion),
@@ -86,11 +103,18 @@ export function TaskCollectionWorkspace({
   }, [account.id, creations, readVersion, onCreationRead]);
   useEffect(() => {
     for (const edit of edits) {
-      if (edit.input.accountId === account.id && editAcknowledged(edit, readVersion))
+      if (edit.input.accountId === account.id && taskChangeAcknowledged(edit, readVersion))
         onEditRead?.(edit.id);
     }
   }, [account.id, edits, readVersion, onEditRead]);
-  const ids = [...new Set(displayedItems.map((task) => task.listId))];
+  const ids = [
+    ...new Set([
+      ...projected.map((task) => task.listId),
+      ...pendingCreations
+        .filter((creation) => !creation.deleted)
+        .map((creation) => creation.input.listId),
+    ]),
+  ];
   const key = JSON.stringify([account.id, ...ids.sort()]);
   const [context, setContext] = useState<{
     key: string;
@@ -157,12 +181,50 @@ export function TaskCollectionWorkspace({
     });
     return () => abort.abort();
   }, [key, account.id, version]);
-  const lists = new Map((context.key === key ? context.items : []).map((list) => [list.id, list]));
+  const knownLists = context.items.filter((list) => list.accountId === account.id);
+  const lists = new Map(knownLists.map((list) => [list.id, list]));
   const placements = new Map(
-    (context.key === key ? context.contexts : []).map((item) => [item.listId, item]),
+    context.contexts.filter((item) => lists.has(item.listId)).map((item) => [item.listId, item]),
+  );
+  const selection = selectCollectionTasks(
+    projected.filter(
+      (task) => !pendingCreations.some((creation) => creation.resolvedTaskId === task.id),
+    ),
+    {
+      accountId: account.id,
+      today,
+      query,
+      filter,
+      labels,
+      lists: knownLists,
+    },
+    tasks.page.matchedTaskIds,
+    edits,
+    readVersion,
+    new Set(moves.map((move) => move.intent.taskId)),
+  );
+  const displayedItems = sortTasks(selection.tasks, sort);
+  const matchingCreations = pendingCreations.filter((creation) =>
+    collectionCreationMatches(
+      creation,
+      {
+        accountId: account.id,
+        today,
+        query,
+        filter,
+        labels,
+        lists: knownLists,
+      },
+      projected,
+    ),
+  );
+  const rootCreations = matchingCreations.filter(
+    (creation) =>
+      !creation.input.parentId ||
+      !displayedItems.some((task) => task.id === creation.input.parentId),
   );
   const byId = new Map(displayedItems.map((task) => [task.id, task]));
-  const matched = new Set(tasks.page.matchedTaskIds);
+  const matched = new Set(selection.matchedTaskIds);
   const blocking = getBlockingStates(displayedItems);
   const groups = new Map<string, Task[]>(),
     children = new Map<string, Task[]>();
@@ -182,7 +244,9 @@ export function TaskCollectionWorkspace({
           <button onClick={() => void tasks.reload()}>try again</button>
         </div>
       )}
-      {ids.map((listId) => {
+      {[
+        ...new Set([...rootCreations.map((creation) => creation.input.listId), ...groups.keys()]),
+      ].map((listId) => {
         const list = lists.get(listId),
           placement = placements.get(listId),
           items = groups.get(listId) ?? [];
@@ -203,21 +267,40 @@ export function TaskCollectionWorkspace({
               </div>
               {tasks.page.coverage.complete && tasks.page.nextCursor === null && (
                 <span>
-                  {countOpenTasks(
-                    items.filter((task) => matched.has(task.id)),
-                    account.id,
-                  )}{' '}
+                  {rootCreations.filter(
+                    (creation) => creation.input.listId === listId && !creation.completed,
+                  ).length +
+                    countOpenTasks(
+                      items.filter((task) => matched.has(task.id)),
+                      account.id,
+                    )}{' '}
                   matching open
                 </span>
               )}
             </header>
+            {rootCreations
+              .filter((creation) => creation.input.listId === listId)
+              .map((creation) => (
+                <TaskCreationPreview
+                  key={`create:${creation.id}`}
+                  creation={creation}
+                  parentTitle={projected.find((task) => task.id === creation.input.parentId)?.title}
+                />
+              ))}
             {roots.map((task) => (
               <TaskCard
                 key={task.id}
                 task={task}
                 subtasks={children.get(task.id) ?? []}
-                subtaskSummary={tasks.page.subtaskSummaries[task.id]}
-                pendingSubtasks={pendingCreations}
+                subtaskSummary={projectSubtaskSummary(
+                  task,
+                  tasks.page.subtaskSummaries[task.id],
+                  tasks.page.items,
+                  projected,
+                  edits,
+                  readVersion,
+                )}
+                pendingSubtasks={matchingCreations}
                 blockingState={blocking.get(task)}
                 initiallyExpanded={(children.get(task.id) ?? []).some((child) =>
                   matched.has(child.id),
@@ -232,8 +315,17 @@ export function TaskCollectionWorkspace({
                 onToggleStar={onToggleStar}
                 pending={pendingTaskIds?.has(task.id) ?? false}
                 {...(pendingTaskIds ? { pendingTaskIds } : {})}
-                contextOnly={tasks.page.contextTaskIds.includes(task.id)}
-                onOpen={onOpenTask}
+                contextOnly={selection.contextTaskIds.includes(task.id)}
+                onOpen={(selected) => {
+                  const list = lists.get(selected.listId);
+                  const placement = placements.get(selected.listId);
+                  onOpenTask(
+                    selected,
+                    list
+                      ? { list, ...(placement ? { boardId: placement.boardId } : {}) }
+                      : undefined,
+                  );
+                }}
                 onToggleComplete={onToggleComplete}
                 onMenu={onTaskMenu}
               />
@@ -246,7 +338,7 @@ export function TaskCollectionWorkspace({
           loading tasks…
         </p>
       )}
-      {tasks.loaded && tasks.page.items.length === 0 && (
+      {tasks.loaded && displayedItems.length === 0 && rootCreations.length === 0 && (
         <div className="task-collection__empty">
           <Icon name="leaf" size={24} />
           <h2>

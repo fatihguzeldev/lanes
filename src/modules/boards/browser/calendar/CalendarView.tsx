@@ -59,7 +59,7 @@ export interface CalendarViewProps {
   onOpenTask: (task: Task) => void;
   onTaskMenu: (task: Task, anchor: HTMLButtonElement) => void;
   onCreateTask: (intent: CalendarDaySelection, anchor: HTMLElement) => void;
-  onReschedule: (intent: CalendarRescheduleIntent) => Promise<boolean> | void;
+  onReschedule: (intent: CalendarRescheduleIntent, task?: Task) => Promise<boolean> | void;
   onLoadMore: () => void;
   onRetry: () => void;
   onRangeChange?: ((range: CalendarRangeRequest) => void) | undefined;

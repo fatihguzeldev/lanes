@@ -1,8 +1,9 @@
 import type { Task } from '../../contracts/task';
 
-export type TaskQuickIntent =
+export type TaskQuickIntent = (
   | { task: Task; field: 'starred' | 'completed'; value: boolean }
-  | { task: Pick<Task, 'id' | 'accountId'>; field: 'scheduledDay'; value: string | null };
+  | { task: Pick<Task, 'id' | 'accountId'>; field: 'scheduledDay'; value: string | null }
+) & { changeId?: string };
 
 export function createTaskActionQueue(
   save: (intent: TaskQuickIntent) => Promise<boolean>,

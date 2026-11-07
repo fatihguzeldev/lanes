@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ConnectionSummary } from '../../../accounts/contracts/connection';
 import type { Board, BoardList } from '../../contracts/board';
 import { BoardSurface, type BoardColumn, type BoardSurfaceProps } from './BoardSurface';
+import { selectTasksWithContext, sortTasks } from '../../../tasks/model/task';
 import type { TaskFilter, TaskSort } from '../../../tasks/contracts/task';
 import { useTaskQuery } from '../../../tasks/browser/queries/useTaskQuery';
 import { unknownCoverage } from '../../../../shared/browser/resources/usePagedResource';
@@ -11,10 +12,11 @@ import {
   type PendingTaskCreation,
 } from '../../../tasks/browser/creation/useTaskCreations';
 import {
-  editAcknowledged,
-  projectTaskEdits,
-  type PendingTaskEdit,
-} from '../../../tasks/browser/editor/useTaskEdits';
+  taskChangeAcknowledged,
+  projectTaskCollection,
+  type PendingTaskChange,
+} from '../../../tasks/browser/changes/useTaskChanges';
+import { projectSubtaskSummary } from '../../../tasks/browser/changes/project-subtask-summary';
 import type { TaskMoveQueue } from '../../../tasks/browser/movement/useTaskMoveQueue';
 import { projectTaskMoves } from '../../../tasks/browser/movement/task-move-model';
 import type { InitialViewReadiness } from '../../../../shared/browser/resources/readiness';
@@ -70,7 +72,12 @@ function ColumnData({
       tasks: [...open.page.items, ...completed.page.items],
       coverage: open.page.coverage,
       providerComplete: open.page.providerCoverage.complete,
-      readVersion: open.status === 'ready' && open.settled ? version : undefined,
+      readVersion:
+        open.status === 'ready' &&
+        open.settled &&
+        (!completedInput || (completed.status === 'ready' && completed.settled))
+          ? version
+          : undefined,
       status: open.status,
       countLoading: open.status === 'loading' && !open.loaded,
       nextCursor: open.page.nextCursor,
@@ -101,6 +108,8 @@ function ColumnData({
       open.error,
       completed.page,
       completed.status,
+      completed.settled,
+      completedInput,
       completed.error,
       completed.loaded,
       completedRequested,
@@ -174,8 +183,8 @@ export interface BoardWorkspaceProps extends Omit<
   moveQueue: TaskMoveQueue;
   creations?: readonly PendingTaskCreation[];
   onCreationRead?(id: number): void;
-  edits?: readonly PendingTaskEdit[];
-  onEditRead?(id: number): void;
+  edits?: readonly PendingTaskChange[];
+  onEditRead?(id: string | number): void;
 }
 export function BoardWorkspace({
   account,
@@ -247,26 +256,67 @@ export function BoardWorkspace({
     query,
     sort,
   ]);
-  const queuedColumns = projectTaskMoves(
-    columns,
-    moveQueue.moves.filter((move) => move.scope === moveScope),
+  const activeEdits = edits.filter(
+    (edit) =>
+      !taskChangeAcknowledged(
+        edit,
+        columns.find((column) => column.list.id === edit.task.listId)?.readVersion,
+      ),
   );
-  const displayedColumns = queuedColumns.map((column) => ({
+  const projectedTasks = projectTaskCollection(
+    columns.flatMap((column) => column.tasks),
+    activeEdits,
+    undefined,
+    (task) => task.accountId === account.id,
+    moveQueue.moves,
+  );
+  const queuedColumns = projectTaskMoves(columns, moveQueue.moves).map((column) => ({
     ...column,
-    tasks: column.tasks.map((task) => projectTaskEdits(task, edits, column.readVersion)),
-    creations: creations.filter(
+    tasks: projectedTasks.filter((task) => task.listId === column.list.id),
+  }));
+  const displayedColumns = queuedColumns.map((column) => {
+    const pendingCreations = creations.filter(
       (creation) =>
         creation.input.accountId === account.id &&
         creation.input.listId === column.list.id &&
         !creationAcknowledged(creation, column.readVersion),
-    ),
-  }));
+    );
+    const projected = column.tasks.filter(
+      (task) => !pendingCreations.some((creation) => creation.resolvedTaskId === task.id),
+    );
+    const selected = selectTasksWithContext(projected, {
+      accountId: account.id,
+      today,
+      query,
+      labels: props.labels,
+      lists,
+      filter: { ...filter, completion: filter.completion === 'completed' ? 'completed' : 'all' },
+    });
+    const summaries = { ...column.subtaskSummaries };
+    for (const task of selected.tasks) {
+      const summary = projectSubtaskSummary(
+        task,
+        summaries[task.id],
+        columns.flatMap((source) => source.tasks),
+        column.tasks,
+        activeEdits,
+      );
+      if (summary) summaries[task.id] = summary;
+    }
+    return {
+      ...column,
+      tasks: sort === 'manual' ? selected.tasks : sortTasks(selected.tasks, sort),
+      matchedTaskIds: selected.matchedTaskIds,
+      subtaskSummaries: summaries,
+      creations: pendingCreations.filter((creation) => !creation.deleted),
+    };
+  });
   useEffect(() => {
     for (const edit of edits) {
       const column = columns.find(
         (item) => item.list.accountId === edit.task.accountId && item.list.id === edit.task.listId,
       );
-      if (column && editAcknowledged(edit, column.readVersion)) onEditRead?.(edit.id);
+      if (column && taskChangeAcknowledged(edit, column.readVersion)) onEditRead?.(edit.id);
     }
   }, [columns, edits, onEditRead]);
   useEffect(() => {

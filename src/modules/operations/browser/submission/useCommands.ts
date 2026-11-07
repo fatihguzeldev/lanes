@@ -151,6 +151,7 @@ export function useCommands(accountId: string, clockOffset: number, onChanged: (
     const taskId =
       command &&
       typeof command === 'object' &&
+      (!('kind' in command) || command.kind !== 'task.duplicate') &&
       'taskId' in command &&
       typeof command.taskId === 'string'
         ? command.taskId

@@ -93,83 +93,51 @@ beforeEach(() => {
   toggle.mockReset().mockResolvedValue(true);
 });
 describe('quick task star', () => {
-  it('previews immediately without disabling the next click', async () => {
+  it('shows account-owned optimistic values without waiting for the save or disabling controls', async () => {
     let finish!: (saved: boolean) => void;
     toggle.mockImplementation(
       () =>
-        new Promise<boolean>((resolve) => {
+        new Promise((resolve) => {
           finish = resolve;
         }),
     );
-    const before = render();
-    before.props.onClick();
+    render().props.onClick();
     expect(toggle).toHaveBeenCalledExactlyOnceWith(task, true);
-    expect(render().props['aria-pressed']).toBe(true);
-    expect(render().props.disabled).toBe(false);
+    const projected = { ...task, starred: true };
+    expect(render(projected).props['aria-pressed']).toBe(true);
+    expect(render(projected).props.disabled).toBe(false);
+    render(projected).props.onClick();
+    expect(toggle).toHaveBeenLastCalledWith(projected, false);
     finish(true);
     await settle();
-    expect(render().props.disabled).toBe(false);
-    render({ ...task, revision: 8, starred: true });
-    const confirmed = render({ ...task, revision: 8, starred: true });
-    expect(confirmed.props.disabled).toBe(false);
-    expect(confirmed.props['aria-label']).toBe('unstar prepare the talk');
-    confirmed.props.onClick();
-    expect(toggle).toHaveBeenLastCalledWith({ ...task, revision: 8, starred: true }, false);
   });
 
-  it('retains the newest rapid toggle while earlier saves settle', async () => {
-    const replies: Array<(saved: boolean) => void> = [];
-    toggle.mockImplementation(() => new Promise((resolve) => replies.push(resolve)));
-    render().props.onClick();
-    render().props.onClick();
-    render().props.onClick();
-    expect(toggle.mock.calls.map(([, value]) => value)).toEqual([true, false, true]);
-    replies[0]!(true);
-    replies[1]!(false);
-    await settle();
-    expect(render().props['aria-pressed']).toBe(true);
-    replies[2]!(true);
-    await settle();
-    expect(render().props['aria-pressed']).toBe(true);
-    render({ ...task, revision: 10, starred: true });
-    expect(render({ ...task, revision: 10, starred: true }).props.disabled).toBe(false);
+  it('takes the latest projected intent after a control remounts or an editor changes the field', () => {
+    render({ ...task, starred: true });
+    harness.slots = [];
+    expect(render({ ...task, starred: true }).props['aria-pressed']).toBe(true);
+    expect(render(task).props['aria-pressed']).toBe(false);
   });
 
-  it('keeps a completion checkbox responsive while its clicks await the queue', async () => {
-    const replies: Array<(saved: boolean) => void> = [];
-    const complete = vi.fn(() => new Promise<boolean>((resolve) => replies.push(resolve)));
-    const renderCompletion = () => {
-      harness.cursor = 0;
-      harness.effects = [];
-      const control = useTaskToggle(task, 'completed', false, complete);
-      harness.effects.forEach((effect) => effect());
-      return control;
-    };
-    void renderCompletion().toggle();
-    expect(renderCompletion().value).toBe(true);
-    void renderCompletion().toggle();
-    expect(renderCompletion().value).toBe(false);
-    expect(complete.mock.calls).toHaveLength(2);
-    replies[0]!(true);
-    await settle();
-    expect(renderCompletion().value).toBe(false);
-    replies[1]!(false);
-    await settle();
-    expect(renderCompletion().value).toBe(false);
+  it('keeps completion controlled by the collection projection while saves are pending', () => {
+    const complete = vi.fn(() => new Promise<boolean>(() => {}));
+    harness.cursor = 0;
+    const first = useTaskToggle(task, 'completed', false, complete);
+    first.toggle();
+    expect(complete).toHaveBeenCalledWith(task, true);
+    harness.cursor = 0;
+    const projected = { ...task, completed: true };
+    const next = useTaskToggle(projected, 'completed', false, complete);
+    expect(next.value).toBe(true);
+    next.toggle();
+    expect(complete).toHaveBeenLastCalledWith(projected, false);
   });
-  it.each([false, new Error('offline')])(
-    'restores the confirmed star after a failed write (%s)',
-    async (failure) => {
-      if (failure instanceof Error) toggle.mockRejectedValue(failure);
-      else toggle.mockResolvedValue(failure);
-      render({ ...task, starred: true }).props.onClick();
-      expect(render({ ...task, starred: true }).props['aria-pressed']).toBe(false);
-      await settle();
-      const restored = render({ ...task, starred: true });
-      expect(restored.props['aria-pressed']).toBe(true);
-      expect(restored.props.disabled).toBe(false);
-    },
-  );
+
+  it('accepts a failed write rollback immediately instead of keeping an older button preview', () => {
+    render(task).props.onClick();
+    expect(render({ ...task, starred: true }).props['aria-pressed']).toBe(true);
+    expect(render(task).props['aria-pressed']).toBe(false);
+  });
   it('does not write while local actions are unavailable', () => {
     render(task, true).props.onClick();
     expect(toggle).not.toHaveBeenCalled();

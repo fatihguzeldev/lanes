@@ -1,3 +1,4 @@
+import type { TaskChangeController } from '../changes/useTaskChanges';
 import { request } from '../../../../shared/browser/http/http';
 import type { ConfirmationChoice } from '../../../operations/browser/submission/Confirmation';
 import { TaskSchema, type Task, type TaskList } from '../../contracts/task';
@@ -17,9 +18,9 @@ export interface TaskActionContext {
   onChanged: () => void;
   onRepeat: () => Promise<unknown>;
   onReopen: (selection: { task: Task; preview: ReopenPreview }) => void;
-  onTaskDeleted: () => void;
+  onTaskDeleted: (task: Task) => void;
   onListDeleteReady: () => void;
-  runTaskChange?: (taskId: string, job: () => Promise<boolean>) => Promise<boolean>;
+  changes?: TaskChangeController;
 }
 
 export function createTaskActions({
@@ -172,33 +173,43 @@ export function createTaskActions({
       if (preview.revision !== task.revision || !preview.coverageComplete) {
         onNotice('refresh this task and its complete checklist before deleting it.');
         onChanged();
-        return;
+        return false;
       }
-      confirm({
-        title: `delete ${preview.title || 'this task'}?`,
-        message: `this removes the task${preview.subtaskCount ? ` and ${preview.subtaskCount} subtasks` : ''} from google tasks.${preview.assignmentSource ? ' its source assignment will also be removed.' : ''} this cannot be undone in lanes.`,
-        confirmLabel: 'delete task',
-        onConfirm: async (identity) => {
-          const done = await submit(
-            {
-              kind: 'task.delete',
-              taskId: task.id,
-              revision: preview.revision,
-              confirm: true,
-              confirmSubtaskCount: preview.subtaskCount,
-              ...(preview.assignmentSource ? { confirmAssignment: true } : {}),
-            },
-            'provider',
-            identity,
-          );
-          if (done) {
-            onTaskDeleted();
-          }
-          return done;
-        },
-      });
+      return await new Promise<boolean>((resolve) =>
+        confirm({
+          title: `delete ${preview.title || 'this task'}?`,
+          message: `this removes the task${preview.subtaskCount ? ` and ${preview.subtaskCount} subtasks` : ''} from google tasks.${preview.assignmentSource ? ' its source assignment will also be removed.' : ''} this cannot be undone in lanes.`,
+          confirmLabel: 'delete task',
+          onConfirm: async (identity) => {
+            try {
+              const done = await submit(
+                {
+                  kind: 'task.delete',
+                  taskId: task.id,
+                  revision: preview.revision,
+                  confirm: true,
+                  confirmSubtaskCount: preview.subtaskCount,
+                  ...(preview.assignmentSource ? { confirmAssignment: true } : {}),
+                },
+                'provider',
+                identity,
+              );
+              if (done) {
+                onTaskDeleted(task);
+              }
+              resolve(done);
+              return done;
+            } catch (error) {
+              resolve(false);
+              throw error;
+            }
+          },
+          onCancel: () => resolve(false),
+        }),
+      );
     } catch (error) {
       onNotice(error instanceof Error ? error.message : 'deletion could not be checked.');
+      return false;
     }
   };
   const deleteList = async (list: TaskList) => {

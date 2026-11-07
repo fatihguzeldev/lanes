@@ -57,9 +57,8 @@ export function TaskOptions({
         <button
           disabled={!localWritable}
           onClick={() => {
-            void onToggleStar(task, !task.starred).then((done) => {
-              if (done) onClose();
-            });
+            onClose();
+            void onToggleStar(task, !task.starred);
           }}
         >
           <Icon name="star" size={16} />

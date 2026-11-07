@@ -194,3 +194,22 @@ describe('command submission queue', () => {
     expect(state.writes).toBe(writes);
   });
 });
+
+it('does not lock the source row while duplicating a task', async () => {
+  let finish!: (value: OperationSummary) => void;
+  state.read.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  const saving = render().submit(
+    { kind: 'task.duplicate', taskId: 'source' },
+    'provider',
+    identity,
+  );
+  await Promise.resolve();
+  expect(render().pendingTaskIds.has('source')).toBe(false);
+  finish(receipt({ kind: 'task.duplicate' }));
+  await saving;
+});

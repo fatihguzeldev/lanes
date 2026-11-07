@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Task } from '../../../contracts/task';
 import type { TaskActionContext } from '../task-actions';
+import { useTaskChanges, projectTaskCollection } from '../../changes/useTaskChanges';
 import { useTaskActions } from '../useTaskActions';
 
 const state = vi.hoisted(() => ({
@@ -13,6 +14,7 @@ const state = vi.hoisted(() => ({
 }));
 vi.mock('react', async (original) => ({
   ...(await original<typeof import('react')>()),
+  useCallback: (callback: unknown) => callback,
   useState(initial: unknown) {
     const index = state.cursor++;
     if (!(index in state.slots))
@@ -225,5 +227,102 @@ describe('queued task actions', () => {
     expect(state.submit).not.toHaveBeenCalled();
     expect(await render().toggleStar({ ...task, accountId: 'other' }, true)).toBe(false);
     expect(await render().toggleStar(task, true)).toBe(true);
+  });
+});
+
+function renderOwned() {
+  state.cursor = 0;
+  const changes = useTaskChanges('account', 0);
+  context.changes = changes;
+  const actions = useTaskActions(context, 0);
+  return { actions, changes };
+}
+
+describe('account-owned task presentation', () => {
+  it('projects completion and date membership before any request resolves', async () => {
+    let finish!: (value: Task) => void;
+    state.read.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const owner = renderOwned();
+    const completion = owner.actions.toggleComplete(task, true);
+    expect(projectTaskCollection([task], renderOwned().changes.items)[0]?.completed).toBe(true);
+    await Promise.resolve();
+    finish(task);
+    expect(await completion).toBe(true);
+    const dated = owner.actions.reschedule(
+      {
+        accountId: task.accountId,
+        taskId: task.id,
+        revision: task.revision,
+        scheduledDay: '2026-11-09',
+      },
+      task,
+    );
+    expect(projectTaskCollection([task], renderOwned().changes.items)[0]?.scheduledDay).toBe(
+      '2026-11-09',
+    );
+    expect(await dated).toBe(true);
+  });
+
+  it('registers an action before a later editor write and rolls back dependent intents on failure', async () => {
+    let finish!: () => void;
+    const blocked = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    state.submit.mockImplementationOnce(async () => {
+      await blocked;
+      return { id: 'failed-star', state: 'uncertain' };
+    });
+    const owner = renderOwned();
+    const star = owner.actions.toggleStar(task, true);
+    const editor = vi.fn(async () => true);
+    const edit = owner.changes.run(task.id, editor);
+    const complete = owner.actions.toggleComplete(task, true);
+    await vi.waitFor(() => expect(state.submit).toHaveBeenCalledOnce());
+    finish();
+    expect(await Promise.all([star, edit, complete])).toEqual([false, false, false]);
+    expect(editor).not.toHaveBeenCalled();
+    expect(renderOwned().changes.items).toHaveLength(0);
+    expect(context.onNotice).toHaveBeenCalledWith(
+      expect.stringContaining('check its save'),
+      'failed-star',
+    );
+  });
+
+  it('checks deletion against the revision produced by earlier queued work and scopes late close callbacks', async () => {
+    let finish!: () => void;
+    const blocked = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    const save = state.submit.getMockImplementation()!;
+    state.submit.mockImplementationOnce(async (...args) => {
+      await blocked;
+      return save(...args);
+    });
+    const owner = renderOwned();
+    const star = owner.actions.toggleStar(task, true);
+    vi.mocked(context.submit).mockResolvedValue(true);
+    const deleted = owner.actions.deleteTask(task);
+    await vi.waitFor(() => expect(state.submit).toHaveBeenCalledOnce());
+    expect(context.confirm).not.toHaveBeenCalled();
+    finish();
+    expect(await star).toBe(true);
+    await vi.waitFor(() => expect(context.confirm).toHaveBeenCalledOnce());
+    const choice = vi.mocked(context.confirm).mock.calls[0]![0];
+    const lateClose = vi.fn();
+    context = { ...context, onTaskDeleted: lateClose };
+    renderOwned();
+    await choice.onConfirm('delete-receipt');
+    expect(await deleted).toBe(true);
+    expect(context.submit).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: 'task.delete', revision: 8 }),
+      'provider',
+      'delete-receipt',
+    );
+    expect(lateClose).toHaveBeenCalledWith(expect.objectContaining({ id: task.id }));
   });
 });

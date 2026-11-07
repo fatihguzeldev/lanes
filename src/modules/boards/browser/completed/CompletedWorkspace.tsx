@@ -6,17 +6,19 @@ import {
   sevenDayCompletionSummary,
 } from '../../../history/model/completion/completed';
 import type { Task, TaskFilter, TaskList } from '../../../tasks/contracts/task';
+import { selectTasksWithContext } from '../../../tasks/model/task';
 import { Icon } from '../../../../shared/ui/icon/Icon';
 import { useTaskQuery } from '../../../tasks/browser/queries/useTaskQuery';
 import {
-  editAcknowledged,
-  projectTaskEdits,
-  type PendingTaskEdit,
-} from '../../../tasks/browser/editor/useTaskEdits';
+  taskChangeAcknowledged,
+  projectTaskCollection,
+  type PendingTaskChange,
+} from '../../../tasks/browser/changes/useTaskChanges';
 import { usePlanningToday } from '../../../tasks/browser/planning/usePlanningToday';
 import { Select } from '../../../../shared/ui/select/Select';
 import { CompletedSummary } from './CompletedSummary';
 import { CompletedTaskGroups } from './CompletedTaskGroups';
+import type { QueuedTaskMove } from '../../../tasks/browser/movement/task-move-model';
 import './CompletedWorkspace.css';
 import type { InitialViewReadiness } from '../../../../shared/browser/resources/readiness';
 
@@ -33,8 +35,9 @@ export interface CompletedWorkspaceProps {
   onClearFilters(): void;
   onTaskMenu?: (task: Task, anchor: HTMLButtonElement) => void;
   onInitialReady?: (state: InitialViewReadiness) => void;
-  edits?: readonly PendingTaskEdit[];
-  onEditRead?(id: number): void;
+  edits?: readonly PendingTaskChange[];
+  moves?: readonly QueuedTaskMove[];
+  onEditRead?(id: string | number): void;
 }
 export function CompletedWorkspace({
   account,
@@ -50,6 +53,7 @@ export function CompletedWorkspace({
   onTaskMenu,
   onInitialReady,
   edits = [],
+  moves = [],
   onEditRead,
 }: CompletedWorkspaceProps) {
   const today = usePlanningToday(account.planningZone, clockOffset);
@@ -76,7 +80,7 @@ export function CompletedWorkspace({
   const readVersion = tasks.settled && tasks.status === 'ready' ? version : undefined;
   useEffect(() => {
     for (const edit of edits) {
-      if (edit.input.accountId === account.id && editAcknowledged(edit, readVersion))
+      if (edit.input.accountId === account.id && taskChangeAcknowledged(edit, readVersion))
         onEditRead?.(edit.id);
     }
   }, [account.id, edits, readVersion, onEditRead]);
@@ -95,14 +99,28 @@ export function CompletedWorkspace({
     tasks.status,
     onInitialReady,
   ]);
-  const matched = useMemo(() => new Set(tasks.page.matchedTaskIds), [tasks.page.matchedTaskIds]);
-  const rows = useMemo(
-    () =>
-      tasks.page.items
-        .filter((task) => task.accountId === account.id)
-        .map((task) => projectTaskEdits(task, edits, readVersion)),
-    [tasks.page.items, account.id, edits, readVersion],
+  const selected = selectTasksWithContext(
+    projectTaskCollection(
+      tasks.page.items,
+      edits,
+      readVersion,
+      (task) => task.accountId === account.id,
+      moves,
+    ).filter(
+      (task) =>
+        (scope === 'account' || lists.some((list) => list.id === task.listId)) &&
+        (!listId || task.listId === listId),
+    ),
+    {
+      accountId: account.id,
+      today,
+      query,
+      filter: { ...filter, completion: 'completed' },
+      lists,
+    },
   );
+  const matched = new Set(selected.matchedTaskIds);
+  const rows = selected.tasks;
   const options = {
     accountId: account.id,
     zone: account.planningZone,
