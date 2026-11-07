@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Dialog } from '../../../../shared/ui/dialog/Dialog';
 import { newOperationId } from './operation-identity';
 
@@ -13,50 +13,56 @@ export function Confirmation({
   choice,
   clockOffset,
   onClose,
-  error,
+  onError,
 }: {
   choice: ConfirmationChoice;
   clockOffset: number;
   onClose: () => void;
-  error: string;
+  onError?: (message: string) => void;
 }) {
-  const [pending, setPending] = useState(false),
-    [failed, setFailed] = useState(false),
-    [identity] = useState(() => newOperationId(clockOffset));
+  const captured = useRef(false);
+  const [identity] = useState(() => newOperationId(clockOffset));
+  const [error, setError] = useState('');
   const cancel = () => {
     choice.onCancel?.();
     onClose();
   };
   return (
-    <Dialog title={choice.title} onClose={cancel} pending={pending}>
+    <Dialog title={choice.title} onClose={cancel}>
       <div className="dialog__body">
         <p>{choice.message}</p>
-        {failed && (
+        {error && (
           <p className="error" role="alert">
-            {error || 'the save is not confirmed yet. check its status before trying again.'}
+            {error}
           </p>
         )}
         <footer>
-          <button onClick={cancel} disabled={pending}>
-            cancel
-          </button>
+          <button onClick={cancel}>cancel</button>
           <button
             className="primary"
-            disabled={pending}
             onClick={() => {
-              setPending(true);
-              setFailed(false);
-              void choice
-                .onConfirm(identity)
-                .then((done) => {
-                  if (done) onClose();
-                  else setFailed(true);
-                })
-                .catch(() => setFailed(true))
-                .finally(() => setPending(false));
+              if (captured.current) return;
+              captured.current = true;
+              try {
+                // The account workspace owns the request after this confirmation closes.
+                const submission = choice.onConfirm(identity);
+                onClose();
+                void submission.catch((caught) =>
+                  onError?.(
+                    caught instanceof Error
+                      ? caught.message
+                      : 'this change could not be submitted.',
+                  ),
+                );
+              } catch (caught) {
+                captured.current = false;
+                setError(
+                  caught instanceof Error ? caught.message : 'this change could not be submitted.',
+                );
+              }
             }}
           >
-            {pending ? 'saving…' : choice.confirmLabel}
+            {choice.confirmLabel}
           </button>
         </footer>
       </div>

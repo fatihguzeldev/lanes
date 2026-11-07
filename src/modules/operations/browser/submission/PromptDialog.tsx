@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Dialog } from '../../../../shared/ui/dialog/Dialog';
 import { newOperationId } from './operation-identity';
 
@@ -8,6 +8,7 @@ export type Prompt = {
   initial: string;
   description?: string;
   destructive?: boolean;
+  validate?: (value: string) => string | null;
   submit: (value: string, identity: string) => Promise<boolean>;
 };
 
@@ -15,35 +16,44 @@ export function PromptDialog({
   prompt,
   onClose,
   clockOffset,
+  onError,
 }: {
   prompt: Prompt;
   onClose: () => void;
   clockOffset: number;
+  onError?: (message: string) => void;
 }) {
   const [value, setValue] = useState(prompt.initial),
-    [pending, setPending] = useState(false),
     [error, setError] = useState('');
   const [identity] = useState(() => newOperationId(clockOffset));
+  const captured = useRef(false);
   return (
-    <Dialog title={prompt.title} onClose={onClose} pending={pending}>
+    <Dialog title={prompt.title} onClose={onClose}>
       <form
         className="dialog__body"
         onSubmit={(event) => {
           event.preventDefault();
-          setPending(true);
-          setError('');
-          void prompt
-            .submit(value, identity)
-            .then((done) => {
-              if (done) onClose();
-              else setError('the save is not confirmed yet. check its status before trying again.');
-            })
-            .catch((error) =>
-              setError(
-                error instanceof Error ? error.message : 'this change could not be submitted.',
+          if (captured.current) return;
+          const invalid = prompt.validate?.(value);
+          if (invalid) {
+            setError(invalid);
+            return;
+          }
+          captured.current = true;
+          try {
+            const submission = prompt.submit(value, identity);
+            onClose();
+            void submission.catch((caught) =>
+              onError?.(
+                caught instanceof Error ? caught.message : 'this change could not be submitted.',
               ),
-            )
-            .finally(() => setPending(false));
+            );
+          } catch (caught) {
+            captured.current = false;
+            setError(
+              caught instanceof Error ? caught.message : 'this change could not be submitted.',
+            );
+          }
         }}
       >
         {prompt.description && <p>{prompt.description}</p>}
@@ -63,15 +73,11 @@ export function PromptDialog({
           </p>
         )}
         <footer>
-          <button type="button" onClick={onClose} disabled={pending}>
+          <button type="button" onClick={onClose}>
             cancel
           </button>
-          <button
-            type="submit"
-            className={`primary${prompt.destructive ? ' danger' : ''}`}
-            disabled={pending}
-          >
-            {pending ? 'saving…' : prompt.destructive ? 'delete' : 'save'}
+          <button type="submit" className={`primary${prompt.destructive ? ' danger' : ''}`}>
+            {prompt.destructive ? 'delete' : 'save'}
           </button>
         </footer>
       </form>

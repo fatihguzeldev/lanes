@@ -14,6 +14,7 @@ export function deleteBoardPrompt(board: Board, submit: Submit): Prompt {
     initial: '',
     destructive: true,
     description: 'its lists and tasks will move to your main board. google content is preserved.',
+    validate: (value) => (value === board.title ? null : 'enter the board name exactly.'),
     submit: (value, identity) =>
       value === board.title
         ? submit(
