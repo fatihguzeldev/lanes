@@ -87,9 +87,11 @@ export function projectTaskMoves<T extends TaskMoveList>(
           'manual',
         ).map((task) => task.id)
       : [];
-    const order = (parentId === null && destination ? openTaskOrder(destination) : siblings).filter(
-      (id) => id !== intent.taskId,
-    );
+    const preferred = (destination?.orderedTaskIds ?? []).filter((id) => siblings.includes(id));
+    const siblingOrder = [...preferred, ...siblings.filter((id) => !preferred.includes(id))];
+    const order = (
+      parentId === null && destination ? openTaskOrder(destination) : siblingOrder
+    ).filter((id) => id !== intent.taskId);
     if (
       destination &&
       intent.position !== 'last' &&
@@ -119,6 +121,11 @@ export function projectTaskMoves<T extends TaskMoveList>(
       if (child.accountId === intent.accountId && child.parentId === task.id)
         children.set(child.id, child);
     const moving = new Set([task.id, ...children.keys()]);
+    const childOrder = [
+      ...new Set(
+        projected.flatMap((column) => column.orderedTaskIds ?? []).filter((id) => children.has(id)),
+      ),
+    ];
     order.splice(
       intent.position === 'last'
         ? order.length
@@ -132,6 +139,11 @@ export function projectTaskMoves<T extends TaskMoveList>(
       if (column.list.accountId !== intent.accountId) return column;
       const remaining = latestTasks(column.tasks).filter((task) => !moving.has(task.id));
       const target = column.list.id === intent.destinationListId;
+      const roots =
+        parentId === null ? order : openTaskOrder(column).filter((id) => !moving.has(id));
+      const otherOrder = (column.orderedTaskIds ?? []).filter(
+        (id) => !moving.has(id) && !roots.includes(id) && !order.includes(id),
+      );
       let subtaskSummaries = column.subtaskSummaries;
       if (subtaskSummaries?.[task.id] || (target && summary)) {
         subtaskSummaries = { ...subtaskSummaries };
@@ -152,9 +164,7 @@ export function projectTaskMoves<T extends TaskMoveList>(
             ]
           : remaining,
         orderedTaskIds: target
-          ? parentId === null
-            ? order
-            : [...openTaskOrder(column).filter((id) => !moving.has(id)), ...order]
+          ? [...roots, ...otherOrder, ...(parentId === null ? [] : order), ...childOrder]
           : (column.orderedTaskIds ?? openTaskOrder(column)).filter((id) => !moving.has(id)),
         orderReady:
           column.orderReady ||

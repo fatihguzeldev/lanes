@@ -473,3 +473,54 @@ it('keeps a newer task edit while projecting its pending move across views', asy
     starred: false,
   });
 });
+
+it('preserves consecutive relative child positions while provider order is still stale', () => {
+  const first = move('c', null);
+  first.task = task('c', 'one', 'parent');
+  first.intent = {
+    ...first.intent,
+    sourceParentId: 'parent',
+    parentId: 'parent',
+    position: 'first',
+  };
+  const second = move('b', 'c');
+  second.task = task('b', 'one', 'parent');
+  second.intent = {
+    ...second.intent,
+    sourceParentId: 'parent',
+    parentId: 'parent',
+    position: 'after',
+  };
+  const original = column('one', [
+    task('parent'),
+    task('a', 'one', 'parent'),
+    task('b', 'one', 'parent'),
+    task('c', 'one', 'parent'),
+  ]);
+  original.coverage.complete = false;
+  original.providerComplete = false;
+  const projected = projectTaskMoves([original], [first, second]);
+  expect(projected[0]!.orderedTaskIds).toEqual(['parent', 'c', 'b', 'a']);
+  expect(original.tasks.map((item) => item.id)).toEqual(['parent', 'a', 'b', 'c']);
+});
+
+it('keeps a pending child order when a later root reorder moves its parent', () => {
+  const child = move('c', null);
+  child.task = task('c', 'one', 'parent');
+  child.intent = {
+    ...child.intent,
+    sourceParentId: 'parent',
+    parentId: 'parent',
+    position: 'first',
+  };
+  const parent = move('parent', 'other');
+  const original = column('one', [
+    task('parent'),
+    task('other'),
+    task('a', 'one', 'parent'),
+    task('b', 'one', 'parent'),
+    task('c', 'one', 'parent'),
+  ]);
+  const projected = projectTaskMoves([original], [child, parent]);
+  expect(projected[0]!.orderedTaskIds).toEqual(['other', 'parent', 'c', 'a', 'b']);
+});
