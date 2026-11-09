@@ -320,6 +320,7 @@ export function Workspace({
     },
     [taskEditor, templateDirty, transferDirty],
   );
+  const changeSearchScope = (scope: 'board' | 'account') => guard(() => setSearchScope(scope));
   const preferences = useAccountPreferences({
     account,
     clockOffset,
@@ -568,7 +569,7 @@ export function Workspace({
               }}
               query={query}
               onQuery={setQuery}
-              onScope={(value) => guard(() => setSearchScope(value))}
+              onScope={changeSearchScope}
               viewMenu={{
                 allowLayout: quick === 'all' && !(searchScope === 'account' && search),
                 view: view,
@@ -717,6 +718,7 @@ export function Workspace({
               onInitialReady={onInitialReady}
               actions={{
                 onChanged: changed,
+                onSearchScope: changeSearchScope,
                 onReturnToBoard: () =>
                   guard(() => {
                     leaveCompleted();

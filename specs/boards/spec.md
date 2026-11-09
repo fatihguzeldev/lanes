@@ -84,9 +84,11 @@ after the first reveal, retain the workspace during background refresh. further 
 
 ## search
 
-search defaults to the current board. allow an explicit all-boards search within the selected account; never merge other accounts implicitly. search title, notes, label names, list title, and parent title for subtask context. use case-insensitive text matching, preserve unicode, and do not interpret text as a command or require an undocumented query language.
+search defaults to the current board. allow an explicit all-boards search within the selected account; never merge other accounts implicitly. the toolbar and calendar or completed scope controls share the same selection. account-wide smart views do not offer a board-only scope. search title, notes, label names, list title, and parent title for subtask context. use case-insensitive text matching, preserve unicode, and do not interpret text as a command or require an undocumented query language.
 
 show each match's list and board when it is outside the current board. opening, editing, or completing a result acts on the original task. do not create a search copy.
+
+preserve server text matches for unchanged tasks in every view, including calendar and completed. resolve missing list context for returned results without scanning the whole inventory. a context failure has its own retry; retrying it does not require an unrelated task reload.
 
 query a paginated, server-owned task projection. return coverage and freshness with results. if some lists have never synced or a requested completed range is still loading, show incomplete coverage rather than claiming no matches. ordinary search includes open tasks; include completed work only when requested.
 

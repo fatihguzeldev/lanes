@@ -139,7 +139,7 @@ export function WorkspaceToolbar({
           <kbd>/</kbd>
         </label>
         <div className="workspace__search-actions">
-          {query && (
+          {query && quick === 'all' && (
             <Select
               aria-label="search scope"
               value={searchScope}

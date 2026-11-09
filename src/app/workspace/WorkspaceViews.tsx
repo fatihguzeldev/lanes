@@ -24,6 +24,7 @@ import { Icon } from '../../shared/ui/icon/Icon';
 
 interface ViewActions {
   onChanged(): void;
+  onSearchScope(scope: 'board' | 'account'): void;
   onReturnToBoard(): void;
   onClearCompletedFilters(): void;
   onAddList(): void;
@@ -188,6 +189,8 @@ export function WorkspaceViews({
           lists={visibleLists}
           knownLists={lists}
           labels={labels}
+          scope={searchScope}
+          onScopeChange={actions.onSearchScope}
           today={today}
           filter={activeFilter}
           query={search}
@@ -214,6 +217,8 @@ export function WorkspaceViews({
           board={board}
           lists={visibleLists}
           labels={labels}
+          scope={searchScope}
+          onScopeChange={actions.onSearchScope}
           query={search}
           filter={activeFilter}
           version={version}
