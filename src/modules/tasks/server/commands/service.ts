@@ -23,7 +23,7 @@ import { CopyEntrySchema } from './copy-contract';
 import { CapturedCopyPlanner, type CopySealResult } from './copy-plan';
 import { TaskDuplicatePlanner } from './duplicate-plan';
 import { TaskCommandEffects } from './effects';
-import { conflict, parseSchedule, ref, stableJson } from './input';
+import { conflict, digest, parseSchedule, ref, stableJson } from './input';
 import { verifyProviderPreconditions } from './preconditions';
 import { TaskOperationResolution } from './resolution';
 import { TaskCommandResources } from './resources';
@@ -375,6 +375,7 @@ export class TaskCommandService {
   }
 
   private hierarchySensitive(step: CapturedStep): boolean {
+    if (step.relativeOrder && step.action === 'task.move') return false;
     return (
       step.action === 'task.create' ||
       step.action === 'task.move' ||
@@ -401,6 +402,41 @@ export class TaskCommandService {
       throw conflict(
         'the captured list contents or metadata changed. refresh before reapplying this grouped or positioning command.',
       );
+  }
+
+  private async refreshRelativeOrder(accountId: string, step: CapturedStep): Promise<CapturedStep> {
+    if (!step.relativeOrder || step.action !== 'task.move') return step;
+    const list = await this.resources.list(accountId, step.list.id);
+    if (list.providerId !== step.list.providerId) throw conflict();
+    const refresh = async (captured: TaskRef | null | undefined) => {
+      if (!captured) return captured;
+      const current = await this.resources.task(accountId, captured.id);
+      if (current.revision === captured.revision) return captured;
+      const fresh = { ...ref(current), notesDigest: await digest(current.notes) };
+      const semantic = (value: TaskRef) => ({
+        ...value,
+        revision: undefined,
+        provider: { ...value.provider, etag: undefined, position: undefined, updatedAt: undefined },
+      });
+      if (
+        captured.notesDigest === undefined ||
+        stableJson(semantic(fresh)) !== stableJson(semantic(captured))
+      )
+        throw conflict();
+      return fresh;
+    };
+    const [task, parent, previous] = await Promise.all([
+      refresh(step.task),
+      refresh(step.parent),
+      refresh(step.previous),
+    ]);
+    if (task === step.task && parent === step.parent && previous === step.previous) return step;
+    return {
+      ...step,
+      ...(task ? { task } : {}),
+      ...(parent !== undefined ? { parent } : {}),
+      ...(previous !== undefined ? { previous } : {}),
+    };
   }
 
   private async assertCapturedCurrent(
@@ -591,11 +627,35 @@ export class TaskCommandService {
             503,
             true,
           );
-        if (step.action !== 'list.create')
-          await this.assertCapturedCurrent(accountId, step, operationId);
-        client = await this.options.clientFor(accountId);
         const beforePreflight = step;
-        step = await verifyProviderPreconditions(this.db, this.queries, accountId, client, step);
+        client = await this.options.clientFor(accountId);
+        for (let retry = 0; ; retry++) {
+          try {
+            if (step.action !== 'list.create')
+              step = await this.refreshRelativeOrder(accountId, step);
+            if (step.action !== 'list.create')
+              await this.assertCapturedCurrent(accountId, step, operationId);
+            step = await verifyProviderPreconditions(
+              this.db,
+              this.queries,
+              accountId,
+              client,
+              step,
+            );
+            break;
+          } catch (error) {
+            if (
+              retry ||
+              !step.relativeOrder ||
+              !(error instanceof AppError) ||
+              error.code !== 'conflict'
+            )
+              throw error;
+            const fresh = await this.refreshRelativeOrder(accountId, step);
+            if (fresh === step) throw error;
+            step = fresh;
+          }
+        }
         if (step.action === 'list.create')
           await this.options.validateBoardTarget?.(
             accountId,
@@ -629,6 +689,9 @@ export class TaskCommandService {
               ...(step.action === 'list.create' && this.options.boardTargetGuard
                 ? [this.options.boardTargetGuard(accountId, step.boardId!, step.boardRevision)]
                 : []),
+              ...(step.relativeOrder && step.action === 'task.move'
+                ? [this.resources.listIdentityGuard(accountId, step.list)]
+                : []),
               ...(step.task ? [this.resources.revisionGuard(accountId, step.task)] : []),
               ...(step.ordinaryReopenIdentity
                 ? [this.resources.ordinaryReopenGuard(accountId, step)]
@@ -640,6 +703,18 @@ export class TaskCommandService {
             step === beforePreflight ? undefined : step,
           );
         } catch (error) {
+          if (step.relativeOrder) {
+            const fresh = await this.refreshRelativeOrder(accountId, step);
+            const recorded =
+              fresh === step ? null : await this.options.operations.getStep(operationId, claim.key);
+            if (recorded?.state === 'claimed' && recorded.claimId === claimId)
+              throw new AppError(
+                'provider_unavailable',
+                'the task order changed during its check. the queued move will retry.',
+                503,
+                true,
+              );
+          }
           if (step.action !== 'list.create')
             await this.assertCapturedCurrent(accountId, step, operationId);
           else

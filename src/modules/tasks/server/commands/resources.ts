@@ -2,7 +2,7 @@ import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types'
 import { AppError } from '../../../../shared/contracts/errors';
 import type { Task } from '../../contracts/task';
 import { TaskQueries } from '../queries/tasks';
-import { conflict, ref } from './input';
+import { conflict, digest, ref } from './input';
 import type { CapturedStep, ListRef, TaskRef } from './state';
 function taskReferenceSql(task: string, list: string): string {
   return `json_object('id',${task}.id,'listId',${task}.list_id,'parentId',${task}.parent_id,'title',${task}.title,'completed',json(CASE WHEN ${task}.completed=1 THEN 'true' ELSE 'false' END),'completedAt',${task}.completed_at,'scheduledDay',${task}.scheduled_day,'scheduledTime',${task}.scheduled_time,'timeZone',${task}.time_zone,'repeatRule',json(COALESCE(${task}.repeat_rule_json,'null')),'revision',${task}.revision,'provider',json_object('id',${task}.provider_id,'listId',${list}.provider_id,'etag',${task}.provider_etag,'position',${task}.provider_position,'updatedAt',${task}.provider_updated_at),'capabilities',json(${task}.capabilities_json))`;
@@ -124,8 +124,9 @@ export class TaskCommandResources {
     previousId: string | null | undefined,
     previousRevision: number | undefined,
     movingId?: string,
+    relativeOrder = false,
   ): Promise<{ parent: TaskRef | null; previous: TaskRef | null }> {
-    this.complete(list);
+    if (!relativeOrder || previousId === undefined) this.complete(list);
     let parent: TaskRef | null = null,
       previous: TaskRef | null = null;
     if (parentId) {
@@ -146,7 +147,9 @@ export class TaskCommandResources {
           'choose an eligible top-level parent in the destination list.',
           422,
         );
-      parent = ref(value);
+      parent = relativeOrder
+        ? { ...ref(value), notesDigest: await digest(value.notes) }
+        : ref(value);
     }
     if (previousId !== null) {
       let id = previousId;
@@ -180,7 +183,9 @@ export class TaskCommandResources {
             'choose a visible previous sibling in the destination group.',
             422,
           );
-        previous = ref(value);
+        previous = relativeOrder
+          ? { ...ref(value), notesDigest: await digest(value.notes) }
+          : ref(value);
       }
     }
     return { parent, previous };
@@ -220,6 +225,14 @@ export class TaskCommandResources {
         'INSERT INTO tasks_write_guards(valid) SELECT 0 WHERE NOT EXISTS(SELECT 1 FROM tasks_lists WHERE account_id=? AND id=? AND revision=? AND projection_revision=? AND deleted_at IS NULL)',
       )
       .bind(accountId, list.id, list.revision, list.projectionRevision);
+  }
+
+  listIdentityGuard(accountId: string, list: ListRef): D1PreparedStatement {
+    return this.db
+      .prepare(
+        'INSERT INTO tasks_write_guards(valid) SELECT 0 WHERE NOT EXISTS(SELECT 1 FROM tasks_lists WHERE account_id=? AND id=? AND provider_id=? AND deleted_at IS NULL AND provider_missing_at IS NULL)',
+      )
+      .bind(accountId, list.id, list.providerId);
   }
 
   ordinaryReopenGuard(accountId: string, step: CapturedStep): D1PreparedStatement {

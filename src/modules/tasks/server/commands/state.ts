@@ -23,8 +23,9 @@ export type TaskRef = Pick<
   | 'revision'
   | 'provider'
   | 'capabilities'
-> & { occurrenceId?: Task['occurrenceId']; seriesId?: Task['seriesId'] };
+> & { notesDigest?: string; occurrenceId?: Task['occurrenceId']; seriesId?: Task['seriesId'] };
 export interface CapturedStep {
+  relativeOrder?: true;
   action:
     | 'copy.begin'
     | 'copy.metadata'

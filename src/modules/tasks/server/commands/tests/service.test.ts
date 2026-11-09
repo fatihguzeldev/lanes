@@ -1187,7 +1187,7 @@ async function reorderingFixture() {
   };
 }
 
-it('keeps an already-adjacent move local without contacting Google or changing metadata', async () => {
+it('keeps a full-context implicit append local when the task is already last', async () => {
   const f = await fixture();
   await submit(f, {
     kind: 'task.move',
@@ -1196,7 +1196,6 @@ it('keeps an already-adjacent move local without contacting Google or changing m
     listId: 'list-a',
     listRevision: 1,
     parentId: null,
-    previousId: null,
     confirmSubtaskCount: 0,
   });
   const result = await f.service.advance('account-a', op());
@@ -1250,8 +1249,11 @@ it('rebases a move after Google only resequenced siblings and refreshes their fu
         confirmSubtaskCount: 0,
       },
     }),
-  ).rejects.toMatchObject({ code: 'conflict' });
-  expect(f.sentEtags).toHaveLength(1);
+  ).resolves.toMatchObject({ state: 'accepted' });
+  expect((await f.service.advance('account-a', op('second-order-intent'))).operation.state).toBe(
+    'succeeded',
+  );
+  expect(f.sentEtags).toHaveLength(2);
 });
 
 it('retains the rebased dispatch evidence when a move response is lost', async () => {
@@ -1328,7 +1330,7 @@ it('keeps list etag checks when preparing a rename', async () => {
   expect(calls).toEqual(['GET']);
 });
 
-it('rejects a captured local no-op if the confirmed sibling order changed before settlement', async () => {
+it('rejects a captured implicit-last no-op if the confirmed sibling order changed before settlement', async () => {
   const f = await fixture();
   await submit(f, {
     kind: 'task.move',
@@ -1337,7 +1339,6 @@ it('rejects a captured local no-op if the confirmed sibling order changed before
     listId: 'list-a',
     listRevision: 1,
     parentId: null,
-    previousId: null,
     confirmSubtaskCount: 0,
   });
   await f.db
@@ -1346,4 +1347,146 @@ it('rejects a captured local no-op if the confirmed sibling order changed before
     .run();
   expect((await f.service.advance('account-a', op())).operation.state).toBe('failed');
   expect(f.calls).toHaveLength(0);
+});
+
+describe('relative sibling reorder capture', () => {
+  it.each(['missing coverage', 'active scan'] as const)(
+    'moves after an explicit sibling during %s',
+    async (state) => {
+      const f = await reorderingFixture();
+      await f.db
+        .prepare(
+          state === 'active scan'
+            ? "UPDATE tasks_lists SET sync_cursor='scan-in-progress' WHERE id='list-a'"
+            : "UPDATE tasks_lists SET tasks_complete_at=NULL,completed_complete_at=NULL WHERE id='list-a'",
+        )
+        .run();
+      await f.prepare();
+      expect((await f.service.advance('account-a', op())).operation.state).toBe('succeeded');
+      expect(f.sentEtags).toEqual(['"task-v1"']);
+      expect(await f.queries.getTask('account-a', 'task-a')).toMatchObject({
+        notes: 'keep this note',
+        provider: { position: '400' },
+      });
+    },
+  );
+
+  it('does not infer a no-op from the last known first position while coverage is dirty', async () => {
+    const f = await reorderingFixture();
+    await f.db
+      .prepare(
+        "UPDATE tasks_lists SET tasks_complete_at=NULL,completed_complete_at=NULL WHERE id='list-a'",
+      )
+      .run();
+    await f.service.capture.prepare({
+      operationId: op(),
+      accountId: 'account-a',
+      ownerSubject: 'owner',
+      command: {
+        kind: 'task.move',
+        taskId: 'task-a',
+        revision: 1,
+        listId: 'list-a',
+        listRevision: 1,
+        parentId: null,
+        previousId: null,
+      },
+    });
+    expect((await f.operations.getStep(op(), 'step-0'))?.input).toMatchObject({
+      action: 'task.move',
+      relativeOrder: true,
+    });
+    expect((await f.service.advance('account-a', op())).operation.state).toBe('succeeded');
+    expect(f.sentEtags).toHaveLength(1);
+  });
+
+  it('still requires complete coverage when moving to another list', async () => {
+    const f = await reorderingFixture();
+    await seedDestination(f);
+    await f.db.prepare("UPDATE tasks_lists SET tasks_complete_at=NULL WHERE id='list-a'").run();
+    await expect(
+      f.service.capture.prepare({
+        operationId: op(),
+        accountId: 'account-a',
+        ownerSubject: 'owner',
+        command: {
+          kind: 'task.move',
+          taskId: 'task-a',
+          revision: 1,
+          listId: 'list-b',
+          listRevision: 1,
+          parentId: null,
+          previousId: null,
+        },
+      }),
+    ).rejects.toMatchObject({ code: 'conflict' });
+    expect(f.sentEtags).toHaveLength(0);
+  });
+});
+
+it('captures an explicit first-position intent as a provider move even when cached coverage is complete', async () => {
+  const f = await reorderingFixture();
+  await f.service.capture.prepare({
+    operationId: op(),
+    accountId: 'account-a',
+    ownerSubject: 'owner',
+    command: {
+      kind: 'task.move',
+      taskId: 'task-a',
+      revision: 1,
+      listId: 'list-a',
+      listRevision: 1,
+      parentId: null,
+      previousId: null,
+    },
+  });
+  expect((await f.operations.getStep(op(), 'step-0'))?.input).toMatchObject({
+    action: 'task.move',
+    relativeOrder: true,
+  });
+  expect((await f.service.advance('account-a', op())).operation.state).toBe('succeeded');
+  expect(f.sentEtags).toHaveLength(1);
+});
+
+it('keeps relative reorder evidence bounded for tasks with large unicode notes', async () => {
+  const f = await reorderingFixture();
+  const notes = '😀'.repeat(8192);
+  const rows = ['google-task', 'google-tail'].map((id) => ({
+    ...f.tasks.get(id)!,
+    notes,
+    id,
+    status: 'needsAction' as const,
+  }));
+  rows.forEach((row) => f.tasks.set(row.id, row));
+  await f.db.batch(
+    (
+      await f.projection.prepareConfirmedWrites('account-a', 'list-a', rows, {
+        knownTaskIds: new Map([
+          ['google-task', 'task-a'],
+          ['google-tail', 'task-b'],
+        ]),
+      })
+    ).writes,
+  );
+  const task = await f.queries.getTask('account-a', 'task-a');
+  const previous = await f.queries.getTask('account-a', 'task-b');
+  await f.service.capture.prepare({
+    operationId: op(),
+    accountId: 'account-a',
+    ownerSubject: 'owner',
+    command: {
+      kind: 'task.move',
+      taskId: task.id,
+      revision: task.revision,
+      listId: 'list-a',
+      listRevision: 1,
+      parentId: null,
+      previousId: previous.id,
+      previousRevision: previous.revision,
+    },
+  });
+  const step = await f.operations.getStep(op(), 'step-0');
+  expect(JSON.stringify(step?.input)).not.toContain('😀');
+  expect(new TextEncoder().encode(JSON.stringify(step?.input)).length).toBeLessThan(8192);
+  expect((await f.service.advance('account-a', op())).operation.state).toBe('succeeded');
 });

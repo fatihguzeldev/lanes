@@ -276,7 +276,8 @@ export class TaskCommandCapture {
       command.kind === 'task.reopen' ||
       command.kind === 'task.move'
     ) {
-      const task = ref(await this.resources.task(accountId, command.taskId, command.revision)),
+      const selectedTask = await this.resources.task(accountId, command.taskId, command.revision),
+        task = ref(selectedTask),
         list = await this.resources.list(accountId, task.listId);
       guards.push(this.resources.revisionGuard(accountId, task));
       resourceKey = 'task:' + task.id;
@@ -493,14 +494,23 @@ export class TaskCommandCapture {
               },
         );
       } else {
-        const destination = await this.resources.list(
+        const relativeOrder =
+            command.listId === list.id &&
+            command.parentId === task.parentId &&
+            command.previousId !== undefined,
+          destination = await this.resources.list(
             accountId,
             command.listId,
-            command.listRevision,
+            relativeOrder ? undefined : command.listRevision,
           ),
-          children = await this.resources.childCount(accountId, task.id);
-        this.resources.complete(list);
-        guards.push(this.resources.listGuard(accountId, list));
+          children = relativeOrder ? 0 : await this.resources.childCount(accountId, task.id);
+        if (relativeOrder) task.notesDigest = await digest(selectedTask.notes);
+        else this.resources.complete(list);
+        guards.push(
+          relativeOrder
+            ? this.resources.listIdentityGuard(accountId, list)
+            : this.resources.listGuard(accountId, list),
+        );
         if (children && command.parentId)
           throw new AppError(
             'validation_failed',
@@ -519,6 +529,7 @@ export class TaskCommandCapture {
           command.previousId,
           command.previousRevision,
           task.id,
+          relativeOrder,
         );
         if (!task.capabilities.canMove)
           throw new AppError(
@@ -526,19 +537,29 @@ export class TaskCommandCapture {
             'this task cannot be moved in its current provider state.',
             422,
           );
-        if (position.parent && task.repeatRule)
+        if (!relativeOrder && position.parent && task.repeatRule)
           throw new AppError(
             'validation_failed',
             'clear this lanes repeat rule before nesting the task.',
             422,
           );
-        if (position.parent && !task.capabilities.canNest)
+        if (!relativeOrder && position.parent && !task.capabilities.canNest)
           throw new AppError(
             'validation_failed',
             'google does not allow this task to become a subtask.',
             422,
           );
-        guards.push(this.resources.listGuard(accountId, destination));
+        guards.push(
+          relativeOrder
+            ? this.resources.listIdentityGuard(accountId, destination)
+            : this.resources.listGuard(accountId, destination),
+        );
+        if (relativeOrder)
+          guards.push(
+            ...[position.parent, position.previous].flatMap((value) =>
+              value ? [this.resources.revisionGuard(accountId, value)] : [],
+            ),
+          );
         if (children && destination.id !== list.id)
           extra.push(
             this.db
@@ -548,15 +569,18 @@ export class TaskCommandCapture {
               .bind(input.operationId, accountId, task.id),
           );
         steps.push({
-          action: (await this.resources.alreadyPositioned(
-            accountId,
-            task,
-            destination,
-            position.parent,
-            position.previous,
-          ))
-            ? 'task.local'
-            : 'task.move',
+          action:
+            !relativeOrder &&
+            (await this.resources.alreadyPositioned(
+              accountId,
+              task,
+              destination,
+              position.parent,
+              position.previous,
+            ))
+              ? 'task.local'
+              : 'task.move',
+          ...(relativeOrder ? { relativeOrder: true as const } : {}),
           task,
           list,
           destination,
