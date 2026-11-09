@@ -209,6 +209,18 @@ function workflow(
 afterEach(() => vi.unstubAllGlobals());
 
 describe('task completion workflow', () => {
+  it('uses targeted completion coverage without relaxing deletion coverage', async () => {
+    const action = workflow({
+      taskPreview: consequences({ coverageComplete: false, completionCoverageComplete: true }),
+    });
+    expect(await action.toggleComplete(task, true)).toBe(true);
+    expect(action.submit).toHaveBeenCalledOnce();
+    expect(await action.deleteTask(task)).toBe(false);
+    expect(action.submit).toHaveBeenCalledOnce();
+    expect(action.onNotice).toHaveBeenCalledWith(
+      'refresh this task and its complete checklist before deleting it.',
+    );
+  });
   it.each([
     ['stale', { revision: task.revision + 1 }, true],
     ['incomplete', { coverageComplete: false }, false],

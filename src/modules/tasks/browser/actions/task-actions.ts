@@ -102,7 +102,7 @@ export function createTaskActions({
         onChanged();
         return false;
       }
-      if (!preview.coverageComplete) {
+      if (!(preview.completionCoverageComplete ?? preview.coverageComplete)) {
         onNotice('refresh the complete list before completing this task and its checklist.');
         return false;
       }
