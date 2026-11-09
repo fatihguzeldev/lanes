@@ -37,7 +37,12 @@ export function commandRequestError(error: unknown, operationId: string): Reques
   );
 }
 
-export function useCommands(accountId: string, clockOffset: number, onChanged: () => void) {
+export function useCommands(
+  accountId: string,
+  clockOffset: number,
+  onChanged: () => void,
+  options: { independent?: boolean } = {},
+) {
   const [busy, setBusy] = useState(false),
     [error, setError] = useState('');
   const [latest, setLatest] = useState<OperationSummary | null>(null);
@@ -51,11 +56,12 @@ export function useCommands(accountId: string, clockOffset: number, onChanged: (
   const alive = useRef(true),
     callback = useRef(onChanged);
   callback.current = onChanged;
-  const abort = useRef<AbortController | null>(null);
+  const aborts = useRef(new Set<AbortController>());
+  const pendingTasks = useRef(new Map<string, number>());
   const queue = useRef<Promise<unknown>>(Promise.resolve());
   const waiting = useRef(0);
   const generation = useRef(0);
-  const received = useRef<OperationSummary | null>(null);
+  const received = useRef(new Map<string, OperationSummary>());
   useEffect(() => {
     alive.current = true;
     return () => {
@@ -63,17 +69,20 @@ export function useCommands(accountId: string, clockOffset: number, onChanged: (
       generation.current++;
       waiting.current = 0;
       queue.current = Promise.resolve();
-      abort.current?.abort();
+      aborts.current.forEach((controller) => controller.abort());
+      aborts.current.clear();
+      pendingTasks.current.clear();
+      received.current.clear();
     };
   }, [accountId]);
   function enqueue<T>(run: () => Promise<T>, cancelled: T): Promise<T> {
     const owner = generation.current;
     waiting.current++;
     setBusy(true);
-    const result = queue.current.then(() =>
+    const result = (options.independent ? Promise.resolve() : queue.current).then(() =>
       alive.current && generation.current === owner ? run() : cancelled,
     );
-    queue.current = result.catch(() => undefined);
+    if (!options.independent) queue.current = result.catch(() => undefined);
     return result.finally(() => {
       if (alive.current && generation.current === owner && --waiting.current === 0) setBusy(false);
     });
@@ -81,8 +90,12 @@ export function useCommands(accountId: string, clockOffset: number, onChanged: (
   const base = `/api/accounts/${encodeURIComponent(accountId)}`;
   function publish(operation: OperationSummary, signal: AbortSignal, monitoringStopped = false) {
     if (!alive.current || signal.aborted) return;
-    const refresh = commandNeedsRefresh(received.current, operation, monitoringStopped);
-    received.current = operation;
+    const refresh = commandNeedsRefresh(
+      received.current.get(operation.id) ?? null,
+      operation,
+      monitoringStopped,
+    );
+    received.current.set(operation.id, operation);
     setLatest(operation);
     if (refresh) callback.current();
   }
@@ -125,14 +138,16 @@ export function useCommands(accountId: string, clockOffset: number, onChanged: (
     command: unknown,
     category: 'local' | 'provider',
     identity = newOperationId(clockOffset),
+    onFailure?: (error: RequestError) => void,
   ): Promise<OperationSummary | null> {
     const captured = structuredClone(command);
-    return enqueue(() => submitCaptured(captured, category, identity), null);
+    return enqueue(() => submitCaptured(captured, category, identity, onFailure), null);
   }
   async function submitCaptured(
     command: unknown,
     category: 'local' | 'provider',
     identity?: string,
+    onFailure?: (error: RequestError) => void,
   ): Promise<OperationSummary | null> {
     if (serverConnection() !== 'reachable') {
       const message =
@@ -140,11 +155,13 @@ export function useCommands(accountId: string, clockOffset: number, onChanged: (
           ? 'reload lanes before making another change.'
           : 'the server connection is paused. check the connection before submitting. your draft stays here.';
       setError(message);
-      setErrorDetails(new RequestError('connection_paused', message));
+      const details = new RequestError('connection_paused', message);
+      setErrorDetails(details);
+      onFailure?.(details);
       return null;
     }
     const controller = new AbortController();
-    abort.current = controller;
+    aborts.current.add(controller);
     setError('');
     setErrorDetails(null);
     setLatest(null);
@@ -156,7 +173,8 @@ export function useCommands(accountId: string, clockOffset: number, onChanged: (
       typeof command.taskId === 'string'
         ? command.taskId
         : null;
-    setPendingTaskIds(new Set(taskId ? [taskId] : []));
+    if (taskId) pendingTasks.current.set(taskId, (pendingTasks.current.get(taskId) ?? 0) + 1);
+    setPendingTaskIds(new Set(pendingTasks.current.keys()));
     const operationId = identity ?? newOperationId(clockOffset);
     try {
       const admitted = await request(`${base}/commands/${category}`, OperationSummarySchema, {
@@ -184,9 +202,14 @@ export function useCommands(accountId: string, clockOffset: number, onChanged: (
                 ? 'this change is still saving. check its status before trying again.'
                 : 'saving is paused. check this change before trying again.');
         setError(message);
-        setErrorDetails(
-          new RequestError(result.error?.code ?? result.state, message, undefined, result.id),
+        const details = new RequestError(
+          result.error?.code ?? result.state,
+          message,
+          undefined,
+          result.id,
         );
+        setErrorDetails(details);
+        onFailure?.(details);
       }
       return result;
     } catch (error) {
@@ -215,11 +238,19 @@ export function useCommands(accountId: string, clockOffset: number, onChanged: (
           }
         }
         if (!recovered && alive.current && !controller.signal.aborted) callback.current();
+        if (alive.current && !controller.signal.aborted) onFailure?.(details);
       }
       return null;
     } finally {
+      aborts.current.delete(controller);
+      received.current.delete(operationId);
       if (alive.current && !controller.signal.aborted) {
-        setPendingTaskIds(new Set());
+        if (taskId) {
+          const remaining = (pendingTasks.current.get(taskId) ?? 0) - 1;
+          if (remaining > 0) pendingTasks.current.set(taskId, remaining);
+          else pendingTasks.current.delete(taskId);
+        }
+        setPendingTaskIds(new Set(pendingTasks.current.keys()));
       }
     }
   }
@@ -228,7 +259,7 @@ export function useCommands(accountId: string, clockOffset: number, onChanged: (
   }
   async function advanceCaptured(operationId: string): Promise<void> {
     const controller = new AbortController();
-    abort.current = controller;
+    aborts.current.add(controller);
     setError('');
     setErrorDetails(null);
     try {
@@ -249,6 +280,9 @@ export function useCommands(accountId: string, clockOffset: number, onChanged: (
         setErrorDetails(details);
         callback.current();
       }
+    } finally {
+      aborts.current.delete(controller);
+      received.current.delete(operationId);
     }
   }
   return {

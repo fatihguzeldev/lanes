@@ -3,7 +3,7 @@ import type { CreationIntent } from '../creation/useTaskCreations';
 import type { TaskPresentationPatch } from '../changes/useTaskChanges';
 import type { Task } from '../../contracts/task';
 import { TaskSchema } from '../../contracts/task';
-import { request } from '../../../../shared/browser/http/http';
+import { request, type RequestError } from '../../../../shared/browser/http/http';
 import { useCommands } from '../../../operations/browser/submission/useCommands';
 import { newOperationId } from '../../../operations/browser/submission/operation-identity';
 import { createTaskActions, type TaskActionContext } from './task-actions';
@@ -11,7 +11,9 @@ import { createTaskActionQueue } from './task-action-queue';
 
 export function useTaskActions(context: TaskActionContext, clockOffset: number) {
   const [busy, setBusy] = useState(false);
-  const commands = useCommands(context.accountId, clockOffset, context.onChanged);
+  const commands = useCommands(context.accountId, clockOffset, context.onChanged, {
+    independent: true,
+  });
   const latest = useRef({ context, commands, clockOffset });
   latest.current = { context, commands, clockOffset };
   const abort = useRef(new AbortController());
@@ -48,15 +50,17 @@ export function useTaskActions(context: TaskActionContext, clockOffset: number) 
                     repeatRule: null,
                   },
                 });
-              const result = await commands.submit(command, category, identity);
+              const failure: { details?: RequestError } = {};
+              const result = await commands.submit(command, category, identity, (details) => {
+                failure.details = details;
+              });
               if (signal.aborted) return false;
               if (result?.state === 'succeeded') return true;
-              const failure = commands.getErrorDetails();
               current.onNotice(
                 result?.error?.message ??
-                  failure?.message ??
+                  failure.details?.message ??
                   'couldn’t confirm this change. check its save before trying again.',
-                result?.id ?? failure?.operationId ?? null,
+                result?.id ?? failure.details?.operationId ?? null,
               );
               current.onChanged();
               return false;
@@ -206,7 +210,7 @@ export function useTaskActions(context: TaskActionContext, clockOffset: number) 
   };
   return {
     ...createTaskActions(context),
-    busy,
+    busy: busy || commands.busy,
     applyCreation,
     deleteTask: deleteQueuedTask,
     toggleStar: (task: Task, starred: boolean) => enqueue(task, 'starred', starred),

@@ -34,9 +34,12 @@ vi.mock('react', async (original) => ({
   },
 }));
 vi.mock('../../../../operations/browser/submission/useCommands', () => ({
-  useCommands: () => ({ submit: state.submit, getErrorDetails: () => state.failure }),
+  useCommands: () => ({ submit: state.submit, getErrorDetails: () => state.failure, busy: false }),
 }));
-vi.mock('../../../../../shared/browser/http/http', () => ({ request: state.read }));
+vi.mock('../../../../../shared/browser/http/http', async (original) => ({
+  ...(await original<typeof import('../../../../../shared/browser/http/http')>()),
+  request: state.read,
+}));
 vi.mock('../../../../operations/browser/submission/operation-identity', () => ({
   newOperationId: () => 'quick-receipt',
 }));
@@ -203,7 +206,10 @@ describe('queued task actions', () => {
 
   it('shows a definite admission error without linking an operation that was never admitted', async () => {
     state.failure = { message: 'this task changed. refresh it.' };
-    state.submit.mockResolvedValue(null);
+    state.submit.mockImplementation(async (_command, _category, _identity, onFailure) => {
+      onFailure(state.failure);
+      return null;
+    });
     expect(await render().toggleStar(task, true)).toBe(false);
     expect(context.onNotice).toHaveBeenCalledWith('this task changed. refresh it.', null);
   });

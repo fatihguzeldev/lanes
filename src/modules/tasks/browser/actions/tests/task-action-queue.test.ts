@@ -17,6 +17,25 @@ const deferred = () => {
 };
 
 describe('quick task action queue', () => {
+  it('dispatches another task while earlier provider work is still pending', async () => {
+    const first = deferred();
+    const completed: string[] = [];
+    const queue = createTaskActionQueue(
+      async ({ task: selected }) => {
+        if (selected.id === task.id) await first.promise;
+        completed.push(selected.id);
+        return true;
+      },
+      vi.fn(),
+      vi.fn(),
+    );
+    const completion = queue.enqueue(intent('completed', true));
+    const star = queue.enqueue(intent('starred', true, { ...task, id: 'other' }));
+    await Promise.resolve();
+    expect(completed).toEqual(['other']);
+    first.resolve(true);
+    expect(await Promise.all([completion, star])).toEqual([true, true]);
+  });
   it('retains rapid intents and starts the next action only after the previous result', async () => {
     const first = deferred();
     let revision = 7;

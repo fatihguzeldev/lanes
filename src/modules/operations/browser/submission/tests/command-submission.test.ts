@@ -53,11 +53,11 @@ const receipt = (patch: Partial<OperationSummary> = {}): OperationSummary => ({
   finished: true,
   ...patch,
 });
-function render(offset = 0) {
+function render(offset = 0, independent = false) {
   state.cursor = 0;
   state.writes = 0;
   state.effects = [];
-  return useCommands('account', offset, vi.fn());
+  return useCommands('account', offset, vi.fn(), { independent });
 }
 beforeEach(() => {
   state.slots = [];
@@ -145,6 +145,76 @@ describe('command submission recovery', () => {
 });
 
 describe('command submission queue', () => {
+  it('runs independent task saves concurrently and keeps the remaining save pending', async () => {
+    const complete = new Map<string, (operation: OperationSummary) => void>();
+    state.read.mockImplementation(
+      (_path, _schema, options) =>
+        new Promise((resolve) => {
+          complete.set(options.body.operationId, resolve);
+        }),
+    );
+    const commands = render(0, true);
+    const first = commands.submit({ kind: 'task.complete', taskId: 'one' }, 'provider', 'first');
+    const second = commands.submit({ kind: 'task.patch', taskId: 'two' }, 'local', 'second');
+    await vi.waitFor(() => expect(complete.size).toBe(2));
+    expect(render(0, true).pendingTaskIds).toEqual(new Set(['one', 'two']));
+    complete.get('second')!(receipt({ id: 'second' }));
+    await second;
+    expect(render(0, true).pendingTaskIds).toEqual(new Set(['one']));
+    expect(commands.isBusy()).toBe(true);
+    complete.get('first')!(receipt({ id: 'first' }));
+    await first;
+    expect(render(0, true).busy).toBe(false);
+  });
+  it('keeps independent admission errors associated with their own submission', async () => {
+    const failures = new Map<string, (error: Error) => void>();
+    state.read.mockImplementation(
+      (_path, _schema, options) =>
+        new Promise((_resolve, reject) => {
+          failures.set(options.body.operationId, reject);
+        }),
+    );
+    const commands = render(0, true);
+    const onFirst = vi.fn(),
+      onSecond = vi.fn();
+    const first = commands.submit({ kind: 'task.patch', taskId: 'one' }, 'local', 'first', onFirst);
+    const second = commands.submit(
+      { kind: 'task.patch', taskId: 'two' },
+      'local',
+      'second',
+      onSecond,
+    );
+    await vi.waitFor(() => expect(failures.size).toBe(2));
+    const firstError = new RequestError('conflict', 'one changed');
+    const secondError = new RequestError('conflict', 'two changed');
+    failures.get('second')!(secondError);
+    failures.get('first')!(firstError);
+    await Promise.all([first, second]);
+    expect(onFirst).toHaveBeenCalledWith(firstError);
+    expect(onSecond).toHaveBeenCalledWith(secondError);
+  });
+  it('aborts every independent request when the account owner unmounts', async () => {
+    const signals: AbortSignal[] = [];
+    const finish: Array<(operation: OperationSummary) => void> = [];
+    state.read.mockImplementation(
+      (_path, _schema, options) =>
+        new Promise((resolve) => {
+          signals.push(options.signal);
+          finish.push(resolve);
+        }),
+    );
+    const commands = render(0, true);
+    const cleanup = state.effects[0]!()!;
+    const first = commands.submit({ kind: 'task.patch', taskId: 'one' }, 'local', 'first');
+    const second = commands.submit({ kind: 'task.patch', taskId: 'two' }, 'local', 'second');
+    await vi.waitFor(() => expect(signals).toHaveLength(2));
+    cleanup();
+    expect(signals.every((signal) => signal.aborted)).toBe(true);
+    const writes = state.writes;
+    finish.forEach((resolve) => resolve(receipt()));
+    expect(await Promise.all([first, second])).toEqual([null, null]);
+    expect(state.writes).toBe(writes);
+  });
   it('keeps distinct rapid changes in order instead of dropping a busy submission', async () => {
     let finish!: (operation: OperationSummary) => void;
     state.read
