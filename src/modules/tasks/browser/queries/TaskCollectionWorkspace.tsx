@@ -1,14 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
-import { z } from 'zod';
+import { useEffect, useMemo } from 'react';
 import type { ConnectionSummary } from '../../../accounts/contracts/connection';
-import {
-  TaskListSchema,
-  type Label,
-  type Task,
-  type TaskFilter,
-  type TaskList,
-  type TaskSort,
-} from '../../contracts/task';
+import { type Label, type Task, type TaskFilter, type TaskSort } from '../../contracts/task';
 import { TaskCard } from '../items/TaskCard';
 import type { EditorLocation } from '../editor/editor-contract';
 import { creationAcknowledged, type PendingTaskCreation } from '../creation/useTaskCreations';
@@ -18,8 +10,8 @@ import { collectionCreationMatches, selectCollectionTasks } from './collection-s
 import { TaskCreationPreview } from '../creation/TaskCreationPreview';
 import { projectSubtaskSummary } from '../changes/project-subtask-summary';
 import { Icon } from '../../../../shared/ui/icon/Icon';
-import { request } from '../../../../shared/browser/http/http';
 import { useTaskQuery } from './useTaskQuery';
+import { useTaskListContexts } from './useTaskListContexts';
 import {
   taskChangeAcknowledged,
   projectTaskCollection,
@@ -29,14 +21,6 @@ import type { QueuedTaskMove } from '../movement/task-move-model';
 import './TaskCollectionWorkspace.css';
 import type { InitialViewReadiness } from '../../../../shared/browser/resources/readiness';
 
-const contextsSchema = z
-  .object({
-    items: z.array(TaskListSchema).max(100),
-    contexts: z
-      .array(z.object({ listId: z.string(), boardId: z.string(), boardTitle: z.string() }).strict())
-      .max(100),
-  })
-  .strict();
 interface Props {
   account: ConnectionSummary;
   today: string;
@@ -115,72 +99,24 @@ export function TaskCollectionWorkspace({
         .map((creation) => creation.input.listId),
     ]),
   ];
-  const key = JSON.stringify([account.id, ...ids.sort()]);
-  const [context, setContext] = useState<{
-    key: string;
-    items: TaskList[];
-    contexts: { listId: string; boardId: string; boardTitle: string }[];
-  }>({ key: '', items: [], contexts: [] });
-  const [contextError, setContextError] = useState('');
-  const [contextSettledVersion, setContextSettledVersion] = useState<number | null>(null);
-  const [contextSettledKey, setContextSettledKey] = useState<string | null>(null);
+  const context = useTaskListContexts(account.id, ids, version);
+  const contextError = context.error;
   useEffect(() => {
     onInitialReady?.({
       version,
-      settled:
-        tasks.settled &&
-        (!ids.length || (contextSettledKey === key && contextSettledVersion === version)),
+      settled: tasks.settled && context.settled,
       baselineComplete: tasks.page.providerCoverage.complete,
       failed: tasks.status === 'error' || Boolean(contextError),
     });
   }, [
     version,
     tasks.settled,
-    ids.length,
-    contextSettledVersion,
-    contextSettledKey,
-    key,
+    context.settled,
     contextError,
     tasks.page.providerCoverage.complete,
     tasks.status,
     onInitialReady,
   ]);
-  useEffect(() => {
-    const [, ...listIds] = JSON.parse(key) as string[];
-    if (!listIds.length) return;
-    const abort = new AbortController();
-    setContextError('');
-    setContextSettledVersion(null);
-    void (async () => {
-      const items: TaskList[] = [],
-        contexts: { listId: string; boardId: string; boardTitle: string }[] = [];
-      for (let offset = 0; offset < listIds.length; offset += 100) {
-        const page = await request(
-          `/api/accounts/${encodeURIComponent(account.id)}/lists/resolve`,
-          contextsSchema,
-          {
-            method: 'POST',
-            body: { ids: listIds.slice(offset, offset + 100) },
-            signal: abort.signal,
-          },
-        );
-        items.push(...page.items);
-        contexts.push(...page.contexts);
-      }
-      if (!abort.signal.aborted) {
-        setContext({ key, items, contexts });
-        setContextSettledVersion(version);
-        setContextSettledKey(key);
-      }
-    })().catch((error) => {
-      if (!abort.signal.aborted) {
-        setContextError(error instanceof Error ? error.message : 'list context could not load.');
-        setContextSettledVersion(version);
-        setContextSettledKey(key);
-      }
-    });
-    return () => abort.abort();
-  }, [key, account.id, version]);
   const knownLists = context.items.filter((list) => list.accountId === account.id);
   const lists = new Map(knownLists.map((list) => [list.id, list]));
   const placements = new Map(
@@ -241,7 +177,14 @@ export function TaskCollectionWorkspace({
       {(tasks.error || contextError) && (
         <div className="task-collection__error" role="alert">
           <p>{tasks.error || contextError}</p>
-          <button onClick={() => void tasks.reload()}>try again</button>
+          <button
+            onClick={() => {
+              if (tasks.error) void tasks.reload();
+              if (contextError) context.retry();
+            }}
+          >
+            try again
+          </button>
         </div>
       )}
       {[

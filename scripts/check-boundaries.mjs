@@ -98,6 +98,8 @@ const publicBrowserFiles = {
     'browser/planning/usePlanningToday.ts',
     'browser/queries/references.ts',
     'browser/queries/useTaskQuery.ts',
+    'browser/queries/useTaskListContexts.ts',
+    'browser/queries/collection-selection.ts',
   ],
 };
 const isServerFile = (file) => relative(file).startsWith('src/worker/') || role(file) === 'server';
