@@ -1,6 +1,6 @@
 import type { ReactElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { CreateTaskSchema } from '../../../../tasks/contracts/task';
+import { CreateTaskSchema, type Task } from '../../../../tasks/contracts/task';
 import type { PendingTaskCreation } from '../../../../tasks/browser/creation/useTaskCreations';
 import { CalendarWorkspace, type CalendarWorkspaceProps } from '../CalendarWorkspace';
 import type { CalendarViewProps } from '../CalendarView';
@@ -9,6 +9,8 @@ const state = vi.hoisted(() => ({
   effects: [] as Array<() => void>,
   status: 'ready',
   settled: true,
+  items: [] as Task[],
+  matched: [] as string[],
 }));
 vi.mock('react', async (original) => ({
   ...(await original<typeof import('react')>()),
@@ -21,8 +23,8 @@ vi.mock('react', async (original) => ({
 vi.mock('../../../../tasks/browser/queries/useTaskQuery', () => ({
   useTaskQuery: () => ({
     page: {
-      items: [],
-      matchedTaskIds: [],
+      items: state.items,
+      matchedTaskIds: state.matched,
       nextCursor: null,
       coverage: { complete: true, stale: false, lastSyncedAt: null },
       providerCoverage: { complete: true },
@@ -43,7 +45,11 @@ const creation = (patch: Partial<PendingTaskCreation> = {}): PendingTaskCreation
   }),
   ...patch,
 });
-function render(creations = [creation()], version = 6) {
+function render(
+  creations = [creation()],
+  version = 6,
+  patch: Partial<CalendarWorkspaceProps> = {},
+) {
   const acknowledged = vi.fn();
   const props = {
     account: { id: 'account', state: 'connected', weekStart: 1 },
@@ -57,19 +63,60 @@ function render(creations = [creation()], version = 6) {
     creations,
     onCreationRead: acknowledged,
     onReschedule: vi.fn(),
+    ...patch,
   } as unknown as CalendarWorkspaceProps;
   const element = CalendarWorkspace(props) as ReactElement<{
     children: ReactElement<CalendarViewProps>[];
   }>;
   state.effects.forEach((effect) => effect());
-  return { props: element.props.children[0]!.props, acknowledged };
+  const view = element.props.children.find((child) => child && 'tasks' in child.props)!;
+  return { props: view.props, acknowledged };
 }
 beforeEach(() => {
   state.effects = [];
   state.status = 'ready';
   state.settled = true;
+  state.items = [];
+  state.matched = [];
 });
 describe('calendar creation handoff', () => {
+  it('retains board-scoped server results whose list is beyond the loaded list page', () => {
+    state.items = [
+      {
+        ...CreateTaskSchema.parse({
+          accountId: 'account',
+          listId: 'off-page-list',
+          title: 'off-page work',
+        }),
+        id: 'task',
+        revision: 1,
+        completed: false,
+        provider: { position: '1' },
+      } as Task,
+    ];
+    state.matched = ['task'];
+    expect(render([]).props.tasks.map((task) => task.id)).toEqual(['task']);
+  });
+  it('keeps valid server text matches before their list and label context is available', () => {
+    state.items = [
+      {
+        ...CreateTaskSchema.parse({
+          accountId: 'account',
+          listId: 'list',
+          title: 'ship lanes',
+          labelIds: ['release'],
+        }),
+        id: 'task',
+        revision: 1,
+        completed: false,
+        provider: { position: '1' },
+      } as Task,
+    ];
+    state.matched = ['task'];
+    // The loaded list does not supply the label name used by the server search.
+    const result = render([], 6, { query: 'release' });
+    expect(result.props.tasks.map((task) => task.id)).toEqual(['task']);
+  });
   it('keeps a creation through the old read and removes it in the same render as a fresh read', () => {
     expect(render([creation()], 5).props.creations).toHaveLength(1);
     state.effects = [];

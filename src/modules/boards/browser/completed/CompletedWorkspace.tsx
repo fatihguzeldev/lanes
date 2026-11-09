@@ -5,8 +5,9 @@ import {
   groupCompletedTasks,
   sevenDayCompletionSummary,
 } from '../../../history/model/completion/completed';
-import type { Task, TaskFilter, TaskList } from '../../../tasks/contracts/task';
-import { selectTasksWithContext } from '../../../tasks/model/task';
+import type { Label, Task, TaskFilter, TaskList } from '../../../tasks/contracts/task';
+import { selectCollectionTasks } from '../../../tasks/browser/queries/collection-selection';
+import { useTaskListContexts } from '../../../tasks/browser/queries/useTaskListContexts';
 import { Icon } from '../../../../shared/ui/icon/Icon';
 import { useTaskQuery } from '../../../tasks/browser/queries/useTaskQuery';
 import {
@@ -21,11 +22,15 @@ import { CompletedTaskGroups } from './CompletedTaskGroups';
 import type { QueuedTaskMove } from '../../../tasks/browser/movement/task-move-model';
 import './CompletedWorkspace.css';
 import type { InitialViewReadiness } from '../../../../shared/browser/resources/readiness';
+import { taskBelongsToBoard } from '../view/task-board-scope';
 
 export interface CompletedWorkspaceProps {
   account: ConnectionSummary;
   board: Board | null;
   lists: readonly TaskList[];
+  labels?: readonly Label[];
+  scope?: 'board' | 'account';
+  onScopeChange?(scope: 'board' | 'account'): void;
   query: string;
   filter: TaskFilter;
   version: number;
@@ -42,7 +47,10 @@ export interface CompletedWorkspaceProps {
 export function CompletedWorkspace({
   account,
   board,
-  lists,
+  lists: knownLists,
+  labels = [],
+  scope: controlledScope,
+  onScopeChange,
   query,
   filter,
   version,
@@ -58,7 +66,9 @@ export function CompletedWorkspace({
 }: CompletedWorkspaceProps) {
   const today = usePlanningToday(account.planningZone, clockOffset);
   const now = useMemo(() => new Date(Date.now() + clockOffset).toISOString(), [today, clockOffset]);
-  const [scope, setScope] = useState<'board' | 'account'>(board ? 'board' : 'account');
+  const [localScope, setLocalScope] = useState<'board' | 'account'>(board ? 'board' : 'account');
+  const scope = controlledScope ?? localScope;
+  const setScope = onScopeChange ?? setLocalScope;
   const selectionKey = `${account.id}:${scope}:${board?.id ?? ''}`;
   const [selection, setSelection] = useState({ key: selectionKey, listId: '' });
   const listId = selection.key === selectionKey ? selection.listId : '';
@@ -78,6 +88,20 @@ export function CompletedWorkspace({
   );
   const tasks = useTaskQuery(account.id, input, version);
   const readVersion = tasks.settled && tasks.status === 'ready' ? version : undefined;
+  const projected = projectTaskCollection(
+    tasks.page.items,
+    edits,
+    readVersion,
+    (task) => task.accountId === account.id,
+    moves,
+  );
+  const context = useTaskListContexts(
+    account.id,
+    projected.map((task) => task.listId),
+    version,
+    knownLists,
+  );
+  const lists = context.items;
   useEffect(() => {
     for (const edit of edits) {
       if (edit.input.accountId === account.id && taskChangeAcknowledged(edit, readVersion))
@@ -87,9 +111,9 @@ export function CompletedWorkspace({
   useEffect(() => {
     onInitialReady?.({
       version,
-      settled: !input || tasks.settled,
+      settled: !input || (tasks.settled && context.settled),
       baselineComplete: !input || tasks.page.providerCoverage.complete,
-      failed: tasks.status === 'error',
+      failed: tasks.status === 'error' || Boolean(context.error),
     });
   }, [
     version,
@@ -97,18 +121,16 @@ export function CompletedWorkspace({
     tasks.settled,
     tasks.page.providerCoverage.complete,
     tasks.status,
+    context.settled,
+    context.error,
     onInitialReady,
   ]);
-  const selected = selectTasksWithContext(
-    projectTaskCollection(
-      tasks.page.items,
-      edits,
-      readVersion,
-      (task) => task.accountId === account.id,
-      moves,
-    ).filter(
+  const selected = selectCollectionTasks(
+    projected.filter(
       (task) =>
-        (scope === 'account' || lists.some((list) => list.id === task.listId)) &&
+        (scope === 'account' ||
+          !board ||
+          taskBelongsToBoard(task, board.id, knownLists, context.contexts, tasks.page.items)) &&
         (!listId || task.listId === listId),
     ),
     {
@@ -117,7 +139,12 @@ export function CompletedWorkspace({
       query,
       filter: { ...filter, completion: 'completed' },
       lists,
+      labels,
     },
+    tasks.page.matchedTaskIds,
+    edits,
+    readVersion,
+    new Set(moves.map((move) => move.intent.taskId)),
   );
   const matched = new Set(selected.matchedTaskIds);
   const rows = selected.tasks;
@@ -187,6 +214,17 @@ export function CompletedWorkspace({
         <div className="completed-workspace__paper">
           {complete && <CompletedSummary summary={summary} today={today} listName={listName} />}
           <div className="completed-workspace__body">
+            {context.error && (
+              <div
+                className="completed-workspace__notice completed-workspace__notice--error"
+                role="alert"
+              >
+                <p>{context.error}</p>
+                <button type="button" onClick={context.retry}>
+                  retry list names
+                </button>
+              </div>
+            )}
             {!valid && (
               <p
                 className="completed-workspace__notice completed-workspace__notice--error"

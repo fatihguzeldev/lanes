@@ -11,12 +11,13 @@ import {
   type CalendarDaySelection,
 } from './CalendarView';
 import { calendarRange, type CalendarRange } from './calendar-model';
-import type { TaskFilter, TaskList, TaskSort } from '../../../tasks/contracts/task';
+import type { Label, TaskFilter, TaskList, TaskSort } from '../../../tasks/contracts/task';
 import type { TaskQueryInput } from '../../../tasks/contracts/query';
 import { addCalendarDays } from '../../../tasks/model/planning';
 import { useTaskQuery } from '../../../tasks/browser/queries/useTaskQuery';
 import { CalendarDestinationMenu, type CalendarKnownLists } from './CalendarDestinationMenu';
-import { selectTasksWithContext } from '../../../tasks/model/task';
+import { selectCollectionTasks } from '../../../tasks/browser/queries/collection-selection';
+import { useTaskListContexts } from '../../../tasks/browser/queries/useTaskListContexts';
 import {
   creationAcknowledged,
   type PendingTaskCreation,
@@ -29,6 +30,7 @@ import {
 import type { QueuedTaskMove } from '../../../tasks/browser/movement/task-move-model';
 import './CalendarWorkspace.css';
 import type { InitialViewReadiness } from '../../../../shared/browser/resources/readiness';
+import { taskBelongsToBoard } from '../view/task-board-scope';
 
 interface CalendarQueryOptions {
   accountId: string;
@@ -91,6 +93,9 @@ export interface CalendarWorkspaceProps extends Pick<
   account: ConnectionSummary;
   board: Board;
   lists: readonly TaskList[];
+  labels?: readonly Label[];
+  scope?: CalendarScope;
+  onScopeChange?(scope: CalendarScope): void;
   knownLists?: CalendarKnownLists;
   today: string;
   filter: TaskFilter;
@@ -108,7 +113,10 @@ const emptySelectionCoverage = { complete: true, lastSyncedAt: null, stale: fals
 export function CalendarWorkspace({
   account,
   board,
-  lists,
+  lists: visibleLists,
+  labels = [],
+  scope: controlledScope,
+  onScopeChange,
   knownLists,
   today,
   filter,
@@ -125,7 +133,9 @@ export function CalendarWorkspace({
   ...actions
 }: CalendarWorkspaceProps) {
   const [mode, setMode] = useState<CalendarMode>('month');
-  const [scope, setScope] = useState<CalendarScope>('board');
+  const [localScope, setLocalScope] = useState<CalendarScope>('board');
+  const scope = controlledScope ?? localScope;
+  const setScope = onScopeChange ?? setLocalScope;
   const [createDay, setCreateDay] = useState<
     (CalendarDaySelection & { anchor: HTMLElement }) | null
   >(null);
@@ -158,32 +168,6 @@ export function CalendarWorkspace({
   }, [validAccount, activeRange, account.id, board.id, scope, range, today, filter, query, sort]);
   const dated = useTaskQuery(account.id, inputs.dated, version);
   const undated = useTaskQuery(account.id, inputs.unscheduled, version);
-  useEffect(() => {
-    onInitialReady?.({
-      version,
-      settled:
-        activeRange && (!inputs.dated || dated.settled) && (!inputs.unscheduled || undated.settled),
-      baselineComplete:
-        (!inputs.dated || dated.page.providerCoverage.complete) &&
-        (!inputs.unscheduled || undated.page.providerCoverage.complete),
-      failed: Boolean(
-        (inputs.dated && dated.status === 'error') ||
-        (inputs.unscheduled && undated.status === 'error'),
-      ),
-    });
-  }, [
-    version,
-    activeRange,
-    inputs.dated,
-    inputs.unscheduled,
-    dated.settled,
-    undated.settled,
-    dated.page.providerCoverage.complete,
-    undated.page.providerCoverage.complete,
-    dated.status,
-    undated.status,
-    onInitialReady,
-  ]);
   const onRangeChange = useCallback(
     (next: CalendarRangeRequest) => {
       if (next.accountId !== account.id || next.boardId !== board.id) return;
@@ -228,7 +212,7 @@ export function CalendarWorkspace({
   const scopedCreations = creations.filter(
     (creation) =>
       creation.input.accountId === account.id &&
-      (scope === 'account' || lists.some((list) => list.id === creation.input.listId)),
+      (scope === 'account' || visibleLists.some((list) => list.id === creation.input.listId)),
   );
   useEffect(() => {
     for (const creation of scopedCreations)
@@ -240,22 +224,76 @@ export function CalendarWorkspace({
     readVersion,
     (task) => task.accountId === account.id,
     moves,
-  )
-    .filter((task) => scope === 'account' || lists.some((list) => list.id === task.listId))
-    .filter(
+  ).filter(
+    (task) =>
+      !scopedCreations.some(
+        (creation) =>
+          !creationAcknowledged(creation, readVersion) && creation.resolvedTaskId === task.id,
+      ),
+  );
+  const context = useTaskListContexts(
+    account.id,
+    [
+      ...projected.map((task) => task.listId),
+      ...scopedCreations
+        .filter((creation) => !creation.deleted)
+        .map((creation) => creation.input.listId),
+    ],
+    version,
+    visibleLists,
+  );
+  useEffect(() => {
+    onInitialReady?.({
+      version,
+      settled:
+        context.settled &&
+        activeRange &&
+        (!inputs.dated || dated.settled) &&
+        (!inputs.unscheduled || undated.settled),
+      baselineComplete:
+        (!inputs.dated || dated.page.providerCoverage.complete) &&
+        (!inputs.unscheduled || undated.page.providerCoverage.complete),
+      failed: Boolean(
+        (inputs.dated && dated.status === 'error') ||
+        (inputs.unscheduled && undated.status === 'error') ||
+        context.error,
+      ),
+    });
+  }, [
+    version,
+    activeRange,
+    inputs.dated,
+    inputs.unscheduled,
+    dated.settled,
+    undated.settled,
+    dated.page.providerCoverage.complete,
+    undated.page.providerCoverage.complete,
+    dated.status,
+    undated.status,
+    onInitialReady,
+    context.settled,
+    context.error,
+  ]);
+  const lists = context.items;
+  const selection = selectCollectionTasks(
+    projected.filter(
       (task) =>
-        !scopedCreations.some(
-          (creation) =>
-            !creationAcknowledged(creation, readVersion) && creation.resolvedTaskId === task.id,
-        ),
-    );
-  const selection = selectTasksWithContext(projected, {
-    accountId: account.id,
-    today,
-    query,
-    filter,
-    lists,
-  });
+        scope === 'account' ||
+        taskBelongsToBoard(task, board.id, visibleLists, context.contexts, items),
+    ),
+    {
+      accountId: account.id,
+      today,
+      query,
+      filter,
+      lists,
+      labels,
+    },
+    [...dated.page.matchedTaskIds, ...undated.page.matchedTaskIds],
+    edits,
+    readVersion,
+    new Set(moves.map((move) => move.intent.taskId)),
+  );
   const matched = new Set(selection.matchedTaskIds);
   const errors = [
     inputs.dated && dated.error ? `dated tasks: ${dated.error}` : '',
@@ -269,6 +307,14 @@ export function CalendarWorkspace({
     );
   return (
     <section className="calendar-workspace" aria-label="task calendar">
+      {context.error && (
+        <div className="calendar-workspace__pages" role="alert">
+          <p>{context.error}</p>
+          <button type="button" onClick={context.retry}>
+            retry list names
+          </button>
+        </div>
+      )}
       <CalendarView
         {...actions}
         onCreateTask={(selection, anchor) => {

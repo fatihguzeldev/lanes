@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CompletedWorkspace, type CompletedWorkspaceProps } from '../CompletedWorkspace';
 import type { TaskPage } from '../../../../tasks/contracts/query';
+import { CreateTaskSchema, type Task } from '../../../../tasks/contracts/task';
 
 const state = vi.hoisted(() => ({
   loaded: true,
@@ -59,6 +60,94 @@ beforeEach(() => {
 });
 
 describe('completed review states', () => {
+  it('retains board-scoped results from lists beyond the loaded list page, but removes a queued move out', () => {
+    const task = {
+      ...CreateTaskSchema.parse({
+        accountId: 'account',
+        listId: 'off-page-list',
+        title: 'off-page work',
+      }),
+      id: 'task',
+      revision: 1,
+      completed: true,
+      completedAt: '2026-11-06T12:00:00Z',
+      provider: { position: '1' },
+    } as Task;
+    state.page.items = [task];
+    state.page.matchedTaskIds = [task.id];
+    const board = { id: 'board', accountId: 'account' } as NonNullable<
+      CompletedWorkspaceProps['board']
+    >;
+    expect(render({ board })).toContain('off-page work');
+    const html = render({
+      board,
+      edits: [
+        {
+          id: 1,
+          task,
+          confirmedAfter: null,
+          input: {
+            accountId: 'account',
+            taskId: task.id,
+            listId: task.listId,
+            expectedRevision: 1,
+            patch: { listId: 'another-board-list' },
+          },
+        },
+      ],
+    });
+    expect(html).not.toContain('off-page work');
+  });
+  it('retains confirmed label and list-name search hits while their context is loading', () => {
+    const task = {
+      ...CreateTaskSchema.parse({
+        accountId: 'account',
+        listId: 'remote-list',
+        title: 'ship lanes',
+        labelIds: ['release'],
+      }),
+      id: 'task',
+      revision: 1,
+      completed: true,
+      completedAt: '2026-11-06T12:00:00Z',
+      provider: { position: '1' },
+    } as Task;
+    state.page.items = [task];
+    state.page.matchedTaskIds = [task.id];
+    expect(render({ query: 'release' })).toContain('ship lanes');
+    expect(render({ query: 'other board list' })).toContain('ship lanes');
+  });
+  it('does not restore an old server match after a queued text edit stops matching', () => {
+    const task = {
+      ...CreateTaskSchema.parse({ accountId: 'account', listId: 'list', title: 'release lanes' }),
+      id: 'task',
+      revision: 1,
+      completed: true,
+      completedAt: '2026-11-06T12:00:00Z',
+      provider: { position: '1' },
+    } as Task;
+    state.page.items = [task];
+    state.page.matchedTaskIds = [task.id];
+    const html = render({
+      query: 'release',
+      edits: [
+        {
+          id: 1,
+          task,
+          confirmedAfter: null,
+          input: {
+            accountId: 'account',
+            taskId: task.id,
+            listId: task.listId,
+            expectedRevision: 1,
+            patch: { title: 'different work' },
+          },
+        },
+      ],
+    });
+    expect(html).not.toContain('different work');
+    expect(html).toContain('no completed tasks match these filters.');
+  });
   it('keeps a direct board return and a quiet empty result beside the complete summary', () => {
     const html = render();
     expect(html).toContain('aria-label="back to board"');

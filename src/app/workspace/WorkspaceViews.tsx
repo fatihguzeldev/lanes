@@ -187,6 +187,7 @@ export function WorkspaceViews({
           board={board}
           lists={visibleLists}
           knownLists={lists}
+          labels={labels}
           today={today}
           filter={activeFilter}
           query={search}
@@ -212,6 +213,7 @@ export function WorkspaceViews({
           account={account}
           board={board}
           lists={visibleLists}
+          labels={labels}
           query={search}
           filter={activeFilter}
           version={version}
