@@ -483,7 +483,7 @@ export class TaskCommandService {
         !isLeafCompletion(current, await this.resources.childCount(accountId, current.id))
       )
         throw conflict(
-          'this task is no longer a supported leaf. review its checklist before completing it.',
+          'this task’s checklist or blockers changed. review it before completing it.',
         );
       if (
         step.ordinaryReopenIdentity &&
