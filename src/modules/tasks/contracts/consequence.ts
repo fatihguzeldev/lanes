@@ -14,6 +14,7 @@ export const TaskConsequencesSchema = z
     openBlockedSubtaskCount: count.default(0),
     assignmentSource: z.enum(['docs', 'chat']).nullable(),
     coverageComplete: z.boolean(),
+    completionCoverageComplete: z.boolean().optional(),
   })
   .strict();
 export const ListConsequencesSchema = z

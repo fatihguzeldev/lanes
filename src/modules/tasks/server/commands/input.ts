@@ -29,6 +29,15 @@ export const schedule = (task: TaskRef): TaskSchedule => ({
   repeatRule: task.repeatRule,
 });
 
+export const isLeafCompletion = (task: Task, children: number): boolean =>
+  task.parentId !== null &&
+  children === 0 &&
+  task.capabilities.canEdit &&
+  task.blockedBy.length === 0 &&
+  !task.repeatRule &&
+  !task.seriesId &&
+  !task.occurrenceId;
+
 export function conflict(
   message = 'this resource changed. refresh its confirmed values before reapplying the draft.',
 ): AppError {

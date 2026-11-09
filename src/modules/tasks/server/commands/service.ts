@@ -23,7 +23,7 @@ import { CopyEntrySchema } from './copy-contract';
 import { CapturedCopyPlanner, type CopySealResult } from './copy-plan';
 import { TaskDuplicatePlanner } from './duplicate-plan';
 import { TaskCommandEffects } from './effects';
-import { conflict, digest, parseSchedule, ref, stableJson } from './input';
+import { conflict, digest, isLeafCompletion, parseSchedule, ref, stableJson } from './input';
 import { verifyProviderPreconditions } from './preconditions';
 import { TaskOperationResolution } from './resolution';
 import { TaskCommandResources } from './resources';
@@ -106,6 +106,7 @@ export class TaskCommandService {
     openBlockedSubtaskCount: number;
     assignmentSource: Task['capabilities']['assignmentSource'];
     coverageComplete: boolean;
+    completionCoverageComplete: boolean;
   }> {
     const task = await this.resources.task(accountId, taskId),
       list = await this.resources.list(accountId, task.listId);
@@ -138,6 +139,7 @@ export class TaskCommandService {
       openBlockedSubtaskCount: blockedChildren?.n ?? 0,
       assignmentSource: task.capabilities.assignmentSource,
       coverageComplete: list.complete,
+      completionCoverageComplete: list.complete || isLeafCompletion(task, children?.total ?? 0),
     };
   }
 
@@ -375,7 +377,7 @@ export class TaskCommandService {
   }
 
   private hierarchySensitive(step: CapturedStep): boolean {
-    if (step.relativeOrder && step.action === 'task.move') return false;
+    if (this.targetedContext(step)) return false;
     return (
       step.action === 'task.create' ||
       step.action === 'task.move' ||
@@ -384,6 +386,21 @@ export class TaskCommandService {
       step.commandKind === 'task.move' ||
       step.commandKind === 'task.complete' ||
       step.commandKind === 'task.reopen'
+    );
+  }
+
+  private relativePosition(step: CapturedStep): boolean {
+    return Boolean(
+      (step.relativeOrder && step.action === 'task.move') ||
+      (step.relativeCreate && step.action === 'task.create'),
+    );
+  }
+
+  private targetedContext(step: CapturedStep): boolean {
+    return Boolean(
+      this.relativePosition(step) ||
+      (step.leafCompletion && step.commandKind === 'task.complete') ||
+      (step.ordinaryReopenIdentity && step.commandKind === 'task.reopen'),
     );
   }
 
@@ -404,8 +421,11 @@ export class TaskCommandService {
       );
   }
 
-  private async refreshRelativeOrder(accountId: string, step: CapturedStep): Promise<CapturedStep> {
-    if (!step.relativeOrder || step.action !== 'task.move') return step;
+  private async refreshRelativeReferences(
+    accountId: string,
+    step: CapturedStep,
+  ): Promise<CapturedStep> {
+    if (!this.relativePosition(step)) return step;
     const list = await this.resources.list(accountId, step.list.id);
     if (list.providerId !== step.list.providerId) throw conflict();
     const refresh = async (captured: TaskRef | null | undefined) => {
@@ -458,6 +478,13 @@ export class TaskCommandService {
     );
     if (step.task) {
       const current = await this.resources.task(accountId, step.task.id, step.task.revision);
+      if (
+        step.leafCompletion &&
+        !isLeafCompletion(current, await this.resources.childCount(accountId, current.id))
+      )
+        throw conflict(
+          'this task is no longer a supported leaf. review its checklist before completing it.',
+        );
       if (
         step.ordinaryReopenIdentity &&
         (current.seriesId !== step.ordinaryReopenIdentity.seriesId ||
@@ -606,6 +633,12 @@ export class TaskCommandService {
               ...(step.ordinaryReopenIdentity
                 ? [this.resources.ordinaryReopenGuard(accountId, step)]
                 : []),
+              ...(this.targetedContext(step)
+                ? [this.resources.listIdentityGuard(accountId, step.list)]
+                : []),
+              ...(step.leafCompletion
+                ? [this.resources.leafCompletionGuard(accountId, step.task!)]
+                : []),
               ...(await this.effects.metadataWrites(
                 accountId,
                 operationId,
@@ -632,7 +665,7 @@ export class TaskCommandService {
         for (let retry = 0; ; retry++) {
           try {
             if (step.action !== 'list.create')
-              step = await this.refreshRelativeOrder(accountId, step);
+              step = await this.refreshRelativeReferences(accountId, step);
             if (step.action !== 'list.create')
               await this.assertCapturedCurrent(accountId, step, operationId);
             step = await verifyProviderPreconditions(
@@ -646,12 +679,12 @@ export class TaskCommandService {
           } catch (error) {
             if (
               retry ||
-              !step.relativeOrder ||
+              !this.relativePosition(step) ||
               !(error instanceof AppError) ||
               error.code !== 'conflict'
             )
               throw error;
-            const fresh = await this.refreshRelativeOrder(accountId, step);
+            const fresh = await this.refreshRelativeReferences(accountId, step);
             if (fresh === step) throw error;
             step = fresh;
           }
@@ -689,8 +722,11 @@ export class TaskCommandService {
               ...(step.action === 'list.create' && this.options.boardTargetGuard
                 ? [this.options.boardTargetGuard(accountId, step.boardId!, step.boardRevision)]
                 : []),
-              ...(step.relativeOrder && step.action === 'task.move'
+              ...(this.targetedContext(step)
                 ? [this.resources.listIdentityGuard(accountId, step.list)]
+                : []),
+              ...(step.leafCompletion
+                ? [this.resources.leafCompletionGuard(accountId, step.task!)]
                 : []),
               ...(step.task ? [this.resources.revisionGuard(accountId, step.task)] : []),
               ...(step.ordinaryReopenIdentity
@@ -703,14 +739,14 @@ export class TaskCommandService {
             step === beforePreflight ? undefined : step,
           );
         } catch (error) {
-          if (step.relativeOrder) {
-            const fresh = await this.refreshRelativeOrder(accountId, step);
+          if (this.relativePosition(step)) {
+            const fresh = await this.refreshRelativeReferences(accountId, step);
             const recorded =
               fresh === step ? null : await this.options.operations.getStep(operationId, claim.key);
             if (recorded?.state === 'claimed' && recorded.claimId === claimId)
               throw new AppError(
                 'provider_unavailable',
-                'the task order changed during its check. the queued move will retry.',
+                'the position reference changed during its check. the queued action will retry.',
                 503,
                 true,
               );

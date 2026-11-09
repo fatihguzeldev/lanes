@@ -124,9 +124,9 @@ export class TaskCommandResources {
     previousId: string | null | undefined,
     previousRevision: number | undefined,
     movingId?: string,
-    relativeOrder = false,
+    explicitPosition = false,
   ): Promise<{ parent: TaskRef | null; previous: TaskRef | null }> {
-    if (!relativeOrder || previousId === undefined) this.complete(list);
+    if (!explicitPosition || previousId === undefined) this.complete(list);
     let parent: TaskRef | null = null,
       previous: TaskRef | null = null;
     if (parentId) {
@@ -147,7 +147,7 @@ export class TaskCommandResources {
           'choose an eligible top-level parent in the destination list.',
           422,
         );
-      parent = relativeOrder
+      parent = explicitPosition
         ? { ...ref(value), notesDigest: await digest(value.notes) }
         : ref(value);
     }
@@ -183,7 +183,7 @@ export class TaskCommandResources {
             'choose a visible previous sibling in the destination group.',
             422,
           );
-        previous = relativeOrder
+        previous = explicitPosition
           ? { ...ref(value), notesDigest: await digest(value.notes) }
           : ref(value);
       }
@@ -217,6 +217,14 @@ export class TaskCommandResources {
         'INSERT INTO tasks_write_guards(valid) SELECT 0 WHERE NOT EXISTS(SELECT 1 FROM tasks_tasks WHERE account_id=? AND id=? AND revision=? AND list_id=? AND provider_id=? AND deleted_at IS NULL)',
       )
       .bind(accountId, task.id, task.revision, task.listId, task.provider.id);
+  }
+
+  leafCompletionGuard(accountId: string, task: TaskRef): D1PreparedStatement {
+    return this.db
+      .prepare(
+        'INSERT INTO tasks_write_guards(valid) SELECT 0 WHERE EXISTS(SELECT 1 FROM tasks_tasks WHERE account_id=? AND parent_id=? AND deleted_at IS NULL) OR EXISTS(SELECT 1 FROM tasks_dependencies WHERE account_id=? AND task_id=?)',
+      )
+      .bind(accountId, task.id, accountId, task.id);
   }
 
   listGuard(accountId: string, list: ListRef): D1PreparedStatement {

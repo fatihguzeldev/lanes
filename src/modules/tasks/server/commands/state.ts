@@ -26,6 +26,8 @@ export type TaskRef = Pick<
 > & { notesDigest?: string; occurrenceId?: Task['occurrenceId']; seriesId?: Task['seriesId'] };
 export interface CapturedStep {
   relativeOrder?: true;
+  relativeCreate?: true;
+  leafCompletion?: true;
   action:
     | 'copy.begin'
     | 'copy.metadata'

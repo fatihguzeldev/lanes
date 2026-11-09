@@ -35,6 +35,7 @@ task menus contain secondary actions. completion remains on the task's checkbox 
 
 - require a nonblank title, at most 1,024 characters. trim outer whitespace when the owner submits it. notes allow up to 8,192 characters and preserve line breaks.
 - create an open task from the editor at the start of the manual sibling order. new subtasks also start their sibling group. show submitted creations in that position immediately, with the newest entry first. explicit insertion positions in duplication, templates, and portability retain their own contracts.
+- an explicit first position or known predecessor does not require a complete list scan. validate the destination identity, parent, and predecessor; unrelated list metadata or scan progress cannot invalidate that insertion. inferred positions retain their full-context checks.
 - notes are plain text. changing a title or note does not reset other fields or replace unrelated provider values.
 - a patch changes only the submitted fields. distinguish an omitted field from an explicit clear.
 - retain invalid input and the full captured input of a rejected creation. closing a submitted editor does not claim that its save is confirmed; background failures remain actionable.
@@ -49,6 +50,8 @@ completing an ordinary task sets its provider completion state and timestamp. re
 when completing a parent with open subtasks, state how many will also complete and confirm that combined action. capture any repeat successor input before changing the children's states. complete children through the same commands before completing the parent. if a step fails, show the actual partial result; do not invent a transaction spanning google requests.
 
 reopening a parent does not silently reopen completed children. reopening a child under a completed parent also reopens the parent so the open child remains reachable. show both changes and record both confirmed outcomes.
+
+ordinary reopening checks the selected task and any affected parent without waiting for unrelated list coverage. a supported subtask without descendants, dependencies, or recurrence can also complete during reconciliation. keep targeted identity and consequence guards through dispatch; other completion and recurrence paths retain the context they require.
 
 completing a blocked task requires explicit confirmation; see dependencies. recurring task completion and reopening follow [planning](../planning/spec.md#completion-and-the-next-occurrence). a template or import containing completed tasks is not a live completion action and does not trigger recurrence.
 

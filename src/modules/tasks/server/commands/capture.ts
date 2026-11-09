@@ -19,6 +19,7 @@ import {
   confirmation,
   conflict,
   digest,
+  isLeafCompletion,
   jsonBytes,
   metadataPatch,
   parseSchedule,
@@ -218,7 +219,12 @@ export class TaskCommandCapture {
         steps.push({ action: 'list.delete', list, taskCount: counts.n, commandKind: command.kind });
       }
     } else if (command.kind === 'task.create') {
-      const list = await this.resources.list(accountId, command.listId, command.listRevision);
+      const relativeCreate = command.previousId !== undefined;
+      const list = await this.resources.list(
+        accountId,
+        command.listId,
+        relativeCreate ? undefined : command.listRevision,
+      );
       const position = await this.resources.position(
         accountId,
         list,
@@ -226,9 +232,13 @@ export class TaskCommandCapture {
         command.parentRevision,
         command.previousId,
         command.previousRevision,
+        undefined,
+        relativeCreate,
       );
       guards.push(
-        this.resources.listGuard(accountId, list),
+        relativeCreate
+          ? this.resources.listIdentityGuard(accountId, list)
+          : this.resources.listGuard(accountId, list),
         ...[position.parent, position.previous].flatMap((value) =>
           value ? [this.resources.revisionGuard(accountId, value)] : [],
         ),
@@ -253,6 +263,7 @@ export class TaskCommandCapture {
       }
       steps.push({
         action: 'task.create',
+        ...(relativeCreate ? { relativeCreate: true as const } : {}),
         metadata,
         ...(command.expectedGraphRevision === undefined
           ? {}
@@ -383,7 +394,14 @@ export class TaskCommandCapture {
         });
       } else if (command.kind === 'task.complete' || command.kind === 'task.reopen') {
         const completing = command.kind === 'task.complete';
-        this.resources.complete(list);
+        const children = completing ? await this.resources.childCount(accountId, task.id, true) : 0;
+        const leafCompletion =
+          completing &&
+          !trustedGuardWrites.length &&
+          isLeafCompletion(selectedTask, children) &&
+          (await this.resources.childCount(accountId, task.id)) === 0;
+        const ordinaryReopen = !completing && !trustedGuardWrites.length;
+        if (!leafCompletion && !ordinaryReopen) this.resources.complete(list);
         if (!completing && task.occurrenceId && !trustedGuardWrites.length)
           throw new AppError(
             'validation_failed',
@@ -398,7 +416,6 @@ export class TaskCommandCapture {
           )
           .bind(accountId, task.id)
           .first<{ n: number }>();
-        const children = completing ? await this.resources.childCount(accountId, task.id, true) : 0;
         const blockedChildren = completing
           ? ((
               await this.db
@@ -425,7 +442,12 @@ export class TaskCommandCapture {
             'confirm the blocked task and all open subtasks that this completion will affect.',
             confirmations,
           );
-        guards.push(this.resources.listGuard(accountId, list));
+        guards.push(
+          leafCompletion || ordinaryReopen
+            ? this.resources.listIdentityGuard(accountId, list)
+            : this.resources.listGuard(accountId, list),
+          ...(leafCompletion ? [this.resources.leafCompletionGuard(accountId, task)] : []),
+        );
         if (task.completed !== completing)
           extra.push(
             ...this.options.projection.prepareCompletionCapture(
@@ -481,9 +503,16 @@ export class TaskCommandCapture {
         }
         steps.push(
           task.completed === completing
-            ? { action: 'task.local', task, list, commandKind: command.kind }
+            ? {
+                action: 'task.local',
+                task,
+                list,
+                ...(leafCompletion ? { leafCompletion: true as const } : {}),
+                commandKind: command.kind,
+              }
             : {
                 action: 'task.patch',
+                ...(leafCompletion ? { leafCompletion: true as const } : {}),
                 task,
                 list,
                 provider: completing
