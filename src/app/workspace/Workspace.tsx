@@ -24,6 +24,7 @@ import { useTaskEditor } from '../../modules/tasks/browser/editor/useTaskEditor'
 import {
   useTaskCreations,
   type CreationIntent,
+  type CreationResult,
 } from '../../modules/tasks/browser/creation/useTaskCreations';
 import { useTaskChanges } from '../../modules/tasks/browser/changes/useTaskChanges';
 import { TaskEditorFlow } from '../../modules/tasks/browser/editor/TaskEditorFlow';
@@ -151,7 +152,7 @@ export function Workspace({
   }, setNotice);
   const editorDirty = taskEditor.dirty;
   const edits = useTaskChanges(account.id, version);
-  const replayCreation = useRef<(task: Task, intent: CreationIntent) => Promise<boolean>>(
+  const replayCreation = useRef<(task: Task, intent: CreationIntent) => Promise<CreationResult>>(
     async () => false,
   );
   const creations = useTaskCreations(account.id, version, {

@@ -2,12 +2,14 @@ import { useCallback, useRef, useState } from 'react';
 import type { CreateTask, Task, TaskPatch } from '../../contracts/task';
 import { readCreatedTask } from './creation-receipt';
 import { readTask } from '../queries/references';
+import { RequestError } from '../../../../shared/browser/http/http';
 
 export interface CreationIntent {
   patch: TaskPatch;
   completed?: boolean;
   deleted?: boolean;
 }
+export type CreationResult = boolean | 'cancelled';
 export interface PendingTaskCreation {
   id: number;
   input: CreateTask;
@@ -26,9 +28,9 @@ export interface PendingTaskCreation {
 }
 interface CreationOptions {
   editable?: boolean;
-  onReady?(task: Task, intent: CreationIntent): Promise<boolean>;
+  onReady?(task: Task, intent: CreationIntent): Promise<CreationResult>;
   onChanged?(): void;
-  onError?(message: string, operationId: string): void;
+  onError?(message: string, operationId?: string): void;
 }
 interface CreationRecord extends PendingTaskCreation {
   submittedInput: CreateTask;
@@ -185,15 +187,33 @@ export function useTaskCreations(
           while (true) {
             const creation = current.current.find((item) => item.id === id);
             if (!creation || currentAccount.current !== accountId) return;
+            if (creation.replayBlocked)
+              throw new Error('this new task still has a change that needs checking.');
             const intent = intentFor(task, creation);
             const hasChange =
               Object.keys(intent.patch).length > 0 ||
               intent.completed !== undefined ||
               intent.deleted;
             if (!hasChange) break;
-            if (creation.replayBlocked)
-              throw new Error('this new task still has a change that needs checking.');
-            if (!listeners.current.onReady || !(await listeners.current.onReady(task, intent))) {
+            let result: CreationResult;
+            try {
+              result = (await listeners.current.onReady?.(task, intent)) ?? false;
+            } catch (error) {
+              change((items) =>
+                items.map((item) => (item.id === id ? { ...item, replayBlocked: true } : item)),
+              );
+              throw error;
+            }
+            if (result === 'cancelled' && intent.deleted) {
+              change((items) =>
+                items.map((item) => (item.id === id ? { ...item, deleted: false } : item)),
+              );
+              task = await readTask(accountId, task.id);
+              if (task.accountId !== accountId || task.listId !== captured.input.listId)
+                throw new Error('the saved task moved before its queued changes finished.');
+              continue;
+            }
+            if (!result) {
               change((items) =>
                 items.map((item) => (item.id === id ? { ...item, replayBlocked: true } : item)),
               );
@@ -245,22 +265,37 @@ export function useTaskCreations(
           if (currentAccount.current !== accountId) return;
           const message =
             error instanceof Error ? error.message : 'the new task’s save needs checking.';
+          const failedOperationId = error instanceof RequestError ? error.operationId : undefined;
+          const failedCreation = current.current.find((item) => item.id === id);
+          const failedDeletion = failedCreation?.replayBlocked && failedCreation.deleted;
           change((items) =>
             items.map((item) =>
               item.id === id
                 ? {
                     ...item,
+                    ...(item.deleted ? { deleted: false } : {}),
                     failure: {
                       message,
-                      actionLabel: 'check save',
-                      onEdit: () => void finish(id, operationId),
-                      onDiscard: () => remove(id),
+                      actionLabel:
+                        failedDeletion && !failedOperationId ? 'show task' : 'check save',
+                      onEdit: failedDeletion
+                        ? failedOperationId
+                          ? () => listeners.current.onError?.(message, failedOperationId)
+                          : () => {
+                              remove(id);
+                              listeners.current.onChanged?.();
+                            }
+                        : () => void finish(id, operationId),
+                      onDiscard: () => {
+                        remove(id);
+                        if (failedDeletion) listeners.current.onChanged?.();
+                      },
                     },
                   }
                 : item,
             ),
           );
-          listeners.current.onError?.(message, operationId);
+          listeners.current.onError?.(message, failedDeletion ? failedOperationId : operationId);
         }
       })();
       flights.current.set(id, work);

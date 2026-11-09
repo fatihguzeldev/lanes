@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CreateTaskSchema, type Task } from '../../../contracts/task';
 import { creationAcknowledged, useTaskCreations } from '../useTaskCreations';
+import { RequestError } from '../../../../../shared/browser/http/http';
+import { TaskCreationPreview } from '../TaskCreationPreview';
 
 const hooks = vi.hoisted(() => ({ slots: [] as unknown[], index: 0 }));
 const reads = vi.hoisted(() => ({ created: vi.fn(), task: vi.fn() }));
@@ -276,6 +278,50 @@ describe('interactive submitted tasks', () => {
       deleted: true,
     });
     expect(render(0, options).items).toEqual([]);
+  });
+  it('restores a saved row when its pending deletion is cancelled', async () => {
+    reads.created.mockResolvedValue(serverTask('ring64'));
+    reads.task.mockResolvedValue(serverTask('ring64'));
+    const options = { onReady: vi.fn().mockResolvedValue('cancelled'), onError: vi.fn() };
+    render(0, options).start(41, input('ring64'));
+    render(0, options).items[0]!.controls!.onDelete();
+    await render(0, options).finish(41, 'receipt');
+    const restored = render(0, options).items[0]!;
+    expect(restored.deleted).toBe(false);
+    expect(restored.failure).toBeUndefined();
+    expect(restored.confirmedAfter).toBe(0);
+    expect(options.onError).not.toHaveBeenCalled();
+    expect(options.onReady).toHaveBeenCalledOnce();
+  });
+  it('restores visible recovery after a pending deletion fails without submitting it twice', async () => {
+    reads.created.mockResolvedValue(serverTask('ring64'));
+    const options = { onReady: vi.fn().mockResolvedValue(false), onError: vi.fn() };
+    render(0, options).start(41, input('ring64'));
+    render(0, options).items[0]!.controls!.onDelete();
+    await render(0, options).finish(41, 'receipt');
+    const failed = render(0, options).items[0]!;
+    expect(failed.deleted).toBe(false);
+    expect(failed.resolvedTaskId).toBe('server-task');
+    expect(failed.failure?.actionLabel).toBe('show task');
+    expect(TaskCreationPreview({ creation: failed })).not.toBeNull();
+    await render(0, options).finish(41, 'receipt');
+    expect(options.onReady).toHaveBeenCalledOnce();
+    expect(render(0, options).items[0]!.failure).toBeDefined();
+  });
+  it('checks the uncertain deletion receipt without replaying creation or deletion', async () => {
+    reads.created.mockResolvedValue(serverTask('ring64'));
+    const failure = new RequestError('uncertain', 'check deletion', undefined, 'delete-receipt');
+    const options = { onReady: vi.fn().mockRejectedValue(failure), onError: vi.fn() };
+    render(0, options).start(41, input('ring64'));
+    render(0, options).items[0]!.controls!.onDelete();
+    await render(0, options).finish(41, 'create-receipt');
+    const restored = render(0, options).items[0]!;
+    expect(restored.deleted).toBe(false);
+    expect(options.onError).toHaveBeenLastCalledWith('check deletion', 'delete-receipt');
+    restored.failure!.onEdit();
+    expect(options.onError).toHaveBeenLastCalledWith('check deletion', 'delete-receipt');
+    expect(reads.created).toHaveBeenCalledOnce();
+    expect(options.onReady).toHaveBeenCalledOnce();
   });
   it('keeps controls live while the confirmed row awaits a newer query', async () => {
     let task = serverTask('ring64');

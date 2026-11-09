@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { CreationIntent } from '../creation/useTaskCreations';
+import type { CreationIntent, CreationResult } from '../creation/useTaskCreations';
 import type { TaskPresentationPatch } from '../changes/useTaskChanges';
 import type { Task } from '../../contracts/task';
 import { TaskSchema } from '../../contracts/task';
@@ -126,7 +126,10 @@ export function useTaskActions(context: TaskActionContext, clockOffset: number) 
       return saved;
     });
   };
-  const deleteQueuedTask = (selected: Task) => {
+  const deleteQueuedTask = (
+    selected: Task,
+    callbacks: { onCancel?(): void; onFailure?(error: RequestError): void } = {},
+  ) => {
     if (selected.accountId !== context.accountId) return Promise.resolve(false);
     const current = latest.current.context;
     const work = async () => {
@@ -138,7 +141,7 @@ export function useTaskActions(context: TaskActionContext, clockOffset: number) 
       return createTaskActions({
         ...current,
         onTaskDeleted: (task) => latest.current.context.onTaskDeleted(task),
-        submit: async (command, category, identity) => {
+        submit: async (command, category, identity = newOperationId(clockOffset)) => {
           const id = `delete:${++sequence.current}`;
           current.changes?.start(id, task, {
             accountId: task.accountId,
@@ -148,7 +151,16 @@ export function useTaskActions(context: TaskActionContext, clockOffset: number) 
             patch: { removed: true },
           });
           try {
-            const saved = await current.submit(command, category, identity);
+            const saved = callbacks.onFailure
+              ? (
+                  await latest.current.commands.submit(
+                    command,
+                    category,
+                    identity,
+                    callbacks.onFailure,
+                  )
+                )?.state === 'succeeded'
+              : await current.submit(command, category, identity);
             if (saved) current.changes?.confirm(id);
             else current.changes?.remove(id);
             return saved;
@@ -157,14 +169,14 @@ export function useTaskActions(context: TaskActionContext, clockOffset: number) 
             throw error;
           }
         },
-      }).deleteTask(task);
+      }).deleteTask(task, callbacks.onCancel);
     };
     return (current.changes ? current.changes.run(selected.id, work) : work()).catch((error) => {
       current.onNotice(error instanceof Error ? error.message : 'couldn’t delete this task.');
       return false;
     });
   };
-  const applyCreation = async (original: Task, intent: CreationIntent) => {
+  const applyCreation = async (original: Task, intent: CreationIntent): Promise<CreationResult> => {
     let task = original;
     const current = latest.current.context;
     if (Object.keys(intent.patch).length) {
@@ -204,7 +216,19 @@ export function useTaskActions(context: TaskActionContext, clockOffset: number) 
         `/api/accounts/${encodeURIComponent(current.accountId)}/tasks/${encodeURIComponent(task.id)}`,
         TaskSchema,
       );
-      return deleteQueuedTask(task);
+      let cancelled = false;
+      const failure: { details?: RequestError } = {};
+      const saved = await deleteQueuedTask(task, {
+        onCancel: () => {
+          cancelled = true;
+        },
+        onFailure: (details) => {
+          failure.details = details;
+        },
+      });
+      if (cancelled) return 'cancelled';
+      if (!saved && failure.details) throw failure.details;
+      return saved;
     }
     return true;
   };

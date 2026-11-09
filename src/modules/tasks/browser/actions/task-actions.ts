@@ -164,7 +164,7 @@ export function createTaskActions({
       return false;
     }
   };
-  const deleteTask = async (task: Task) => {
+  const deleteTask = async (task: Task, onCancel?: () => void) => {
     try {
       const preview = await request(
         `${base}/tasks/${encodeURIComponent(task.id)}/consequences`,
@@ -204,7 +204,10 @@ export function createTaskActions({
               throw error;
             }
           },
-          onCancel: () => resolve(false),
+          onCancel: () => {
+            onCancel?.();
+            resolve(false);
+          },
         }),
       );
     } catch (error) {

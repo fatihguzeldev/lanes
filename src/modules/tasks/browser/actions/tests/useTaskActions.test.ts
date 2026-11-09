@@ -3,6 +3,7 @@ import type { Task } from '../../../contracts/task';
 import type { TaskActionContext } from '../task-actions';
 import { useTaskChanges, projectTaskCollection } from '../../changes/useTaskChanges';
 import { useTaskActions } from '../useTaskActions';
+import { RequestError } from '../../../../../shared/browser/http/http';
 
 const state = vi.hoisted(() => ({
   cursor: 0,
@@ -245,6 +246,38 @@ function renderOwned() {
 }
 
 describe('account-owned task presentation', () => {
+  it('reports cancellation separately when deleting a newly saved optimistic row', async () => {
+    const deleted = render().applyCreation(task, { patch: {}, deleted: true });
+    await vi.waitFor(() => expect(context.confirm).toHaveBeenCalledOnce());
+    vi.mocked(context.confirm).mock.calls[0]![0].onCancel?.();
+    expect(await deleted).toBe('cancelled');
+    expect(context.submit).not.toHaveBeenCalled();
+  });
+
+  it('preserves the deletion receipt when a new task followup cannot be confirmed', async () => {
+    state.submit.mockImplementation(async (_command, _category, _identity, onFailure) => {
+      onFailure(new RequestError('uncertain', 'check deletion', undefined, 'delete-receipt'));
+      return { id: 'delete-receipt', state: 'uncertain' };
+    });
+    const deleted = render().applyCreation(task, { patch: {}, deleted: true });
+    const rejected = expect(deleted).rejects.toMatchObject({ operationId: 'delete-receipt' });
+    await vi.waitFor(() => expect(context.confirm).toHaveBeenCalledOnce());
+    await vi.mocked(context.confirm).mock.calls[0]![0].onConfirm('delete-receipt');
+    await rejected;
+  });
+  it('does not invent a deletion receipt after a definite admission rejection', async () => {
+    const failure = new RequestError('validation_failed', 'this task cannot be deleted');
+    state.submit.mockImplementation(async (_command, _category, _identity, onFailure) => {
+      onFailure(failure);
+      return null;
+    });
+    const deleted = render().applyCreation(task, { patch: {}, deleted: true });
+    const rejected = expect(deleted).rejects.toBe(failure);
+    await vi.waitFor(() => expect(context.confirm).toHaveBeenCalledOnce());
+    await vi.mocked(context.confirm).mock.calls[0]![0].onConfirm('not-admitted');
+    await rejected;
+    expect(failure.operationId).toBeUndefined();
+  });
   it('projects completion and date membership before any request resolves', async () => {
     let finish!: (value: Task) => void;
     state.read.mockImplementationOnce(
