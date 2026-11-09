@@ -121,6 +121,8 @@ keep progress and recovery with the action that started the work. an import, cop
 
 return a consistent error envelope with a stable lowercase code, readable message, request/operation reference, retryability, and field details where useful. no tokens, raw provider response bodies, or stack traces in browser errors.
 
+background failure notices can be dismissed without retrying or cancelling their work. a later failure can report a new notice.
+
 use distinct codes for `unauthenticated`, `forbidden`, `validation_failed`, `conflict`, `not_found`, `reconnect_required`, `permission_required`, `list_limit_reached`, `provider_rate_limited`, `storage_unavailable`, `provider_unavailable`, `outcome_uncertain`, and `owner_stopped`. map them consistently to http responses and operation states; a failed request must not be returned as ordinary successful task data.
 
 collection queries are paginated, default 50 and maximum 100 records per page. return explicit next-page/coverage/freshness information. bulk commands accept at most 10 normalized records and 64 kib of input per request, and can reduce a chunk further for runtime limits. a single valid task must fit the accepted envelope.

@@ -93,5 +93,5 @@ export function useRecurrenceWork(accountId: string, enabled: boolean, onChanged
     },
     [accountId],
   );
-  return { run, busy, error };
+  return { run, busy, error, clearError: () => setError('') };
 }

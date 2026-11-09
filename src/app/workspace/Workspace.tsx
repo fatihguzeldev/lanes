@@ -661,6 +661,7 @@ export function Workspace({
                   aria-label="dismiss message"
                   onClick={() => {
                     commands.clearError();
+                    repeatWork.clearError();
                     setNotice('');
                   }}
                 >
