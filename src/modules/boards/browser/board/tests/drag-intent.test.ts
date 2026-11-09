@@ -100,7 +100,7 @@ describe('task lift capture', () => {
     ).toBeNull();
   });
 
-  it('refuses pending tasks and unknown source order', () => {
+  it('refuses pending tasks and missing source identities', () => {
     expect(
       captureTaskDrag({
         accountId: 'account',
@@ -109,26 +109,28 @@ describe('task lift capture', () => {
         pendingTaskIds: new Set(['b']),
       }),
     ).toBeNull();
-    expect(
-      captureTaskDrag({
-        accountId: 'account',
-        columns: [
-          { ...columns()[0]!, coverage: { complete: false, stale: true, lastSyncedAt: null } },
-        ],
-        taskId: 'b',
-      }),
-    ).toBeNull();
-    expect(
-      captureTaskDrag({
-        accountId: 'account',
-        columns: [{ ...columns()[0]!, orderReady: false }],
-        taskId: 'b',
-      }),
-    ).toBeNull();
+    expect(captureTaskDrag({ accountId: 'account', columns: [], taskId: 'b' })).toBeNull();
   });
 });
 
 describe('released task placement', () => {
+  it('reorders known siblings while provider coverage is incomplete without opening cross-list moves', () => {
+    const base = columns();
+    base[0] = {
+      ...base[0]!,
+      coverage: { complete: false, stale: true, lastSyncedAt: null },
+      orderReady: false,
+    };
+    expect(captureTaskDrag({ accountId: 'account', columns: base, taskId: 'b' })).toEqual(dragged);
+    expect(resolve({ columns: base, index: 2 })).toEqual({
+      ...dragged,
+      destinationListId: 'source',
+      parentId: null,
+      previousTaskId: 'c',
+    });
+    expect(resolve({ columns: base, destinationListId: 'destination', index: 0 })).toBeNull();
+  });
+
   it('resolves changed indices against the base order without changing provider fields', () => {
     const base = columns();
     const original = structuredClone(base);

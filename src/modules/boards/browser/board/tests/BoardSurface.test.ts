@@ -217,7 +217,7 @@ describe('board list presentation', () => {
     expect(second.provider.position).toBe('2');
   });
 
-  it('uses a captured complete drag order without claiming complete provider coverage', () => {
+  it('keeps known rows draggable while provider order reconciliation is incomplete', () => {
     const column = {
       tasks: [first],
       status: 'loading' as const,
@@ -228,7 +228,7 @@ describe('board list presentation', () => {
     expect(markup).toContain('data-draggable="true"');
     expect(markup).not.toMatch(/(?:^|\s)draggable=/);
     expect(markup).not.toContain('board-column__count');
-    expect(render({ ...column, orderReady: false }, { onMoveTask() {} })).not.toContain(
+    expect(render({ ...column, orderReady: false }, { onMoveTask() {} })).toContain(
       'data-draggable="true"',
     );
   });

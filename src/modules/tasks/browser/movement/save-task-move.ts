@@ -81,56 +81,70 @@ export async function saveTaskMove(
       'this list is taking too long to refresh. its last confirmed order is kept.',
     );
   }
-  await waitForOrder();
+  const relativeOrder =
+    intent.sourceListId === intent.destinationListId &&
+    (intent.sourceParentId ?? null) === intent.parentId &&
+    intent.position !== 'last';
+  if (!relativeOrder) await waitForOrder();
   const [task, destination, preview] = await Promise.all([
     send(`${base}/tasks/${encodeURIComponent(intent.taskId)}`, TaskSchema),
     send(`${base}/lists/${encodeURIComponent(intent.destinationListId)}`, TaskListSchema),
-    send(`${base}/tasks/${encodeURIComponent(intent.taskId)}/consequences`, TaskConsequencesSchema),
+    relativeOrder
+      ? null
+      : send(
+          `${base}/tasks/${encodeURIComponent(intent.taskId)}/consequences`,
+          TaskConsequencesSchema,
+        ),
   ]);
   if (
+    task.id !== intent.taskId ||
+    destination.id !== intent.destinationListId ||
+    destination.accountId !== intent.accountId ||
     task.accountId !== intent.accountId ||
     task.listId !== intent.sourceListId ||
     task.parentId !== (intent.sourceParentId ?? null) ||
     (task.completed && !intent.allowCompleted) ||
     task.unsupportedHierarchy ||
     !task.capabilities.canMove ||
-    !preview.coverageComplete ||
-    preview.revision !== task.revision
+    (preview && (!preview.coverageComplete || preview.revision !== task.revision))
   )
     throw new TaskMoveError('this task changed. its last confirmed position has been restored.');
   const [parent, previous] = await Promise.all([
     intent.parentId
       ? send(`${base}/tasks/${encodeURIComponent(intent.parentId)}`, TaskSchema)
       : null,
-    intent.position === 'after' && intent.previousTaskId
+    intent.position !== 'last' && intent.previousTaskId
       ? send(`${base}/tasks/${encodeURIComponent(intent.previousTaskId)}`, TaskSchema)
       : null,
   ]);
   if (
     parent &&
-    (parent.id === task.id ||
+    (parent.id !== intent.parentId ||
+      parent.id === task.id ||
       parent.accountId !== intent.accountId ||
       parent.listId !== destination.id ||
       parent.parentId !== null ||
       !parent.capabilities.canHaveChildren ||
       parent.unsupportedHierarchy ||
-      !task.capabilities.canNest ||
-      task.repeatRule !== null ||
-      preview.subtaskCount > 0)
+      (!relativeOrder &&
+        (!task.capabilities.canNest ||
+          task.repeatRule !== null ||
+          (preview?.subtaskCount ?? 0) > 0)))
   )
     throw new TaskMoveError(
       'this parent is no longer eligible. the confirmed task position has been restored.',
     );
   if (
     previous &&
-    (previous.id === task.id ||
+    (previous.id !== intent.previousTaskId ||
+      previous.id === task.id ||
       previous.accountId !== intent.accountId ||
       previous.listId !== destination.id ||
       previous.parentId !== intent.parentId)
   )
     throw new TaskMoveError('this sibling changed. the confirmed task position has been restored.');
   if (
-    preview.subtaskCount &&
+    preview?.subtaskCount &&
     task.listId !== destination.id &&
     confirmChildren &&
     !(await confirmChildren(preview.title, preview.subtaskCount))
@@ -153,7 +167,7 @@ export async function saveTaskMove(
           ...(parent ? { parentRevision: parent.revision } : {}),
           ...(intent.position === 'last' ? {} : { previousId: intent.previousTaskId }),
           ...(previous ? { previousRevision: previous.revision } : {}),
-          confirmSubtaskCount: preview.subtaskCount,
+          ...(preview ? { confirmSubtaskCount: preview.subtaskCount } : {}),
         },
       },
     });
@@ -173,10 +187,12 @@ export async function saveTaskMove(
     }
     if (operation.state === 'succeeded') {
       // The move is confirmed even if its follow-up provider scan is temporarily unavailable.
-      try {
-        await waitForOrder();
-      } catch {
-        /* A later move waits for this same durable scan. */
+      if (!relativeOrder) {
+        try {
+          await waitForOrder();
+        } catch {
+          /* A later grouped move waits for this same durable scan. */
+        }
       }
       return true;
     }

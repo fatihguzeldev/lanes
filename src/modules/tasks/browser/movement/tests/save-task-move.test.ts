@@ -139,6 +139,8 @@ function network(override: (call: Call) => unknown | Promise<unknown>) {
       if (call.path === `${base}/tasks/query`) return Response.json(page());
       if (call.path === `${base}/tasks/task/consequences`) return Response.json(preview);
       if (call.path === `${base}/tasks/task`) return Response.json(task);
+      if (call.path === `${base}/tasks/tail`)
+        return Response.json({ ...task, id: 'tail', revision: 11 });
       if (call.path === `${base}/lists/one`) return Response.json(destination);
       throw new Error(`unexpected test request: ${call.method} ${call.path}`);
     }),
@@ -152,7 +154,32 @@ afterEach(() => {
 });
 
 describe('durable task move driver', () => {
-  it('captures fresh revisions, advances one receipt and waits for the targeted provider order refresh', async () => {
+  it('sends an explicit sibling reorder while full-list sync remains incomplete', async () => {
+    const previous = { ...task, id: 'tail', revision: 11 };
+    const calls = network((call) => {
+      if (call.path === `${base}/tasks/query`) return page(false);
+      if (call.path === `${base}/tasks/tail`) return previous;
+      if (call.path === `${base}/tasks/task/consequences`)
+        return { ...preview, coverageComplete: false };
+      if (call.path === `${base}/commands/provider`) return succeeded();
+      if (call.path.startsWith(`${base}/sync`)) throw new Error('reorder must not drive sync');
+    });
+    await expect(saveTaskMove(intent, operationId)).resolves.toBe(true);
+    expect(calls.filter((call) => call.path === `${base}/commands/provider`)).toHaveLength(1);
+    expect(
+      calls.some(
+        (call) =>
+          call.path === `${base}/tasks/query` ||
+          call.path.endsWith('/consequences') ||
+          call.path.startsWith(`${base}/sync`),
+      ),
+    ).toBe(false);
+    expect(calls.find((call) => call.path === `${base}/commands/provider`)!.body).toMatchObject({
+      command: { previousId: 'tail', previousRevision: 11 },
+    });
+  });
+
+  it('keeps full order verification for implicit tail placement', async () => {
     let complete = true;
     const calls = network((call) => {
       if (call.path === `${base}/tasks/query`) return page(complete);
@@ -174,7 +201,7 @@ describe('durable task move driver', () => {
         return { accountId: 'account', phase: 'tasks', continued: false };
       }
     });
-    await expect(saveTaskMove(intent, operationId)).resolves.toBe(true);
+    await expect(saveTaskMove({ ...intent, position: 'last' }, operationId)).resolves.toBe(true);
     expect(calls.filter((call) => call.path === `${base}/commands/provider`)).toEqual([
       {
         path: `${base}/commands/provider`,
@@ -188,7 +215,6 @@ describe('durable task move driver', () => {
             listId: 'one',
             listRevision: 3,
             parentId: null,
-            previousId: 'tail',
             confirmSubtaskCount: 0,
           },
         },
@@ -198,6 +224,81 @@ describe('durable task move driver', () => {
       [`${base}/operations/${operationId}/advance`, `${base}/sync/advance`],
     );
     expect(calls.filter((call) => call.path === `${base}/tasks/query`)).toHaveLength(3);
+  });
+
+  it('starts another relative reorder before the earlier full-order refresh settles', async () => {
+    let revision = task.revision;
+    const calls = network((call) => {
+      if (call.path === `${base}/tasks/task`) return { ...task, revision };
+      if (call.path === `${base}/commands/provider`) {
+        revision++;
+        return succeeded();
+      }
+      if (call.path === `${base}/tasks/query`) return page(false);
+      if (call.path.startsWith(`${base}/sync`))
+        throw new Error('relative reorder must not drive sync');
+    });
+    await expect(saveTaskMove(intent, operationId)).resolves.toBe(true);
+    await expect(
+      saveTaskMove({ ...intent, previousTaskId: null }, `${now}:second-relative-order`),
+    ).resolves.toBe(true);
+    const submitted = calls.filter((call) => call.path === `${base}/commands/provider`);
+    expect(
+      submitted.map((call) => (call.body!.command as Record<string, unknown>).revision),
+    ).toEqual([7, 8]);
+    expect(submitted[1]!.body).toMatchObject({ command: { previousId: null } });
+    expect(
+      calls.some((call) => call.path === `${base}/tasks/query` || call.path.includes('/sync')),
+    ).toBe(false);
+  });
+
+  it('reorders an existing child without reapplying restrictions for new nesting', async () => {
+    const parent = { ...task, id: 'parent', revision: 13 };
+    const child = {
+      ...task,
+      parentId: parent.id,
+      capabilities: { ...task.capabilities, canNest: false },
+    };
+    const calls = network((call) => {
+      if (call.path === `${base}/tasks/task`) return child;
+      if (call.path === `${base}/tasks/parent`) return parent;
+      if (call.path === `${base}/commands/provider`) return succeeded();
+    });
+    await expect(
+      saveTaskMove(
+        {
+          ...intent,
+          parentId: parent.id,
+          sourceParentId: parent.id,
+          previousTaskId: null,
+          position: 'first',
+        },
+        operationId,
+      ),
+    ).resolves.toBe(true);
+    expect(calls.some((call) => call.path.endsWith('/consequences'))).toBe(false);
+  });
+
+  it('refuses a fresh read that returns another task identity without moving it', async () => {
+    const calls = network((call) =>
+      call.path === `${base}/tasks/task` ? { ...task, id: 'wrong-task' } : undefined,
+    );
+    await expect(saveTaskMove(intent, operationId)).rejects.toMatchObject({
+      message: expect.stringContaining('task changed'),
+    });
+    expect(calls.some((call) => call.path === `${base}/commands/provider`)).toBe(false);
+  });
+
+  it('rejects an anchor that moved to a different sibling group without submitting', async () => {
+    const calls = network((call) =>
+      call.path === `${base}/tasks/tail`
+        ? { ...task, id: 'tail', parentId: 'different-parent' }
+        : undefined,
+    );
+    await expect(saveTaskMove(intent, operationId)).rejects.toMatchObject({
+      message: expect.stringContaining('sibling changed'),
+    });
+    expect(calls.some((call) => call.path === `${base}/commands/provider`)).toBe(false);
   });
 
   it.each([operationId, undefined])(
@@ -273,9 +374,9 @@ describe('durable task move driver', () => {
   it('aborts after reading fresh values without submitting a command', async () => {
     const controller = new AbortController();
     const calls = network((call) => {
-      if (call.path === `${base}/tasks/task/consequences`) {
+      if (call.path === `${base}/tasks/task`) {
         controller.abort(new DOMException('account left', 'AbortError'));
-        return preview;
+        return task;
       }
     });
     await expect(
@@ -306,9 +407,9 @@ describe('durable task move driver', () => {
         if (call.path === `${base}/commands/provider`) return receipt({ nextAttemptAt: now + 200 });
         if (call.path === `${base}/operations/${operationId}/advance`) return succeeded();
       });
-      await expect(saveTaskMove(intent, operationId, undefined, undefined, -skew)).resolves.toBe(
-        true,
-      );
+      await expect(
+        saveTaskMove({ ...intent, position: 'last' }, operationId, undefined, undefined, -skew),
+      ).resolves.toBe(true);
       expect(calls.filter((call) => call.path === `${base}/commands/provider`)).toHaveLength(1);
       expect(calls.filter((call) => call.path.endsWith('/advance'))).toHaveLength(2);
     },

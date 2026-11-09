@@ -203,6 +203,40 @@ describe('board task drag flow', () => {
     });
   });
 
+  it('keeps a local reorder interactive when only sync coverage changes during the gesture', () => {
+    const flow = setup();
+    flow.begin();
+    const drop = target('c', 'source', 2);
+    expect(openTaskOrder(flow.over(drop).columns[0]!)).toEqual(['a', 'c', 'b']);
+    const columns = initialColumns().map((column) => ({
+      ...column,
+      coverage: { ...column.coverage, complete: false },
+      orderReady: false,
+    }));
+    const pending = flow.render({ columns });
+    expect(pending.dragging).toBe(true);
+    expect(flow.manager.actions.stop).not.toHaveBeenCalled();
+    flow.end(drop);
+    expect(flow.options.onMoveTask).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ previousTaskId: 'c' }),
+    );
+  });
+
+  it('can lift and reorder retained rows without waiting for the list scan', () => {
+    const columns = initialColumns().map((column) => ({
+      ...column,
+      coverage: { ...column.coverage, complete: false },
+      orderReady: false,
+    }));
+    const flow = setup({ columns });
+    expect(flow.begin().dragging).toBe(true);
+    const drop = target('c', 'source', 2);
+    expect(openTaskOrder(flow.over(drop).columns[0]!)).toEqual(['a', 'c', 'b']);
+    expect(flow.options.onMoveTask).not.toHaveBeenCalled();
+    flow.end(drop);
+    expect(flow.options.onMoveTask).toHaveBeenCalledOnce();
+  });
+
   it('restores an unchanged gap without submitting a move', () => {
     const flow = setup();
     flow.begin();

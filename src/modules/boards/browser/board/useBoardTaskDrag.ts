@@ -65,6 +65,7 @@ export function useBoardTaskDrag(options: Options) {
       task.revision !== active.dragged.revision
     )
       return false;
+    const crossList = active.placement && active.placement.listId !== active.dragged.sourceListId;
     const relevant = [active.dragged.sourceListId, active.placement?.listId];
     return relevant.every((id) => {
       if (!id) return true;
@@ -75,7 +76,7 @@ export function useBoardTaskDrag(options: Options) {
       return (
         before &&
         after &&
-        (after.orderReady ?? after.coverage.complete) &&
+        (!crossList || (after.orderReady ?? after.coverage.complete)) &&
         JSON.stringify(openTaskOrder(before)) === JSON.stringify(openTaskOrder(after))
       );
     });
@@ -158,8 +159,12 @@ export function useBoardTaskDrag(options: Options) {
     if (!active) return;
     const destinationListId = listId(operation.target);
     const destination = active.preview.find((column) => column.list.id === destinationListId);
+    const source = active.base.find((column) => column.list.id === active.dragged.sourceListId);
     active.validTarget = Boolean(
-      destination && (destination.orderReady ?? destination.coverage.complete),
+      destination &&
+      (destination.list.id === active.dragged.sourceListId ||
+        ((source?.orderReady ?? source?.coverage.complete) &&
+          (destination.orderReady ?? destination.coverage.complete))),
     );
     if (!active.validTarget || !destination || !operation.target) return;
     if (operation.target.data.taskId === active.dragged.taskId) return;

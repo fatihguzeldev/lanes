@@ -33,7 +33,7 @@ export function captureTaskDrag(input: TaskDragContext & { taskId: string }): Dr
   const source = input.columns.find(
     (column) => column.list.accountId === input.accountId && column.list.id === task.listId,
   );
-  if (!source || !(source.orderReady ?? source.coverage.complete)) return null;
+  if (!source) return null;
   if (!openTaskOrder(source).includes(task.id)) return null;
   return {
     accountId: input.accountId,
@@ -67,7 +67,13 @@ export function resolveTaskDragIntent(
     (column) =>
       column.list.accountId === input.accountId && column.list.id === input.destinationListId,
   );
-  if (!destination || !(destination.orderReady ?? destination.coverage.complete)) return null;
+  if (!destination) return null;
+  if (
+    destination.list.id !== source.list.id &&
+    (!(source.orderReady ?? source.coverage.complete) ||
+      !(destination.orderReady ?? destination.coverage.complete))
+  )
+    return null;
   const destinationTaskIds = openTaskOrder(destination);
   const siblings = destinationTaskIds.filter((id) => id !== dragged.taskId);
   if (input.index < 0 || input.index > siblings.length) return null;

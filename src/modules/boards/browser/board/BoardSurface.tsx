@@ -152,7 +152,7 @@ function ListColumn({
       options.accountId,
     ) + creations.filter((creation) => !creation.failure).length;
   const completedCoverage = column.completedCoverage ?? column.coverage;
-  const canDrop = canReorder && (column.orderReady ?? column.coverage.complete);
+  const canDrop = canReorder;
   const rootIds = columnRootIds(column, options.accountId);
   const columnStyle =
     column.color && /^#[\da-f]{3}(?:[\da-f]{3})?$/i.test(column.color)

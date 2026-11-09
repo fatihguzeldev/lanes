@@ -100,6 +100,10 @@ export function useTaskMoveQueue(
     ) {
       const parent = choice.parent ?? null;
       const previous = choice.previous ?? null;
+      const relativeOrder =
+        choice.list.id === task.listId &&
+        (parent?.id ?? null) === task.parentId &&
+        choice.position !== 'last';
       if (
         task.accountId !== accountId ||
         choice.list.accountId !== accountId ||
@@ -115,8 +119,7 @@ export function useTaskMoveQueue(
           parent.parentId ||
           !parent.capabilities.canHaveChildren ||
           parent.unsupportedHierarchy ||
-          !task.capabilities.canNest ||
-          task.repeatRule)
+          (!relativeOrder && (!task.capabilities.canNest || task.repeatRule)))
       )
         return false;
       if (
