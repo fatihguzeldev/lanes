@@ -160,6 +160,7 @@ export function Workspace({
     onReady: (task, intent) => replayCreation.current(task, intent),
     onChanged: () => changed(),
     onError: setNotice,
+    onInspect: inspection.inspect,
   });
   const completion = useTaskCompletion();
   const taskMenu = useTaskMenu();

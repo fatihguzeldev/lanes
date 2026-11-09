@@ -311,7 +311,11 @@ describe('interactive submitted tasks', () => {
   it('checks the uncertain deletion receipt without replaying creation or deletion', async () => {
     reads.created.mockResolvedValue(serverTask('ring64'));
     const failure = new RequestError('uncertain', 'check deletion', undefined, 'delete-receipt');
-    const options = { onReady: vi.fn().mockRejectedValue(failure), onError: vi.fn() };
+    const options = {
+      onReady: vi.fn().mockRejectedValue(failure),
+      onError: vi.fn(),
+      onInspect: vi.fn(),
+    };
     render(0, options).start(41, input('ring64'));
     render(0, options).items[0]!.controls!.onDelete();
     await render(0, options).finish(41, 'create-receipt');
@@ -319,7 +323,8 @@ describe('interactive submitted tasks', () => {
     expect(restored.deleted).toBe(false);
     expect(options.onError).toHaveBeenLastCalledWith('check deletion', 'delete-receipt');
     restored.failure!.onEdit();
-    expect(options.onError).toHaveBeenLastCalledWith('check deletion', 'delete-receipt');
+    expect(options.onInspect).toHaveBeenCalledWith('delete-receipt');
+    expect(options.onError).toHaveBeenCalledOnce();
     expect(reads.created).toHaveBeenCalledOnce();
     expect(options.onReady).toHaveBeenCalledOnce();
   });

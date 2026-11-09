@@ -31,6 +31,7 @@ interface CreationOptions {
   onReady?(task: Task, intent: CreationIntent): Promise<CreationResult>;
   onChanged?(): void;
   onError?(message: string, operationId?: string): void;
+  onInspect?(operationId: string): void;
 }
 interface CreationRecord extends PendingTaskCreation {
   submittedInput: CreateTask;
@@ -280,7 +281,11 @@ export function useTaskCreations(
                         failedDeletion && !failedOperationId ? 'show task' : 'check save',
                       onEdit: failedDeletion
                         ? failedOperationId
-                          ? () => listeners.current.onError?.(message, failedOperationId)
+                          ? () => {
+                              if (listeners.current.onInspect)
+                                listeners.current.onInspect(failedOperationId);
+                              else listeners.current.onError?.(message, failedOperationId);
+                            }
                           : () => {
                               remove(id);
                               listeners.current.onChanged?.();
