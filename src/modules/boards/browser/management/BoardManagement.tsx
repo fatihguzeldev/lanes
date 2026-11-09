@@ -52,6 +52,8 @@ export function useBoardManagement(
     clockOffset: environment.clockOffset,
     version: environment.version,
     inventoryReady: environment.boardsReady,
+    observedIds: environment.boards.map((board) => board.id),
+    knownBoards: [...environment.boards, ...(board ? [board] : [])],
     onChanged: environment.onChanged,
     onNotice: environment.onNotice,
     onInspect: environment.onInspect,
@@ -64,6 +66,7 @@ export function useBoardManagement(
     clockOffset: environment.clockOffset,
     version: environment.version,
     inventoryReady: environment.listsReady,
+    observedIds: environment.lists.map((list) => list.id),
     onChanged: environment.onChanged,
     onNotice: environment.onNotice,
     onInspect: environment.onInspect,
@@ -77,7 +80,23 @@ export function useBoardManagement(
     { kind: 'list'; list: BoardList } | { kind: 'task'; task: Task; boardId: string } | null
   >(null);
   return {
-    appearance,
+    appearance: {
+      ...appearance,
+      orderedBoards(values: readonly Board[]) {
+        const known = new Map(values.map((value) => [value.id, value]));
+        creation.resources.forEach((value) => {
+          if (!known.has(value.id)) known.set(value.id, value);
+        });
+        return appearance.orderedBoards([...known.values()]);
+      },
+      orderedLists(values: readonly BoardList[], boardId = board?.id) {
+        const known = new Map(values.map((value) => [value.id, value]));
+        listCreation.resources.forEach((value) => {
+          if (!known.has(value.id)) known.set(value.id, value);
+        });
+        return appearance.orderedLists([...known.values()], boardId);
+      },
+    },
     creation,
     listCreation,
     placement,

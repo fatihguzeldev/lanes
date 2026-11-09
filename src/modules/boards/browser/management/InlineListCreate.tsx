@@ -17,7 +17,7 @@ export function InlineListCreate({
   return (
     <>
       {controller.previews
-        .filter((entry) => entry.boardId === controller.currentBoardId)
+        .filter((entry) => entry.boardId === controller.currentBoardId && !entry.resource)
         .map((entry) => (
           <div key={entry.identity} className="inline-list-create inline-list-create--submitted">
             <div className="inline-list-create__field">

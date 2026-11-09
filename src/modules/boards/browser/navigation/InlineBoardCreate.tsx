@@ -16,31 +16,33 @@ export function InlineBoardCreate({
   }, [controller.open]);
   return (
     <>
-      {controller.previews.map((entry) => (
-        <div key={entry.identity} className="inline-board-create inline-board-create__row">
-          <div className="inline-board-create__field">
-            <Icon name="board" size={18} />
-            <span className="inline-board-create__title">{entry.title}</span>
-          </div>
-          {entry.state === 'failed' && (
-            <div className="inline-board-create__error" role="alert">
-              <p>{entry.error}</p>
-              <button type="button" onClick={() => controller.inspect(entry.identity)}>
-                review save
-              </button>
-              {entry.rejected ? (
-                <button type="button" onClick={() => controller.editFailed(entry.identity)}>
-                  edit name
-                </button>
-              ) : (
-                <button type="button" onClick={() => controller.retry(entry.identity)}>
-                  retry this save
-                </button>
-              )}
+      {controller.previews
+        .filter((entry) => !entry.resource)
+        .map((entry) => (
+          <div key={entry.identity} className="inline-board-create inline-board-create__row">
+            <div className="inline-board-create__field">
+              <Icon name="board" size={18} />
+              <span className="inline-board-create__title">{entry.title}</span>
             </div>
-          )}
-        </div>
-      ))}
+            {entry.state === 'failed' && (
+              <div className="inline-board-create__error" role="alert">
+                <p>{entry.error}</p>
+                <button type="button" onClick={() => controller.inspect(entry.identity)}>
+                  review save
+                </button>
+                {entry.rejected ? (
+                  <button type="button" onClick={() => controller.editFailed(entry.identity)}>
+                    edit name
+                  </button>
+                ) : (
+                  <button type="button" onClick={() => controller.retry(entry.identity)}>
+                    retry this save
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        ))}
       {controller.open && (
         <form
           className="inline-board-create"

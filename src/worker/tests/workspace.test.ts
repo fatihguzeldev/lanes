@@ -879,8 +879,9 @@ describe('authenticated workspace composition', () => {
   });
   it('returns redacted operation summaries without owner identifiers, captured text, or provider receipts', async () => {
     const { call } = await fixture();
+    const operationId = `${Date.now()}:${'c'.repeat(32)}`;
     await call('/api/accounts/account-a/commands/local', {
-      operationId: `${Date.now()}:${'c'.repeat(32)}`,
+      operationId,
       command: { kind: 'board.create', input: { title: 'private captured title' } },
     });
     const result = await call('/api/accounts/account-a/operations');
@@ -888,6 +889,12 @@ describe('authenticated workspace composition', () => {
     expect(body).not.toContain('private captured title');
     expect(body).not.toContain('ownerSubject');
     expect(body).not.toContain('inputHash');
+    const steps = await call(
+      `/api/accounts/account-a/operations/${encodeURIComponent(operationId)}/steps`,
+    );
+    expect(await steps.json()).toMatchObject({
+      items: [{ kind: 'board.create', state: 'confirmed', boardId: `board:${operationId}` }],
+    });
     expect((await call('/api/accounts/account-b/operations')).status).toBe(200);
   });
   it('saves a gallery snapshot with its receipt, scopes its content, and previews real capacity', async () => {

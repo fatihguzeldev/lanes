@@ -4,6 +4,7 @@ import { newOperationId } from '../../../operations/browser/submission/operation
 import { useCreationQueue } from './useCreationQueue';
 import type { Board } from '../../contracts/board';
 import { captureListCreation } from './list-creation';
+import { readCreatedList } from './creation-receipt';
 
 export function useListCreation(options: {
   accountId: string;
@@ -11,6 +12,7 @@ export function useListCreation(options: {
   clockOffset: number;
   version: number;
   inventoryReady: boolean;
+  observedIds: readonly string[];
   onChanged(): void;
   onNotice(message: string): void;
   onInspect(id: string): void;
@@ -25,7 +27,8 @@ export function useListCreation(options: {
   const jobs = useCreationQueue({
     ...options,
     category: 'provider',
-    boardId: options.board?.id ?? null,
+    resolve: (identity, signal, onAddress) =>
+      readCreatedList(options.accountId, identity, signal, onAddress),
   });
   const dirtyCallback = useRef(options.onDirtyChange);
   dirtyCallback.current = options.onDirtyChange;
@@ -70,6 +73,7 @@ export function useListCreation(options: {
     dirty,
     error: validation,
     previews: jobs.entries,
+    resources: jobs.resources,
     isSaving: jobs.isSaving,
     inspect: jobs.inspect,
     retry: jobs.retry,

@@ -77,6 +77,38 @@ beforeEach(() => {
 });
 
 describe('immediate board appearance', () => {
+  it('retains a newly created off-page list’s name and color until that identity is read', async () => {
+    const source: BoardList = {
+      id: 'created-off-page',
+      accountId: 'account',
+      title: 'new list',
+      providerId: 'google-list',
+      providerEtag: null,
+      isDefault: false,
+      revision: 0,
+      boardId: 'board',
+      color: '#f1f0e9',
+      position: 50,
+      membershipRevision: 0,
+    };
+    submit.mockResolvedValue(true);
+    harness.read.mockImplementation(async (url: string) =>
+      url.endsWith('/placement')
+        ? { ...source, revision: 0 }
+        : { ...source, title: 'renamed', revision: 1 },
+    );
+    await render().updateListTitle(source, 'renamed');
+    await render().updateListColor(source, '#82966f');
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(render().orderedLists([source])).toMatchObject([{ title: 'renamed', color: '#82966f' }]);
+    await render().updateListTitle(source, 'renamed again');
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(render().orderedLists([source])).toMatchObject([
+      { title: 'renamed again', color: '#82966f' },
+    ]);
+  });
   it('changes a list color locally with its membership revision and restores it on failure', async () => {
     const list: BoardList = {
       id: 'list',

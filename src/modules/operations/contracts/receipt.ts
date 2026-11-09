@@ -58,6 +58,7 @@ export const OperationStepSummarySchema = z
     errorCode: z.string().nullable(),
     taskId: ResourceIdSchema.nullable(),
     listId: ResourceIdSchema.nullable(),
+    boardId: ResourceIdSchema.nullable().optional(),
     spreadsheetId: z.string().nullable(),
     deleted: z.boolean(),
     stopDecision: z.literal('keep_provider_current').nullable().default(null),

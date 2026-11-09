@@ -184,7 +184,7 @@ export class OperationQueries {
     const rows = (
       await this.db
         .prepare(
-          `SELECT item_key,position,kind,state,error_code,${reference('taskId')} AS task_id,${reference('listId')} AS list_id,${reference('spreadsheetId')} AS spreadsheet_id,COALESCE(json_extract(result_json,'$.deleted'),0) AS deleted,
+          `SELECT item_key,position,kind,state,error_code,${reference('taskId')} AS task_id,${reference('listId')} AS list_id,${reference('boardId')} AS board_id,${reference('spreadsheetId')} AS spreadsheet_id,COALESCE(json_extract(result_json,'$.deleted'),0) AS deleted,
       CASE WHEN owner_stopped_at IS NOT NULL THEN 'keep_provider_current' ELSE NULL END AS stop_decision
       FROM tasks_operation_steps WHERE operation_id=? ${after ? 'AND(position>? OR(position=? AND item_key>?))' : ''} ORDER BY position,item_key LIMIT ?`,
         )
@@ -197,6 +197,7 @@ export class OperationQueries {
           error_code: string | null;
           task_id: string | null;
           list_id: string | null;
+          board_id: string | null;
           spreadsheet_id: string | null;
           deleted: number;
           stop_decision: 'keep_provider_current' | null;
@@ -223,6 +224,7 @@ export class OperationQueries {
         errorCode: row.error_code,
         taskId: row.task_id,
         listId: row.list_id,
+        ...(row.board_id ? { boardId: row.board_id } : {}),
         spreadsheetId: row.spreadsheet_id,
         deleted: !!row.deleted,
         stopDecision: row.stop_decision,

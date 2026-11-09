@@ -35,6 +35,21 @@ vi.mock('../../../../operations/browser/submission/useCommands', () => ({
 vi.mock('../../../../operations/browser/submission/operation-identity', () => ({
   newOperationId: () => `creation-${++harness.identity}`,
 }));
+vi.mock('../creation-receipt', () => ({
+  readCreatedList: async (accountId: string, identity: string) => ({
+    id: `saved-${identity}`,
+    accountId,
+    title: 'created list',
+    providerId: 'provider',
+    providerEtag: null,
+    isDefault: false,
+    revision: 0,
+    boardId: identity === 'creation-2' ? 'other' : 'board',
+    color: '#f1f0e9',
+    position: 50,
+    membershipRevision: 0,
+  }),
+}));
 
 const board: Board = {
   id: 'board',
@@ -49,7 +64,12 @@ const board: Board = {
   createdAt: '2026-11-05T12:00:00Z',
 };
 const notice = vi.fn();
-function render(currentBoard: Board | null = board, version = 0, inventoryReady = true) {
+function render(
+  currentBoard: Board | null = board,
+  version = 0,
+  inventoryReady = true,
+  observedIds: readonly string[] = [],
+) {
   harness.cursor = 0;
   harness.effects = [];
   const result = useListCreation({
@@ -58,6 +78,7 @@ function render(currentBoard: Board | null = board, version = 0, inventoryReady 
     clockOffset: 0,
     version,
     inventoryReady,
+    observedIds,
     onChanged: vi.fn(),
     onNotice: notice,
     onInspect: vi.fn(),
@@ -82,9 +103,7 @@ describe('list entry capture and background queue', () => {
     command.submit.mockResolvedValue({ state: 'succeeded' });
   });
   const flush = async () => {
-    await Promise.resolve();
-    await Promise.resolve();
-    await Promise.resolve();
+    for (let index = 0; index < 12; index++) await Promise.resolve();
   };
   it('discards an empty entry without creating anything', () => {
     render().show(board);
@@ -124,6 +143,12 @@ describe('list entry capture and background queue', () => {
     expect(render().isSaving()).toBe(false);
     expect(render(board, 1, false).previews).toHaveLength(2);
     render(board, 1);
+    expect(render(board, 1).resources.map((list) => list.id)).toEqual([
+      'saved-creation-1',
+      'saved-creation-2',
+    ]);
+    expect(render(board, 1).previews).toHaveLength(2);
+    render(board, 1, true, ['saved-creation-1', 'saved-creation-2']);
     expect(render(board, 1).previews).toHaveLength(0);
   });
   it('retains a failed save without replacing the next open draft', async () => {
@@ -146,6 +171,17 @@ describe('list entry capture and background queue', () => {
     await flush();
     expect(command.submit).toHaveBeenCalledTimes(2);
     expect(render().previews[0]!.state).toBe('failed');
+  });
+  it('hands a created list off by identity after it is moved to another board', async () => {
+    render().show(board);
+    render().change('new list');
+    render().save();
+    await flush();
+    expect(render().resources).toHaveLength(1);
+    const other = { ...board, id: 'other' };
+    render(other, 1, true, ['saved-creation-1']);
+    expect(render(other, 1).resources).toEqual([]);
+    expect(render(board, 2).resources).toEqual([]);
   });
   it('retries only explicitly, preserving the exact original identity and input', async () => {
     command.submit.mockResolvedValueOnce(null);
@@ -172,7 +208,7 @@ describe('list entry capture and background queue', () => {
     complete({ state: 'succeeded' });
     await flush();
     expect(command.submit.mock.calls.map((call) => call[0].boardId)).toEqual(['board', 'other']);
-    render(other, 1);
+    render(other, 1, true, ['saved-creation-2']);
     expect(render(other, 1).previews.map((item) => item.boardId)).toEqual(['board']);
   });
   it('reopens a definitely rejected creation for correction with a fresh identity', async () => {

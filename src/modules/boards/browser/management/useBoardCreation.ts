@@ -3,12 +3,16 @@ import { z } from 'zod';
 import { newOperationId } from '../../../operations/browser/submission/operation-identity';
 import { useCreationQueue } from './useCreationQueue';
 import { captureBoardCreation } from './board-creation';
+import { readCreatedBoard } from './creation-receipt';
+import type { Board } from '../../contracts/board';
 
 export function useBoardCreation(options: {
   accountId: string;
   clockOffset: number;
   version: number;
   inventoryReady: boolean;
+  observedIds: readonly string[];
+  knownBoards?: readonly Board[];
   onChanged(): void;
   onNotice(message: string): void;
   onInspect(id: string): void;
@@ -19,7 +23,15 @@ export function useBoardCreation(options: {
   const [validation, setValidation] = useState('');
   const draft = useRef({ open, title });
   draft.current = { open, title };
-  const jobs = useCreationQueue({ ...options, category: 'local' });
+  const jobs = useCreationQueue({
+    ...options,
+    category: 'local',
+    resolve: (identity, signal, onAddress) =>
+      readCreatedBoard(options.accountId, identity, signal, onAddress),
+  });
+  useEffect(() => {
+    options.knownBoards?.forEach((board) => jobs.observeResource(board));
+  }, [options.knownBoards]);
   const dirtyCallback = useRef(options.onDirtyChange);
   dirtyCallback.current = options.onDirtyChange;
   const dirty = open && Boolean(title.trim());
@@ -59,6 +71,7 @@ export function useBoardCreation(options: {
     dirty,
     error: validation,
     previews: jobs.entries,
+    resources: jobs.resources,
     isSaving: jobs.isSaving,
     inspect: jobs.inspect,
     retry: jobs.retry,

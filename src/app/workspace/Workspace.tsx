@@ -848,7 +848,7 @@ export function Workspace({
           clockOffset={clockOffset}
           preferences={viewPreferences}
           startBoardId={startBoardId}
-          loadedListCount={lists.items.length}
+          loadedListCount={displayedLists.length}
           writable={writable}
           localWritable={localWritable}
           busy={commands.busy}

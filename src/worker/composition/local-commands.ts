@@ -86,7 +86,10 @@ export async function submitLocalCommand(
       operation.id,
       step.key,
       claimId,
-      { kind: command.kind },
+      {
+        kind: command.kind,
+        ...(command.kind === 'board.create' ? { boardId: `board:${operation.id}` } : {}),
+      },
       writes,
       now,
     );

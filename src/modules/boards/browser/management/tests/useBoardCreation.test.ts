@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useBoardCreation } from '../useBoardCreation';
+import type { Board } from '../../../contracts/board';
 
 const harness = vi.hoisted(() => ({
   cursor: 0,
@@ -34,9 +35,16 @@ vi.mock('../../../../operations/browser/submission/useCommands', () => ({
 vi.mock('../../../../operations/browser/submission/operation-identity', () => ({
   newOperationId: () => `creation-${++harness.identity}`,
 }));
+const reads = vi.hoisted(() => ({ board: vi.fn() }));
+vi.mock('../creation-receipt', () => ({ readCreatedBoard: reads.board }));
 
 const notice = vi.fn();
-function render(version = 0, inventoryReady = true) {
+function render(
+  version = 0,
+  inventoryReady = true,
+  observedIds: readonly string[] = [],
+  knownBoards: readonly Board[] = [],
+) {
   harness.cursor = 0;
   harness.effects = [];
   const result = useBoardCreation({
@@ -44,6 +52,8 @@ function render(version = 0, inventoryReady = true) {
     clockOffset: 0,
     version,
     inventoryReady,
+    observedIds,
+    knownBoards,
     onChanged: vi.fn(),
     onNotice: notice,
     onInspect: vi.fn(),
@@ -66,11 +76,33 @@ describe('board entry capture and background queue', () => {
     command.clearError.mockReset();
     notice.mockReset();
     command.submit.mockResolvedValue({ state: 'succeeded' });
+    reads.board.mockReset();
+    reads.board.mockImplementation(
+      async (
+        accountId: string,
+        identity: string,
+        _signal: AbortSignal,
+        onAddress: (id: string) => void,
+      ) => {
+        const board = {
+          id: `saved-${identity}`,
+          accountId,
+          title: 'created board',
+          isMain: false,
+          emoji: null,
+          color: '#f1f0e9',
+          backgroundUrl: null,
+          position: 50,
+          revision: 0,
+          createdAt: '2026-11-09T12:00:00Z',
+        };
+        onAddress(board.id);
+        return board;
+      },
+    );
   });
   const flush = async () => {
-    await Promise.resolve();
-    await Promise.resolve();
-    await Promise.resolve();
+    for (let index = 0; index < 12; index++) await Promise.resolve();
   };
   it('discards an empty entry without creating anything', () => {
     render().show();
@@ -110,7 +142,53 @@ describe('board entry capture and background queue', () => {
     expect(render().isSaving()).toBe(false);
     expect(render(1, false).previews).toHaveLength(2);
     render(1);
+    expect(render(1).resources.map((board) => board.id)).toEqual([
+      'saved-creation-1',
+      'saved-creation-2',
+    ]);
+    expect(render(1).previews).toHaveLength(2);
+    render(1, true, ['saved-creation-1']);
+    expect(render(1).previews.map((entry) => entry.identity)).toEqual(['creation-2']);
+    render(1, true, ['saved-creation-2']);
     expect(render(1).previews).toHaveLength(0);
+  });
+  it('retains a created board’s refreshed name and appearance after leaving it beyond the first page', async () => {
+    render().show();
+    render().change('new board');
+    render().save();
+    await flush();
+    const created = render().resources[0]!;
+    const renamed = { ...created, title: 'renamed', color: '#abcdef', revision: 2 };
+    render(1, true, [], [renamed]);
+    expect(render(1).resources).toEqual([renamed]);
+    expect(render(2).resources).toEqual([renamed]);
+    expect(render(2).previews).toHaveLength(1);
+  });
+  it('retries only the missing resource read after its create receipt is confirmed', async () => {
+    reads.board.mockRejectedValueOnce(new Error('could not load the created board'));
+    render().show();
+    render().change('new board');
+    render().save();
+    await flush();
+    expect(render().previews[0]).toMatchObject({ state: 'failed', receiptConfirmed: true });
+    render().retry('creation-1');
+    await flush();
+    expect(render().resources).toHaveLength(1);
+    expect(command.submit).toHaveBeenCalledOnce();
+    expect(reads.board.mock.calls.map((call) => call[1])).toEqual(['creation-1', 'creation-1']);
+  });
+  it('hands off an already observed confirmed identity even when its hydration read fails', async () => {
+    reads.board.mockImplementationOnce(async (_account, _identity, _signal, onAddress) => {
+      onAddress('saved-creation-1');
+      throw new Error('read interrupted');
+    });
+    render().show();
+    render().change('new board');
+    render().save();
+    await flush();
+    render(0, true, ['saved-creation-1']);
+    expect(render().previews).toEqual([]);
+    expect(command.submit).toHaveBeenCalledOnce();
   });
   it('retains a failed save without replacing the next open draft', async () => {
     let complete!: (value: null) => void;

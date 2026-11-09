@@ -3,8 +3,11 @@ import type { Board } from '../../contracts/board';
 import { boardCreationRejected } from './board-creation';
 import { useCommands } from '../../../operations/browser/submission/useCommands';
 
-export interface CreationEntry {
+export interface CreationEntry<Resource = unknown> {
   identity: string;
+  resource?: Resource;
+  resourceId?: string;
+  receiptConfirmed?: boolean;
   command: unknown;
   title: string;
   boardId?: string;
@@ -16,26 +19,34 @@ export interface CreationEntry {
 }
 
 /** The draft is a separate lifetime from every captured create and its receipt. */
-export function useCreationQueue(options: {
+export function useCreationQueue<
+  Resource extends { id: string; accountId: string; revision: number },
+>(options: {
   accountId: string;
   clockOffset: number;
   version: number;
   inventoryReady: boolean;
-  boardId?: string | null;
+  observedIds: readonly string[];
+  resolve(
+    identity: string,
+    signal: AbortSignal,
+    onAddress: (id: string) => void,
+  ): Promise<Resource>;
   category: 'local' | 'provider';
   onChanged(): void;
   onNotice(message: string): void;
   onInspect(id: string): void;
 }) {
   const commands = useCommands(options.accountId, options.clockOffset, options.onChanged);
-  const [entries, setEntries] = useState<CreationEntry[]>([]);
+  const [entries, setEntries] = useState<CreationEntry<Resource>[]>([]);
   const current = useRef(entries);
-  const queue = useRef<CreationEntry[]>([]);
+  const queue = useRef<CreationEntry<Resource>[]>([]);
   const flight = useRef(false);
   const alive = useRef(true);
+  const readFlight = useRef<AbortController | null>(null);
   const environment = useRef({ ...options, commands });
   environment.current = { ...options, commands };
-  const update = (items: CreationEntry[]) => {
+  const update = (items: CreationEntry<Resource>[]) => {
     current.current = items;
     setEntries(items);
   };
@@ -44,19 +55,19 @@ export function useCreationQueue(options: {
     return () => {
       alive.current = false;
       queue.current = [];
+      readFlight.current?.abort();
     };
   }, []);
   useEffect(() => {
     if (!options.inventoryReady) return;
     const remaining = current.current.filter(
       (entry) =>
-        entry.state !== 'confirmed' ||
-        entry.confirmedAfter === null ||
-        options.version <= entry.confirmedAfter ||
-        (entry.boardId !== undefined && entry.boardId !== options.boardId),
+        !entry.receiptConfirmed ||
+        !(entry.resource?.id ?? entry.resourceId) ||
+        !options.observedIds.includes((entry.resource?.id ?? entry.resourceId)!),
     );
     if (remaining.length !== current.current.length) update(remaining);
-  }, [entries, options.version, options.inventoryReady, options.boardId]);
+  }, [entries, options.version, options.inventoryReady, options.observedIds]);
   async function drain() {
     if (flight.current) return;
     flight.current = true;
@@ -66,15 +77,30 @@ export function useCreationQueue(options: {
         let confirmed = false;
         let rejected = false;
         let error = '';
+        let resource: Resource | undefined;
+        let resourceId = entry.resourceId;
         try {
-          const result = await environment.current.commands.submit(
-            entry.command,
-            environment.current.category,
-            entry.identity,
-          );
-          confirmed = result?.state === 'succeeded';
+          const result = entry.receiptConfirmed
+            ? null
+            : await environment.current.commands.submit(
+                entry.command,
+                environment.current.category,
+                entry.identity,
+              );
+          confirmed = entry.receiptConfirmed || result?.state === 'succeeded';
+          if (confirmed) {
+            const abort = new AbortController();
+            readFlight.current = abort;
+            resource = await environment.current.resolve(entry.identity, abort.signal, (id) => {
+              resourceId = id;
+            });
+            if (resource.accountId !== options.accountId)
+              throw new Error('the saved item belongs to another account.');
+            readFlight.current = null;
+          }
           const details = environment.current.commands.getErrorDetails?.();
-          rejected = boardCreationRejected(result, details?.code, !!details?.operationId);
+          rejected =
+            !confirmed && boardCreationRejected(result, details?.code, !!details?.operationId);
           if (!confirmed)
             error =
               environment.current.commands.error ||
@@ -88,7 +114,10 @@ export function useCreationQueue(options: {
             item.identity === entry.identity
               ? {
                   ...entry,
-                  state: confirmed ? 'confirmed' : 'failed',
+                  state: confirmed && resource ? 'confirmed' : 'failed',
+                  ...(resource ? { resource } : {}),
+                  ...(resourceId ? { resourceId } : {}),
+                  receiptConfirmed: confirmed,
                   confirmedAfter: confirmed ? environment.current.version : null,
                   error,
                   rejected,
@@ -96,7 +125,7 @@ export function useCreationQueue(options: {
               : item,
           ),
         );
-        if (confirmed) environment.current.onChanged();
+        if (confirmed && resource) environment.current.onChanged();
         else environment.current.onNotice(error);
       }
     } finally {
@@ -105,11 +134,37 @@ export function useCreationQueue(options: {
   }
   return {
     entries,
+    resources: entries.flatMap((entry) => (entry.resource ? [entry.resource] : [])),
+    observeResource(resource: Resource) {
+      if (resource.accountId !== options.accountId) return;
+      let changed = false;
+      const items = current.current.map((entry) => {
+        if (
+          (entry.resource?.id ?? entry.resourceId) !== resource.id ||
+          (entry.resource && entry.resource.revision >= resource.revision)
+        )
+          return entry;
+        changed = true;
+        return { ...entry, resource, state: 'confirmed' as const, error: '' };
+      });
+      if (changed) update(items);
+    },
     isSaving: () => flight.current || queue.current.length > 0,
-    enqueue(input: Omit<CreationEntry, 'state' | 'confirmedAfter' | 'error' | 'rejected'>) {
+    enqueue(
+      input: Omit<
+        CreationEntry<Resource>,
+        | 'state'
+        | 'confirmedAfter'
+        | 'error'
+        | 'rejected'
+        | 'resource'
+        | 'resourceId'
+        | 'receiptConfirmed'
+      >,
+    ) {
       if (!alive.current || current.current.some((item) => item.identity === input.identity))
         return;
-      const entry: CreationEntry = {
+      const entry: CreationEntry<Resource> = {
         ...input,
         state: 'queued',
         confirmedAfter: null,
@@ -131,7 +186,7 @@ export function useCreationQueue(options: {
     retry(identity: string) {
       const entry = current.current.find((item) => item.identity === identity);
       if (!entry || entry.state !== 'failed' || entry.rejected) return;
-      const captured: CreationEntry = { ...entry, state: 'queued', error: '' };
+      const captured: CreationEntry<Resource> = { ...entry, state: 'queued', error: '' };
       update(current.current.map((item) => (item.identity === identity ? captured : item)));
       queue.current.push(captured);
       void drain();
