@@ -19,7 +19,11 @@ import {
 import { projectSubtaskSummary } from '../../../tasks/browser/changes/project-subtask-summary';
 import { collectionCreationMatches } from '../../../tasks/browser/queries/collection-selection';
 import type { TaskMoveQueue } from '../../../tasks/browser/movement/useTaskMoveQueue';
-import { projectTaskMoves } from '../../../tasks/browser/movement/task-move-model';
+import {
+  moveReadAcknowledged,
+  movesAcknowledged,
+  projectTaskMoves,
+} from '../../../tasks/browser/movement/task-move-model';
 import type { InitialViewReadiness } from '../../../../shared/browser/resources/readiness';
 
 type Actions = {
@@ -257,6 +261,16 @@ export function BoardWorkspace({
         nextCursor: null,
       },
   );
+  const readVersion =
+    columns.length && columns.every((column) => column.readVersion !== undefined)
+      ? Math.min(...columns.map((column) => column.readVersion!))
+      : undefined;
+  const displayedMoves = moveQueue.moves.filter(
+    (move) =>
+      !moveReadAcknowledged(move, readVersion) &&
+      !(move.confirmed && movesAcknowledged(columns, [move])),
+  );
+  useEffect(() => moveQueue.observeRead?.(readVersion), [moveQueue, readVersion]);
   const moveScope = JSON.stringify([
     account.id,
     board.id,
@@ -277,9 +291,9 @@ export function BoardWorkspace({
     activeEdits,
     undefined,
     (task) => task.accountId === account.id,
-    moveQueue.moves,
+    displayedMoves,
   );
-  const queuedColumns = projectTaskMoves(columns, moveQueue.moves).map((column) => ({
+  const queuedColumns = projectTaskMoves(columns, displayedMoves).map((column) => ({
     ...column,
     tasks: projectedTasks.filter((task) => task.listId === column.list.id),
   }));

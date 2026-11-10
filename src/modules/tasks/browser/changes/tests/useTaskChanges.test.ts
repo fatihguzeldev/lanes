@@ -284,3 +284,28 @@ it('does not resurrect a deleted task from an older pending movement snapshot', 
   ];
   expect(projectTaskCollection([task], render().items, undefined, () => true, moves)).toEqual([]);
 });
+
+it('stops projecting a verified move in the same render as a newer authoritative read', () => {
+  const move = {
+    id: 'move',
+    intent: {
+      accountId: 'account',
+      taskId: task.id,
+      revision: 1,
+      sourceListId: 'list',
+      destinationListId: 'other-list',
+      parentId: null,
+      previousTaskId: null,
+    },
+    task,
+    children: [],
+    readyListIds: [],
+    scope: 'account',
+    confirmed: true,
+    confirmedAfter: 2,
+    verifiedAfter: 3,
+  };
+  const fresh = { ...task, listId: 'fresh-list', revision: 4 };
+  expect(projectTaskCollection([fresh], [], 3, () => true, [move])[0]?.listId).toBe('other-list');
+  expect(projectTaskCollection([fresh], [], 4, () => true, [move])).toEqual([fresh]);
+});

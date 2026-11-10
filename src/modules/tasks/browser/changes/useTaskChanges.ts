@@ -1,5 +1,9 @@
 import { useCallback, useRef, useState } from 'react';
-import { projectMovedTasks, type QueuedTaskMove } from '../movement/task-move-model';
+import {
+  moveReadAcknowledged,
+  projectMovedTasks,
+  type QueuedTaskMove,
+} from '../movement/task-move-model';
 import type { Task, TaskPatch } from '../../contracts/task';
 
 export type TaskChangeId = string | number;
@@ -74,7 +78,10 @@ export function projectTaskCollection(
       if (parent) items.set(parent.id, { ...parent, completed: false, completedAt: null });
     }
   }
-  const projected = projectMovedTasks([...items.values()], moves);
+  const projected = projectMovedTasks(
+    [...items.values()],
+    moves.filter((move) => !moveReadAcknowledged(move, readVersion)),
+  );
   // Movement may carry a task captured before a later delete; it cannot resurrect that task.
   return projected.filter(
     (task) =>

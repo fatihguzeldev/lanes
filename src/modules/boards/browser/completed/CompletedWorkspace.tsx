@@ -42,6 +42,7 @@ export interface CompletedWorkspaceProps {
   onInitialReady?: (state: InitialViewReadiness) => void;
   edits?: readonly PendingTaskChange[];
   moves?: readonly QueuedTaskMove[];
+  onMoveRead?(readVersion: number | undefined): void;
   onEditRead?(id: string | number): void;
 }
 export function CompletedWorkspace({
@@ -62,6 +63,7 @@ export function CompletedWorkspace({
   onInitialReady,
   edits = [],
   moves = [],
+  onMoveRead,
   onEditRead,
 }: CompletedWorkspaceProps) {
   const today = usePlanningToday(account.planningZone, clockOffset);
@@ -88,6 +90,7 @@ export function CompletedWorkspace({
   );
   const tasks = useTaskQuery(account.id, input, version);
   const readVersion = tasks.settled && tasks.status === 'ready' ? version : undefined;
+  useEffect(() => onMoveRead?.(readVersion), [onMoveRead, readVersion]);
   const projected = projectTaskCollection(
     tasks.page.items,
     edits,

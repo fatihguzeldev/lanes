@@ -108,6 +108,7 @@ export interface CalendarWorkspaceProps extends Pick<
   edits?: readonly PendingTaskChange[];
   moves?: readonly QueuedTaskMove[];
   onEditRead?: (id: string | number) => void;
+  onMoveRead?: (readVersion: number | undefined) => void;
 }
 const emptySelectionCoverage = { complete: true, lastSyncedAt: null, stale: false };
 export function CalendarWorkspace({
@@ -128,6 +129,7 @@ export function CalendarWorkspace({
   edits = [],
   moves = [],
   onEditRead,
+  onMoveRead,
   creations = [],
   onCreationRead,
   ...actions
@@ -204,6 +206,7 @@ export function CalendarWorkspace({
     (!inputs.unscheduled || (undated.settled && undated.status === 'ready'))
       ? version
       : undefined;
+  useEffect(() => onMoveRead?.(readVersion), [onMoveRead, readVersion]);
   useEffect(() => {
     for (const edit of edits)
       if (edit.input.accountId === account.id && taskChangeAcknowledged(edit, readVersion))

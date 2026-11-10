@@ -42,6 +42,7 @@ interface Props {
   edits?: readonly PendingTaskChange[];
   moves?: readonly QueuedTaskMove[];
   onEditRead?(id: string | number): void;
+  onMoveRead?(readVersion: number | undefined): void;
 }
 export function TaskCollectionWorkspace({
   account,
@@ -64,10 +65,12 @@ export function TaskCollectionWorkspace({
   edits = [],
   moves = [],
   onEditRead,
+  onMoveRead,
 }: Props) {
   const input = useMemo(() => ({ query, filter, sort }), [query, filter, sort]);
   const tasks = useTaskQuery(account.id, input, version);
   const readVersion = tasks.settled && tasks.status === 'ready' ? version : undefined;
+  useEffect(() => onMoveRead?.(readVersion), [onMoveRead, readVersion]);
   const projected = projectTaskCollection(
     tasks.page.items,
     edits,

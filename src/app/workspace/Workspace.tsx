@@ -174,6 +174,8 @@ export function Workspace({
     version,
     clockOffset,
     runTask: edits.run,
+    resumeOrder: () => sync.resume(),
+    active,
     onRefresh: changed,
     onError: (error) => {
       setNotice(

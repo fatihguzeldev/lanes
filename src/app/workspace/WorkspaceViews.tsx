@@ -174,6 +174,7 @@ export function WorkspaceViews({
             creations={creations}
             onCreationRead={onCreationRead}
             moves={moveQueue.moves}
+            onMoveRead={moveQueue.observeRead}
             edits={edits}
             onEditRead={onEditRead}
             localActionsEnabled={localWritable}
@@ -201,6 +202,7 @@ export function WorkspaceViews({
           onOpenTask={actions.onOpenTask}
           onTaskMenu={actions.onTaskMenu}
           moves={moveQueue.moves}
+          onMoveRead={moveQueue.observeRead}
           edits={edits}
           onEditRead={onEditRead}
           creations={creations}
@@ -225,6 +227,7 @@ export function WorkspaceViews({
           onInitialReady={onInitialReady}
           onOpenTask={actions.onOpenTask}
           moves={moveQueue.moves}
+          onMoveRead={moveQueue.observeRead}
           edits={edits}
           onEditRead={onEditRead}
           onReturn={actions.onReturnToBoard}
