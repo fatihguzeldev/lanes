@@ -18,6 +18,7 @@ import { useServerConnection } from '../../../../shared/browser/connectivity/use
 import { useRecurrenceWork } from '../planning/useRecurrenceWork';
 import { TaskEditorSurface } from './TaskEditorSurface';
 import type { TaskChangeController } from '../changes/useTaskChanges';
+import type { TaskCreationController } from '../creation/useTaskCreations';
 
 interface Props {
   account: ConnectionSummary;
@@ -42,6 +43,12 @@ interface Props {
   onEditPending?(input: TaskEditorSave): void;
   runEdit?: TaskChangeController['run'];
   onCreatePending?(input: CreateTask): void;
+  runCreate?:
+    | ((
+        submit: Parameters<TaskCreationController['run']>[1],
+        error: Parameters<TaskCreationController['run']>[2],
+      ) => Promise<boolean>)
+    | undefined;
   onUpdateCreation?(id: number, input: CreateTask): boolean;
   onDirtyChange: (dirty: boolean) => void;
   onOpenTask: (task: Task) => void;
@@ -88,6 +95,7 @@ export function TaskEditorWorkspace({
   onEditPending,
   runEdit,
   onCreatePending,
+  runCreate,
   onUpdateCreation,
   onDirtyChange,
   onOpenTask,
@@ -376,6 +384,11 @@ export function TaskEditorWorkspace({
             input.expectedGraphRevision = currentGraph.revision;
           }
         }
+        if (!edit && runCreate)
+          return runCreate(
+            () => commands.submit(input, category, identity),
+            () => commands.getErrorDetails?.() ?? null,
+          );
         const result = await commands.submit(input, category, identity);
         return result?.state === 'succeeded';
       };

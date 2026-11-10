@@ -3,11 +3,16 @@ import { CreateTaskSchema, type Task } from '../../../contracts/task';
 import { creationAcknowledged, useTaskCreations } from '../useTaskCreations';
 import { RequestError } from '../../../../../shared/browser/http/http';
 import { TaskCreationPreview } from '../TaskCreationPreview';
+import type { OperationSummary } from '../../../../operations/contracts/receipt';
 
 const hooks = vi.hoisted(() => ({ slots: [] as unknown[], index: 0 }));
-const reads = vi.hoisted(() => ({ created: vi.fn(), task: vi.fn() }));
+const reads = vi.hoisted(() => ({ created: vi.fn(), task: vi.fn(), operation: vi.fn() }));
 vi.mock('../creation-receipt', () => ({ readCreatedTask: reads.created }));
 vi.mock('../../queries/references', () => ({ readTask: reads.task }));
+vi.mock('../../../../../shared/browser/http/http', async (original) => ({
+  ...(await original<typeof import('../../../../../shared/browser/http/http')>()),
+  request: reads.operation,
+}));
 vi.mock('react', async (original) => ({
   ...(await original<typeof import('react')>()),
   useCallback: (callback: unknown) => callback,
@@ -498,4 +503,80 @@ it('guards failed drafts without discarding saves that are still running', () =>
   render().discardDrafts();
   expect(render().items.map((item) => item.id)).toEqual([2]);
   expect(render().hasDrafts).toBe(false);
+});
+
+describe('ordered creation submission', () => {
+  const receipt = (state = 'succeeded', finished = true) =>
+    ({ state, finished, confirmedSteps: state === 'succeeded' ? 1 : 0 }) as OperationSummary;
+  beforeEach(() => {
+    hooks.index = 0;
+    hooks.slots = [];
+    reads.created.mockReset();
+    reads.operation.mockReset();
+  });
+
+  it('submits captured creates in list order without blocking another list', async () => {
+    let release!: (value: OperationSummary) => void;
+    render().start(1, input('A'));
+    render().start(2, input('B'));
+    render().start(3, { ...input('other'), listId: 'other' });
+    const calls: string[] = [];
+    const a = render().run(1, () => {
+      calls.push('A');
+      return new Promise((resolve) => {
+        release = resolve;
+      });
+    });
+    const b = render().run(2, async () => {
+      calls.push('B');
+      return receipt();
+    });
+    const other = render().run(3, async () => {
+      calls.push('other');
+      return receipt();
+    });
+    await other;
+    expect(calls).toEqual(['A', 'other']);
+    release(receipt());
+    await Promise.all([a, b]);
+    expect(calls).toEqual(['A', 'other', 'B']);
+  });
+
+  it('stops unsent same-list creates after uncertainty until the original identity is confirmed', async () => {
+    render().start(1, input('A'));
+    render().start(2, input('B'));
+    const a = render().run(1, async () => receipt('uncertain', false));
+    const sendB = vi.fn(async () => receipt());
+    const b = render().run(2, sendB);
+    await expect(a).resolves.toBe(false);
+    await expect(b).rejects.toThrow('earlier');
+    expect(sendB).not.toHaveBeenCalled();
+    reads.created.mockResolvedValue({ ...input('A'), id: 'saved-A', completed: false } as Task);
+    await render().finish(1, 'real-receipt');
+    render().start(3, input('C'));
+    await expect(render().run(3, async () => receipt())).resolves.toBe(true);
+    expect(reads.created).toHaveBeenCalledOnce();
+  });
+
+  it('allows the next creation after a definite zero-step rejection', async () => {
+    render().start(1, input('rejected'));
+    render().start(2, input('valid'));
+    await expect(render().run(1, async () => receipt('failed'))).resolves.toBe(false);
+    await expect(render().run(2, async () => receipt())).resolves.toBe(true);
+  });
+  it('recovers a discarded unresolved creation from its real receipt without replaying it', async () => {
+    render().start(1, input('A'));
+    await render().run(1, async () => ({ ...receipt('uncertain', false), id: 'receipt-A' }));
+    render().remove(1);
+    reads.operation.mockResolvedValue({ ...receipt(), id: 'receipt-A', accountId: 'account' });
+    render().start(2, input('B'));
+    const submit = vi.fn(async () => receipt());
+    await expect(render().run(2, submit)).resolves.toBe(true);
+    expect(reads.operation).toHaveBeenCalledWith(
+      '/api/accounts/account/operations/receipt-A',
+      expect.anything(),
+    );
+    expect(submit).toHaveBeenCalledOnce();
+    expect(reads.created).not.toHaveBeenCalled();
+  });
 });

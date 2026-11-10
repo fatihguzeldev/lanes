@@ -235,6 +235,36 @@ describe('hidden editor retirement', () => {
     editor.render(false);
     expect(editor.retire).not.toHaveBeenCalled();
   });
+  it('closes a captured creation while its list queue waits without dispatching it early', async () => {
+    const editor = mount(true);
+    let release!: () => void;
+    const queued = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    editor.props.runCreate = vi.fn(async (submit) => {
+      await queued;
+      return (await submit())?.state === 'succeeded';
+    });
+    state.commands.submit.mockResolvedValue({ state: 'succeeded' });
+    editor.render()!.props.children.props.onCreate({
+      accountId: 'account',
+      listRevision: 1,
+      input: CreateTaskSchema.parse({
+        accountId: 'account',
+        listId: 'list',
+        title: 'queued new task',
+      }),
+    });
+    expect(editor.submitted).toHaveBeenCalledOnce();
+    expect(editor.preview).toHaveBeenCalledOnce();
+    expect(state.commands.submit).not.toHaveBeenCalled();
+    editor.render(false);
+    expect(editor.retire).not.toHaveBeenCalled();
+    release();
+    for (let step = 0; step < 8; step++) await Promise.resolve();
+    expect(state.commands.submit).toHaveBeenCalledOnce();
+    expect(editor.saved).toHaveBeenCalledOnce();
+  });
 
   it('leaves an unadmitted calendar creation available for correction', async () => {
     const editor = mount(false, undefined, true);

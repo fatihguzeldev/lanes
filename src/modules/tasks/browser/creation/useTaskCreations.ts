@@ -3,6 +3,8 @@ import type { CreateTask, Task, TaskPatch } from '../../contracts/task';
 import { readCreatedTask } from './creation-receipt';
 import { readTask } from '../queries/references';
 import { RequestError } from '../../../../shared/browser/http/http';
+import type { OperationSummary } from '../../../operations/contracts/receipt';
+import { createCreationSubmissionQueue } from './creation-submission-queue';
 
 export interface CreationIntent {
   patch: TaskPatch;
@@ -100,6 +102,15 @@ export function useTaskCreations(
   const listeners = useRef(options);
   const flights = useRef(new Map<number, Promise<void>>());
   const editors = useRef(new Map<number, Set<symbol>>());
+  const submissions = useRef<{
+    accountId: string;
+    queue: ReturnType<typeof createCreationSubmissionQueue>;
+  } | null>(null);
+  if (submissions.current?.accountId !== accountId)
+    submissions.current = {
+      accountId,
+      queue: createCreationSubmissionQueue(accountId, () => currentAccount.current === accountId),
+    };
   const restart = useRef<(id: number, operationId: string) => Promise<void>>(async () => {});
   currentVersion.current = version;
   currentAccount.current = accountId;
@@ -204,6 +215,7 @@ export function useTaskCreations(
             },
           );
           if (currentAccount.current !== accountId) return;
+          submissions.current?.queue.confirm(id, captured.input.listId);
           change((items) =>
             items.map((item) => (item.id === id ? { ...item, resolvedTaskId: task.id } : item)),
           );
@@ -402,6 +414,16 @@ export function useTaskCreations(
       if (creation && creation.confirmedAfter !== null) listeners.current.onChanged?.();
     };
   };
+  const run = (
+    id: number,
+    submit: () => Promise<OperationSummary | null>,
+    error?: () => RequestError | null,
+  ): Promise<boolean> => {
+    const creation = current.current.find((item) => item.id === id);
+    if (!creation || creation.input.accountId !== accountId)
+      return Promise.reject(new Error('this new task’s draft is no longer available.'));
+    return submissions.current!.queue.run(id, creation.input.listId, submit, error);
+  };
   const modify = (id: number, update: (item: CreationRecord) => CreationRecord) => {
     if (listeners.current.editable === false) return;
     change((items) => items.map((item) => (item.id === id ? update(item) : item)));
@@ -447,6 +469,7 @@ export function useTaskCreations(
     hold,
     acknowledge,
     retainEditor,
+    run,
     busy: records.some((item) => item.confirmedAfter === null && !item.failure),
     hasDrafts: records.some((item) => !!item.failure),
     discardDrafts: () => change((items) => items.filter((item) => !item.failure)),

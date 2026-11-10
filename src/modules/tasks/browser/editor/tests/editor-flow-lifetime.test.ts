@@ -77,6 +77,7 @@ function mount() {
       acknowledge: vi.fn(),
       update: vi.fn(),
       retainEditor: vi.fn(() => vi.fn()),
+      run: vi.fn(),
       busy: false,
       hasDrafts: false,
       discardDrafts: vi.fn(),
@@ -86,6 +87,7 @@ function mount() {
       start: vi.fn(),
       confirm: vi.fn(),
       remove: vi.fn(),
+      run: vi.fn(),
       project: vi.fn((task) => task),
     },
     account: { id: 'account' } as ComponentProps<typeof TaskEditorFlow>['account'],
@@ -184,6 +186,14 @@ describe('task editor command lifetime', () => {
     stop();
     stop();
     expect(release).toHaveBeenCalledOnce();
+  });
+  it('routes each retained editor create through the account creation queue', () => {
+    const flow = mount();
+    const [editor] = flow.render();
+    const submit = vi.fn(),
+      error = vi.fn();
+    editor!.props.runCreate!(submit, error);
+    expect(flow.creations.run).toHaveBeenCalledWith(1, submit, error);
   });
   it('clears a clean pending editor session when its inactive account retires the presentation', () => {
     const flow = mount();

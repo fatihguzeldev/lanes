@@ -152,6 +152,7 @@ export function TaskEditorFlow({
             if (editor.task) edits.start(id, input.baseline ?? editor.task, input);
           }}
           runEdit={edits.run}
+          runCreate={(submit, error) => creations.run(id, submit, error)}
           onCreatePending={(input) =>
             creations.start(id, input, (latestInput) =>
               guard(() => {
