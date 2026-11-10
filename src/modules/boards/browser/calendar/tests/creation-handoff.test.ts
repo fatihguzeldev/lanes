@@ -11,6 +11,7 @@ const state = vi.hoisted(() => ({
   settled: true,
   items: [] as Task[],
   matched: [] as string[],
+  orderReadyTaskIds: [] as string[],
 }));
 vi.mock('react', async (original) => ({
   ...(await original<typeof import('react')>()),
@@ -25,6 +26,7 @@ vi.mock('../../../../tasks/browser/queries/useTaskQuery', () => ({
     page: {
       items: state.items,
       matchedTaskIds: state.matched,
+      orderReadyTaskIds: state.orderReadyTaskIds,
       nextCursor: null,
       coverage: { complete: true, stale: false, lastSyncedAt: null },
       providerCoverage: { complete: true },
@@ -37,6 +39,7 @@ vi.mock('../../../../tasks/browser/queries/useTaskQuery', () => ({
 const creation = (patch: Partial<PendingTaskCreation> = {}): PendingTaskCreation => ({
   id: 1,
   confirmedAfter: 5,
+  resolvedTaskId: 'saved-task',
   input: CreateTaskSchema.parse({
     accountId: 'account',
     listId: 'list',
@@ -78,6 +81,7 @@ beforeEach(() => {
   state.settled = true;
   state.items = [];
   state.matched = [];
+  state.orderReadyTaskIds = [];
 });
 describe('calendar creation handoff', () => {
   it('retains board-scoped server results whose list is beyond the loaded list page', () => {
@@ -118,11 +122,18 @@ describe('calendar creation handoff', () => {
     expect(result.props.tasks.map((task) => task.id)).toEqual(['task']);
   });
   it('keeps a creation through the old read and removes it in the same render as a fresh read', () => {
+    state.orderReadyTaskIds = ['saved-task'];
     expect(render([creation()], 5).props.creations).toHaveLength(1);
     state.effects = [];
     const fresh = render();
     expect(fresh.props.creations).toEqual([]);
     expect(fresh.acknowledged).toHaveBeenCalledExactlyOnceWith(1);
+  });
+  it('keeps a creation after a fresh read until its own list order is reconciled', () => {
+    state.orderReadyTaskIds = ['unrelated-task'];
+    const result = render();
+    expect(result.props.creations).toHaveLength(1);
+    expect(result.acknowledged).not.toHaveBeenCalled();
   });
   it.each(['loading', 'error'])('keeps the preview when the fresh read is %s', (status) => {
     state.status = status;

@@ -214,10 +214,15 @@ export function CalendarWorkspace({
       creation.input.accountId === account.id &&
       (scope === 'account' || visibleLists.some((list) => list.id === creation.input.listId)),
   );
+  const orderReadyTaskIds = [
+    ...(dated.page.orderReadyTaskIds ?? []),
+    ...(undated.page.orderReadyTaskIds ?? []),
+  ];
   useEffect(() => {
     for (const creation of scopedCreations)
-      if (creationAcknowledged(creation, readVersion)) onCreationRead?.(creation.id);
-  }, [scopedCreations, readVersion, onCreationRead]);
+      if (creationAcknowledged(creation, readVersion, orderReadyTaskIds))
+        onCreationRead?.(creation.id);
+  }, [scopedCreations, readVersion, orderReadyTaskIds, onCreationRead]);
   const projected = projectTaskCollection(
     items,
     edits,
@@ -228,7 +233,8 @@ export function CalendarWorkspace({
     (task) =>
       !scopedCreations.some(
         (creation) =>
-          !creationAcknowledged(creation, readVersion) && creation.resolvedTaskId === task.id,
+          !creationAcknowledged(creation, readVersion, orderReadyTaskIds) &&
+          creation.resolvedTaskId === task.id,
       ),
   );
   const context = useTaskListContexts(
@@ -329,7 +335,8 @@ export function CalendarWorkspace({
         accountId={account.id}
         boardId={board.id}
         creations={scopedCreations.filter(
-          (creation) => !creation.deleted && !creationAcknowledged(creation, readVersion),
+          (creation) =>
+            !creation.deleted && !creationAcknowledged(creation, readVersion, orderReadyTaskIds),
         )}
         tasks={selection.tasks}
         relatedTasks={selection.tasks}

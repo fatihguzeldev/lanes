@@ -57,18 +57,33 @@ describe('submitted task visibility', () => {
     owner.start(1, input('ring64'));
     render(5);
     owner.confirm(1);
-    const [creation] = render(5).items;
-    expect(creation!.confirmedAfter).toBe(5);
-    expect(creationAcknowledged(creation!)).toBe(false);
-    expect(creationAcknowledged(creation!, 4)).toBe(false);
-    expect(creationAcknowledged(creation!, 5)).toBe(false);
-    expect(creationAcknowledged(creation!, 6)).toBe(true);
+    const creation = { ...render(5).items[0]!, resolvedTaskId: 'saved-task' };
+    expect(creation.confirmedAfter).toBe(5);
+    expect(creationAcknowledged(creation)).toBe(false);
+    expect(creationAcknowledged(creation, 4, ['saved-task'])).toBe(false);
+    expect(creationAcknowledged(creation, 5, ['saved-task'])).toBe(false);
+    expect(creationAcknowledged(creation, 6, ['saved-task'])).toBe(true);
     expect(render().items).toHaveLength(1);
   });
 
   it('does not acknowledge a pending row even when unrelated reads complete', () => {
     render().start(1, input('ring64'));
     expect(creationAcknowledged(render().items[0]!, 100)).toBe(false);
+  });
+
+  it('keeps a confirmed creation until a fresh read verifies that task’s own order', () => {
+    const creation = {
+      id: 1,
+      input: input('gdg gaziantep'),
+      resolvedTaskId: 'saved-task',
+      confirmedAfter: 5,
+    };
+    expect(creationAcknowledged(creation, 6, [])).toBe(false);
+    expect(creationAcknowledged(creation, 6, ['other-task'])).toBe(false);
+    expect(creationAcknowledged(creation, 5, ['saved-task'])).toBe(false);
+    expect(creationAcknowledged(creation, 6, ['saved-task'])).toBe(true);
+    const { resolvedTaskId: _id, ...unresolved } = creation;
+    expect(creationAcknowledged(unresolved, 6, ['saved-task'])).toBe(false);
   });
 
   it('does not move the confirmation boundary when success is reported again', () => {
@@ -200,6 +215,19 @@ describe('interactive submitted tasks', () => {
     expect(onReady).toHaveBeenCalledTimes(2);
     expect(onReady.mock.calls[1]![0].revision).toBe(2);
     expect(onReady.mock.calls[1]![1]).toEqual({ patch: {}, completed: true });
+  });
+  it('resumes order reads after confirmation without keeping the save busy', async () => {
+    reads.created.mockResolvedValue(serverTask('ring64'));
+    const reconciliation = deferred<void>();
+    const onOrderRefresh = vi.fn(() => reconciliation.promise);
+    const options = { onOrderRefresh };
+    render(0, options).start(1, input('ring64'));
+    await render(0, options).finish(1, 'receipt');
+    expect(onOrderRefresh).toHaveBeenCalledOnce();
+    expect(render(0, options).busy).toBe(false);
+    expect(render(0, options).items[0]!.confirmedAfter).toBe(0);
+    expect(render(0, options).items[0]!.controls?.disabled).toBe(false);
+    reconciliation.resolve();
   });
   it('does not overwrite unrelated provider changes with the original create input', async () => {
     reads.created.mockResolvedValue({

@@ -30,6 +30,7 @@ interface CreationOptions {
   editable?: boolean;
   onReady?(task: Task, intent: CreationIntent): Promise<CreationResult>;
   onChanged?(): void;
+  onOrderRefresh?(): void;
   onError?(message: string, operationId?: string): void;
   onInspect?(operationId: string): void;
 }
@@ -41,8 +42,17 @@ interface CreationRecord extends PendingTaskCreation {
   replayBlocked?: boolean;
 }
 
-export function creationAcknowledged(creation: PendingTaskCreation, readVersion?: number) {
-  return creation.confirmedAfter !== null && (readVersion ?? -1) > creation.confirmedAfter;
+export function creationAcknowledged(
+  creation: PendingTaskCreation,
+  readVersion?: number,
+  orderReadyTaskIds: readonly string[] = [],
+) {
+  return (
+    creation.confirmedAfter !== null &&
+    (readVersion ?? -1) > creation.confirmedAfter &&
+    !!creation.resolvedTaskId &&
+    orderReadyTaskIds.includes(creation.resolvedTaskId)
+  );
 }
 const editableFields = [
   'title',
@@ -262,6 +272,7 @@ export function useTaskCreations(
           );
           confirm(id);
           listeners.current.onChanged?.();
+          listeners.current.onOrderRefresh?.();
         } catch (error) {
           if (currentAccount.current !== accountId) return;
           const message =

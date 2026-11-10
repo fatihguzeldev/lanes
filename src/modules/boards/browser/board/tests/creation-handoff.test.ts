@@ -28,6 +28,7 @@ const creation = (id = 1): PendingTaskCreation => ({
   id,
   input: CreateTaskSchema.parse({ accountId: 'account', listId: 'list', title: 'ring64' }),
   confirmedAfter: 5,
+  resolvedTaskId: `saved-task-${id}`,
 });
 const list = { id: 'list', accountId: 'account', boardId: 'board' };
 function render(
@@ -66,6 +67,40 @@ describe('creation handoff to confirmed list data', () => {
     hooks.effects = [];
   });
 
+  it('keeps a newly inserted task first when a fresh read still has stale sibling positions', () => {
+    const saved = {
+      ...creation().input,
+      id: 'saved-task',
+      completed: false,
+      revision: 1,
+      provider: { id: 'new', position: '000' },
+    } as import('../../../../tasks/contracts/task').Task;
+    const old = {
+      ...saved,
+      id: 'a-old',
+      title: 'survive',
+      provider: { ...saved.provider, id: 'old' },
+    };
+    const pending = { ...creation(), resolvedTaskId: saved.id };
+    const before = render({ readVersion: 6, tasks: [old, saved], orderReadyTaskIds: [] }, [
+      pending,
+    ]);
+    expect(before.column.creations?.map((item) => item.input.title)).toEqual(['ring64']);
+    expect(before.column.tasks.map((task) => task.title)).toEqual(['survive']);
+    expect(before.acknowledged).not.toHaveBeenCalled();
+    const after = render(
+      {
+        readVersion: 7,
+        tasks: [saved, { ...old, provider: { ...old.provider, position: '001' } }],
+        orderReadyTaskIds: [saved.id, old.id],
+      },
+      [pending],
+    );
+    expect(after.column.creations).toEqual([]);
+    expect(after.column.tasks.map((task) => task.title)).toEqual(['ring64', 'survive']);
+    expect(after.acknowledged).toHaveBeenCalledExactlyOnceWith(1);
+  });
+
   it('keeps the submitted title when the save is done but its list read is still old', () => {
     const { column, acknowledged } = render({ readVersion: 5 });
     expect(column.creations?.map((item) => item.input.title)).toEqual(['ring64']);
@@ -75,7 +110,7 @@ describe('creation handoff to confirmed list data', () => {
   it('removes the local row in the same render that presents the fresh confirmed task', () => {
     const saved = TaskSchema.parse({
       ...creation().input,
-      id: 'saved-task',
+      id: 'saved-task-1',
       completed: false,
       completedAt: null,
       seriesId: null,
@@ -104,6 +139,7 @@ describe('creation handoff to confirmed list data', () => {
     const { column, acknowledged } = render({
       readVersion: 6,
       tasks: [saved],
+      orderReadyTaskIds: [saved.id],
     });
     expect(column.tasks).toEqual([saved]);
     expect(column.creations).toEqual([]);
@@ -121,7 +157,10 @@ describe('creation handoff to confirmed list data', () => {
 
   it('keeps another creation visible while the first successful one is acknowledged', () => {
     const next = { ...creation(2), confirmedAfter: null };
-    const { column, acknowledged } = render({ readVersion: 6 }, [creation(), next]);
+    const { column, acknowledged } = render(
+      { readVersion: 6, orderReadyTaskIds: ['saved-task-1'] },
+      [creation(), next],
+    );
     expect(column.creations?.map((item) => item.id)).toEqual([2]);
     expect(acknowledged).toHaveBeenCalledExactlyOnceWith(1);
   });

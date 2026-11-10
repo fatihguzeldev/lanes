@@ -72,6 +72,10 @@ function ColumnData({
       tasks: [...open.page.items, ...completed.page.items],
       coverage: open.page.coverage,
       providerComplete: open.page.providerCoverage.complete,
+      orderReadyTaskIds: [
+        ...(open.page.orderReadyTaskIds ?? []),
+        ...(completed.page.orderReadyTaskIds ?? []),
+      ],
       readVersion:
         open.status === 'ready' &&
         open.settled &&
@@ -279,7 +283,7 @@ export function BoardWorkspace({
       (creation) =>
         creation.input.accountId === account.id &&
         creation.input.listId === column.list.id &&
-        !creationAcknowledged(creation, column.readVersion),
+        !creationAcknowledged(creation, column.readVersion, column.orderReadyTaskIds),
     );
     const projected = column.tasks.filter(
       (task) => !pendingCreations.some((creation) => creation.resolvedTaskId === task.id),
@@ -326,7 +330,7 @@ export function BoardWorkspace({
           item.list.accountId === creation.input.accountId &&
           item.list.id === creation.input.listId,
       );
-      if (column && creationAcknowledged(creation, column.readVersion))
+      if (column && creationAcknowledged(creation, column.readVersion, column.orderReadyTaskIds))
         onCreationRead?.(creation.id);
     }
   }, [columns, creations, onCreationRead]);

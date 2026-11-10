@@ -61,6 +61,12 @@ export function useTaskQuery(accountId: string, input: TaskQueryInput | null, in
             ...(append ? previous.page.contextTaskIds : []),
             ...page.contextTaskIds,
           ]);
+          const orderReadyTaskIds = [
+            ...new Set([
+              ...(append ? (previous.page.orderReadyTaskIds ?? []) : []),
+              ...(page.orderReadyTaskIds ?? []),
+            ]),
+          ];
           matched.forEach((id) => contexts.delete(id));
           return {
             page: {
@@ -68,6 +74,7 @@ export function useTaskQuery(accountId: string, input: TaskQueryInput | null, in
               items: [...byId.values()],
               matchedTaskIds: [...matched],
               contextTaskIds: [...contexts],
+              orderReadyTaskIds,
               subtaskSummaries: {
                 ...(append ? previous.page.subtaskSummaries : {}),
                 ...page.subtaskSummaries,
