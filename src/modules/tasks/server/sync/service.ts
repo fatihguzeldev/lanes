@@ -179,6 +179,11 @@ export class TaskSyncService {
       )
       .bind(JSON.stringify(visible), at, accountId);
   }
+  private resetOrderRecovery(accountId: string): D1PreparedStatement {
+    return this.db
+      .prepare('UPDATE tasks_lists SET order_recovery_attempted=0 WHERE account_id=?')
+      .bind(accountId);
+  }
   async getStatus(accountId: string): Promise<SyncStatus> {
     assertProjectionIdentity(accountId);
     const state = await this.db
@@ -256,15 +261,11 @@ export class TaskSyncService {
           )
           .bind(accountId, list),
         // A confirmed insert adds one known task; only sibling order needs repair.
-        ...(reason === 'move'
-          ? [
-              this.db
-                .prepare(
-                  'UPDATE tasks_lists SET tasks_complete_at=NULL,completed_complete_at=NULL WHERE account_id=? AND id=?',
-                )
-                .bind(accountId, list),
-            ]
-          : []),
+        this.db
+          .prepare(
+            `UPDATE tasks_lists SET order_recovery_attempted=0${reason === 'move' ? ',tasks_complete_at=NULL,completed_complete_at=NULL' : ''} WHERE account_id=? AND id=?`,
+          )
+          .bind(accountId, list),
         this.db
           .prepare(
             `INSERT INTO tasks_sync_list_work(account_id,list_id,priority,next_at,mode) VALUES (?,?,0,?,'full')
@@ -333,6 +334,7 @@ export class TaskSyncService {
       )
         await this.batch([
           this.prepareRefreshJob(accountId, at, request.reason === 'manual'),
+          this.resetOrderRecovery(accountId),
           this.db
             .prepare(
               'UPDATE tasks_account_state SET inventory_scan_id=?,inventory_cursor=NULL,foreground_refresh_at=? WHERE account_id=?',
@@ -357,6 +359,7 @@ export class TaskSyncService {
         .bind(accountId),
       this.db.prepare('UPDATE tasks_sync_fairness SET turn=turn+1 WHERE singleton=1'),
       this.prepareRefreshJob(accountId, at, request.reason === 'manual'),
+      this.resetOrderRecovery(accountId),
       this.db
         .prepare(
           'UPDATE tasks_account_state SET foreground_refresh_at=?,inventory_scan_id=?,inventory_cursor=NULL WHERE account_id=?',
@@ -379,13 +382,18 @@ export class TaskSyncService {
     await this.batch([
       this.db
         .prepare(
+          'UPDATE tasks_lists SET order_recovery_attempted=0 WHERE account_id=? AND id=(SELECT list_id FROM tasks_tasks WHERE account_id=? AND id=?)',
+        )
+        .bind(accountId, accountId, taskId),
+      this.db
+        .prepare(
           "INSERT INTO tasks_sync_checks(account_id,kind,resource_id,next_at) VALUES (?,'task',?,?) ON CONFLICT(account_id,kind,resource_id) DO UPDATE SET next_at=MIN(next_at,excluded.next_at)",
         )
         .bind(accountId, taskId, at),
       this.db.prepare('UPDATE tasks_sync_fairness SET turn=turn+1 WHERE singleton=1'),
       this.db
         .prepare(
-          'INSERT INTO tasks_sync_jobs(account_id,next_at,requested_at,default_pending,inventory_pending,fairness_order) SELECT ?,?,?,0,0,turn FROM tasks_sync_fairness WHERE singleton=1 ON CONFLICT(account_id) DO UPDATE SET next_at=MIN(next_at,excluded.next_at),request_revision=request_revision+1',
+          'INSERT INTO tasks_sync_jobs(account_id,next_at,requested_at,default_pending,inventory_pending,fairness_order) SELECT ?,?,?,0,0,turn FROM tasks_sync_fairness WHERE singleton=1 ON CONFLICT(account_id) DO UPDATE SET next_at=MIN(next_at,excluded.next_at),attempts=0,error_code=NULL,request_revision=request_revision+1',
         )
         .bind(accountId, at, at),
     ]);
@@ -527,10 +535,10 @@ export class TaskSyncService {
       } else {
         const check = await this.db
           .prepare(
-            `SELECT c.kind,c.resource_id FROM tasks_sync_checks c WHERE c.account_id=? AND c.next_at<=? AND ${noCapturedCommand('c.account_id', "CASE WHEN c.kind='list' THEN c.resource_id ELSE (SELECT t.list_id FROM tasks_tasks t WHERE t.account_id=c.account_id AND t.id=c.resource_id) END")} ORDER BY c.next_at,c.kind,c.resource_id LIMIT 1`,
+            `SELECT c.kind,c.resource_id,c.order_recovery FROM tasks_sync_checks c WHERE c.account_id=? AND c.next_at<=? AND ${noCapturedCommand('c.account_id', "CASE WHEN c.kind='list' THEN c.resource_id ELSE (SELECT t.list_id FROM tasks_tasks t WHERE t.account_id=c.account_id AND t.id=c.resource_id) END")} ORDER BY c.next_at,c.kind,c.resource_id LIMIT 1`,
           )
           .bind(accountId, at)
-          .first<{ kind: 'list' | 'task'; resource_id: string }>();
+          .first<{ kind: 'list' | 'task'; resource_id: string; order_recovery: number }>();
         if (check) {
           phase = check.kind === 'list' ? 'list_check' : 'task_check';
           await this.checkSlice(job, await getReader(), check, foreground);
@@ -1072,7 +1080,7 @@ export class TaskSyncService {
         writes.push(
           this.db
             .prepare(
-              `INSERT INTO tasks_sync_checks(account_id,kind,resource_id,next_at) SELECT account_id,'task',id,? FROM tasks_tasks WHERE account_id=? AND list_id=? AND deleted_at IS NULL AND provider_missing_at IS NULL AND (last_seen_scan IS NULL OR last_seen_scan<>?) ON CONFLICT(account_id,kind,resource_id) DO NOTHING`,
+              `INSERT INTO tasks_sync_checks(account_id,kind,resource_id,next_at,order_recovery) SELECT account_id,'task',id,?,1 FROM tasks_tasks WHERE account_id=? AND list_id=? AND deleted_at IS NULL AND provider_missing_at IS NULL AND (last_seen_scan IS NULL OR last_seen_scan<>?) ON CONFLICT(account_id,kind,resource_id) DO UPDATE SET order_recovery=1`,
             )
             .bind(this.now(), job.account_id, list.id, scanId),
         );
@@ -1151,7 +1159,7 @@ export class TaskSyncService {
   private async checkSlice(
     job: Job,
     reader: SyncReader,
-    check: { kind: 'list' | 'task'; resource_id: string },
+    check: { kind: 'list' | 'task'; resource_id: string; order_recovery: number },
     foreground?: ForegroundRun,
   ): Promise<void> {
     const drop = this.db
@@ -1273,10 +1281,20 @@ export class TaskSyncService {
     } else {
       const task = await this.db
         .prepare(
-          `SELECT t.id,t.list_id,t.provider_id,l.provider_id AS provider_list_id FROM tasks_tasks t JOIN tasks_lists l ON l.account_id=t.account_id AND l.id=t.list_id WHERE t.account_id=? AND t.id=? AND t.deleted_at IS NULL AND l.deleted_at IS NULL`,
+          `SELECT t.id,t.list_id,t.provider_id,t.provider_missing_at,l.provider_id AS provider_list_id,l.order_recovery_attempted,
+            EXISTS(SELECT 1 FROM tasks_sync_list_work work WHERE work.account_id=l.account_id AND work.list_id=l.id AND work.mode='full') AS order_work_pending
+            FROM tasks_tasks t JOIN tasks_lists l ON l.account_id=t.account_id AND l.id=t.list_id WHERE t.account_id=? AND t.id=? AND t.deleted_at IS NULL AND l.deleted_at IS NULL`,
         )
         .bind(job.account_id, check.resource_id)
-        .first<{ id: string; list_id: string; provider_id: string; provider_list_id: string }>();
+        .first<{
+          id: string;
+          list_id: string;
+          provider_id: string;
+          provider_list_id: string;
+          provider_missing_at: number | null;
+          order_recovery_attempted: number;
+          order_work_pending: number;
+        }>();
       if (!task) {
         await this.commit(job, [drop]);
         return;
@@ -1295,6 +1313,29 @@ export class TaskSyncService {
           [dto],
           { observed: true, baseline: false },
         );
+        const recoveredOrder =
+          (check.order_recovery === 1 || task.provider_missing_at !== null) &&
+          task.order_work_pending === 0 &&
+          (list.tasks_complete_at === null || list.completed_complete_at === null);
+        const exhausted = recoveredOrder && task.order_recovery_attempted === 1;
+        const recoveryWrites =
+          recoveredOrder && !exhausted
+            ? [
+                this.db
+                  .prepare(
+                    'UPDATE tasks_lists SET order_recovery_attempted=1 WHERE account_id=? AND id=?',
+                  )
+                  .bind(job.account_id, list.id),
+                this.db
+                  .prepare(
+                    `INSERT INTO tasks_sync_list_work(account_id,list_id,priority,next_at,mode) VALUES (?,?,0,?,'full')
+                    ON CONFLICT(account_id,list_id) DO UPDATE SET priority=0,next_at=MIN(next_at,excluded.next_at),
+                    mode='full',page_token=NULL,scan_id=NULL,started_at=NULL,updated_min=NULL,
+                    page_json=NULL,page_offset=0,page_projection_revision=NULL`,
+                  )
+                  .bind(job.account_id, list.id, this.now()),
+              ]
+            : [];
         await this.commit(
           job,
           [
@@ -1312,11 +1353,26 @@ export class TaskSyncService {
             this.db
               .prepare('DELETE FROM tasks_recurrence_observations WHERE account_id=? AND list_id=?')
               .bind(job.account_id, list.id),
-            drop,
+            ...recoveryWrites,
+            ...(exhausted
+              ? [
+                  this.db
+                    .prepare(
+                      'UPDATE tasks_sync_checks SET order_recovery=1 WHERE account_id=? AND kind=? AND resource_id=?',
+                    )
+                    .bind(job.account_id, check.kind, check.resource_id),
+                ]
+              : [drop]),
           ],
           list,
         );
         if (foreground && projection.changed) foreground.changes.tasks = true;
+        if (exhausted)
+          throw new AppError(
+            'provider_unavailable',
+            'google’s task list still differs from its task records. refresh again to check its order.',
+            503,
+          );
       } catch (error) {
         if (!(error instanceof GoogleTasksError) || error.code !== 'not_found') throw error;
         await this.commit(
