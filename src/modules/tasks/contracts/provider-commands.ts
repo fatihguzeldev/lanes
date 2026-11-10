@@ -6,6 +6,8 @@ const id = ResourceIdSchema.max(1024);
 const revision = z.number().int().nonnegative().safe();
 const knownTask = { taskId: id, revision };
 const knownList = { listId: id, revision };
+// Only a rejected reference read before command capture may request a fresh placement check.
+export const uncapturedPlacementReferenceField = 'uncapturedPlacementReference';
 const patch = z
   .object({
     title: TaskPatchSchema.shape.title,

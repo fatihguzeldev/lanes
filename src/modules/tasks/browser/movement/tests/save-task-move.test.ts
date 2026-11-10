@@ -400,6 +400,34 @@ describe('durable task move driver', () => {
     expect(calls.some((call) => call.path.startsWith(`${base}/operations/`))).toBe(false);
   });
 
+  it.each([
+    { code: 'conflict' },
+    { code: 'conflict', operationId, fields: { uncapturedPlacementReference: 'previous' } },
+    { code: 'storage_unavailable', fields: { uncapturedPlacementReference: 'previous' } },
+  ])(
+    'does not repeat an admission without a definite uncaptured reference conflict: %j',
+    async (failure) => {
+      const calls = network((call) => {
+        if (call.path === `${base}/commands/provider`)
+          return Response.json(
+            {
+              error: {
+                ...failure,
+                message: 'could not admit',
+                requestId: 'test',
+                retryable: false,
+              },
+            },
+            { status: 409 },
+          );
+        if (call.path === `${base}/operations/${operationId}`)
+          return receipt({ state: 'uncertain', nextAttemptAt: null });
+      });
+      await expect(saveTaskMove(intent, operationId)).rejects.toThrow();
+      expect(calls.filter((call) => call.path === `${base}/commands/provider`)).toHaveLength(1);
+    },
+  );
+
   it('retains the receipt identity when admission and its recovery read both lose their responses', async () => {
     const calls = network((call) => {
       if (

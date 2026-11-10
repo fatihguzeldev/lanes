@@ -559,6 +559,7 @@ export class TaskCommandCapture {
           command.previousRevision,
           task.id,
           relativeOrder,
+          true,
         );
         if (!task.capabilities.canMove)
           throw new AppError(
@@ -683,7 +684,16 @@ export class TaskCommandCapture {
       ]);
     } catch {
       capture = await this.captured(input.operationId);
-      if (!capture) throw conflict();
+      if (!capture) {
+        if (command.kind === 'task.move') {
+          const move = steps.at(-1)!;
+          for (const reference of ['parent', 'previous'] as const) {
+            const task = move[reference];
+            if (task) await this.resources.task(accountId, task.id, task.revision, reference);
+          }
+        }
+        throw conflict();
+      }
       await this.verifyCapture(capture, input, requestJson);
     }
     capture = await this.captured(input.operationId);

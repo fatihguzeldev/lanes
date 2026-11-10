@@ -1,6 +1,7 @@
 import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types';
 import { AppError } from '../../../../shared/contracts/errors';
 import type { Task } from '../../contracts/task';
+import { uncapturedPlacementReferenceField } from '../../contracts/provider-commands';
 import { TaskQueries } from '../queries/tasks';
 import { conflict, digest, ref } from './input';
 import type { CapturedStep, ListRef, TaskRef } from './state';
@@ -64,9 +65,19 @@ export class TaskCommandResources {
       );
   }
 
-  async task(accountId: string, id: string, revision?: number): Promise<Task> {
+  async task(
+    accountId: string,
+    id: string,
+    revision?: number,
+    uncapturedReference?: 'parent' | 'previous',
+  ): Promise<Task> {
     const task = await this.queries.getTask(accountId, id);
-    if (revision !== undefined && task.revision !== revision) throw conflict();
+    if (revision !== undefined && task.revision !== revision) {
+      if (!uncapturedReference) throw conflict();
+      throw new AppError('conflict', conflict().message, 409, false, {
+        [uncapturedPlacementReferenceField]: uncapturedReference,
+      });
+    }
     return task;
   }
 
@@ -129,6 +140,7 @@ export class TaskCommandResources {
     previousRevision: number | undefined,
     movingId?: string,
     explicitPosition = false,
+    refreshChangedReferences = false,
   ): Promise<{ parent: TaskRef | null; previous: TaskRef | null }> {
     if (!explicitPosition || previousId === undefined) {
       this.complete(list);
@@ -138,7 +150,12 @@ export class TaskCommandResources {
     let parent: TaskRef | null = null,
       previous: TaskRef | null = null;
     if (parentId) {
-      const value = await this.task(accountId, parentId, parentRevision);
+      const value = await this.task(
+        accountId,
+        parentId,
+        parentRevision,
+        refreshChangedReferences ? 'parent' : undefined,
+      );
       const hidden = await this.db
         .prepare('SELECT provider_hidden FROM tasks_tasks WHERE account_id=? AND id=?')
         .bind(accountId, parentId)
@@ -175,6 +192,7 @@ export class TaskCommandResources {
           accountId,
           id,
           previousId === undefined ? undefined : previousRevision,
+          refreshChangedReferences ? 'previous' : undefined,
         );
         const hidden = await this.db
           .prepare('SELECT provider_hidden FROM tasks_tasks WHERE id=? AND account_id=?')

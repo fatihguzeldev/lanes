@@ -9,6 +9,8 @@ import {
 import { SyncAdvanceSchema, SyncStatusSchema } from '../../contracts/sync';
 import { request, RequestError } from '../../../../shared/browser/http/http';
 import { serverConnection } from '../../../../shared/browser/connectivity/connectivity';
+import { uncapturedPlacementReferenceField } from '../../contracts/provider-commands';
+import { sameTaskMoveContext } from '../../model/task-move-context';
 
 const pause = (milliseconds: number, signal?: AbortSignal) =>
   new Promise<void>((resolve, reject) => {
@@ -109,7 +111,7 @@ export async function saveTaskMove(
     (preview && (!preview.coverageComplete || preview.revision !== task.revision))
   )
     throw new TaskMoveError('this task changed. its last confirmed position has been restored.');
-  const [parent, previous] = await Promise.all([
+  let [parent, previous] = await Promise.all([
     intent.parentId
       ? send(`${base}/tasks/${encodeURIComponent(intent.parentId)}`, TaskSchema)
       : null,
@@ -153,24 +155,56 @@ export async function saveTaskMove(
   let admitted = false;
   try {
     signal?.throwIfAborted();
-    let operation = await send(`${base}/commands/provider`, OperationSummarySchema, {
-      method: 'POST',
-      body: {
-        operationId,
-        command: {
-          kind: 'task.move',
-          taskId: task.id,
-          revision: task.revision,
-          listId: destination.id,
-          listRevision: destination.revision,
-          parentId: intent.parentId,
-          ...(parent ? { parentRevision: parent.revision } : {}),
-          ...(intent.position === 'last' ? {} : { previousId: intent.previousTaskId }),
-          ...(previous ? { previousRevision: previous.revision } : {}),
-          ...(preview ? { confirmSubtaskCount: preview.subtaskCount } : {}),
+    const admit = () =>
+      send(`${base}/commands/provider`, OperationSummarySchema, {
+        method: 'POST',
+        body: {
+          operationId,
+          command: {
+            kind: 'task.move',
+            taskId: task.id,
+            revision: task.revision,
+            listId: destination.id,
+            listRevision: destination.revision,
+            parentId: intent.parentId,
+            ...(parent ? { parentRevision: parent.revision } : {}),
+            ...(intent.position === 'last' ? {} : { previousId: intent.previousTaskId }),
+            ...(previous ? { previousRevision: previous.revision } : {}),
+            ...(preview ? { confirmSubtaskCount: preview.subtaskCount } : {}),
+          },
         },
-      },
-    });
+      });
+    let operation: OperationSummary;
+    try {
+      operation = await admit();
+    } catch (error) {
+      const reference =
+        error instanceof RequestError
+          ? error.fields?.[uncapturedPlacementReferenceField]
+          : undefined;
+      if (
+        !(error instanceof RequestError) ||
+        error.code !== 'conflict' ||
+        error.operationId ||
+        !((reference === 'parent' && parent) || (reference === 'previous' && previous))
+      )
+        throw error;
+      const [freshParent, freshPrevious] = await Promise.all([
+        parent ? send(`${base}/tasks/${encodeURIComponent(parent.id)}`, TaskSchema) : null,
+        previous ? send(`${base}/tasks/${encodeURIComponent(previous.id)}`, TaskSchema) : null,
+      ]);
+      if (
+        (parent && (!freshParent || !sameTaskMoveContext(parent, freshParent))) ||
+        (previous && (!freshPrevious || !sameTaskMoveContext(previous, freshPrevious)))
+      )
+        throw new TaskMoveError(
+          'this placement changed. its last confirmed position has been restored.',
+        );
+      parent = freshParent;
+      previous = freshPrevious;
+      signal?.throwIfAborted();
+      operation = await admit();
+    }
     admitted = true;
     const deadline = Date.now() + 30_000;
     while (!operation.finished && progressing.has(operation.state) && Date.now() < deadline) {
