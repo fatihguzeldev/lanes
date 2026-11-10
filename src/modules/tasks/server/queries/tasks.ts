@@ -1,4 +1,4 @@
-import type { D1Database } from '@cloudflare/workers-types';
+import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types';
 import { AppError } from '../../../../shared/contracts/errors';
 import type { Coverage } from '../../../../shared/contracts/http';
 import { ResourceIdSchema } from '../../../../shared/contracts/identity';
@@ -8,7 +8,6 @@ import {
   TaskDependantsQuerySchema,
   TaskExportQuerySchema,
   TaskQuerySchema,
-  type SubtaskSummary,
   type TaskDependant,
   type TaskDependantsPage,
   type TaskDependantsQueryInput,
@@ -24,6 +23,25 @@ import type { TaskQueriesOptions, TaskQueryContext } from './context';
 import { LabelQueries } from './labels';
 import { decodeCursor, encodeCursor, fingerprint, parse, readIdsSchema } from './pagination';
 import { readProjectionFirst, readProjectionRows } from './read';
+
+const scopeRevisionSql =
+  '(SELECT json_group_array(json_array(id,projection_revision)) FROM (SELECT id,projection_revision FROM scoped_lists ORDER BY id))';
+
+interface CoverageRow {
+  inventory: number | null;
+  inventory_cursor: string | null;
+  n: number;
+  partial: number;
+  synced: number | null;
+  order_ready_list_ids?: string;
+  selection_revision?: string;
+}
+interface SummaryRow {
+  id: string;
+  open: number;
+  total: number;
+  complete: number;
+}
 
 interface SqlScope {
   sql: string;
@@ -248,7 +266,7 @@ function estimate(alias: 't' | 'p'): string {
 }
 
 const taskFields = `t.id,t.account_id,t.list_id,t.parent_id,t.provider_id,t.provider_etag,t.provider_position,t.provider_updated_at,
- CASE WHEN l.tasks_complete_at IS NOT NULL AND l.completed_complete_at IS NOT NULL AND l.sync_cursor IS NULL
+ CASE WHEN l.tasks_complete_at IS NOT NULL AND l.completed_complete_at IS NOT NULL AND l.sync_cursor IS NULL AND l.provider_missing_at IS NULL
  AND NOT EXISTS(SELECT 1 FROM tasks_sync_list_work order_work WHERE order_work.account_id=l.account_id AND order_work.list_id=l.id AND order_work.mode='full') THEN 1 ELSE 0 END AS order_ready,
  t.title,t.notes,t.completed,t.completed_at,t.scheduled_day,t.scheduled_time,t.time_zone,t.repeat_rule_json,t.series_id,t.occurrence_id,
  t.priority,t.starred,t.capabilities_json,t.unsupported_hierarchy,t.provider_missing_at,t.revision,l.provider_id AS provider_list_id,
@@ -304,16 +322,51 @@ export class TaskQueries {
     return { sql: `SELECT l.* FROM tasks_lists l WHERE ${where.join(' AND ')}`, bindings };
   }
 
-  private async taskRows(accountId: string, ids: readonly string[]): Promise<TaskRow[]> {
-    if (!ids.length) return [];
-    return readProjectionRows<TaskRow>(
-      this.db
-        .prepare(
-          `SELECT ${taskFields} FROM tasks_tasks t JOIN tasks_lists l ON l.account_id=t.account_id AND l.id=t.list_id
+  private async readSnapshot(statements: D1PreparedStatement[]): Promise<unknown[][]> {
+    try {
+      const result = await this.db.batch(statements);
+      if (result.some((read) => !read.success)) throw new Error();
+      return result.map((read) => read.results);
+    } catch {
+      throw new AppError('storage_unavailable', 'the task projection could not be read', 503, true);
+    }
+  }
+
+  private taskRowsStatement(accountId: string, ids: readonly string[]): D1PreparedStatement {
+    return this.db
+      .prepare(
+        `SELECT ${taskFields} FROM tasks_tasks t JOIN tasks_lists l ON l.account_id=t.account_id AND l.id=t.list_id
       WHERE t.account_id=? AND t.deleted_at IS NULL AND l.deleted_at IS NULL AND t.id IN (SELECT value FROM json_each(?))`,
-        )
-        .bind(accountId, JSON.stringify(ids)),
-    );
+      )
+      .bind(accountId, JSON.stringify(ids));
+  }
+
+  private async taskRows(accountId: string, ids: readonly string[]): Promise<TaskRow[]> {
+    return ids.length ? readProjectionRows<TaskRow>(this.taskRowsStatement(accountId, ids)) : [];
+  }
+
+  private coverageStatement(
+    accountId: string,
+    scope: SqlScope,
+    includeCompleted: boolean,
+    includeOrderProof = false,
+  ): D1PreparedStatement {
+    return this.db
+      .prepare(
+        `WITH scoped_lists AS (${scope.sql})
+      SELECT s.inventory_complete_at AS inventory,s.inventory_cursor,
+        (SELECT COUNT(*) FROM scoped_lists) AS n,
+        (SELECT COUNT(*) FROM scoped_lists WHERE tasks_complete_at IS NULL OR sync_cursor IS NOT NULL ${includeCompleted ? 'OR completed_complete_at IS NULL' : ''}) AS partial,
+        (SELECT CASE WHEN COUNT(*)=COUNT(last_synced_at) THEN MIN(last_synced_at) ELSE NULL END FROM scoped_lists) AS synced
+        ${
+          includeOrderProof
+            ? `,(SELECT json_group_array(id) FROM scoped_lists WHERE tasks_complete_at IS NOT NULL AND completed_complete_at IS NOT NULL AND sync_cursor IS NULL AND provider_missing_at IS NULL
+          AND NOT EXISTS(SELECT 1 FROM tasks_sync_list_work w WHERE w.account_id=scoped_lists.account_id AND w.list_id=scoped_lists.id AND w.mode='full')) AS order_ready_list_ids, ${scopeRevisionSql} AS selection_revision`
+            : ''
+        }
+      FROM tasks_account_state s WHERE s.account_id=?`,
+      )
+      .bind(...scope.bindings, accountId);
   }
 
   private async coverage(
@@ -322,24 +375,15 @@ export class TaskQueries {
     includeCompleted: boolean,
     now: number,
   ): Promise<Coverage> {
-    const row = await readProjectionFirst<{
-      inventory: number | null;
-      inventory_cursor: string | null;
-      n: number;
-      partial: number;
-      synced: number | null;
-    }>(
-      this.db
-        .prepare(
-          `WITH scoped_lists AS (${scope.sql})
-      SELECT s.inventory_complete_at AS inventory,s.inventory_cursor,
-        (SELECT COUNT(*) FROM scoped_lists) AS n,
-        (SELECT COUNT(*) FROM scoped_lists WHERE tasks_complete_at IS NULL OR sync_cursor IS NOT NULL ${includeCompleted ? 'OR completed_complete_at IS NULL' : ''}) AS partial,
-        (SELECT CASE WHEN COUNT(*)=COUNT(last_synced_at) THEN MIN(last_synced_at) ELSE NULL END FROM scoped_lists) AS synced
-      FROM tasks_account_state s WHERE s.account_id=?`,
-        )
-        .bind(...scope.bindings, accountId),
+    return this.mapCoverage(
+      await readProjectionFirst<CoverageRow>(
+        this.coverageStatement(accountId, scope, includeCompleted),
+      ),
+      now,
     );
+  }
+
+  private mapCoverage(row: CoverageRow | null, now: number): Coverage {
     const inventoryAt = row?.inventory ?? null;
     const syncedAt =
       row?.n === 0
@@ -356,34 +400,17 @@ export class TaskQueries {
     };
   }
 
-  private async summaries(
-    accountId: string,
-    parents: readonly Task[],
-  ): Promise<Record<string, SubtaskSummary>> {
-    if (!parents.length) return {};
-    const rows = await readProjectionRows<{
-      id: string;
-      open: number;
-      total: number;
-      complete: number;
-    }>(
-      this.db
-        .prepare(
-          `SELECT p.id,COUNT(child.id) AS total,
+  private summariesStatement(accountId: string, ids: readonly string[]): D1PreparedStatement {
+    return this.db
+      .prepare(
+        `SELECT p.id,COUNT(child.id) AS total,
       COALESCE(SUM(CASE WHEN child.id IS NOT NULL AND child.completed=0 THEN 1 ELSE 0 END),0) AS open,
       CASE WHEN l.tasks_complete_at IS NOT NULL AND l.completed_complete_at IS NOT NULL AND l.sync_cursor IS NULL THEN 1 ELSE 0 END AS complete
       FROM tasks_tasks p JOIN tasks_lists l ON l.account_id=p.account_id AND l.id=p.list_id
       LEFT JOIN tasks_tasks child ON child.account_id=p.account_id AND child.parent_id=p.id AND child.list_id=p.list_id AND child.deleted_at IS NULL
-      WHERE p.account_id=? AND p.id IN (SELECT value FROM json_each(?)) AND p.deleted_at IS NULL AND l.deleted_at IS NULL GROUP BY p.id`,
-        )
-        .bind(accountId, JSON.stringify(parents.map((task) => task.id))),
-    );
-    return Object.fromEntries(
-      rows.map((row) => [
-        row.id,
-        { open: row.open, total: row.total, complete: row.complete === 1 },
-      ]),
-    );
+      WHERE p.account_id=? AND p.id IN (SELECT value FROM json_each(?)) AND p.parent_id IS NULL AND p.deleted_at IS NULL AND l.deleted_at IS NULL GROUP BY p.id`,
+      )
+      .bind(accountId, JSON.stringify(ids));
   }
 
   async listTasks(
@@ -445,7 +472,7 @@ export class TaskQueries {
       if (!anchor)
         throw new AppError('conflict', 'the task page changed; refresh this selection', 409);
     }
-    const candidates = await readProjectionRows<Candidate>(
+    const selection = await this.readSnapshot([
       this.db
         .prepare(
           `${cte} SELECT id,revision,parent_id,context_id,root_id,root_revision,estimated,parent_estimated FROM candidates
@@ -453,7 +480,15 @@ export class TaskQueries {
       ORDER BY ${names.join(',')} LIMIT ?`,
         )
         .bind(...bindings, ...(anchor ? names.map((name) => anchor![name]!) : []), query.limit + 1),
-    );
+      this.db
+        .prepare(
+          `WITH scoped_lists AS (${scope.sql}) SELECT ${scopeRevisionSql} AS selection_revision`,
+        )
+        .bind(...scope.bindings),
+    ]);
+    const candidates = selection[0]! as Candidate[];
+    const selectionRevision = (selection[1]![0] as { selection_revision: string })
+      .selection_revision;
     const selected = new Map<string, number>();
     const admitted: Candidate[] = [];
     let bytes = 0;
@@ -472,9 +507,23 @@ export class TaskQueries {
       bytes += addedBytes;
       admitted.push(candidate);
     }
-    const rows = await this.taskRows(accountId, [...selected.keys()]);
+    // Rows, order proof, and checklist counts must describe one database snapshot.
+    const snapshot = await this.readSnapshot([
+      this.taskRowsStatement(accountId, [...selected.keys()]),
+      this.coverageStatement(
+        accountId,
+        scope,
+        (query.filter.completion ?? 'open') !== 'open',
+        true,
+      ),
+      this.summariesStatement(accountId, [...selected.keys()]),
+    ]);
+    const rows = snapshot[0]! as TaskRow[];
+    const coverageRow = (snapshot[1]![0] as CoverageRow | undefined) ?? null;
+    const summaries = snapshot[2]! as SummaryRow[];
     const rowMap = new Map(rows.map((row) => [row.id, row]));
     if (
+      selectionRevision !== coverageRow?.selection_revision ||
       selected.size !== rows.length ||
       admitted.some(
         (candidate) =>
@@ -512,20 +561,18 @@ export class TaskQueries {
             rootRevision: last.root_revision,
           })
         : null;
-    const providerCoverage = await this.coverage(
-      accountId,
-      scope,
-      (query.filter.completion ?? 'open') !== 'open',
-      context.now ?? Date.now(),
-    );
+    const providerCoverage = this.mapCoverage(coverageRow, context.now ?? Date.now());
     return {
       items,
       matchedTaskIds,
       orderReadyTaskIds: rows.filter((row) => row.order_ready === 1).map((row) => row.id),
+      orderReadyListIds: JSON.parse(coverageRow?.order_ready_list_ids ?? '[]') as string[],
       contextTaskIds,
-      subtaskSummaries: await this.summaries(
-        accountId,
-        items.filter((task) => !task.parentId),
+      subtaskSummaries: Object.fromEntries(
+        summaries.map((row) => [
+          row.id,
+          { open: row.open, total: row.total, complete: row.complete === 1 },
+        ]),
       ),
       nextCursor,
       providerCoverage,

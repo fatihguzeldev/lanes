@@ -81,6 +81,7 @@ export const TaskPageSchema = z
     items: z.array(TaskSchema).max(100),
     matchedTaskIds: z.array(ResourceIdSchema).max(100),
     orderReadyTaskIds: z.array(ResourceIdSchema).max(100).optional(),
+    orderReadyListIds: z.array(ResourceIdSchema).max(2_000).optional(),
     contextTaskIds: z.array(ResourceIdSchema).max(100),
     subtaskSummaries: z.record(ResourceIdSchema, SubtaskSummarySchema),
     nextCursor: z.string().nullable(),
