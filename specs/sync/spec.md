@@ -90,6 +90,12 @@ a confirmed create or move can change sibling positions and etags beyond the ret
 
 task queries identify returned tasks whose own list has reconciled order. the browser uses that proof with the saved identity and a fresh read to retire a creation preview; account-wide completeness does not stand in for the affected list's order.
 
+task rows, coverage, affected-list order proof, and checklist summaries share one database read snapshot. list proof includes empty lists and remains independent of local task pagination and search filters. clients may retry an initial read once when concurrent changes invalidate its selection; this never retries a mutation or replays an invalid paging cursor.
+
+each durable sync request advances the account job's request revision when it adds or resets work. a worker must commit against the request revision it claimed. new requests supersede an older slice without losing the new cursor, full-order work, or refresh requirements. releasing a superseded claim is a continuation, not a user conflict. final cleanup cannot delete work admitted after its earlier pending read.
+
+coalescing preserves the strongest requested scope. a targeted list-order job cannot consume an account refresh request without retaining its inventory and list requirements, including when another worker already holds the claim. redundant broad refreshes keep existing progress.
+
 an explicit same-list, same-parent reorder captures a relative predecessor or first-position intent without requiring complete coverage. fence the resources that determine that intent instead of the whole list projection; progress on unrelated scan rows must not reject the reorder. do not settle a relative command as a no-op from cached sibling positions or generate provider position strings locally. operations that infer a tail or change a subtree's placement retain their full coverage checks. no positioning command starts a full-account refresh to repair its local context.
 
 google exposes etags, but support for conditional behavior must be verified for each mutation used. see [google's performance guidance](https://developers.google.com/workspace/tasks/performance). where a method lacks an effective precondition, a read-before-write narrows the race but does not make external editing serializable. document that ceiling and reconcile the returned result; do not promise complete protection against concurrent google-client edits.
@@ -165,3 +171,5 @@ measure cpu on the deployed free plan; waiting on google is not the whole cost. 
 - `sync-17`: accepted browser intents survive form closure and account selection, share task previews across views, expose failed saves and their receipt identity, and warn before reload without persisting or silently replaying an offline queue.
 
 - `sync-18`: a same-list relative reorder survives incomplete coverage and unrelated projection changes between capture and dispatch. its selected resource checks, conditional provider write, receipt identity, and uncertain-outcome recovery remain intact.
+- `sync-19`: order and identity work admitted during job cleanup remains discoverable. a stale delta/page snapshot cannot consume a newer full-order request; expected supersession continues without reporting a mutation failure.
+- `sync-20`: broader refresh requests survive active claims and targeted jobs without discarding existing progress. task rows and their order proof cannot come from different snapshots or falsely retire an optimistic move.
