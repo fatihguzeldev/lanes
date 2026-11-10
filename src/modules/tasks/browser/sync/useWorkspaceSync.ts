@@ -149,6 +149,7 @@ export function useWorkspaceSync(
             document.visibilityState === 'visible';
           if (successful && (reason === 'manual' || reason === 'stale'))
             pendingChanges.current = { topology: true, tasks: true };
+          if (successful && reason === 'pending') pendingChanges.current.tasks = true;
           finish();
           if (successful && reason !== 'pending') refreshed.current?.();
         } catch (error) {

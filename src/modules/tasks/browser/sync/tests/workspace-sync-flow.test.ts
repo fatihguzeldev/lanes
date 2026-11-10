@@ -101,6 +101,19 @@ describe('workspace sync flow', () => {
     expect(refreshed).not.toHaveBeenCalled();
   });
 
+  it('rereads tasks if a worker finished order verification before the resume request arrived', async () => {
+    serve(
+      () => step('idle'),
+      () => step('idle'),
+    );
+    const changed = vi.fn();
+    const sync = useWorkspaceSync('account-a', changed, true);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(changed).not.toHaveBeenCalled();
+    await sync.resume();
+    expect(changed).toHaveBeenCalledExactlyOnceWith({ topology: false, tasks: true });
+  });
+
   it('coalesces creations during an in-flight sync and checks work admitted after its last snapshot', async () => {
     let release!: (value: Step) => void;
     serve(
