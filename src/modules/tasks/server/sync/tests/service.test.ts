@@ -486,8 +486,10 @@ describe('durable bounded provider reconciliation', () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
     clock += 46_000;
     await sync.advance('a');
+    const currentJob = await one('SELECT * FROM tasks_sync_jobs');
     release();
-    await expect(old).rejects.toMatchObject({ code: 'conflict' });
+    await expect(old).resolves.toMatchObject({ phase: 'coalesced', continued: true });
+    expect(await one('SELECT * FROM tasks_sync_jobs')).toEqual(currentJob);
     expect((await one('SELECT COUNT(*) AS n FROM tasks_lists'))?.n).toBe(1);
   });
   it('treats tasks.list 404 as deferred list verification instead of blocking all later checks', async () => {

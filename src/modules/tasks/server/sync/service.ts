@@ -53,6 +53,7 @@ interface Job {
   task_turn: number;
   attempts: number;
   auth_refresh_attempted: number;
+  request_revision: number;
 }
 interface Work {
   account_id: string;
@@ -68,6 +69,7 @@ interface Work {
 }
 const leaseMs = 45_000;
 const fullInterval = 30 * 60_000;
+class SupersededSyncRequest extends Error {}
 interface ForegroundRun {
   changes: SyncChanges;
   projectedRecords: number;
@@ -118,16 +120,18 @@ export class TaskSyncService {
   private guard(job: Job, list?: ProjectionListRow): D1PreparedStatement {
     return this.db
       .prepare(
-        `INSERT INTO tasks_write_guards(valid) SELECT CASE WHEN EXISTS (SELECT 1 FROM tasks_sync_jobs WHERE account_id=? AND claim_id=? AND claim_until>?) ${list ? 'AND EXISTS (SELECT 1 FROM tasks_lists WHERE account_id=? AND id=? AND projection_revision=? AND deleted_at IS NULL)' : ''} THEN 1 ELSE 0 END WHERE NOT (EXISTS (SELECT 1 FROM tasks_sync_jobs WHERE account_id=? AND claim_id=? AND claim_until>?) ${list ? 'AND EXISTS (SELECT 1 FROM tasks_lists WHERE account_id=? AND id=? AND projection_revision=? AND deleted_at IS NULL)' : ''})`,
+        `INSERT INTO tasks_write_guards(valid) SELECT CASE WHEN EXISTS (SELECT 1 FROM tasks_sync_jobs WHERE account_id=? AND claim_id=? AND claim_until>? AND request_revision=?) ${list ? 'AND EXISTS (SELECT 1 FROM tasks_lists WHERE account_id=? AND id=? AND projection_revision=? AND deleted_at IS NULL)' : ''} THEN 1 ELSE 0 END WHERE NOT (EXISTS (SELECT 1 FROM tasks_sync_jobs WHERE account_id=? AND claim_id=? AND claim_until>? AND request_revision=?) ${list ? 'AND EXISTS (SELECT 1 FROM tasks_lists WHERE account_id=? AND id=? AND projection_revision=? AND deleted_at IS NULL)' : ''})`,
       )
       .bind(
         job.account_id,
         job.claim_id,
         this.now(),
+        job.request_revision,
         ...(list ? [list.account_id, list.id, list.projection_revision] : []),
         job.account_id,
         job.claim_id,
         this.now(),
+        job.request_revision,
         ...(list ? [list.account_id, list.id, list.projection_revision] : []),
       );
   }
@@ -136,9 +140,13 @@ export class TaskSyncService {
       return await this.batch([this.guard(job, list), ...writes]);
     } catch (error) {
       const still = await this.db
-        .prepare('SELECT claim_id,claim_until FROM tasks_sync_jobs WHERE account_id=?')
+        .prepare(
+          'SELECT claim_id,claim_until,request_revision FROM tasks_sync_jobs WHERE account_id=?',
+        )
         .bind(job.account_id)
-        .first<{ claim_id: string | null; claim_until: number | null }>();
+        .first<{ claim_id: string | null; claim_until: number | null; request_revision: number }>();
+      if (still?.claim_id === job.claim_id && still.request_revision !== job.request_revision)
+        throw new SupersededSyncRequest();
       const current = list
         ? await this.db
             .prepare(
@@ -271,10 +279,21 @@ export class TaskSyncService {
         .prepare(
           `INSERT INTO tasks_sync_jobs(account_id,next_at,requested_at,default_pending,inventory_pending,fairness_order)
         SELECT ?,?,?,0,0,turn FROM tasks_sync_fairness WHERE singleton=1
-        ON CONFLICT(account_id) DO UPDATE SET next_at=MIN(next_at,excluded.next_at),attempts=0,error_code=NULL`,
+        ON CONFLICT(account_id) DO UPDATE SET next_at=MIN(next_at,excluded.next_at),attempts=0,error_code=NULL,request_revision=request_revision+1`,
         )
         .bind(accountId, at, at),
     ];
+  }
+  private prepareRefreshJob(accountId: string, at: number, manual: boolean): D1PreparedStatement {
+    return this.db
+      .prepare(
+        `INSERT INTO tasks_sync_jobs(account_id,next_at,requested_at,manual_at,fairness_order)
+      SELECT ?,?,?,?,turn FROM tasks_sync_fairness WHERE singleton=1
+      ON CONFLICT(account_id) DO UPDATE SET next_at=MIN(next_at,excluded.next_at),
+      default_pending=1,inventory_pending=1,request_revision=request_revision+1,
+      error_code=NULL,attempts=0,manual_at=COALESCE(excluded.manual_at,manual_at)`,
+      )
+      .bind(accountId, at, at, manual ? at : null);
   }
   async requestRefresh(
     accountId: string,
@@ -289,9 +308,11 @@ export class TaskSyncService {
       .bind(accountId)
       .first<{ foreground_refresh_at: number | null }>();
     const job = await this.db
-      .prepare('SELECT account_id FROM tasks_sync_jobs WHERE account_id=?')
+      .prepare(
+        'SELECT account_id,default_pending,inventory_pending FROM tasks_sync_jobs WHERE account_id=?',
+      )
       .bind(accountId)
-      .first();
+      .first<{ account_id: string; default_pending: number; inventory_pending: number }>();
     const window =
       request.reason === 'manual'
         ? 5_000
@@ -304,18 +325,19 @@ export class TaskSyncService {
         state?.foreground_refresh_at !== undefined &&
         at - state.foreground_refresh_at < window)
     ) {
-      if (job && (request.reason === 'reconnect' || request.reason === 'list_change'))
+      if (
+        job &&
+        (!job.inventory_pending ||
+          request.reason === 'reconnect' ||
+          request.reason === 'list_change')
+      )
         await this.batch([
+          this.prepareRefreshJob(accountId, at, request.reason === 'manual'),
           this.db
             .prepare(
-              'UPDATE tasks_sync_jobs SET next_at=?,error_code=NULL,attempts=0,default_pending=1,inventory_pending=1 WHERE account_id=? AND (claim_until IS NULL OR claim_until<=?)',
+              'UPDATE tasks_account_state SET inventory_scan_id=?,inventory_cursor=NULL,foreground_refresh_at=? WHERE account_id=?',
             )
-            .bind(at, accountId, at),
-          this.db
-            .prepare(
-              'UPDATE tasks_account_state SET inventory_scan_id=COALESCE(inventory_scan_id,?) WHERE account_id=?',
-            )
-            .bind(this.id(), accountId),
+            .bind(this.id(), at, accountId),
           this.enqueueLists(accountId, at, request.visibleListIds),
         ]);
       if (request.visibleListIds?.length)
@@ -334,14 +356,10 @@ export class TaskSyncService {
         )
         .bind(accountId),
       this.db.prepare('UPDATE tasks_sync_fairness SET turn=turn+1 WHERE singleton=1'),
+      this.prepareRefreshJob(accountId, at, request.reason === 'manual'),
       this.db
         .prepare(
-          'INSERT INTO tasks_sync_jobs(account_id,next_at,requested_at,manual_at,fairness_order) SELECT ?,?,?,?,turn FROM tasks_sync_fairness WHERE singleton=1 ON CONFLICT(account_id) DO NOTHING',
-        )
-        .bind(accountId, at, at, request.reason === 'manual' ? at : null),
-      this.db
-        .prepare(
-          'UPDATE tasks_account_state SET foreground_refresh_at=?,inventory_scan_id=COALESCE(inventory_scan_id,?) WHERE account_id=?',
+          'UPDATE tasks_account_state SET foreground_refresh_at=?,inventory_scan_id=?,inventory_cursor=NULL WHERE account_id=?',
         )
         .bind(at, this.id(), accountId),
       this.enqueueLists(accountId, at, request.visibleListIds),
@@ -367,7 +385,7 @@ export class TaskSyncService {
       this.db.prepare('UPDATE tasks_sync_fairness SET turn=turn+1 WHERE singleton=1'),
       this.db
         .prepare(
-          'INSERT INTO tasks_sync_jobs(account_id,next_at,requested_at,default_pending,inventory_pending,fairness_order) SELECT ?,?,?,0,0,turn FROM tasks_sync_fairness WHERE singleton=1 ON CONFLICT(account_id) DO UPDATE SET next_at=MIN(next_at,excluded.next_at)',
+          'INSERT INTO tasks_sync_jobs(account_id,next_at,requested_at,default_pending,inventory_pending,fairness_order) SELECT ?,?,?,0,0,turn FROM tasks_sync_fairness WHERE singleton=1 ON CONFLICT(account_id) DO UPDATE SET next_at=MIN(next_at,excluded.next_at),request_revision=request_revision+1',
         )
         .bind(accountId, at, at),
     ]);
@@ -476,6 +494,19 @@ export class TaskSyncService {
     }
     let phase: SyncAdvance['phase'] = 'idle';
     let reader: SyncReader | undefined;
+    const yieldRequest = async (): Promise<SyncAdvance> => {
+      await this.db
+        .prepare(
+          'UPDATE tasks_sync_jobs SET claim_id=NULL,claim_until=NULL,next_at=MIN(next_at,?) WHERE account_id=? AND claim_id=? AND request_revision<>?',
+        )
+        .bind(this.now(), accountId, claim, job.request_revision)
+        .run();
+      if (foreground) {
+        foreground.coalesced = true;
+        foreground.yielded = true;
+      }
+      return { accountId, phase: 'coalesced', continued: true };
+    };
     try {
       const getReader = async () => (reader ??= await this.options.clientFor(accountId));
       const work = await this.db
@@ -525,6 +556,7 @@ export class TaskSyncService {
       ]);
       return { accountId, phase, continued: Boolean(pending) };
     } catch (initialError) {
+      if (initialError instanceof SupersededSyncRequest) return yieldRequest();
       let error = initialError;
       if (
         error instanceof GoogleTasksError &&
@@ -540,22 +572,24 @@ export class TaskSyncService {
             this.options.providerRequests &&
             (this.options.databaseQueries() + 17 > 50 || this.options.providerRequests() >= 10)
           ) {
-            await this.db
+            const update = await this.db
               .prepare(
-                'UPDATE tasks_sync_jobs SET claim_id=NULL,claim_until=NULL,next_at=? WHERE account_id=? AND claim_id=?',
+                'UPDATE tasks_sync_jobs SET claim_id=NULL,claim_until=NULL,next_at=? WHERE account_id=? AND claim_id=? AND request_revision=?',
               )
-              .bind(this.now() + 1_000, accountId, claim)
+              .bind(this.now() + 1_000, accountId, claim, job.request_revision)
               .run();
+            if (!update.meta.changes) return yieldRequest();
             foreground.yielded = true;
             return { accountId, phase, continued: true };
           }
           await this.options.refreshRejectedToken(accountId, reader);
-          await this.db
+          const update = await this.db
             .prepare(
-              'UPDATE tasks_sync_jobs SET claim_id=NULL,claim_until=NULL,next_at=?,auth_refresh_attempted=1,error_code=NULL WHERE account_id=? AND claim_id=?',
+              'UPDATE tasks_sync_jobs SET claim_id=NULL,claim_until=NULL,next_at=?,auth_refresh_attempted=1,error_code=NULL WHERE account_id=? AND claim_id=? AND request_revision=?',
             )
-            .bind(this.now() + 1_000, accountId, claim)
+            .bind(this.now() + 1_000, accountId, claim, job.request_revision)
             .run();
+          if (!update.meta.changes) return yieldRequest();
           return { accountId, phase, continued: true };
         } catch (refreshError) {
           error = refreshError;
@@ -576,12 +610,19 @@ export class TaskSyncService {
           ? error.retryAfterSeconds * 1_000
           : Math.min(300_000, 1_000 * 2 ** Math.min(job.attempts, 8)) +
             Math.floor(Math.random() * 500);
-      await this.db
+      const update = await this.db
         .prepare(
-          'UPDATE tasks_sync_jobs SET claim_id=NULL,claim_until=NULL,next_at=?,attempts=attempts+1,error_code=? WHERE account_id=? AND claim_id=?',
+          'UPDATE tasks_sync_jobs SET claim_id=NULL,claim_until=NULL,next_at=?,attempts=attempts+1,error_code=? WHERE account_id=? AND claim_id=? AND request_revision=?',
         )
-        .bind(retryable ? this.now() + delay : Number.MAX_SAFE_INTEGER, code, accountId, claim)
+        .bind(
+          retryable ? this.now() + delay : Number.MAX_SAFE_INTEGER,
+          code,
+          accountId,
+          claim,
+          job.request_revision,
+        )
         .run();
+      if (!update.meta.changes) return yieldRequest();
       if (error instanceof AppError) throw error;
       if (error instanceof GoogleTasksError)
         throw new AppError(
