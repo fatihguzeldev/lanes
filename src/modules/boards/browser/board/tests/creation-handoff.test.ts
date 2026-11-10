@@ -107,6 +107,39 @@ describe('creation handoff to confirmed list data', () => {
     expect(acknowledged).not.toHaveBeenCalled();
   });
 
+  it.each([
+    { filter: { starred: true }, query: '' },
+    { filter: {}, query: 'something else' },
+    { filter: { completion: 'completed' as const }, query: '' },
+  ])(
+    'hides a creation excluded by the current view without inventing a confirmed task',
+    (selection) => {
+      const { column, acknowledged } = render(
+        { readVersion: 6, orderReadyTaskIds: [] },
+        [creation()],
+        selection,
+      );
+      expect(column.creations).toEqual([]);
+      expect(acknowledged).not.toHaveBeenCalled();
+    },
+  );
+
+  it('hides a pending completed creation from the open view immediately', () => {
+    const { column } = render({ readVersion: 6 }, [
+      { ...creation(), completed: true, confirmedAfter: null },
+    ]);
+    expect(column.creations).toEqual([]);
+  });
+  it('retires a filtered-out creation once its own list has verified order', () => {
+    const { column, acknowledged } = render(
+      { readVersion: 6, orderReadyTaskIds: [], orderReadyListIds: ['list'] },
+      [creation()],
+      { filter: { starred: true } },
+    );
+    expect(column.creations).toEqual([]);
+    expect(acknowledged).toHaveBeenCalledExactlyOnceWith(1);
+  });
+
   it('removes the local row in the same render that presents the fresh confirmed task', () => {
     const saved = TaskSchema.parse({
       ...creation().input,

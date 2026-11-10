@@ -17,6 +17,7 @@ import {
   type PendingTaskChange,
 } from '../../../tasks/browser/changes/useTaskChanges';
 import { projectSubtaskSummary } from '../../../tasks/browser/changes/project-subtask-summary';
+import { collectionCreationMatches } from '../../../tasks/browser/queries/collection-selection';
 import type { TaskMoveQueue } from '../../../tasks/browser/movement/useTaskMoveQueue';
 import { projectTaskMoves } from '../../../tasks/browser/movement/task-move-model';
 import type { InitialViewReadiness } from '../../../../shared/browser/resources/readiness';
@@ -75,6 +76,10 @@ function ColumnData({
       orderReadyTaskIds: [
         ...(open.page.orderReadyTaskIds ?? []),
         ...(completed.page.orderReadyTaskIds ?? []),
+      ],
+      orderReadyListIds: [
+        ...(open.page.orderReadyListIds ?? []),
+        ...(completed.page.orderReadyListIds ?? []),
       ],
       readVersion:
         open.status === 'ready' &&
@@ -283,7 +288,12 @@ export function BoardWorkspace({
       (creation) =>
         creation.input.accountId === account.id &&
         creation.input.listId === column.list.id &&
-        !creationAcknowledged(creation, column.readVersion, column.orderReadyTaskIds),
+        !creationAcknowledged(
+          creation,
+          column.readVersion,
+          column.orderReadyTaskIds,
+          column.orderReadyListIds,
+        ),
     );
     const projected = column.tasks.filter(
       (task) => !pendingCreations.some((creation) => creation.resolvedTaskId === task.id),
@@ -312,7 +322,20 @@ export function BoardWorkspace({
       tasks: sort === 'manual' ? selected.tasks : sortTasks(selected.tasks, sort),
       matchedTaskIds: selected.matchedTaskIds,
       subtaskSummaries: summaries,
-      creations: pendingCreations.filter((creation) => !creation.deleted),
+      creations: pendingCreations.filter((creation) =>
+        collectionCreationMatches(
+          creation,
+          {
+            accountId: account.id,
+            today,
+            query,
+            labels: props.labels,
+            lists,
+            filter: { ...filter, completion: filter.completion ?? 'open' },
+          },
+          column.tasks,
+        ),
+      ),
     };
   });
   useEffect(() => {
@@ -330,7 +353,15 @@ export function BoardWorkspace({
           item.list.accountId === creation.input.accountId &&
           item.list.id === creation.input.listId,
       );
-      if (column && creationAcknowledged(creation, column.readVersion, column.orderReadyTaskIds))
+      if (
+        column &&
+        creationAcknowledged(
+          creation,
+          column.readVersion,
+          column.orderReadyTaskIds,
+          column.orderReadyListIds,
+        )
+      )
         onCreationRead?.(creation.id);
     }
   }, [columns, creations, onCreationRead]);

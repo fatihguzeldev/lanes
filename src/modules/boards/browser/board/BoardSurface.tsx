@@ -18,6 +18,7 @@ import type { SubtaskSummary } from '../../../tasks/contracts/query';
 
 export interface BoardColumn {
   orderReadyTaskIds?: readonly string[] | undefined;
+  orderReadyListIds?: readonly string[] | undefined;
   readVersion?: number | undefined;
   providerComplete?: boolean | undefined;
   list: TaskList;

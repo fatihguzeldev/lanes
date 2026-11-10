@@ -49,13 +49,15 @@ export function creationAcknowledged(
   creation: PendingTaskCreation,
   readVersion?: number,
   orderReadyTaskIds: readonly string[] = [],
+  orderReadyListIds: readonly string[] = [],
 ) {
   return (
     creation.confirmedAfter !== null &&
     !creation.editing &&
     (readVersion ?? -1) > creation.confirmedAfter &&
     !!creation.resolvedTaskId &&
-    orderReadyTaskIds.includes(creation.resolvedTaskId)
+    (orderReadyTaskIds.includes(creation.resolvedTaskId) ||
+      orderReadyListIds.includes(creation.input.listId))
   );
 }
 const editableFields = [

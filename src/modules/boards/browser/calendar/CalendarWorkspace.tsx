@@ -218,11 +218,15 @@ export function CalendarWorkspace({
     ...(dated.page.orderReadyTaskIds ?? []),
     ...(undated.page.orderReadyTaskIds ?? []),
   ];
+  const orderReadyListIds = [
+    ...(dated.page.orderReadyListIds ?? []),
+    ...(undated.page.orderReadyListIds ?? []),
+  ];
   useEffect(() => {
     for (const creation of scopedCreations)
-      if (creationAcknowledged(creation, readVersion, orderReadyTaskIds))
+      if (creationAcknowledged(creation, readVersion, orderReadyTaskIds, orderReadyListIds))
         onCreationRead?.(creation.id);
-  }, [scopedCreations, readVersion, orderReadyTaskIds, onCreationRead]);
+  }, [scopedCreations, readVersion, orderReadyTaskIds, orderReadyListIds, onCreationRead]);
   const projected = projectTaskCollection(
     items,
     edits,
@@ -233,7 +237,7 @@ export function CalendarWorkspace({
     (task) =>
       !scopedCreations.some(
         (creation) =>
-          !creationAcknowledged(creation, readVersion, orderReadyTaskIds) &&
+          !creationAcknowledged(creation, readVersion, orderReadyTaskIds, orderReadyListIds) &&
           creation.resolvedTaskId === task.id,
       ),
   );
@@ -336,7 +340,8 @@ export function CalendarWorkspace({
         boardId={board.id}
         creations={scopedCreations.filter(
           (creation) =>
-            !creation.deleted && !creationAcknowledged(creation, readVersion, orderReadyTaskIds),
+            !creation.deleted &&
+            !creationAcknowledged(creation, readVersion, orderReadyTaskIds, orderReadyListIds),
         )}
         tasks={selection.tasks}
         relatedTasks={selection.tasks}

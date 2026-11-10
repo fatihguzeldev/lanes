@@ -12,6 +12,7 @@ const state = vi.hoisted(() => ({
   items: [] as Task[],
   matched: [] as string[],
   orderReadyTaskIds: [] as string[],
+  orderReadyListIds: [] as string[],
 }));
 vi.mock('react', async (original) => ({
   ...(await original<typeof import('react')>()),
@@ -27,6 +28,7 @@ vi.mock('../../../../tasks/browser/queries/useTaskQuery', () => ({
       items: state.items,
       matchedTaskIds: state.matched,
       orderReadyTaskIds: state.orderReadyTaskIds,
+      orderReadyListIds: state.orderReadyListIds,
       nextCursor: null,
       coverage: { complete: true, stale: false, lastSyncedAt: null },
       providerCoverage: { complete: true },
@@ -82,8 +84,25 @@ beforeEach(() => {
   state.items = [];
   state.matched = [];
   state.orderReadyTaskIds = [];
+  state.orderReadyListIds = [];
 });
 describe('calendar creation handoff', () => {
+  it('reports only settled view reads to the account move owner', () => {
+    const onMoveRead = vi.fn();
+    state.settled = false;
+    render([], 6, { onMoveRead });
+    expect(onMoveRead).toHaveBeenLastCalledWith(undefined);
+    state.effects = [];
+    state.settled = true;
+    render([], 6, { onMoveRead });
+    expect(onMoveRead).toHaveBeenLastCalledWith(6);
+  });
+  it('retires a creation outside the visible date range after its own list order is verified', () => {
+    state.orderReadyListIds = ['list'];
+    const result = render();
+    expect(result.props.creations).toEqual([]);
+    expect(result.acknowledged).toHaveBeenCalledExactlyOnceWith(1);
+  });
   it('retains board-scoped server results whose list is beyond the loaded list page', () => {
     state.items = [
       {

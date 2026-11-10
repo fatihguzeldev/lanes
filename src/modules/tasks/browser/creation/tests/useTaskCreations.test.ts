@@ -139,6 +139,18 @@ describe('submitted task visibility', () => {
     expect(render().update(42, input('keep this draft'))).toBe(false);
     expect(render().items).toEqual([]);
   });
+  it('retires a filtered or locally paged row only with its own reconciled list proof', () => {
+    const creation = {
+      id: 1,
+      input: input('saved'),
+      resolvedTaskId: 'saved-task',
+      confirmedAfter: 5,
+    };
+    expect(creationAcknowledged(creation, 6, [], ['list'])).toBe(true);
+    expect(creationAcknowledged(creation, 6, [], ['other-list'])).toBe(false);
+    expect(creationAcknowledged(creation, 5, [], ['list'])).toBe(false);
+    expect(creationAcknowledged({ ...creation, editing: true }, 6, [], ['list'])).toBe(false);
+  });
 
   it('refreshes a confirmed task when a failed identity read is discarded', async () => {
     reads.created.mockImplementation(async (_account, _receipt, _input, onAddress) => {

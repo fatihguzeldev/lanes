@@ -78,17 +78,34 @@ export function TaskCollectionWorkspace({
   const pendingCreations = creations.filter(
     (creation) =>
       creation.input.accountId === account.id &&
-      !creationAcknowledged(creation, readVersion, tasks.page.orderReadyTaskIds),
+      !creationAcknowledged(
+        creation,
+        readVersion,
+        tasks.page.orderReadyTaskIds,
+        tasks.page.orderReadyListIds,
+      ),
   );
   useEffect(() => {
     for (const creation of creations) {
       if (
         creation.input.accountId === account.id &&
-        creationAcknowledged(creation, readVersion, tasks.page.orderReadyTaskIds)
+        creationAcknowledged(
+          creation,
+          readVersion,
+          tasks.page.orderReadyTaskIds,
+          tasks.page.orderReadyListIds,
+        )
       )
         onCreationRead?.(creation.id);
     }
-  }, [account.id, creations, readVersion, tasks.page.orderReadyTaskIds, onCreationRead]);
+  }, [
+    account.id,
+    creations,
+    readVersion,
+    tasks.page.orderReadyTaskIds,
+    tasks.page.orderReadyListIds,
+    onCreationRead,
+  ]);
   useEffect(() => {
     for (const edit of edits) {
       if (edit.input.accountId === account.id && taskChangeAcknowledged(edit, readVersion))
