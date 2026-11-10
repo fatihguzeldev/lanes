@@ -1,6 +1,7 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 import type { TaskPage } from '../../../contracts/query';
 import { useTaskQuery } from '../useTaskQuery';
+import { RequestError } from '../../../../../shared/browser/http/http';
 
 const hooks = vi.hoisted(() => ({
   cursor: 0,
@@ -8,7 +9,10 @@ const hooks = vi.hoisted(() => ({
   effects: [] as (() => void)[],
 }));
 const request = vi.hoisted(() => vi.fn());
-vi.mock('../../../../../shared/browser/http/http', () => ({ request }));
+vi.mock('../../../../../shared/browser/http/http', async (original) => ({
+  ...(await original<typeof import('../../../../../shared/browser/http/http')>()),
+  request,
+}));
 vi.mock('react', () => ({
   useCallback: (callback: unknown, dependencies: unknown[]) => {
     const index = hooks.cursor++;
@@ -84,4 +88,40 @@ it('does not treat retained order proof as a settled read while its replacement 
   expect(render().settled).toBe(true);
   expect(render(1).settled).toBe(false);
   expect(render(1).settled).toBe(false);
+});
+
+it('rereads a superseded initial snapshot once without exposing a transient conflict', async () => {
+  request
+    .mockRejectedValueOnce(new RequestError('conflict', 'the task page changed'))
+    .mockResolvedValueOnce(page(['saved-task']));
+  render();
+  await vi.waitFor(() => expect(render().status).toBe('ready'));
+  expect(request).toHaveBeenCalledTimes(2);
+  expect(render().page.orderReadyTaskIds).toEqual(['saved-task']);
+  expect(render().error).toBe('');
+});
+
+it('bounds snapshot retries and does not replay an invalidated paging cursor', async () => {
+  request.mockRejectedValue(new RequestError('conflict', 'the task page changed'));
+  render();
+  await vi.waitFor(() => expect(render().status).toBe('error'));
+  expect(request).toHaveBeenCalledTimes(2);
+  request
+    .mockReset()
+    .mockResolvedValueOnce(page(['first'], 'next'))
+    .mockRejectedValueOnce(new RequestError('conflict', 'the task page changed'));
+  await render().reload();
+  await render().loadMore();
+  expect(request).toHaveBeenCalledTimes(2);
+  expect(render().status).toBe('error');
+});
+
+it('uses the latest scoped list proof when another page reveals pending order work', async () => {
+  request
+    .mockResolvedValueOnce({ ...page(['first'], 'next'), orderReadyListIds: ['list'] })
+    .mockResolvedValueOnce({ ...page([]), orderReadyListIds: [] });
+  render();
+  await Promise.resolve();
+  await render().loadMore();
+  expect(render().page.orderReadyListIds).toEqual([]);
 });

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { request } from '../../../../shared/browser/http/http';
+import { request, RequestError } from '../../../../shared/browser/http/http';
 import { unknownCoverage } from '../../../../shared/browser/resources/usePagedResource';
 import { TaskPageSchema, type TaskPage, type TaskQueryInput } from '../../contracts/query';
 const empty = (): TaskPage => ({
@@ -40,15 +40,27 @@ export function useTaskQuery(accountId: string, input: TaskQueryInput | null, in
       flight.current = controller;
       setState((previous) => ({ ...previous, status: 'loading', error: '' }));
       try {
-        const page = await request(
-          `/api/accounts/${encodeURIComponent(accountId)}/tasks/query`,
-          TaskPageSchema,
-          {
+        const body = { ...inputRef.current, ...(cursor ? { cursor } : {}) };
+        const readPage = () =>
+          request(`/api/accounts/${encodeURIComponent(accountId)}/tasks/query`, TaskPageSchema, {
             method: 'POST',
-            body: { ...inputRef.current, ...(cursor ? { cursor } : {}) },
+            body,
             signal: controller.signal,
-          },
-        );
+          });
+        let page: TaskPage;
+        try {
+          page = await readPage();
+        } catch (error) {
+          if (
+            append ||
+            !(error instanceof RequestError) ||
+            error.code !== 'conflict' ||
+            controller.signal.aborted ||
+            generation.current !== epoch
+          )
+            throw error;
+          page = await readPage();
+        }
         if (generation.current !== epoch || controller.signal.aborted) return;
         setState((previous) => {
           const byId = new Map((append ? previous.page.items : []).map((task) => [task.id, task]));
