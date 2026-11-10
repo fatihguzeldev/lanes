@@ -414,19 +414,20 @@ describe('account-owned task presentation', () => {
   });
 });
 
-it('retains a pending creation edit receipt and supplies its captured graph revision', async () => {
+it('retains a pending creation edit receipt while rebasing its unchanged blocker context', async () => {
   const failure = new RequestError('uncertain', 'check this edit', undefined, 'edit-receipt');
   state.submit.mockImplementation(async (_command, _category, _identity, onFailure) => {
     onFailure(failure);
     return { id: 'edit-receipt', state: 'uncertain' };
   });
+  state.read.mockResolvedValueOnce({ ...current }).mockResolvedValueOnce({ revision: 13 });
   const result = await render().applyCreation(task, {
     patch: { blockedBy: ['blocker'] },
     expectedGraphRevision: 12,
   });
   expect(state.submit.mock.calls[0]![0]).toMatchObject({
     kind: 'task.edit',
-    expectedGraphRevision: 12,
+    expectedGraphRevision: 13,
   });
   expect(result).toEqual({ saved: false, message: 'check this edit', operationId: 'edit-receipt' });
   expect(context.submit).not.toHaveBeenCalled();

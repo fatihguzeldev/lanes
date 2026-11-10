@@ -6,7 +6,10 @@ import type { ConnectionSummary } from '../../../accounts/contracts/connection';
 import { TaskEditor } from './TaskEditor';
 import type { EditorSelection, TaskEditorCreate, TaskEditorSave } from './editor-contract';
 import { TaskSchema, type CreateTask, type Label, type Task } from '../../contracts/task';
-import { LabelDeletionJobSchema } from '../../contracts/metadata-commands';
+import {
+  DependencyGraphRevisionSchema,
+  LabelDeletionJobSchema,
+} from '../../contracts/metadata-commands';
 import { TaskDependantsPageSchema } from '../../contracts/query';
 import { RecurrenceStatusSchema, type RecurrenceStatus } from '../../contracts/recurrence';
 import { checkServerConnection, request } from '../../../../shared/browser/http/http';
@@ -58,7 +61,6 @@ interface Props {
   onManageLabels: (anchor: HTMLElement, create?: boolean) => void;
   onInspectChange: (id: string) => void;
 }
-const graphSchema = z.object({ revision: z.number().int().nonnegative() }).strict();
 const resolvedSchema = z.object({ items: z.array(TaskSchema).max(100) }).strict();
 const deletionPage = z
   .object({
@@ -289,7 +291,9 @@ export function TaskEditorWorkspace({
     if (!presented) return;
     const abort = new AbortController();
     setReadError('');
-    void request(`${base}/dependency-graph`, graphSchema, { signal: abort.signal })
+    void request(`${base}/dependency-graph`, DependencyGraphRevisionSchema, {
+      signal: abort.signal,
+    })
       .then((value) => setGraph(value.revision))
       .catch((error) => {
         if (!abort.signal.aborted)
@@ -380,7 +384,10 @@ export function TaskEditorWorkspace({
             [category === 'provider' ? 'revision' : 'expectedRevision']: current.revision,
           };
           if (edit.patch.blockedBy !== undefined) {
-            const currentGraph = await request(`${base}/dependency-graph`, graphSchema);
+            const currentGraph = await request(
+              `${base}/dependency-graph`,
+              DependencyGraphRevisionSchema,
+            );
             input.expectedGraphRevision = currentGraph.revision;
           }
         }

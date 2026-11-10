@@ -60,6 +60,9 @@ export function intentFor(task: Task, creation: CreationRecord): CreationIntent 
   if (Object.keys(patch).length)
     return {
       patch,
+      ...(patch.blockedBy === undefined
+        ? {}
+        : { baselineBlockedBy: [...creation.appliedInput.blockedBy] }),
       ...(patch.blockedBy !== undefined && creation.expectedGraphRevision !== undefined
         ? { expectedGraphRevision: creation.expectedGraphRevision }
         : {}),

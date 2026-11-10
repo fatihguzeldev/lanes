@@ -2,6 +2,7 @@ import type { CreateTask, TaskPatch } from '../../contracts/task';
 
 export interface CreationIntent {
   patch: TaskPatch;
+  baselineBlockedBy?: readonly string[];
   expectedGraphRevision?: number;
   completed?: boolean;
   deleted?: boolean;

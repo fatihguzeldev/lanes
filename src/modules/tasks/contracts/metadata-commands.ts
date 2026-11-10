@@ -4,6 +4,7 @@ import { ResourceIdSchema } from '../../../shared/contracts/identity';
 
 const id = ResourceIdSchema.max(1_024);
 const revision = z.number().int().nonnegative().safe();
+export const DependencyGraphRevisionSchema = z.object({ revision }).strict();
 const ids = (limit: number) =>
   z
     .array(id)

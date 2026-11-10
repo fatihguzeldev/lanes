@@ -3,6 +3,7 @@ import type { CreationIntent, CreationResult } from '../creation/creation-model'
 import type { TaskPresentationPatch } from '../changes/useTaskChanges';
 import type { Task } from '../../contracts/task';
 import { TaskSchema } from '../../contracts/task';
+import { DependencyGraphRevisionSchema } from '../../contracts/metadata-commands';
 import { request, RequestError } from '../../../../shared/browser/http/http';
 import { useCommands } from '../../../operations/browser/submission/useCommands';
 import { newOperationId } from '../../../operations/browser/submission/operation-identity';
@@ -258,6 +259,33 @@ export function useTaskActions(context: TaskActionContext, clockOffset: number) 
             `/api/accounts/${encodeURIComponent(current.accountId)}/tasks/${encodeURIComponent(task.id)}`,
             TaskSchema,
           );
+          if (
+            fresh.accountId !== current.accountId ||
+            fresh.id !== task.id ||
+            fresh.listId !== task.listId
+          )
+            throw new RequestError(
+              'conflict',
+              'this new task moved before its queued edit could save.',
+            );
+          let expectedGraphRevision = intent.expectedGraphRevision;
+          if (intent.patch.blockedBy !== undefined) {
+            const baseline = intent.baselineBlockedBy ?? task.blockedBy ?? [];
+            if (
+              JSON.stringify([...(fresh.blockedBy ?? [])].sort()) !==
+              JSON.stringify([...baseline].sort())
+            )
+              throw new RequestError(
+                'conflict',
+                'this task’s blockers changed before its queued edit could save. open its current values to review them.',
+              );
+            expectedGraphRevision = (
+              await request(
+                `/api/accounts/${encodeURIComponent(current.accountId)}/dependency-graph`,
+                DependencyGraphRevisionSchema,
+              )
+            ).revision;
+          }
           attempted = true;
           const result = await latest.current.commands.submit(
             {
@@ -265,9 +293,7 @@ export function useTaskActions(context: TaskActionContext, clockOffset: number) 
               taskId: task.id,
               revision: fresh.revision,
               patch: intent.patch,
-              ...(intent.expectedGraphRevision === undefined
-                ? {}
-                : { expectedGraphRevision: intent.expectedGraphRevision }),
+              ...(expectedGraphRevision === undefined ? {} : { expectedGraphRevision }),
             },
             'provider',
             undefined,
