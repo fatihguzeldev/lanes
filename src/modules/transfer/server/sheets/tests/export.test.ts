@@ -186,7 +186,7 @@ async function fixture() {
   }
   async function ready() {
     await service.begin(input());
-    let run = await service.get('a', operationId());
+    let run = await service.queries.get('a', operationId());
     while (run.state === 'capturing') run = await service.captureNext('a', operationId());
     return run;
   }
@@ -292,14 +292,16 @@ describe('captured sheets export', () => {
       service.captureNext('a', operationId()),
       service.captureNext('a', operationId()),
     ]);
-    expect((await service.get('a', operationId())).totalRows).toBe(1);
+    expect((await service.queries.get('a', operationId())).totalRows).toBe(1);
     expect(
       await db.prepare('SELECT COUNT(*) AS n FROM transfer_sheets_export_chunks').first('n'),
     ).toBe(1);
     await expect(service.begin(input({ title: 'different' }))).rejects.toMatchObject({
       code: 'conflict',
     });
-    await expect(service.get('b', operationId())).rejects.toMatchObject({ code: 'not_found' });
+    await expect(service.queries.get('b', operationId())).rejects.toMatchObject({
+      code: 'not_found',
+    });
     await expect(
       service.confirm('a', operationId(), { captureHash: '0'.repeat(64) }),
     ).rejects.toMatchObject({ code: 'conflict' });
@@ -308,16 +310,16 @@ describe('captured sheets export', () => {
     const f = await fixture();
     await f.service.begin(input());
     await f.service.begin(input({ operationId: operationId('b') }));
-    const first = await f.service.list('a', { limit: 1 });
+    const first = await f.service.queries.list('a', { limit: 1 });
     expect(first.items).toHaveLength(1);
     expect(first.nextCursor).toBeTruthy();
-    const second = await f.service.list('a', { limit: 1, cursor: first.nextCursor! });
+    const second = await f.service.queries.list('a', { limit: 1, cursor: first.nextCursor! });
     expect(second.items).toHaveLength(1);
     expect(second.items[0]?.id).not.toBe(first.items[0]?.id);
-    await expect(f.service.list('b', { cursor: first.nextCursor! })).rejects.toMatchObject({
+    await expect(f.service.queries.list('b', { cursor: first.nextCursor! })).rejects.toMatchObject({
       code: 'validation_failed',
     });
-    expect((await f.service.list('b')).items).toEqual([]);
+    expect((await f.service.queries.list('b')).items).toEqual([]);
   });
 
   it('resumes after confirmed row chunks without creating another file or resending those chunks', async () => {
@@ -353,7 +355,7 @@ describe('captured sheets export', () => {
     await f.service.cancel('a', operationId());
     expect(f.creates).toHaveLength(1);
     expect(f.writes).toHaveLength(0);
-    expect((await f.service.get('a', operationId())).state).toBe('uncertain');
+    expect((await f.service.queries.get('a', operationId())).state).toBe('uncertain');
   });
 
   it('keeps the known file link and stops after an ambiguous row write', async () => {
@@ -470,7 +472,7 @@ describe('captured sheets export', () => {
     await f.service.cancel('a', operationId());
     f.tick();
     await f.service.advance('a', operationId());
-    const cancelled = await f.service.get('a', operationId());
+    const cancelled = await f.service.queries.get('a', operationId());
     expect(cancelled.state).toBe('cancelled');
     expect(cancelled.spreadsheet?.id).toBe('new-spreadsheet');
     expect(cancelled.confirmedRows).toBeGreaterThan(0);
@@ -499,7 +501,7 @@ describe('captured sheets export', () => {
     await f.task('one');
     const preview = await f.ready();
     await f.service.confirm('a', operationId(), { captureHash: preview.captureHash! });
-    while (!(await f.service.get('a', operationId())).operation?.inputSealed)
+    while (!(await f.service.queries.get('a', operationId())).operation?.inputSealed)
       await f.service.advance('a', operationId());
     f.holdCreate();
     const issued = f.service.advance('a', operationId());
@@ -512,7 +514,7 @@ describe('captured sheets export', () => {
     await issued;
     expect(await f.service.pendingProviderWork('a')).toBe(false);
     expect(await f.service.hasUnresolved('a')).toBe(false);
-    expect(await f.service.get('a', operationId())).toMatchObject({
+    expect(await f.service.queries.get('a', operationId())).toMatchObject({
       state: 'cancelled',
       spreadsheet: { id: 'new-spreadsheet' },
     });
@@ -524,7 +526,7 @@ describe('captured sheets export', () => {
     await f.task('one');
     const preview = await f.ready();
     await f.service.confirm('a', operationId(), { captureHash: preview.captureHash! });
-    while (!(await f.service.get('a', operationId())).operation?.inputSealed)
+    while (!(await f.service.queries.get('a', operationId())).operation?.inputSealed)
       await f.service.advance('a', operationId());
     await f.operations.claimNext(operationId(), 'crashed-worker', f.now());
     await f.operations.markDispatched(operationId(), 'sheets.create', 'crashed-worker', f.now(), [
@@ -538,7 +540,7 @@ describe('captured sheets export', () => {
     await f.db.prepare("UPDATE accounts_connections SET state='disconnecting' WHERE id='a'").run();
     expect(await f.service.pauseAccount('a')).toEqual({ done: true, pending: false });
     expect(await f.service.hasUnresolved('a')).toBe(true);
-    expect((await f.service.get('a', operationId())).state).toBe('uncertain');
+    expect((await f.service.queries.get('a', operationId())).state).toBe('uncertain');
     expect(f.creates).toHaveLength(0);
   });
   it('honestly pauses known local repair during disconnect even after its active step marker was cleared', async () => {
@@ -585,7 +587,9 @@ describe('captured sheets export', () => {
         .prepare("SELECT COUNT(*) AS n FROM transfer_sheets_export_chunks WHERE rows_json='null'")
         .first('n'),
     ).toBe(1);
-    expect((await f.service.get('a', operationId())).spreadsheet?.id).toBe('new-spreadsheet');
+    expect((await f.service.queries.get('a', operationId())).spreadsheet?.id).toBe(
+      'new-spreadsheet',
+    );
     expect((await f.service.advance('a', operationId())).advanced).toBe(false);
     await f.db.prepare("UPDATE accounts_connections SET state='disconnected' WHERE id='a'").run();
     const before =
@@ -685,7 +689,7 @@ describe('explicit sheets uncertainty resolution', () => {
       }),
     ).rejects.toMatchObject({ code: 'conflict' });
     expect(f.writes).toHaveLength(0);
-    expect((await f.service.get('a', operationId())).state).toBe('uncertain');
+    expect((await f.service.queries.get('a', operationId())).state).toBe('uncertain');
   });
   it('verifies a lost RAW write by exact values and never resends that confirmed range', async () => {
     const f = await fixture();
@@ -780,12 +784,12 @@ describe('explicit sheets uncertainty resolution', () => {
       const result = await f.service.advance('a', newId);
       if (result.run.state === 'succeeded') break;
     }
-    const result = await f.service.get('a', newId);
+    const result = await f.service.queries.get('a', newId);
     expect(result.state).toBe('succeeded');
     expect(result.spreadsheet?.id).toBe('new-spreadsheet-2');
     expect(JSON.stringify(f.writes)).not.toContain('changed source');
     expect(f.creates).toHaveLength(2);
-    expect((await f.service.get('a', operationId())).state).toBe('uncertain');
+    expect((await f.service.queries.get('a', operationId())).state).toBe('uncertain');
     expect(await f.service.hasUnresolved('a')).toBe(true);
     expect(await f.operations.getResolution(operationId(), 'sheets.create', 'a')).toBe(null);
   });

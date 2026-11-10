@@ -68,14 +68,14 @@ export async function sheetsTransferRoute(
   if (route[4] === 'exports') {
     if (route[5] === 'sheets') {
       if (route.length === 6 && method === 'GET')
-        return jsonResponse(await sheetsExports.list(accountId, transferPage(url)));
+        return jsonResponse(await sheetsExports.queries.list(accountId, transferPage(url)));
       if (route.length === 6 && method === 'POST') {
         const input = await readJson(request, SheetsExportRequestSchema);
         return jsonResponse(await sheetsExports.begin({ ...input, accountId, ownerSubject }), 202);
       }
       const exportId = route[6];
       if (exportId && route.length === 7 && method === 'GET')
-        return jsonResponse(await sheetsExports.get(accountId, exportId));
+        return jsonResponse(await sheetsExports.queries.get(accountId, exportId));
       if (exportId && route.length === 8 && method === 'POST') {
         if (route[7] === 'confirm')
           return jsonResponse(

@@ -1,20 +1,20 @@
+import { SheetsExportQueries } from './queries';
+import { OperationIdSchema } from '../../../operations/contracts/receipt';
+import { beginSchema, emptyCounts, readSheetsExport, type Run, type Chunk } from './state';
 import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types';
 import { z } from 'zod';
 import { AppError } from '../../../../shared/contracts/errors';
-import type { ErrorCode, Page } from '../../../../shared/contracts/http';
+import type { ErrorCode } from '../../../../shared/contracts/http';
 import {
   assertDisconnecting,
   assertLocalWritable,
   localWriteGuard,
 } from '../../../accounts/server/connections/access';
 
-import { ResourceIdSchema } from '../../../../shared/contracts/identity';
-import { OperationIdSchema } from '../../../operations/contracts/receipt';
 import type { OperationStore } from '../../../operations/server/journal/store';
 import type { ClaimedStep } from '../../../operations/server/journal/context';
 import {
   FreshSheetsAttemptSchema,
-  SheetsExportRequestSchema,
   type CsvExportPage,
   type SheetsExportSummary,
 } from '../../contracts/export';
@@ -29,10 +29,6 @@ import {
 export const MAX_SHEETS_EXPORT_TASKS = 99_989;
 export const MAX_SHEETS_EXPORT_BYTES = 20 * 1024 * 1024;
 const maxChunks = 9999;
-const beginSchema = SheetsExportRequestSchema.extend({
-  accountId: ResourceIdSchema.max(1024),
-  ownerSubject: ResourceIdSchema.max(1024),
-}).strict();
 export type BeginSheetsExport = z.input<typeof beginSchema>;
 export interface SheetsExportOptions extends TaskCsvExportOptions {
   operations: OperationStore;
@@ -44,49 +40,6 @@ export type { SheetsExportSummary } from '../../contracts/export';
 export interface SheetsExportAdvance {
   run: SheetsExportSummary;
   advanced: boolean;
-}
-interface Run {
-  id: string;
-  account_id: string;
-  owner_subject: string;
-  request_json: string;
-  request_hash: string;
-  title: string;
-  state: string;
-  revision: number;
-  nonce: string | null;
-  cursor: string | null;
-  capture_hash: string;
-  generated_at: string | null;
-  freshness_json: string | null;
-  counts_json: string;
-  row_count: number;
-  column_count: number;
-  chunk_count: number;
-  captured_bytes: number;
-  promoted_chunks: number;
-  confirmed_rows: number;
-  file_id: string | null;
-  file_url: string | null;
-  confirmed_at: number | null;
-  finished_at: number | null;
-  error_code: ErrorCode | null;
-  created_at: number;
-  updated_at: number;
-  cancel_requested: number;
-  active_step: string | null;
-  active_claim: string | null;
-  active_until: number | null;
-  unresolved: number;
-}
-interface Chunk {
-  position: number;
-  start_row: number;
-  data_rows: number;
-  row_count: number;
-  rows_json: string;
-  input_hash: string;
-  byte_count: number;
 }
 const cellsSchema = z
   .array(
@@ -134,14 +87,6 @@ const countNames = [
   'missingLabels',
   'unsupportedHierarchy',
 ] as const;
-const emptyCounts = (): CsvExportPage['counts'] => ({
-  tasks: 0,
-  parentContext: 0,
-  omittedDependencies: 0,
-  missingParents: 0,
-  missingLabels: 0,
-  unsupportedHierarchy: 0,
-});
 function canonical(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonical);
   if (value && typeof value === 'object')
@@ -175,6 +120,7 @@ function checkFreshId(id: string, now: number): void {
 
 /** A spreadsheet is created only after every raw row has been captured and explicitly confirmed. */
 export class SheetsExportService {
+  readonly queries: SheetsExportQueries;
   private readonly rows: TaskCsvExportService;
   private readonly resolutions: SheetsResolutionService;
   constructor(
@@ -182,23 +128,11 @@ export class SheetsExportService {
     private readonly options: SheetsExportOptions,
   ) {
     this.rows = new TaskCsvExportService(options);
+    this.queries = new SheetsExportQueries(db, options.operations.queries);
     this.resolutions = new SheetsResolutionService(db, options);
   }
   private now(): number {
     return this.options.now?.() ?? Date.now();
-  }
-  private async run(accountId: string, id: string): Promise<Run> {
-    const row = await this.db
-      .prepare('SELECT * FROM transfer_sheets_exports WHERE id=? AND account_id=?')
-      .bind(id, accountId)
-      .first<Run>();
-    if (!row)
-      throw new AppError(
-        'not_found',
-        'this sheets export is not available in the selected account',
-        404,
-      );
-    return row;
   }
 
   async begin(input: BeginSheetsExport): Promise<SheetsExportSummary> {
@@ -221,7 +155,7 @@ export class SheetsExportService {
     if (previous) {
       if (previous.account_id !== value.accountId || previous.request_hash !== requestHash)
         throw conflict();
-      return this.get(value.accountId, value.operationId);
+      return this.queries.get(value.accountId, value.operationId);
     }
     checkFreshId(value.operationId, this.now());
     await assertLocalWritable(this.db, value.accountId);
@@ -244,138 +178,14 @@ export class SheetsExportService {
           this.now(),
         ),
     ]);
-    const saved = await this.run(value.accountId, value.operationId);
+    const saved = await readSheetsExport(this.db, value.accountId, value.operationId);
     if (saved.request_hash !== requestHash) throw conflict();
-    return this.get(value.accountId, value.operationId);
-  }
-
-  async get(accountId: string, id: string): Promise<SheetsExportSummary> {
-    const run = await this.run(accountId, id),
-      operation = await this.options.operations.queries.summary(id, accountId);
-    const previousAttempt = await this.db
-      .prepare(
-        'SELECT f.original_export_id,f.original_step_key,e.file_id,e.file_url FROM transfer_sheets_fresh_attempts f JOIN transfer_sheets_exports e ON e.id=f.original_export_id WHERE f.new_export_id=? AND f.account_id=?',
-      )
-      .bind(id, accountId)
-      .first<{
-        original_export_id: string;
-        original_step_key: string;
-        file_id: string | null;
-        file_url: string | null;
-      }>();
-    const state =
-      operation?.state ??
-      ((run.state === 'admitted'
-        ? 'failed'
-        : run.state === 'finished'
-          ? 'succeeded'
-          : run.state === 'paused'
-            ? 'reconnect_required'
-            : run.state) as SheetsExportSummary['state']);
-    const captured = beginSchema.safeParse(JSON.parse(run.request_json));
-    return {
-      id,
-      accountId,
-      title: run.title,
-      selection: captured.success ? captured.data.export : null,
-      state,
-      captureHash: run.state === 'capturing' ? null : run.capture_hash,
-      generatedAt: run.generated_at,
-      totalRows: Math.max(0, run.row_count - (run.chunk_count ? 1 : 0)),
-      confirmedRows: run.confirmed_rows,
-      totalChunks: run.chunk_count,
-      capturedBytes: run.captured_bytes,
-      spreadsheet: run.file_id && run.file_url ? { id: run.file_id, url: run.file_url } : null,
-      retryOf: previousAttempt
-        ? {
-            operationId: previousAttempt.original_export_id,
-            stepKey: previousAttempt.original_step_key,
-            duplicateRiskAccepted: true,
-            spreadsheet:
-              previousAttempt.file_id && previousAttempt.file_url
-                ? { id: previousAttempt.file_id, url: previousAttempt.file_url }
-                : null,
-          }
-        : null,
-      duplicateRiskExplanation: previousAttempt
-        ? 'the earlier request may have created or changed another spreadsheet. this explicit new attempt preserves that unresolved operation and copies its frozen input.'
-        : null,
-      freshness: run.freshness_json
-        ? (JSON.parse(run.freshness_json) as CsvExportPage['freshness'])
-        : null,
-      counts: { ...emptyCounts(), ...(JSON.parse(run.counts_json) as CsvExportPage['counts']) },
-      operation,
-      error: operation?.error
-        ? { code: operation.error.code as ErrorCode, message: operation.error.message }
-        : run.error_code
-          ? {
-              code: run.error_code,
-              message:
-                'this export could not finish. its captured data and confirmed output are retained.',
-            }
-          : null,
-    };
-  }
-  async list(
-    accountId: string,
-    input: { limit?: number; cursor?: string } = {},
-  ): Promise<Page<SheetsExportSummary>> {
-    const limit = input.limit ?? 10;
-    if (!Number.isInteger(limit) || limit < 1 || limit > 10)
-      throw new AppError(
-        'validation_failed',
-        'read at most10 retained sheets exports at once',
-        422,
-      );
-    let anchor: { createdAt: number; id: string } | null = null;
-    if (input.cursor) {
-      try {
-        if (input.cursor.length > 4096) throw new Error();
-        const value = z
-          .object({
-            accountId: z.string(),
-            createdAt: z.number().int().safe(),
-            id: OperationIdSchema,
-          })
-          .strict()
-          .parse(JSON.parse(atob(input.cursor)));
-        if (value.accountId !== accountId) throw new Error();
-        anchor = value;
-      } catch {
-        throw new AppError(
-          'validation_failed',
-          'this sheets export cursor belongs to another account',
-          422,
-        );
-      }
-    }
-    const rows = (
-      await this.db
-        .prepare(
-          `SELECT id,created_at FROM transfer_sheets_exports WHERE account_id=? ${anchor ? 'AND (created_at,id)<(?,?)' : ''} ORDER BY created_at DESC,id DESC LIMIT ?`,
-        )
-        .bind(accountId, ...(anchor ? [anchor.createdAt, anchor.id] : []), limit + 1)
-        .all<{ id: string; created_at: number }>()
-    ).results;
-    const selected = rows.slice(0, limit),
-      items: SheetsExportSummary[] = [];
-    for (const row of selected) items.push(await this.get(accountId, row.id));
-    if (new TextEncoder().encode(JSON.stringify(items)).byteLength > 64 * 1024)
-      throw new AppError('validation_failed', 'read fewer sheets export summaries at a time', 422);
-    const last = selected.at(-1);
-    return {
-      items,
-      nextCursor:
-        last && rows.length > selected.length
-          ? btoa(JSON.stringify({ accountId, createdAt: last.created_at, id: last.id }))
-          : null,
-      coverage: { complete: true, stale: false, lastSyncedAt: null },
-    };
+    return this.queries.get(value.accountId, value.operationId);
   }
 
   async captureNext(accountId: string, id: string): Promise<SheetsExportSummary> {
-    const run = await this.run(accountId, id);
-    if (run.state !== 'capturing') return this.get(accountId, id);
+    const run = await readSheetsExport(this.db, accountId, id);
+    if (run.state !== 'capturing') return this.queries.get(accountId, id);
     await assertLocalWritable(this.db, accountId);
     const fresh = await this.db
       .prepare(
@@ -502,9 +312,9 @@ export class SheetsExportService {
           ),
       ]);
     } catch (error) {
-      const current = await this.run(accountId, id);
+      const current = await readSheetsExport(this.db, accountId, id);
       if (current.revision !== run.revision || current.state !== 'capturing')
-        return this.get(accountId, id);
+        return this.queries.get(accountId, id);
       if (error instanceof AppError && !error.retryable) {
         await this.db
           .prepare(
@@ -521,7 +331,7 @@ export class SheetsExportService {
         true,
       );
     }
-    return this.get(accountId, id);
+    return this.queries.get(accountId, id);
   }
 
   async confirm(
@@ -529,13 +339,13 @@ export class SheetsExportService {
     id: string,
     input: { captureHash: string },
   ): Promise<SheetsExportSummary> {
-    const run = await this.run(accountId, id);
+    const run = await readSheetsExport(this.db, accountId, id);
     if (!/^[0-9a-f]{64}$/.test(input.captureHash) || input.captureHash !== run.capture_hash)
       throw conflict('confirm the current captured export preview before creating its spreadsheet');
     const existing = await this.options.operations.get(id, accountId);
     if (run.confirmed_at !== null) {
       if (!existing) throw expired();
-      return this.get(accountId, id);
+      return this.queries.get(accountId, id);
     }
     if (run.state !== 'ready' || !run.chunk_count || run.cancel_requested)
       throw conflict('finish capturing this export before confirming its new spreadsheet');
@@ -570,7 +380,7 @@ export class SheetsExportService {
       )
       .bind(this.now(), this.now(), id, accountId)
       .run();
-    return this.get(accountId, id);
+    return this.queries.get(accountId, id);
   }
 
   private async reconcile(accountId: string, id: string): Promise<void> {
@@ -743,24 +553,24 @@ export class SheetsExportService {
   }
 
   async advance(accountId: string, id: string): Promise<SheetsExportAdvance> {
-    let run = await this.run(accountId, id);
+    let run = await readSheetsExport(this.db, accountId, id);
     if (run.state === 'capturing')
       return { run: await this.captureNext(accountId, id), advanced: true };
     const operation = await this.options.operations.get(id, accountId);
-    if (!operation) return { run: await this.get(accountId, id), advanced: false };
+    if (!operation) return { run: await this.queries.get(accountId, id), advanced: false };
     if (operation.finished) {
       await this.reconcile(accountId, id);
-      return { run: await this.get(accountId, id), advanced: false };
+      return { run: await this.queries.get(accountId, id), advanced: false };
     }
     if (!operation.inputSealed) {
       await this.promote(run);
-      return { run: await this.get(accountId, id), advanced: true };
+      return { run: await this.queries.get(accountId, id), advanced: true };
     }
     const claimId = crypto.randomUUID(),
       claim = await this.options.operations.claimNext(id, claimId, this.now());
     if (!claim) {
       await this.reconcile(accountId, id);
-      return { run: await this.get(accountId, id), advanced: false };
+      return { run: await this.queries.get(accountId, id), advanced: false };
     }
     let dispatched = false,
       responseReceived = claim.mode === 'repair',
@@ -772,7 +582,7 @@ export class SheetsExportService {
         const step = stepSchema.safeParse(claim.input);
         if (!step.success)
           throw new AppError('validation_failed', 'this captured sheets step is invalid', 422);
-        run = await this.run(accountId, id);
+        run = await readSheetsExport(this.db, accountId, id);
         if (step.data.action === 'sheets.rows' && !run.file_id)
           throw conflict(
             'the created spreadsheet receipt is missing; inspect this operation before continuing',
@@ -932,11 +742,11 @@ export class SheetsExportService {
         .run();
     }
     await this.reconcile(accountId, id);
-    return { run: await this.get(accountId, id), advanced: true };
+    return { run: await this.queries.get(accountId, id), advanced: true };
   }
 
   async cancel(accountId: string, id: string): Promise<SheetsExportSummary> {
-    const run = await this.run(accountId, id),
+    const run = await readSheetsExport(this.db, accountId, id),
       operation = await this.options.operations.get(id, accountId);
     if (operation) {
       await this.options.operations.cancel(id, accountId, this.now());
@@ -953,13 +763,13 @@ export class SheetsExportService {
         .prepare('UPDATE transfer_sheets_exports SET cancel_requested=1 WHERE id=?')
         .bind(id)
         .run();
-    return this.get(accountId, id);
+    return this.queries.get(accountId, id);
   }
   async resume(accountId: string, id: string): Promise<SheetsExportSummary> {
-    await this.run(accountId, id);
+    await readSheetsExport(this.db, accountId, id);
     await this.options.operations.resume(id, accountId, this.now());
     await this.reconcile(accountId, id);
-    return this.get(accountId, id);
+    return this.queries.get(accountId, id);
   }
   async inspectUncertain(accountId: string, id: string, stepKey: string) {
     return this.resolutions.inspect(accountId, id, stepKey);
@@ -983,7 +793,7 @@ export class SheetsExportService {
     id: string,
     stepKey: string,
   ): Promise<SheetsExportSummary> {
-    await this.run(accountId, id);
+    await readSheetsExport(this.db, accountId, id);
     await this.options.operations.resumeRecordedResponse(id, stepKey, accountId, this.now());
     return (await this.advance(accountId, id)).run;
   }
@@ -1004,7 +814,7 @@ export class SheetsExportService {
         'explicitly acknowledge possible duplicate output and provide a new operation identity',
         422,
       );
-    const source = await this.run(accountId, id);
+    const source = await readSheetsExport(this.db, accountId, id);
     if (value.data.newOperationId === id)
       throw conflict('a fresh attempt needs a distinct operation identity');
     const prior = await this.db
@@ -1024,7 +834,7 @@ export class SheetsExportService {
         prior.original_claim_id !== input.expectedClaimId
       )
         throw conflict();
-      return this.get(accountId, input.newOperationId);
+      return this.queries.get(accountId, input.newOperationId);
     }
     const inspected = await this.resolutions.inspect(accountId, id, value.data.stepKey);
     if (inspected.expectedClaimId !== input.expectedClaimId) throw conflict();
@@ -1099,14 +909,14 @@ export class SheetsExportService {
       )
         throw conflict();
     }
-    return this.get(accountId, value.data.newOperationId);
+    return this.queries.get(accountId, value.data.newOperationId);
   }
   private async cloneNext(
     run: Run,
     link: { original_export_id: string; original_capture_hash: string; cloned_chunks: number },
   ): Promise<SheetsExportSummary> {
     checkFreshId(run.id, this.now());
-    const source = await this.run(run.account_id, link.original_export_id);
+    const source = await readSheetsExport(this.db, run.account_id, link.original_export_id);
     if (source.capture_hash !== link.original_capture_hash)
       throw conflict('the original frozen export changed');
     const chunk = await this.db
@@ -1171,10 +981,10 @@ export class SheetsExportService {
           .bind(chunk.position + 1, run.id, chunk.position),
       ]);
     } catch {
-      if ((await this.run(run.account_id, run.id)).revision === run.revision)
+      if ((await readSheetsExport(this.db, run.account_id, run.id)).revision === run.revision)
         throw conflict('the frozen export could not be copied into this fresh attempt');
     }
-    return this.get(run.account_id, run.id);
+    return this.queries.get(run.account_id, run.id);
   }
   async advanceNext(): Promise<SheetsExportAdvance | null> {
     const row = await this.db
