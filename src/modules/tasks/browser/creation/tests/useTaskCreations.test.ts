@@ -1,3 +1,7 @@
+import { seedAccount, testDatabase } from '../../../../../../tests/support/sqlite-d1';
+import { TaskQueries } from '../../../server/queries/tasks';
+import { TaskMetadataService } from '../../../server/metadata/tasks';
+import { HistoryService } from '../../../../history/server/events/event-store';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CreateTaskSchema, type Task } from '../../../contracts/task';
 import { creationAcknowledged, useTaskCreations } from '../useTaskCreations';
@@ -345,6 +349,78 @@ describe('interactive submitted tasks', () => {
       { starred: false },
     ]);
     expect(task.starred).toBe(false);
+  });
+  it('accepts label and blocker sets returned in a different order after a queued edit', async () => {
+    let task: Task = { ...serverTask('ring64'), labelIds: [], blockedBy: [] };
+    reads.created.mockImplementation(async () => task);
+    reads.task.mockImplementation(async () => task);
+    const onReady = vi.fn(async (_saved: Task, intent: { patch: object }) => {
+      task = { ...task, ...intent.patch, labelIds: ['a', 'z'], blockedBy: ['first', 'last'] };
+      return true;
+    });
+    const options = { onReady, onError: vi.fn() };
+    render(0, options).start(1, input('ring64'));
+    render(0, options).update(
+      1,
+      { ...input('ring64'), labelIds: ['z', 'a'], blockedBy: ['last', 'first'] },
+      12,
+    );
+    await render(0, options).finish(1, 'create-receipt');
+    expect(render(0, options).items[0]!.failure).toBeUndefined();
+    expect(render(0, options).items[0]!.confirmedAfter).toBe(0);
+    expect(onReady).toHaveBeenCalledOnce();
+    expect(onReady.mock.calls[0]![1]).toMatchObject({ expectedGraphRevision: 12 });
+  });
+  it('hands off multiple labels after their real sqlite persistence normalizes their order', async () => {
+    const database = testDatabase();
+    try {
+      const now = Date.now();
+      await seedAccount(database.db, 'account', now);
+      await database.db
+        .prepare('INSERT INTO tasks_lists(id,account_id,provider_id,title) VALUES (?,?,?,?)')
+        .bind('list', 'account', 'google-list', 'list')
+        .run();
+      await database.db
+        .prepare(
+          'INSERT INTO tasks_tasks(id,account_id,list_id,provider_id,title) VALUES (?,?,?,?,?)',
+        )
+        .bind('server-task', 'account', 'list', 'google-task', 'ring64')
+        .run();
+      for (const id of ['z', 'a'])
+        await database.db
+          .prepare('INSERT INTO tasks_labels(id,account_id,name,name_key,color) VALUES (?,?,?,?,?)')
+          .bind(id, 'account', id, id, '#123456')
+          .run();
+      const queries = new TaskQueries(database.db);
+      const metadata = new TaskMetadataService(database.db, {
+        history: new HistoryService(database.db, { now: () => now }),
+        commitWrites: async (writes) => {
+          await database.db.batch(writes);
+        },
+      });
+      reads.created.mockImplementation(() => queries.getTask('account', 'server-task'));
+      reads.task.mockImplementation(() => queries.getTask('account', 'server-task'));
+      const options = {
+        onReady: vi.fn(async (task: Task, intent: { patch: object }) => {
+          await metadata.patchTask('account', task.id, intent.patch, task.revision, {
+            operationId: 'edit',
+            stepKey: 'metadata',
+            origin: 'owner',
+            recordedAt: new Date(now).toISOString(),
+          });
+          return true;
+        }),
+      };
+      render(0, options).start(1, input('ring64'));
+      render(0, options).update(1, { ...input('ring64'), labelIds: ['z', 'a'] });
+      await render(0, options).finish(1, 'create');
+      expect((await queries.getTask('account', 'server-task')).labelIds).toEqual(['a', 'z']);
+      expect(render(0, options).items[0]!.failure).toBeUndefined();
+      expect(render(0, options).items[0]!.confirmedAfter).toBe(0);
+      expect(options.onReady).toHaveBeenCalledOnce();
+    } finally {
+      database.close();
+    }
   });
   it('never replays an unconfirmed followup while checking its save', async () => {
     reads.created.mockResolvedValue(serverTask('ring64'));

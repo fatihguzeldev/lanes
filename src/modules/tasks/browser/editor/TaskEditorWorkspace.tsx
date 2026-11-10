@@ -49,7 +49,7 @@ interface Props {
         error: Parameters<TaskCreationController['run']>[2],
       ) => Promise<boolean>)
     | undefined;
-  onUpdateCreation?(id: number, input: CreateTask): boolean;
+  onUpdateCreation?(id: number, input: CreateTask, expectedGraphRevision?: number): boolean;
   onDirtyChange: (dirty: boolean) => void;
   onOpenTask: (task: Task) => void;
   onToggleComplete: (task: Task, completed: boolean) => void;
@@ -456,7 +456,9 @@ export function TaskEditorWorkspace({
     const { accountId: capturedAccount, ...input } = value.input;
     if (capturedAccount !== account.id) return;
     if (selection.pendingCreationId !== undefined) {
-      if (!onUpdateCreation?.(selection.pendingCreationId, value.input)) {
+      if (
+        !onUpdateCreation?.(selection.pendingCreationId, value.input, value.expectedGraphRevision)
+      ) {
         setSubmissionError(
           'this new task is no longer available for this edit. your draft is kept.',
         );

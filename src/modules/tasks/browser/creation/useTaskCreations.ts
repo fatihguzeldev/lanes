@@ -8,6 +8,7 @@ import { createCreationSubmissionQueue } from './creation-submission-queue';
 
 export interface CreationIntent {
   patch: TaskPatch;
+  expectedGraphRevision?: number;
   completed?: boolean;
   deleted?: boolean;
 }
@@ -42,6 +43,7 @@ interface CreationRecord extends PendingTaskCreation {
   appliedInput: CreateTask;
   onEdit?(input: CreateTask): void;
   operationId?: string;
+  expectedGraphRevision?: number;
   replayBlocked?: boolean;
 }
 
@@ -72,18 +74,28 @@ const editableFields = [
   'starred',
   'blockedBy',
 ] as const;
+function sameField(field: string, left: unknown, right: unknown) {
+  const normalize = (value: unknown) =>
+    (field === 'labelIds' || field === 'blockedBy') && Array.isArray(value)
+      ? [...value].sort()
+      : value;
+  return JSON.stringify(normalize(left)) === JSON.stringify(normalize(right));
+}
 function intentFor(task: Task, creation: CreationRecord): CreationIntent {
   const patch: TaskPatch = {};
   for (const field of editableFields) {
     if (
       creation.input[field] !== undefined &&
-      JSON.stringify(creation.input[field]) !== JSON.stringify(creation.appliedInput[field]) &&
-      JSON.stringify(creation.input[field]) !== JSON.stringify(task[field])
+      !sameField(field, creation.input[field], creation.appliedInput[field]) &&
+      !sameField(field, creation.input[field], task[field])
     )
       Object.assign(patch, { [field]: structuredClone(creation.input[field]) });
   }
   return {
     patch,
+    ...(patch.blockedBy !== undefined && creation.expectedGraphRevision !== undefined
+      ? { expectedGraphRevision: creation.expectedGraphRevision }
+      : {}),
     ...(creation.completed !== undefined && creation.completed !== task.completed
       ? { completed: creation.completed }
       : {}),
@@ -158,7 +170,7 @@ export function useTaskCreations(
     [accountId, change],
   );
   const update = useCallback(
-    (id: number, input: CreateTask) => {
+    (id: number, input: CreateTask, expectedGraphRevision?: number) => {
       const captured = current.current.find((item) => item.id === id);
       if (
         listeners.current.editable === false ||
@@ -174,7 +186,12 @@ export function useTaskCreations(
           input.accountId === accountId &&
           input.listId === item.submittedInput.listId &&
           input.parentId === item.submittedInput.parentId
-            ? { ...item, input: structuredClone(input), confirmedAfter: null }
+            ? {
+                ...item,
+                input: structuredClone(input),
+                ...(expectedGraphRevision === undefined ? {} : { expectedGraphRevision }),
+                confirmedAfter: null,
+              }
             : item,
         ),
       );
@@ -268,8 +285,7 @@ export function useTaskCreations(
               throw new Error('the saved task moved before its queued changes finished.');
             if (
               Object.entries(intent.patch).some(
-                ([field, value]) =>
-                  JSON.stringify(task[field as keyof Task]) !== JSON.stringify(value),
+                ([field, value]) => !sameField(field, task[field as keyof Task], value),
               ) ||
               (intent.completed !== undefined && task.completed !== intent.completed)
             ) {

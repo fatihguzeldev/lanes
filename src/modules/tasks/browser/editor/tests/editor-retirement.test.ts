@@ -561,10 +561,13 @@ describe('hidden editor retirement', () => {
       listId: 'list',
       title: 'renamed while saving',
     });
-    editor
-      .render()!
-      .props.children.props.onCreate({ accountId: 'account', listRevision: 1, input });
-    expect(update).toHaveBeenCalledWith(42, input);
+    editor.render()!.props.children.props.onCreate({
+      accountId: 'account',
+      listRevision: 1,
+      expectedGraphRevision: 12,
+      input,
+    });
+    expect(update).toHaveBeenCalledWith(42, input, 12);
     expect(close).toHaveBeenCalledOnce();
     expect(dirty).toHaveBeenCalledWith(false);
     expect(editor.preview).not.toHaveBeenCalled();

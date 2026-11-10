@@ -194,7 +194,15 @@ export function useTaskActions(context: TaskActionContext, clockOffset: number) 
           TaskSchema,
         );
         return current.submit(
-          { kind: 'task.edit', taskId: task.id, revision: fresh.revision, patch: intent.patch },
+          {
+            kind: 'task.edit',
+            taskId: task.id,
+            revision: fresh.revision,
+            patch: intent.patch,
+            ...(intent.expectedGraphRevision === undefined
+              ? {}
+              : { expectedGraphRevision: intent.expectedGraphRevision }),
+          },
           'provider',
         );
       };
