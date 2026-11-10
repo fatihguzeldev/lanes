@@ -232,23 +232,51 @@ export class TasksLifecycle implements LifecycleOwner {
     if (entry.operation)
       return this.options.operations.removal.remove(entry.operation, accountId, limit);
     if (entry.table === 'hierarchy') {
+      const candidates = (
+        await this.db
+          .prepare(
+            'SELECT rowid,list_id FROM tasks_tasks WHERE account_id=? AND (parent_id IS NOT NULL OR repeat_rule_json IS NOT NULL OR series_id IS NOT NULL OR occurrence_id IS NOT NULL) LIMIT ?',
+          )
+          .bind(accountId, limit)
+          .all<{ rowid: number; list_id: string }>()
+      ).results;
+      const rows: number[] = [];
+      const lists = new Set<string>();
+      for (const candidate of candidates) {
+        // Each flattened row and each affected list generation consumes one write.
+        if (rows.length + 1 + lists.size + Number(!lists.has(candidate.list_id)) > 100) break;
+        rows.push(candidate.rowid);
+        lists.add(candidate.list_id);
+      }
       await this.db.batch([
         accountRemovalGuard(this.db, accountId),
         this.db
           .prepare(
-            'UPDATE tasks_tasks SET parent_id=NULL,repeat_rule_json=NULL,series_id=NULL,occurrence_id=NULL WHERE rowid IN(SELECT rowid FROM tasks_tasks WHERE account_id=? AND (parent_id IS NOT NULL OR repeat_rule_json IS NOT NULL OR series_id IS NOT NULL OR occurrence_id IS NOT NULL) LIMIT ?)',
+            'UPDATE tasks_lists SET query_revision=query_revision+1 WHERE account_id=? AND id IN(SELECT value FROM json_each(?))',
           )
-          .bind(accountId, limit),
+          .bind(accountId, JSON.stringify([...lists])),
+        this.db
+          .prepare(
+            'UPDATE tasks_tasks SET parent_id=NULL,repeat_rule_json=NULL,series_id=NULL,occurrence_id=NULL WHERE account_id=? AND rowid IN(SELECT value FROM json_each(?))',
+          )
+          .bind(accountId, JSON.stringify(rows)),
       ]);
       return { done: false, deleted: 0 };
     }
+    // Edges are already gone before task rows. These delete triggers therefore
+    // invalidate at most one list per row, keeping all writes within 100.
+    const rowLimit = ['tasks_task_labels', 'tasks_dependencies', 'tasks_tasks'].includes(
+      entry.table,
+    )
+      ? Math.min(limit, 50)
+      : limit;
     const result = await this.db.batch([
       accountRemovalGuard(this.db, accountId),
       this.db
         .prepare(
           `DELETE FROM ${entry.table} WHERE rowid IN(SELECT target.rowid FROM ${entry.table} target WHERE ${entry.where} LIMIT ?)`,
         )
-        .bind(accountId, limit),
+        .bind(accountId, rowLimit),
     ]);
     return { done: false, deleted: result[1]?.meta.changes ?? 0 };
   }
