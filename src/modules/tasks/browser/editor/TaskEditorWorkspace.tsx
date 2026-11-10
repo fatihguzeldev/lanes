@@ -348,9 +348,9 @@ export function TaskEditorWorkspace({
     onDirtyChange(false);
     onSubmitted?.();
     try {
-      const submit = async (queued = false) => {
+      const submit = async () => {
         let input = command;
-        if (queued && edit && selection.task) {
+        if (edit && selection.task) {
           const baseline = edit.baseline ?? selection.task;
           const current = await request(
             `${base}/tasks/${encodeURIComponent(edit.taskId)}`,

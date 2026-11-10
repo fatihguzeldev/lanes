@@ -157,7 +157,15 @@ describe('hidden editor retirement', () => {
     state.commands.submit.mockReset();
     state.repeat.busy = false;
     state.repeat.error = '';
-    state.request.mockReset();
+    state.request.mockReset().mockResolvedValue({
+      accountId: 'account',
+      id: 'task',
+      listId: 'list',
+      title: 'old title',
+      revision: 1,
+      blockedBy: [],
+      labelIds: [],
+    });
     state.identities = [];
   });
 
@@ -285,6 +293,26 @@ describe('hidden editor retirement', () => {
     expect(editor.retire).not.toHaveBeenCalled();
   });
 
+  it('rebases an immediate edit after a confirmed move while its old row is still visible', async () => {
+    const run = vi.fn(async (_taskId, job: (queued: boolean) => Promise<boolean>) => job(false));
+    const editor = mount(false, run);
+    state.request.mockResolvedValue({
+      accountId: 'account',
+      id: 'task',
+      listId: 'list',
+      title: 'old title',
+      revision: 2,
+    });
+    const resolve = editor.save();
+    expect(editor.submitted).toHaveBeenCalledOnce();
+    await Promise.resolve();
+    expect(state.commands.submit).toHaveBeenCalledWith(
+      expect.objectContaining({ revision: 2, patch: { title: 'updated' } }),
+      'provider',
+      'receipt',
+    );
+    resolve({ state: 'succeeded' });
+  });
   it('rebases a queued edit onto its predecessor’s confirmed revision', async () => {
     const run = vi.fn(async (_taskId, job: (queued: boolean) => Promise<boolean>) => job(true));
     const editor = mount(false, run);
@@ -453,8 +481,7 @@ describe('hidden editor retirement', () => {
     editor.render(false);
     expect(editor.retire).not.toHaveBeenCalled();
     resolve(null);
-    await Promise.resolve();
-    await Promise.resolve();
+    await vi.waitFor(() => expect(state.commands.submit).toHaveBeenCalledOnce());
     editor.render(false);
     expect(editor.saved).toHaveBeenCalledOnce();
     expect(editor.retire).not.toHaveBeenCalled();
@@ -467,8 +494,7 @@ describe('hidden editor retirement', () => {
     editor.render(false);
     expect(editor.retire).not.toHaveBeenCalled();
     resolve({ id: 'receipt', state: 'succeeded' });
-    await Promise.resolve();
-    await Promise.resolve();
+    await vi.waitFor(() => expect(state.commands.submit).toHaveBeenCalledOnce());
     editor.render(false);
     expect(editor.saved).toHaveBeenCalledOnce();
     expect(editor.retire).not.toHaveBeenCalled();
