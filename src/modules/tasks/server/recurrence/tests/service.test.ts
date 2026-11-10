@@ -549,7 +549,7 @@ describe('completion-driven recurrence', () => {
     await complete();
     await drain();
     clock += 91 * 86_400_000;
-    await operations.cleanup(100, clock);
+    await operations.retention.cleanup(100, clock);
     expect((await service.reopening.previewReopen('a', 'source')).choices).toContain(
       'remove_untouched',
     );

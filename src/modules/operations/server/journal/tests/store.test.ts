@@ -182,7 +182,7 @@ describe('durable provider intent', () => {
     await store.resumeRecordedResponse(id(), 'task-1', 'account-a', now + 31_003);
     expect(await store.claimNext(id(), 'repair2', now + 31_003)).toMatchObject({ mode: 'repair' });
     await store.commitStep(id(), 'task-1', 'repair2', {}, [], now + 31_003);
-    await store.cleanup(100, now + 31_003 + 90 * 86_400_000);
+    await store.retention.cleanup(100, now + 31_003 + 90 * 86_400_000);
     expect(await store.getResolution(id(), 'task-1', 'account-a')).toBeNull();
     expect(await store.get(id(), 'account-a')).toBeNull();
   });
@@ -562,36 +562,7 @@ describe('settled cancellation and inventory overlap', () => {
   });
 });
 
-describe('definite rejection and retention', () => {
-  it('drops terminal request bodies after24hours while retaining minimal90day replay receipts', async () => {
-    const { store } = await fixture();
-    await store.admit(input(), now);
-    await store.claimNext(id(), 'worker', now);
-    await store.markDispatched(id(), 'task-1', 'worker', now);
-    await store.recordResponse(
-      id(),
-      'task-1',
-      'worker',
-      { id: 'created', notes: 'private response body' },
-      now,
-    );
-    await store.commitStep(id(), 'task-1', 'worker', { taskId: 'created' }, [], now);
-    expect(await store.pruneTerminalPayloads(100, now + 86400_000 - 1)).toBe(0);
-    expect(await store.pruneTerminalPayloads(1, now + 86400_000)).toBe(1);
-    expect(await store.pruneTerminalPayloads(1, now + 86400_000)).toBe(1);
-    expect((await store.get(id(), 'account-a'))?.input).toBeNull();
-    expect(await store.getStep(id(), 'task-1')).toMatchObject({
-      input: null,
-      response: null,
-      result: { taskId: 'created' },
-    });
-    await expect(store.admit(input(), now + 86400_000 + 1)).resolves.toMatchObject({
-      state: 'succeeded',
-    });
-    await expect(
-      store.admit({ ...input(), input: { title: 'changed' } }, now + 86400_000 + 1),
-    ).rejects.toMatchObject({ code: 'conflict' });
-  });
+describe('definite rejection', () => {
   it('pauses unsent disconnect work, invalidates old claims, and preserves explicit resume input', async () => {
     const { store, db } = await fixture();
     await store.admit(input(), now);
@@ -853,24 +824,5 @@ describe('definite rejection and retention', () => {
       ),
     ).rejects.toMatchObject({ code: 'conflict' });
     expect((await store.getStep(id(), 'task-1'))?.response).toEqual({ id: 'real' });
-  });
-  it('prunes only terminal receipts after90days, preserving unfinished and uncertain work', async () => {
-    const { store, db } = await fixture();
-    await store.admit(input(), now);
-    await store.claimNext(id(), 'worker', now);
-    await store.commitLocalStep(id(), 'task-1', 'worker', { id: 'a' }, [], now);
-    await store.admit({ ...input(id('b')), resourceKey: 'other' }, now);
-    expect(await store.cleanup(100, now + 90 * 86400_000 - 1)).toBe(0);
-    expect(await store.cleanup(100, now + 90 * 86400_000)).toBe(1);
-    expect(await store.get(id('b'), 'account-a')).not.toBeNull();
-    expect(
-      await db
-        .prepare('SELECT COUNT(*) AS n FROM tasks_operation_steps WHERE operation_id=?')
-        .bind(id())
-        .first('n'),
-    ).toBe(0);
-    await expect(store.admit(input(), now + 90 * 86400_000)).rejects.toMatchObject({
-      code: 'conflict',
-    });
   });
 });

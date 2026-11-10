@@ -129,7 +129,7 @@ it('rolls back a failed local restore commit and retries its same unfinished act
     response: null,
   });
   clock += 86400000;
-  expect(await f.operations.pruneTerminalPayloads(100, clock)).toBe(0);
+  expect(await f.operations.retention.pruneTerminalPayloads(100, clock)).toBe(0);
   expect((await f.operations.get(action!.operation_id, 'a'))?.input).toMatchObject({
     kind: 'archive.restore.board.update',
   });

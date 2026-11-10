@@ -231,13 +231,13 @@ describe('explicitly stopped recorded intent', () => {
     const { db, sqlite, store, stop } = await fixture();
     await store.stopRecordedIntent(stop, [], now + 31_000);
     const pruneAt = now + 31_000 + 86_400_000;
-    await store.pruneTerminalPayloads(100, pruneAt);
+    await store.retention.pruneTerminalPayloads(100, pruneAt);
     await store.stopRecordedIntent(stop, [], pruneAt);
     expect(await store.findStoppedIntent(operationId, 'account-a')).not.toBeNull();
-    expect(await store.cleanup(100, now + 31_000 + 90 * 86_400_000 - 1)).toBe(0);
+    expect(await store.retention.cleanup(100, now + 31_000 + 90 * 86_400_000 - 1)).toBe(0);
     for (let i = 0; i < 10 && (await store.get(operationId, 'account-a')); i++) {
       const before = sqlite.prepare('SELECT total_changes() AS n').get()?.n as number;
-      await store.cleanup(1, now + 31_000 + 90 * 86_400_000);
+      await store.retention.cleanup(1, now + 31_000 + 90 * 86_400_000);
       const after = sqlite.prepare('SELECT total_changes() AS n').get()?.n as number;
       expect(after - before).toBeLessThanOrEqual(1);
     }

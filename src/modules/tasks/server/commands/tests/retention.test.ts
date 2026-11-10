@@ -171,7 +171,7 @@ describe('bounded command payload retention', () => {
     );
     await f.operations.cancel(operationId(), 'account', f.clock());
     f.advance(91 * day);
-    expect(await f.operations.cleanup(100, f.clock())).toBe(0);
+    expect(await f.operations.retention.cleanup(100, f.clock())).toBe(0);
     const before = (await f.db
       .prepare('SELECT COUNT(*) AS n FROM tasks_command_steps')
       .first<{ n: number }>())!.n;
@@ -188,7 +188,7 @@ describe('bounded command payload retention', () => {
       (await f.db.prepare('SELECT COUNT(*) AS n FROM tasks_command_plans').first<{ n: number }>())
         ?.n,
     ).toBe(0);
-    await f.operations.cleanup(100, f.clock());
+    await f.operations.retention.cleanup(100, f.clock());
     await expect(prepare(f)).rejects.toMatchObject({ code: 'conflict' });
     expect(f.clientFor).not.toHaveBeenCalled();
   });

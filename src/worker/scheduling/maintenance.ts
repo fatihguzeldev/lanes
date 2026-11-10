@@ -26,10 +26,10 @@ export async function runMaintenance(
       await services.commands.cleanupCaptures(50);
     },
     async () => {
-      await services.operations.pruneTerminalPayloads(50);
+      await services.operations.retention.pruneTerminalPayloads(50);
     },
     async () => {
-      await services.operations.cleanup();
+      await services.operations.retention.cleanup();
     },
     async () => {
       await services.templates.snapshots.cleanup(100);
