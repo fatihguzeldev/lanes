@@ -3,7 +3,7 @@ import { SortableDroppable } from '@dnd-kit/dom/sortable';
 import type { DragDropEventHandlers } from '@dnd-kit/react';
 import { TaskSchema, type Task } from '../../../../tasks/contracts/task';
 import { openTaskOrder } from '../../../../tasks/browser/movement/task-move-model';
-import type { BoardColumn } from '../BoardSurface';
+import type { BoardColumn } from '../board-column';
 
 const hooks = vi.hoisted(() => ({
   slots: [] as unknown[],

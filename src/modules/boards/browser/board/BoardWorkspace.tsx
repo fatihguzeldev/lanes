@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ConnectionSummary } from '../../../accounts/contracts/connection';
 import type { Board, BoardList } from '../../contracts/board';
-import { BoardSurface, type BoardColumn, type BoardSurfaceProps } from './BoardSurface';
+import { BoardSurface, type BoardSurfaceProps } from './BoardSurface';
+import { BoardColumnData, type BoardColumnActions } from './BoardColumnData';
+import type { BoardColumn } from './board-column';
 import { selectTasksWithContext, sortTasks } from '../../../tasks/model/task';
 import type { TaskFilter, TaskSort } from '../../../tasks/contracts/task';
-import { useTaskQuery } from '../../../tasks/browser/queries/useTaskQuery';
 import { unknownCoverage } from '../../../../shared/browser/resources/usePagedResource';
 import { InlineTaskCreate } from '../../../tasks/browser/creation/InlineTaskCreate';
 import {
@@ -25,150 +26,6 @@ import {
   projectTaskMoves,
 } from '../../../tasks/browser/movement/task-move-model';
 import type { InitialViewReadiness } from '../../../../shared/browser/resources/readiness';
-
-type Actions = {
-  open: () => Promise<void>;
-  completed: () => Promise<void>;
-  retry: () => Promise<void>;
-};
-interface ColumnDataProps {
-  accountId: string;
-  list: BoardList;
-  filter: TaskFilter;
-  query: string;
-  sort: TaskSort;
-  version: number;
-  completedRequested: boolean;
-  discoverCompleted: boolean;
-  onData: (id: string, data: BoardColumn) => void;
-  onActions: (id: string, actions: Actions) => void;
-  onReady: (id: string, state: InitialViewReadiness) => void;
-}
-function ColumnData({
-  accountId,
-  list,
-  filter,
-  query,
-  sort,
-  version,
-  completedRequested,
-  discoverCompleted,
-  onData,
-  onActions,
-  onReady,
-}: ColumnDataProps) {
-  const completion = filter.completion ?? 'open';
-  const input = useMemo(
-    () => ({ listIds: [list.id], query, sort, filter: { ...filter, completion } }),
-    [list.id, filter, query, sort, completion],
-  );
-  const completedInput = useMemo(
-    () =>
-      (discoverCompleted || completedRequested) && completion === 'open'
-        ? { ...input, filter: { ...filter, completion: 'completed' as const } }
-        : null,
-    [discoverCompleted, completedRequested, input, filter, completion],
-  );
-  const open = useTaskQuery(accountId, input, version),
-    completed = useTaskQuery(accountId, completedInput, version);
-  const data = useMemo<BoardColumn>(
-    () => ({
-      list,
-      tasks: [...open.page.items, ...completed.page.items],
-      coverage: open.page.coverage,
-      providerComplete: open.page.providerCoverage.complete,
-      orderReadyTaskIds: [
-        ...(open.page.orderReadyTaskIds ?? []),
-        ...(completed.page.orderReadyTaskIds ?? []),
-      ],
-      orderReadyListIds: [
-        ...(open.page.orderReadyListIds ?? []),
-        ...(completed.page.orderReadyListIds ?? []),
-      ],
-      readVersion:
-        open.status === 'ready' &&
-        open.settled &&
-        (!completedInput || (completed.status === 'ready' && completed.settled))
-          ? version
-          : undefined,
-      status: open.status,
-      countLoading: open.status === 'loading' && !open.loaded,
-      nextCursor: open.page.nextCursor,
-      errorMessage: open.error,
-      completedCoverage:
-        completion !== 'open'
-          ? open.page.coverage
-          : completed.loaded
-            ? completed.page.coverage
-            : unknownCoverage,
-      completedNextCursor: completion !== 'open' ? open.page.nextCursor : completed.page.nextCursor,
-      completedLoading: (discoverCompleted || completedRequested) && completed.status === 'loading',
-      completedCountLoading:
-        completion !== 'open'
-          ? open.status === 'loading' && !open.loaded
-          : completed.status === 'loading' && !completed.loaded,
-      completedError: completed.error,
-      color: list.color,
-      subtaskSummaries: { ...open.page.subtaskSummaries, ...completed.page.subtaskSummaries },
-      matchedTaskIds: open.page.matchedTaskIds,
-    }),
-    [
-      list,
-      open.page,
-      open.status,
-      open.settled,
-      open.loaded,
-      open.error,
-      completed.page,
-      completed.status,
-      completed.settled,
-      completedInput,
-      completed.error,
-      completed.loaded,
-      completedRequested,
-      discoverCompleted,
-      completion,
-      version,
-    ],
-  );
-  useEffect(() => onData(list.id, data), [list.id, data, onData]);
-  useEffect(() => {
-    onReady(list.id, {
-      version,
-      settled: open.settled && (!completedInput || completed.settled),
-      baselineComplete:
-        open.page.providerCoverage.complete &&
-        (!completedInput || completed.page.providerCoverage.complete),
-      failed: open.status === 'error' || Boolean(completedInput && completed.status === 'error'),
-    });
-  }, [
-    list.id,
-    version,
-    open.settled,
-    completed.settled,
-    completedInput,
-    open.page.providerCoverage.complete,
-    completed.page.providerCoverage.complete,
-    open.status,
-    completed.status,
-    onReady,
-  ]);
-  const latest = useRef({ open, completed });
-  latest.current = { open, completed };
-  useEffect(
-    () =>
-      onActions(list.id, {
-        open: () => latest.current.open.loadMore(),
-        completed: () => {
-          const target = completion === 'open' ? latest.current.completed : latest.current.open;
-          return target.page.nextCursor ? target.loadMore() : target.reload();
-        },
-        retry: () => latest.current.open.reload(),
-      }),
-    [list.id, onActions, completion],
-  );
-  return null;
-}
 
 export interface BoardWorkspaceProps extends Omit<
   BoardSurfaceProps,
@@ -242,12 +99,12 @@ export function BoardWorkspace({
       failed: current.some((state) => state?.version === version && state.failed),
     });
   }, [lists, readiness, version, onInitialReady]);
-  const actions = useRef(new Map<string, Actions>());
+  const actions = useRef(new Map<string, BoardColumnActions>());
   const onData = useCallback(
     (id: string, column: BoardColumn) => setData((previous) => ({ ...previous, [id]: column })),
     [],
   );
-  const onActions = useCallback((id: string, action: Actions) => {
+  const onActions = useCallback((id: string, action: BoardColumnActions) => {
     actions.current.set(id, action);
   }, []);
   const columns = lists.map(
@@ -385,7 +242,7 @@ export function BoardWorkspace({
   return (
     <>
       {lists.map((list) => (
-        <ColumnData
+        <BoardColumnData
           key={`${account.id}:${board.id}:${list.id}`}
           accountId={account.id}
           list={list}

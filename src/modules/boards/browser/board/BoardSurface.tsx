@@ -1,8 +1,7 @@
 import type { TaskMoveIntent } from '../../../tasks/contracts/task';
 import { DragDropProvider } from '@dnd-kit/react';
 import { useId, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
-import type { Coverage } from '../../../../shared/contracts/http';
-import { Icon, type IconName } from '../../../../shared/ui/icon/Icon';
+import { Icon } from '../../../../shared/ui/icon/Icon';
 import { Skeleton } from '../../../../shared/ui/skeleton/Skeleton';
 import type { Label, Task, TaskList, TaskSort } from '../../../tasks/contracts/task';
 import { countOpenTasks, getBlockingStates, sortTasks } from '../../../tasks/model/task';
@@ -13,34 +12,7 @@ import { SortableTask, TaskDropZone, taskDragSensors } from './TaskDrag';
 import { useBoardTaskDrag } from './useBoardTaskDrag';
 import './BoardSurface.css';
 import { TaskCreationPreview } from '../../../tasks/browser/creation/TaskCreationPreview';
-import type { PendingTaskCreation } from '../../../tasks/browser/creation/useTaskCreations';
-import type { SubtaskSummary } from '../../../tasks/contracts/query';
-
-export interface BoardColumn {
-  orderReadyTaskIds?: readonly string[] | undefined;
-  orderReadyListIds?: readonly string[] | undefined;
-  readVersion?: number | undefined;
-  providerComplete?: boolean | undefined;
-  list: TaskList;
-  tasks: readonly Task[];
-  creations?: readonly PendingTaskCreation[];
-  coverage: Coverage;
-  status: 'loading' | 'ready' | 'error';
-  orderedTaskIds?: readonly string[] | undefined;
-  orderReady?: boolean | undefined;
-  countLoading?: boolean | undefined;
-  nextCursor: string | null;
-  subtaskSummaries?: Record<string, SubtaskSummary> | undefined;
-  matchedTaskIds?: readonly string[] | undefined;
-  errorMessage?: string | undefined;
-  completedCoverage?: Coverage | undefined;
-  completedNextCursor?: string | null | undefined;
-  completedLoading?: boolean | undefined;
-  completedCountLoading?: boolean | undefined;
-  completedError?: string | undefined;
-  icon?: IconName | undefined;
-  color?: string | undefined;
-}
+import type { BoardColumn } from './board-column';
 
 export interface BoardSurfaceProps {
   accountId: string;

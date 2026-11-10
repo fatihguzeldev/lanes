@@ -7,7 +7,7 @@ import {
   openTaskOrder,
   projectTaskMoves,
 } from '../../../tasks/browser/movement/task-move-model';
-import type { BoardColumn } from './BoardSurface';
+import type { BoardColumn } from './board-column';
 import { captureTaskDrag, resolveTaskDragIntent, type DraggedTask } from './drag-intent';
 import { sameTaskMoveContext } from '../../../tasks/model/task-move-context';
 

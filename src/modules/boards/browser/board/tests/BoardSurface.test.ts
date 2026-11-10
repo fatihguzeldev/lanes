@@ -1,8 +1,9 @@
+import type { BoardColumn } from '../board-column';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { CreateTaskSchema, TaskSchema, type TaskList } from '../../../../tasks/contracts/task';
-import { BoardSurface, type BoardColumn, type BoardSurfaceProps } from '../BoardSurface';
+import { BoardSurface, type BoardSurfaceProps } from '../BoardSurface';
 
 const list: TaskList = {
   id: 'list',

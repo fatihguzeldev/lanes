@@ -1,8 +1,9 @@
+import type { BoardColumn } from '../board-column';
 import { isValidElement, type ReactElement, type ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TaskSchema, type Task } from '../../../../tasks/contracts/task';
 import { TaskCard, type TaskCardProps } from '../../../../tasks/browser/items/TaskCard';
-import { BoardSurface, type BoardColumn, type BoardSurfaceProps } from '../BoardSurface';
+import { BoardSurface, type BoardSurfaceProps } from '../BoardSurface';
 
 const hooks = vi.hoisted(() => ({
   instances: new Map<string, unknown[]>(),
