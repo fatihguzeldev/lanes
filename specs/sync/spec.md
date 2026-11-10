@@ -90,7 +90,9 @@ a confirmed create or move can change sibling positions and etags beyond the ret
 
 task queries identify returned tasks whose own list has reconciled order. the browser uses that proof with the saved identity and a fresh read to retire a creation preview; account-wide completeness does not stand in for the affected list's order.
 
-task rows, coverage, affected-list order proof, and checklist summaries share one database read snapshot. list proof includes empty lists and remains independent of local task pagination and search filters. clients may retry an initial read once when concurrent changes invalidate its selection; this never retries a mutation or replays an invalid paging cursor.
+task rows, coverage, affected-list order proof, and checklist summaries share one database read snapshot. list proof includes empty lists and remains independent of local task pagination and search filters. clients may retry an initial read once when concurrent changes invalidate its selection. task cursors retain a semantic generation for the selected lists; membership, order, and query-relevant changes invalidate the cursor, while unchanged sync bookkeeping does not. an invalidated next page restarts the selection once without its cursor or accumulated pages, keeping the old presentation until the fresh read settles. this never retries a mutation or replays an invalid paging cursor.
+
+when a full scan omits a retained task but direct address verification finds it, keep the affected list's order reconciliation alive. allow one automatic full rescan for that refresh request. repeated inconsistent enumeration pauses with a recoverable error and retains its recovery reason; unrelated work cannot silently consume it. a new explicit refresh resets that recovery ceiling. never infer full sibling order from a successful task lookup.
 
 each durable sync request advances the account job's request revision when it adds or resets work. a worker must commit against the request revision it claimed. new requests supersede an older slice without losing the new cursor, full-order work, or refresh requirements. releasing a superseded claim is a continuation, not a user conflict. final cleanup cannot delete work admitted after its earlier pending read.
 
@@ -173,3 +175,6 @@ measure cpu on the deployed free plan; waiting on google is not the whole cost. 
 - `sync-18`: a same-list relative reorder survives incomplete coverage and unrelated projection changes between capture and dispatch. its selected resource checks, conditional provider write, receipt identity, and uncertain-outcome recovery remain intact.
 - `sync-19`: order and identity work admitted during job cleanup remains discoverable. a stale delta/page snapshot cannot consume a newer full-order request; expected supersession continues without reporting a mutation failure.
 - `sync-20`: broader refresh requests survive active claims and targeted jobs without discarding existing progress. task rows and their order proof cannot come from different snapshots or falsely retire an optimistic move.
+
+- `sync-21`: moving a sibling across a page boundary invalidates that selection rather than producing a complete page set with a missing task. unchanged sync leaves cursors usable; semantic changes outside the selected lists that affect their query membership still invalidate them.
+- `sync-22`: a task recovered after full-scan omission triggers bounded order reconciliation. repeated omission pauses without losing recovery state, and manual refresh can resume it.

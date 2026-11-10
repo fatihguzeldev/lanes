@@ -23,6 +23,8 @@ after the editor closes, keep the captured task visible at the start of its sibl
 
 serialize browser create submissions within each account and list in capture order; other lists remain independent. an unresolved create keeps later unsent creates in that list from overtaking it. recover its actual receipt before continuing, without replaying the confirmed request. opening its pending editor retains the creation until that editor captures or discards its draft. a missing pending record cannot silently accept an edit. dismissing recovery for a confirmed creation refreshes the saved task instead of hiding it behind a stale collection.
 
+pending creation edits carry their dependency graph revision. labels and blockers are sets; persistence order does not change whether a saved patch matches its intent. follow-up changes retain their own receipt rather than borrowing the create receipt. recovery verifies that exact account and receipt and reads current values without replaying an uncertain write. drain changed fields, completion, and deletion as separate confirmed phases so a saved phase is never replayed to resume an unsent one. a successful phase or its exact succeeded receipt stays applied if a later read fails or another client changes the value. recovery adopts those newer authoritative values and resumes only the remaining local intent; unresolved work stays inspectable. an explicit corrected draft may start a new write after a verified zero-step rejection and fresh field checks. unchanged recovery checks do not resubmit the rejected input.
+
 creation previews use the same search, completion, and filter rules as confirmed rows. a fresh scoped read can acknowledge reconciled order for an empty or filtered list without requiring that task on the current local page.
 
 deleting a pending row waits for its confirmed task identity. cancelling that deletion restores the saved row without a failure notice. failed or uncertain deletion keeps the row and its recovery controls visible, tied to the deletion receipt rather than another create.
@@ -31,11 +33,13 @@ open a task in its row, with its title selected for editing and notes immediatel
 
 enter or save on a valid existing-task draft captures the edit, closes the editor, and updates the displayed fields immediately. the user does not wait for google or see a saving label in the row. keep that preview until a fresh read after confirmation replaces it. a failed or uncertain save removes the preview, reports the failure, and retains any confirmed outcome for inspection. invalid input stays in the editor.
 
-serialize edits to the same task with its quick actions. each queued action uses a fresh revision; a queued edit also checks that its edited fields still match the captured baseline. failure or uncertainty stops dependent unsent changes without undoing earlier confirmed work. editing another task and changing the view remain available.
+serialize edits to the same task with its quick actions. each queued action uses a fresh revision; every captured edit checks that its edited fields still match the captured baseline before using the current revision. this check runs after the editor closes, including when an earlier move has finished but its refreshed row has not arrived. failure or uncertainty stops dependent unsent changes without undoing earlier confirmed work. editing another task and changing the view remain available.
 
 movement joins that task's write order when the intent is captured, before its preflight starts. enriching a captured change at dispatch preserves its place before newer intents; an earlier date clear cannot temporarily override a later chosen date.
 
 clicking outside an editor requests the same close as its close control. clicks in its nested menus or an open dialog do not discard the editor. icon-only detail actions show their meaning on hover and keyboard focus, in addition to their accessible names.
+
+concurrent consequence previews queue their confirmation choices instead of replacing an unanswered choice. each choice has its own presentation identity; deciding or closing an older choice cannot close the next one. closing a confirmed choice leaves its captured work running, and removing its owner cancels unanswered choices.
 
 an admitted save continues when its editor closes. keep its operation identity and account fixed while it drains; a later result cannot close another editor or clear that editor's unsent input. a hidden save that needs recovery appears in the workspace's save status.
 
@@ -79,11 +83,15 @@ manual order belongs to the provider among siblings. use the provider's position
 
 lifting a task starts its visual movement immediately. the held card follows the pointer while surrounding tasks move smoothly to make room. crossing lists preserves its expanded checklist and metadata. keep this gesture local: pointer movement does not submit commands, refresh provider data, or change provider positions. respect reduced-motion preferences.
 
+a star, label, priority, or provider order acknowledgment alone does not cancel a held drag. compare identity, content, hierarchy, completion, scheduling, and eligibility, then use the current revision at release.
+
 release validates the task's identity, current eligibility, list order, and final position before queuing a move. dropping onto the dragged task or back into its existing sibling position is a no-op: do not dispatch a provider move or change its revision. cancelling the gesture or releasing outside an eligible destination restores its prior placement without submitting work.
 
 an eligible drop updates the displayed order immediately while saving online. keep this pending presentation separate from confirmed provider positions. allow further drops while earlier moves save, serialize their provider work, and capture each move against the confirmed state when its turn starts. this queue is limited to the current browser session; it is not an offline outbox.
 
 reordering among the same siblings uses an explicit predecessor, or an explicit first position. it does not wait for a complete task scan, a completed-task scan, or reconciliation of unrelated siblings. retain the selected task, list, parent, and predecessor checks. a relative command is not settled as a no-op from cached sibling positions; an unchanged drag is rejected locally before submission. inferring the last sibling, changing parents, and moving between lists keep the checks their destination and subtree require.
+
+a rejected parent or predecessor reference can be read again once before admission when the server confirms that no command was captured. retry only if the placement context still matches; metadata and provider resequencing may differ. content, identity, hierarchy, completion, scheduling, and eligibility changes remain conflicts. never replay an admitted or uncertain mutation through this path.
 
 keep a confirmed move's displayed placement until fresh source and destination reads acknowledge their reconciled order. a definite failure restores confirmed placement and discards later unsent moves that depended on it; earlier confirmed moves remain. an uncertain result stops that dependent queue and exposes its operation receipt for checking, without automatically submitting the move again.
 
@@ -181,3 +189,7 @@ validation leaves the draft intact. stale revision conflicts offer refresh and e
 - `tasks-24`: a new task stays first while its confirmed response shares a position with a stale sibling. reconcile the affected list in the background and retire the preview only when a newer read verifies its own order. incomplete unrelated lists and local read pagination do not prevent that handoff. apply the same rule to subtasks, calendar, and smart collections.
 - `tasks-25`: rapid creates in one list preserve capture order through delayed requests and receipt recovery; unrelated lists remain usable. a retained creation editor cannot lose its draft to an older acknowledgment, and filtered-out creations do not remain visible as unmatched rows.
 - `tasks-26`: movement, edits, and quick actions to one task do not race their own revisions. affected-list verification works across boards and views, fresh view reads retire previews without a stale frame, and a failed move does not discard independent queued moves.
+
+- `tasks-27`: overlapping confirmations resolve independently; an unanswered task decision cannot disappear and strand its write queue.
+- `tasks-28`: pending creation label and blocker edits preserve set semantics and graph context. failed follow-ups recover through their own receipt without replaying uncertain writes.
+- `tasks-29`: metadata acknowledgments preserve a valid held drag, and a definitively uncaptured stale placement reference has one bounded refresh. content and hierarchy changes still reject it.
