@@ -1,9 +1,10 @@
 import type { Task } from '../../contracts/task';
+import type { RequestError } from '../../../../shared/browser/http/http';
 
 export type TaskQuickIntent = (
   | { task: Task; field: 'starred' | 'completed'; value: boolean }
   | { task: Pick<Task, 'id' | 'accountId'>; field: 'scheduledDay'; value: string | null }
-) & { changeId?: string };
+) & { changeId?: string; onFailure?(error: RequestError): void };
 
 export function createTaskActionQueue(
   save: (intent: TaskQuickIntent) => Promise<boolean>,

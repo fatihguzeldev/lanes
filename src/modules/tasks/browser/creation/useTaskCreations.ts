@@ -2,8 +2,11 @@ import { useCallback, useRef, useState } from 'react';
 import type { CreateTask, Task, TaskPatch } from '../../contracts/task';
 import { readCreatedTask } from './creation-receipt';
 import { readTask } from '../queries/references';
-import { RequestError } from '../../../../shared/browser/http/http';
-import type { OperationSummary } from '../../../operations/contracts/receipt';
+import { request, RequestError } from '../../../../shared/browser/http/http';
+import {
+  OperationSummarySchema,
+  type OperationSummary,
+} from '../../../operations/contracts/receipt';
 import { createCreationSubmissionQueue } from './creation-submission-queue';
 
 export interface CreationIntent {
@@ -12,7 +15,16 @@ export interface CreationIntent {
   completed?: boolean;
   deleted?: boolean;
 }
-export type CreationResult = boolean | 'cancelled';
+export type CreationResult =
+  | boolean
+  | 'cancelled'
+  | { saved: true; operationId?: string }
+  | {
+      saved: false;
+      message: string;
+      operationId?: string;
+      rejected?: boolean;
+    };
 export interface PendingTaskCreation {
   id: number;
   input: CreateTask;
@@ -41,10 +53,19 @@ interface CreationOptions {
 interface CreationRecord extends PendingTaskCreation {
   submittedInput: CreateTask;
   appliedInput: CreateTask;
+  appliedCompleted?: boolean;
+  confirmedFollowup?: { operationId?: string };
   onEdit?(input: CreateTask): void;
   operationId?: string;
   expectedGraphRevision?: number;
-  replayBlocked?: boolean;
+  blockedFollowup?: {
+    intent: CreationIntent;
+    input: CreateTask;
+    task: Task;
+    expectedGraphRevision?: number;
+    operationId?: string;
+    rejected?: boolean;
+  };
 }
 
 export function creationAcknowledged(
@@ -81,6 +102,14 @@ function sameField(field: string, left: unknown, right: unknown) {
       : value;
   return JSON.stringify(normalize(left)) === JSON.stringify(normalize(right));
 }
+function intentConfirmed(task: Task, intent: CreationIntent) {
+  return (
+    Object.entries(intent.patch).every(([field, value]) =>
+      sameField(field, task[field as keyof Task], value),
+    ) &&
+    (intent.completed === undefined || task.completed === intent.completed)
+  );
+}
 function intentFor(task: Task, creation: CreationRecord): CreationIntent {
   const patch: TaskPatch = {};
   for (const field of editableFields) {
@@ -91,15 +120,34 @@ function intentFor(task: Task, creation: CreationRecord): CreationIntent {
     )
       Object.assign(patch, { [field]: structuredClone(creation.input[field]) });
   }
+  // Each receipt confirms one phase; later intent stays unsent until that phase is known.
+  if (Object.keys(patch).length)
+    return {
+      patch,
+      ...(patch.blockedBy !== undefined && creation.expectedGraphRevision !== undefined
+        ? { expectedGraphRevision: creation.expectedGraphRevision }
+        : {}),
+    };
+  if (
+    creation.completed !== undefined &&
+    creation.completed !== creation.appliedCompleted &&
+    creation.completed !== task.completed
+  )
+    return { patch: {}, completed: creation.completed };
+  return { patch: {}, ...(creation.deleted ? { deleted: true } : {}) };
+}
+function applyConfirmedPhase(
+  creation: CreationRecord,
+  input: CreateTask,
+  intent: CreationIntent,
+  operationId?: string,
+): CreationRecord {
+  const { blockedFollowup: _blocked, failure: _failure, ...saved } = creation;
   return {
-    patch,
-    ...(patch.blockedBy !== undefined && creation.expectedGraphRevision !== undefined
-      ? { expectedGraphRevision: creation.expectedGraphRevision }
-      : {}),
-    ...(creation.completed !== undefined && creation.completed !== task.completed
-      ? { completed: creation.completed }
-      : {}),
-    ...(creation.deleted ? { deleted: true } : {}),
+    ...saved,
+    appliedInput: structuredClone(input),
+    ...(intent.completed === undefined ? {} : { appliedCompleted: intent.completed }),
+    confirmedFollowup: operationId ? { operationId } : {},
   };
 }
 
@@ -214,7 +262,7 @@ export function useTaskCreations(
     [change, remove],
   );
   const finish = useCallback(
-    (id: number, operationId: string): Promise<void> => {
+    (id: number, operationId: string, inspectBlocked = false): Promise<void> => {
       const running = flights.current.get(id);
       if (running) return running;
       const work = (async () => {
@@ -239,22 +287,189 @@ export function useTaskCreations(
             items.map((item) => (item.id === id ? { ...item, resolvedTaskId: task.id } : item)),
           );
           while (true) {
-            const creation = current.current.find((item) => item.id === id);
+            let creation = current.current.find((item) => item.id === id);
             if (!creation || currentAccount.current !== accountId) return;
-            if (creation.replayBlocked)
-              throw new Error('this new task still has a change that needs checking.');
-            const intent = intentFor(task, creation);
+            if (creation.blockedFollowup) {
+              const blocked = creation.blockedFollowup;
+              if (blocked.intent.deleted)
+                throw new RequestError(
+                  'creation_followup',
+                  'this new task still has a change that needs checking.',
+                  undefined,
+                  blocked.operationId,
+                );
+              let rejected = blocked.rejected && !blocked.operationId;
+              if (blocked.operationId) {
+                const receipt = await request(
+                  `/api/accounts/${encodeURIComponent(accountId)}/operations/${encodeURIComponent(blocked.operationId)}`,
+                  OperationSummarySchema,
+                );
+                creation = current.current.find((item) => item.id === id);
+                if (!creation || currentAccount.current !== accountId) return;
+                if (receipt.accountId !== accountId || receipt.id !== blocked.operationId)
+                  throw new RequestError(
+                    'creation_followup',
+                    'this new task still has a change that needs checking.',
+                    undefined,
+                    blocked.operationId,
+                  );
+                rejected =
+                  receipt.finished && receipt.state === 'failed' && receipt.confirmedSteps === 0;
+                if (!rejected && receipt.state !== 'succeeded')
+                  throw new RequestError(
+                    'creation_followup',
+                    'this new task still has a change that needs checking.',
+                    undefined,
+                    blocked.operationId,
+                  );
+              }
+              if (rejected) {
+                change((items) =>
+                  items.map((item) =>
+                    item.id === id
+                      ? { ...item, blockedFollowup: { ...blocked, rejected: true } }
+                      : item,
+                  ),
+                );
+                const { input: desiredInput, expectedGraphRevision } = creation;
+                const corrected =
+                  editableFields.some(
+                    (field) => !sameField(field, desiredInput[field], blocked.input[field]),
+                  ) ||
+                  (blocked.intent.patch.blockedBy !== undefined &&
+                    expectedGraphRevision !== blocked.expectedGraphRevision);
+                if (!corrected)
+                  throw new RequestError(
+                    'creation_followup',
+                    'edit this new task before trying its change again.',
+                    undefined,
+                    blocked.operationId,
+                  );
+              }
+              if (blocked.operationId && !rejected) {
+                change((items) =>
+                  items.map((item) =>
+                    item.id === id
+                      ? applyConfirmedPhase(
+                          item,
+                          blocked.input,
+                          blocked.intent,
+                          blocked.operationId,
+                        )
+                      : item,
+                  ),
+                );
+              }
+              if (blocked.operationId || rejected) {
+                task = await readTask(accountId, task.id);
+                creation = current.current.find((item) => item.id === id);
+                if (!creation || currentAccount.current !== accountId) return;
+                if (task.accountId !== accountId || task.listId !== captured.input.listId)
+                  throw new Error('the saved task moved before its queued changes finished.');
+              }
+              if (rejected) {
+                const patch = intentFor(task, creation).patch;
+                if (
+                  Object.keys(patch).some(
+                    (field) =>
+                      !sameField(
+                        field,
+                        task[field as keyof Task],
+                        blocked.task[field as keyof Task],
+                      ),
+                  )
+                )
+                  throw new RequestError(
+                    'creation_followup',
+                    'this task changed before its corrected edit could save. open its current values to review it.',
+                    undefined,
+                    blocked.operationId,
+                  );
+                change((items) =>
+                  items.map((item) => {
+                    if (item.id !== id) return item;
+                    const { blockedFollowup: _blocked, failure: _failure, ...saved } = item;
+                    return saved;
+                  }),
+                );
+                continue;
+              }
+              if (blocked.operationId) continue;
+              if (!intentConfirmed(task, blocked.intent))
+                throw new RequestError(
+                  'creation_followup',
+                  'this new task still has a change that needs checking.',
+                  undefined,
+                  blocked.operationId,
+                );
+              change((items) =>
+                items.map((item) => {
+                  if (item.id !== id) return item;
+                  return applyConfirmedPhase(item, blocked.input, blocked.intent);
+                }),
+              );
+              continue;
+            }
+            const phase = creation;
+            const intent = intentFor(task, phase);
             const hasChange =
               Object.keys(intent.patch).length > 0 ||
               intent.completed !== undefined ||
               intent.deleted;
-            if (!hasChange) break;
-            let result: CreationResult;
+            if (!hasChange) {
+              change((items) =>
+                items.map((item) =>
+                  item.id === id
+                    ? {
+                        ...item,
+                        appliedInput: structuredClone(phase.input),
+                        ...(phase.completed === undefined
+                          ? {}
+                          : { appliedCompleted: phase.completed }),
+                      }
+                    : item,
+                ),
+              );
+              break;
+            }
+            let result: CreationResult = false;
             try {
               result = (await listeners.current.onReady?.(task, intent)) ?? false;
+              if (result === false || (typeof result === 'object' && !result.saved))
+                throw new RequestError(
+                  'creation_followup',
+                  typeof result === 'object'
+                    ? result.message
+                    : 'a change to this new task could not be confirmed. check its save before continuing.',
+                  undefined,
+                  typeof result === 'object' ? result.operationId : undefined,
+                );
             } catch (error) {
               change((items) =>
-                items.map((item) => (item.id === id ? { ...item, replayBlocked: true } : item)),
+                items.map((item) =>
+                  item.id === id
+                    ? {
+                        ...item,
+                        blockedFollowup: {
+                          intent: structuredClone(intent),
+                          input: structuredClone(phase.input),
+                          task: structuredClone(task),
+                          ...(typeof result === 'object' &&
+                          !result.saved &&
+                          result.rejected &&
+                          !result.operationId
+                            ? { rejected: true }
+                            : {}),
+                          ...(phase.expectedGraphRevision === undefined
+                            ? {}
+                            : { expectedGraphRevision: phase.expectedGraphRevision }),
+                          ...(error instanceof RequestError && error.operationId
+                            ? { operationId: error.operationId }
+                            : {}),
+                        },
+                      }
+                    : item,
+                ),
               );
               throw error;
             }
@@ -267,48 +482,31 @@ export function useTaskCreations(
                 throw new Error('the saved task moved before its queued changes finished.');
               continue;
             }
-            if (!result) {
-              change((items) =>
-                items.map((item) => (item.id === id ? { ...item, replayBlocked: true } : item)),
-              );
-              throw new Error(
-                'a change to this new task could not be confirmed. check its save before continuing.',
-              );
-            }
             if (intent.deleted) {
               remove(id);
               listeners.current.onChanged?.();
               return;
             }
-            task = await readTask(accountId, task.id);
-            if (task.accountId !== accountId || task.listId !== captured.input.listId)
-              throw new Error('the saved task moved before its queued changes finished.');
-            if (
-              Object.entries(intent.patch).some(
-                ([field, value]) => !sameField(field, task[field as keyof Task], value),
-              ) ||
-              (intent.completed !== undefined && task.completed !== intent.completed)
-            ) {
-              change((items) =>
-                items.map((item) => (item.id === id ? { ...item, replayBlocked: true } : item)),
-              );
-              throw new Error('the new task’s latest values do not confirm its queued change yet.');
-            }
             change((items) =>
               items.map((item) =>
                 item.id === id
-                  ? {
-                      ...item,
-                      appliedInput: structuredClone(creation.input),
-                    }
+                  ? applyConfirmedPhase(
+                      item,
+                      phase.input,
+                      intent,
+                      typeof result === 'object' ? result.operationId : undefined,
+                    )
                   : item,
               ),
             );
+            task = await readTask(accountId, task.id);
+            if (task.accountId !== accountId || task.listId !== captured.input.listId)
+              throw new Error('the saved task moved before its queued changes finished.');
           }
           change((items) =>
             items.map((item) => {
               if (item.id !== id) return item;
-              const { failure: _failure, replayBlocked: _blocked, ...saved } = item;
+              const { failure: _failure, blockedFollowup: _blocked, ...saved } = item;
               return saved;
             }),
           );
@@ -319,9 +517,11 @@ export function useTaskCreations(
           if (currentAccount.current !== accountId) return;
           const message =
             error instanceof Error ? error.message : 'the new task’s save needs checking.';
-          const failedOperationId = error instanceof RequestError ? error.operationId : undefined;
           const failedCreation = current.current.find((item) => item.id === id);
-          const failedDeletion = failedCreation?.replayBlocked && failedCreation.deleted;
+          const failedOperationId =
+            (error instanceof RequestError ? error.operationId : undefined) ??
+            failedCreation?.blockedFollowup?.operationId;
+          const failedDeletion = failedCreation?.blockedFollowup?.intent.deleted;
           change((items) =>
             items.map((item) =>
               item.id === id
@@ -331,7 +531,11 @@ export function useTaskCreations(
                     failure: {
                       message,
                       actionLabel:
-                        failedDeletion && !failedOperationId ? 'show task' : 'check save',
+                        failedDeletion && !failedOperationId
+                          ? 'show task'
+                          : failedCreation?.blockedFollowup?.rejected && failedCreation.onEdit
+                            ? 'edit'
+                            : 'check save',
                       onEdit: failedDeletion
                         ? failedOperationId
                           ? () => {
@@ -343,7 +547,13 @@ export function useTaskCreations(
                               remove(id);
                               listeners.current.onChanged?.();
                             }
-                        : () => void finish(id, operationId),
+                        : failedCreation?.blockedFollowup?.rejected && failedCreation.onEdit
+                          ? () => {
+                              if (listeners.current.editable === false) return;
+                              const latest = current.current.find((item) => item.id === id);
+                              if (latest) latest.onEdit?.(structuredClone(latest.input));
+                            }
+                          : () => void finish(id, operationId, true),
                       onDiscard: () => {
                         remove(id);
                         listeners.current.onChanged?.();
@@ -354,7 +564,13 @@ export function useTaskCreations(
                 : item,
             ),
           );
-          listeners.current.onError?.(message, failedDeletion ? failedOperationId : operationId);
+          const receiptId = failedCreation?.blockedFollowup
+            ? failedOperationId
+            : failedCreation?.confirmedFollowup
+              ? failedCreation.confirmedFollowup.operationId
+              : operationId;
+          listeners.current.onError?.(message, receiptId);
+          if (inspectBlocked && receiptId) listeners.current.onInspect?.(receiptId);
         }
       })();
       flights.current.set(id, work);

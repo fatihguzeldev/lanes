@@ -4,12 +4,15 @@ import type { TaskActionContext } from '../task-actions';
 import { useTaskChanges, projectTaskCollection } from '../../changes/useTaskChanges';
 import { useTaskActions } from '../useTaskActions';
 import { RequestError } from '../../../../../shared/browser/http/http';
+import { CreateTaskSchema } from '../../../contracts/task';
+import { useTaskCreations } from '../../creation/useTaskCreations';
 
 const state = vi.hoisted(() => ({
   cursor: 0,
   slots: [] as unknown[],
   effects: [] as Array<() => void | (() => void)>,
   read: vi.fn(),
+  created: vi.fn(),
   submit: vi.fn(),
   failure: null as { message: string; operationId?: string } | null,
 }));
@@ -23,7 +26,7 @@ vi.mock('react', async (original) => ({
     return [
       state.slots[index],
       (value: unknown) => {
-        state.slots[index] = value;
+        state.slots[index] = typeof value === 'function' ? value(state.slots[index]) : value;
       },
     ];
   },
@@ -44,6 +47,7 @@ vi.mock('../../../../../shared/browser/http/http', async (original) => ({
 vi.mock('../../../../operations/browser/submission/operation-identity', () => ({
   newOperationId: () => 'quick-receipt',
 }));
+vi.mock('../../creation/creation-receipt', () => ({ readCreatedTask: state.created }));
 const task = {
   id: 'task',
   accountId: 'account',
@@ -66,6 +70,7 @@ beforeEach(() => {
   state.cursor = 0;
   state.effects = [];
   state.failure = null;
+  state.created.mockReset();
   current = { ...task };
   context = {
     accountId: 'account',
@@ -407,4 +412,124 @@ describe('account-owned task presentation', () => {
     );
     expect(lateClose).toHaveBeenCalledWith(expect.objectContaining({ id: task.id }));
   });
+});
+
+it('retains a pending creation edit receipt and supplies its captured graph revision', async () => {
+  const failure = new RequestError('uncertain', 'check this edit', undefined, 'edit-receipt');
+  state.submit.mockImplementation(async (_command, _category, _identity, onFailure) => {
+    onFailure(failure);
+    return { id: 'edit-receipt', state: 'uncertain' };
+  });
+  const result = await render().applyCreation(task, {
+    patch: { blockedBy: ['blocker'] },
+    expectedGraphRevision: 12,
+  });
+  expect(state.submit.mock.calls[0]![0]).toMatchObject({
+    kind: 'task.edit',
+    expectedGraphRevision: 12,
+  });
+  expect(result).toEqual({ saved: false, message: 'check this edit', operationId: 'edit-receipt' });
+  expect(context.submit).not.toHaveBeenCalled();
+});
+it('retains the confirmed edit receipt when its following task read fails', async () => {
+  state.read
+    .mockResolvedValueOnce({ ...task })
+    .mockRejectedValueOnce(new Error('read unavailable'));
+  const result = await render().applyCreation(task, { patch: { title: 'renamed' } });
+  expect(result).toEqual({
+    saved: false,
+    message: 'read unavailable',
+    operationId: 'quick-receipt',
+  });
+});
+
+it('retains the completion receipt for a pending creation followup', async () => {
+  const failure = new RequestError(
+    'uncertain',
+    'check completion',
+    undefined,
+    'completion-receipt',
+  );
+  state.submit.mockImplementation(async (_command, _category, _identity, onFailure) => {
+    onFailure(failure);
+    return { id: 'completion-receipt', state: 'uncertain' };
+  });
+  expect(await render().applyCreation(task, { patch: {}, completed: true })).toEqual({
+    saved: false,
+    message: 'check completion',
+    operationId: 'completion-receipt',
+  });
+});
+it('removes the edit overlay when a creation followup preflight fails', async () => {
+  state.read.mockRejectedValueOnce(new Error('read unavailable'));
+  state.cursor = 0;
+  const changes = useTaskChanges('account', 0);
+  context = { ...context, changes };
+  const actions = useTaskActions(context, 0);
+  expect(await actions.applyCreation(task, { patch: { title: 'renamed' } })).toEqual({
+    saved: false,
+    message: 'read unavailable',
+    rejected: true,
+  });
+  state.cursor = 0;
+  expect(useTaskChanges('account', 0).items).toEqual([]);
+  expect(state.submit).not.toHaveBeenCalled();
+});
+
+it('does not classify a provider failure without a receipt as an unadmitted edit', async () => {
+  const error = new RequestError('provider_unavailable', 'provider failed');
+  state.submit.mockImplementation(async (_command, _category, _identity, onFailure) => {
+    onFailure(error);
+    return null;
+  });
+  expect(await render().applyCreation(task, { patch: { title: 'renamed' } })).toEqual({
+    saved: false,
+    message: 'provider failed',
+  });
+});
+
+it('recovers a compound creation one confirmed phase at a time without replaying its edit', async () => {
+  const input = CreateTaskSchema.parse({ accountId: 'account', listId: 'list', title: 'task' });
+  current = { ...current, ...input };
+  state.created.mockImplementation(async () => ({ ...current }));
+  let failRead = false;
+  const read = state.read.getMockImplementation()!;
+  state.read.mockImplementation(async (path: string) => {
+    if (path.includes('/operations/'))
+      return { id: 'patch-receipt', accountId: 'account', state: 'succeeded' };
+    if (failRead) {
+      failRead = false;
+      throw new RequestError('storage_unavailable', 'post-edit read failed');
+    }
+    return read(path);
+  });
+  const save = state.submit.getMockImplementation()!;
+  state.submit.mockImplementation(async (command) => {
+    const receipt = await save(command);
+    if (command.kind === 'task.edit') {
+      failRead = true;
+      return { ...receipt, id: 'patch-receipt' };
+    }
+    return receipt;
+  });
+  function owner() {
+    state.cursor = 0;
+    const changes = useTaskChanges('account', 0);
+    const actions = useTaskActions({ ...context, changes }, 0);
+    return useTaskCreations('account', 0, { onReady: actions.applyCreation });
+  }
+  owner().start(1, input);
+  owner().items[0]!.controls!.onStar(true);
+  owner().items[0]!.controls!.onComplete(true);
+  await owner().finish(1, 'create-receipt');
+  expect(state.submit.mock.calls.map((call) => call[0].kind)).toEqual(['task.edit']);
+  expect(owner().items[0]!.failure).toBeDefined();
+  await owner().finish(1, 'create-receipt');
+  expect(state.submit.mock.calls.map((call) => call[0].kind)).toEqual([
+    'task.edit',
+    'task.complete',
+  ]);
+  expect(current).toMatchObject({ starred: true, completed: true });
+  expect(owner().items[0]!.failure).toBeUndefined();
+  expect(owner().items[0]!.confirmedAfter).toBe(0);
 });

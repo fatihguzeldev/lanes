@@ -1,13 +1,13 @@
-import { seedAccount, testDatabase } from '../../../../../../tests/support/sqlite-d1';
-import { TaskQueries } from '../../../server/queries/tasks';
-import { TaskMetadataService } from '../../../server/metadata/tasks';
-import { HistoryService } from '../../../../history/server/events/event-store';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CreateTaskSchema, type Task } from '../../../contracts/task';
 import { creationAcknowledged, useTaskCreations } from '../useTaskCreations';
 import { RequestError } from '../../../../../shared/browser/http/http';
 import { TaskCreationPreview } from '../TaskCreationPreview';
 import type { OperationSummary } from '../../../../operations/contracts/receipt';
+import { seedAccount, testDatabase } from '../../../../../../tests/support/sqlite-d1';
+import { TaskQueries } from '../../../server/queries/tasks';
+import { TaskMetadataService } from '../../../server/metadata/tasks';
+import { HistoryService } from '../../../../history/server/events/event-store';
 
 const hooks = vi.hoisted(() => ({ slots: [] as unknown[], index: 0 }));
 const reads = vi.hoisted(() => ({ created: vi.fn(), task: vi.fn(), operation: vi.fn() }));
@@ -50,6 +50,7 @@ describe('submitted task visibility', () => {
     hooks.slots = [];
     reads.created.mockReset();
     reads.task.mockReset();
+    reads.operation.mockReset();
   });
 
   it('captures the input while submission is pending and keeps concurrent creations separate', () => {
@@ -228,6 +229,7 @@ describe('interactive submitted tasks', () => {
     hooks.slots = [];
     reads.created.mockReset();
     reads.task.mockReset();
+    reads.operation.mockReset();
   });
   it('keeps edit, star and completion interactive while identity is unresolved, then replays only on the confirmed address', async () => {
     const identity = deferred<Task>();
@@ -265,8 +267,11 @@ describe('interactive submitted tasks', () => {
       input('ring64'),
       expect.any(Function),
     );
-    expect(onReady).toHaveBeenCalledWith(expect.objectContaining({ id: 'server-task' }), {
+    expect(onReady).toHaveBeenNthCalledWith(1, expect.objectContaining({ id: 'server-task' }), {
       patch: { title: 'ring64 changed', starred: true },
+    });
+    expect(onReady).toHaveBeenNthCalledWith(2, expect.objectContaining({ id: 'server-task' }), {
+      patch: {},
       completed: true,
     });
     expect(render(0, options).items[0]!.resolvedTaskId).toBe('server-task');
@@ -421,6 +426,388 @@ describe('interactive submitted tasks', () => {
     } finally {
       database.close();
     }
+  });
+  it('recovers the actual successful followup receipt without issuing another write', async () => {
+    let task = serverTask('ring64');
+    reads.created.mockImplementation(async () => task);
+    reads.task.mockImplementation(async () => task);
+    const failure = {
+      saved: false as const,
+      message: 'check the edit',
+      operationId: 'edit-receipt',
+    };
+    const onReady = vi.fn().mockResolvedValue(failure);
+    const options = { onReady, onError: vi.fn(), onInspect: vi.fn() };
+    render(0, options).start(1, input('ring64'));
+    render(0, options).items[0]!.controls!.onStar(true);
+    await render(0, options).finish(1, 'create-receipt');
+    expect(options.onError).toHaveBeenLastCalledWith('check the edit', 'edit-receipt');
+    task = { ...task, starred: true };
+    reads.operation.mockResolvedValue({
+      id: 'edit-receipt',
+      accountId: 'account',
+      state: 'succeeded',
+    });
+    await render(0, options).finish(1, 'create-receipt');
+    expect(reads.operation).toHaveBeenCalledWith(
+      '/api/accounts/account/operations/edit-receipt',
+      expect.anything(),
+    );
+    expect(onReady).toHaveBeenCalledOnce();
+    expect(render(0, options).items[0]!.failure).toBeUndefined();
+    expect(render(0, options).items[0]!.confirmedAfter).toBe(0);
+  });
+  it('keeps an uncertain followup blocked and inspects that exact receipt', async () => {
+    reads.created.mockResolvedValue(serverTask('ring64'));
+    const failure = {
+      saved: false as const,
+      message: 'check the edit',
+      operationId: 'edit-receipt',
+    };
+    const options = {
+      onReady: vi.fn().mockResolvedValue(failure),
+      onError: vi.fn(),
+      onInspect: vi.fn(),
+    };
+    render(0, options).start(1, input('ring64'));
+    render(0, options).items[0]!.controls!.onStar(true);
+    await render(0, options).finish(1, 'create-receipt');
+    reads.operation.mockResolvedValue({
+      id: 'edit-receipt',
+      accountId: 'account',
+      state: 'uncertain',
+      finished: false,
+    });
+    render(0, options).items[0]!.failure!.onEdit();
+    await vi.waitFor(() => expect(options.onInspect).toHaveBeenCalledWith('edit-receipt'));
+    expect(options.onReady).toHaveBeenCalledOnce();
+    expect(render(0, options).items[0]!.confirmedAfter).toBeNull();
+  });
+  it('does not trust a successful followup receipt from another account or identity', async () => {
+    let task = serverTask('ring64');
+    reads.created.mockImplementation(async () => task);
+    reads.task.mockImplementation(async () => task);
+    const options = {
+      onReady: vi.fn().mockResolvedValue({
+        saved: false,
+        message: 'check the edit',
+        operationId: 'edit-receipt',
+      }),
+      onError: vi.fn(),
+    };
+    render(0, options).start(1, input('ring64'));
+    render(0, options).items[0]!.controls!.onStar(true);
+    await render(0, options).finish(1, 'create-receipt');
+    task = { ...task, starred: true };
+    for (const receipt of [
+      { id: 'edit-receipt', accountId: 'other', state: 'succeeded' },
+      { id: 'other-receipt', accountId: 'account', state: 'succeeded' },
+    ]) {
+      reads.operation.mockResolvedValue(receipt);
+      await render(0, options).finish(1, 'create-receipt');
+      expect(render(0, options).items[0]!.failure).toBeDefined();
+      expect(render(0, options).items[0]!.confirmedAfter).toBeNull();
+    }
+    expect(options.onReady).toHaveBeenCalledOnce();
+  });
+  it('requires a corrected draft and verified terminal rejection before another followup write', async () => {
+    let task = serverTask('ring64');
+    reads.created.mockImplementation(async () => task);
+    reads.task.mockImplementation(async () => task);
+    const openEditor = vi.fn();
+    const onReady = vi
+      .fn()
+      .mockResolvedValueOnce({
+        saved: false,
+        message: 'invalid title',
+        operationId: 'edit-receipt',
+      })
+      .mockImplementationOnce(async (_saved: Task, intent: { patch: object }) => {
+        task = { ...task, ...intent.patch };
+        return true;
+      });
+    const options = { onReady, onError: vi.fn() };
+    render(0, options).start(1, input('ring64'), openEditor);
+    render(0, options).update(1, input('invalid'), 12);
+    await render(0, options).finish(1, 'create-receipt');
+    reads.operation.mockResolvedValue({
+      id: 'edit-receipt',
+      accountId: 'account',
+      state: 'failed',
+      finished: true,
+      confirmedSteps: 0,
+      error: { message: 'invalid title' },
+    });
+    await render(0, options).finish(1, 'create-receipt');
+    expect(onReady).toHaveBeenCalledOnce();
+    expect(render(0, options).items[0]!.failure?.actionLabel).toBe('edit');
+    render(0, options).items[0]!.failure!.onEdit();
+    expect(openEditor).toHaveBeenCalledWith(input('invalid'));
+    render(0, options).update(1, input('corrected'), 12);
+    await render(0, options).finish(1, 'create-receipt');
+    expect(onReady).toHaveBeenCalledTimes(2);
+    expect(task.title).toBe('corrected');
+    expect(render(0, options).items[0]!.failure).toBeUndefined();
+  });
+  it('does not apply a corrected rejected draft over a changed task field', async () => {
+    let task = serverTask('ring64');
+    reads.created.mockImplementation(async () => task);
+    reads.task.mockImplementation(async () => task);
+    const options = {
+      onReady: vi
+        .fn()
+        .mockResolvedValue({ saved: false, message: 'invalid title', operationId: 'edit-receipt' }),
+    };
+    render(0, options).start(1, input('ring64'));
+    render(0, options).update(1, input('invalid'));
+    await render(0, options).finish(1, 'create-receipt');
+    task = { ...task, title: 'external edit' };
+    reads.operation.mockResolvedValue({
+      id: 'edit-receipt',
+      accountId: 'account',
+      state: 'failed',
+      finished: true,
+      confirmedSteps: 0,
+    });
+    render(0, options).update(1, input('corrected'));
+    await render(0, options).finish(1, 'create-receipt');
+    expect(options.onReady).toHaveBeenCalledOnce();
+    expect(task.title).toBe('external edit');
+    expect(render(0, options).items[0]!.failure?.message).toContain('changed before');
+  });
+  it('allows correcting a never-dispatched followup but does not replay an unknown receiptless outcome', async () => {
+    let task = serverTask('ring64');
+    reads.created.mockImplementation(async () => task);
+    reads.task.mockImplementation(async () => task);
+    const options = {
+      onReady: vi
+        .fn()
+        .mockResolvedValueOnce({ saved: false, message: 'preflight unavailable', rejected: true })
+        .mockImplementationOnce(async (_task: Task, intent: { patch: object }) => {
+          task = { ...task, ...intent.patch };
+          return true;
+        }),
+    };
+    render(0, options).start(1, input('ring64'));
+    render(0, options).update(1, input('first title'));
+    await render(0, options).finish(1, 'create');
+    expect(render(0, options).items[0]!.failure).toBeDefined();
+    render(0, options).update(1, input('corrected'));
+    await render(0, options).finish(1, 'create');
+    expect(task.title).toBe('corrected');
+    expect(options.onReady).toHaveBeenCalledTimes(2);
+    render(0, options).items[0]!.controls!.onStar(true);
+    options.onReady.mockResolvedValueOnce({ saved: false, message: 'unknown provider failure' });
+    await render(0, options).finish(1, 'create');
+    render(0, options).update(1, { ...input('do not replay'), starred: true });
+    await render(0, options).finish(1, 'create');
+    expect(options.onReady).toHaveBeenCalledTimes(3);
+    expect(task.title).toBe('corrected');
+    expect(render(0, options).items[0]!.failure).toBeDefined();
+  });
+  it('recovers only the issued edit phase before dispatching its unissued completion', async () => {
+    let task = serverTask('ring64');
+    reads.created.mockImplementation(async () => task);
+    reads.task.mockImplementation(async () => task);
+    const onReady = vi.fn(async (_saved: Task, intent: { patch: object; completed?: boolean }) => {
+      if (Object.keys(intent.patch).length) {
+        task = { ...task, ...intent.patch };
+        return {
+          saved: false as const,
+          message: 'post-edit read failed',
+          operationId: 'edit-receipt',
+        };
+      }
+      task = { ...task, completed: intent.completed! };
+      return true;
+    });
+    const options = { onReady };
+    render(0, options).start(1, input('ring64'));
+    render(0, options).items[0]!.controls!.onStar(true);
+    render(0, options).items[0]!.controls!.onComplete(true);
+    await render(0, options).finish(1, 'create-receipt');
+    expect(task.starred).toBe(true);
+    expect(task.completed).toBe(false);
+    expect(onReady).toHaveBeenCalledOnce();
+    expect(onReady.mock.calls[0]![1]).toEqual({ patch: { starred: true } });
+    reads.operation.mockResolvedValue({
+      id: 'edit-receipt',
+      accountId: 'account',
+      state: 'succeeded',
+    });
+    await render(0, options).finish(1, 'create-receipt');
+    expect(onReady).toHaveBeenCalledTimes(2);
+    expect(onReady.mock.calls[1]![1]).toEqual({ patch: {}, completed: true });
+    expect(task.completed).toBe(true);
+    expect(render(0, options).items[0]!.failure).toBeUndefined();
+  });
+  it('compares a rejected completion retry against the preceding confirmed edit phase', async () => {
+    let task = serverTask('ring64');
+    reads.created.mockImplementation(async () => task);
+    reads.task.mockImplementation(async () => task);
+    const onReady = vi
+      .fn()
+      .mockImplementationOnce(async (_saved: Task, intent: { patch: object }) => {
+        task = { ...task, ...intent.patch };
+        return true;
+      })
+      .mockResolvedValueOnce({
+        saved: false,
+        message: 'completion rejected',
+        operationId: 'completion-receipt',
+      })
+      .mockImplementation(async (_saved: Task, intent: { patch: object; completed?: boolean }) => {
+        task = {
+          ...task,
+          ...intent.patch,
+          ...(intent.completed === undefined ? {} : { completed: intent.completed }),
+        };
+        return true;
+      });
+    const options = { onReady };
+    render(0, options).start(1, input('ring64'));
+    render(0, options).items[0]!.controls!.onStar(true);
+    render(0, options).items[0]!.controls!.onComplete(true);
+    await render(0, options).finish(1, 'create');
+    reads.operation.mockResolvedValue({
+      id: 'completion-receipt',
+      accountId: 'account',
+      state: 'failed',
+      finished: true,
+      confirmedSteps: 0,
+    });
+    render(0, options).update(1, { ...input('corrected'), starred: true });
+    await render(0, options).finish(1, 'create');
+    expect(onReady.mock.calls.map((call) => call[1])).toEqual([
+      { patch: { starred: true } },
+      { patch: {}, completed: true },
+      { patch: { title: 'corrected' } },
+      { patch: {}, completed: true },
+    ]);
+    expect(task).toMatchObject({ title: 'corrected', starred: true, completed: true });
+    expect(render(0, options).items[0]!.failure).toBeUndefined();
+  });
+  it('uses a corrected draft captured while its rejected receipt is being read', async () => {
+    let task = serverTask('ring64');
+    reads.created.mockImplementation(async () => task);
+    reads.task.mockImplementation(async () => task);
+    const onReady = vi
+      .fn()
+      .mockResolvedValueOnce({
+        saved: false,
+        message: 'invalid title',
+        operationId: 'edit-receipt',
+      })
+      .mockImplementationOnce(async (_saved: Task, intent: { patch: object }) => {
+        task = { ...task, ...intent.patch };
+        return true;
+      });
+    const options = { onReady };
+    render(0, options).start(1, input('ring64'));
+    render(0, options).update(1, input('invalid'));
+    await render(0, options).finish(1, 'create');
+    const receipt = deferred<{
+      id: string;
+      accountId: string;
+      state: string;
+      finished: boolean;
+      confirmedSteps: number;
+    }>();
+    reads.operation.mockReturnValueOnce(receipt.promise);
+    const checking = render(0, options).finish(1, 'create');
+    await vi.waitFor(() => expect(reads.operation).toHaveBeenCalled());
+    render(0, options).update(1, input('corrected while checking'));
+    receipt.resolve({
+      id: 'edit-receipt',
+      accountId: 'account',
+      state: 'failed',
+      finished: true,
+      confirmedSteps: 0,
+    });
+    await checking;
+    expect(task.title).toBe('corrected while checking');
+    expect(onReady).toHaveBeenCalledTimes(2);
+    expect(render(0, options).items[0]!.failure).toBeUndefined();
+  });
+  it.each(['starred', 'completed'] as const)(
+    'does not replay confirmed %s after its owner read fails and another client reverses it',
+    async (field) => {
+      let task = serverTask('ring64');
+      reads.created.mockImplementation(async () => task);
+      reads.task
+        .mockRejectedValueOnce(new Error('owner read unavailable'))
+        .mockImplementation(async () => task);
+      const options = {
+        onReady: vi.fn(async (_task: Task, intent: { patch: object; completed?: boolean }) => {
+          task = {
+            ...task,
+            ...intent.patch,
+            ...(intent.completed === undefined ? {} : { completed: intent.completed }),
+          };
+          return true;
+        }),
+      };
+      render(0, options).start(1, input('ring64'));
+      if (field === 'starred') render(0, options).items[0]!.controls!.onStar(true);
+      else render(0, options).items[0]!.controls!.onComplete(true);
+      await render(0, options).finish(1, 'create');
+      expect(render(0, options).items[0]!.failure).toBeDefined();
+      task = { ...task, [field]: false };
+      await render(0, options).finish(1, 'create');
+      expect(options.onReady).toHaveBeenCalledOnce();
+      expect(task[field]).toBe(false);
+      expect(render(0, options).items[0]!.failure).toBeUndefined();
+    },
+  );
+  it('adopts a newer external value after the exact followup receipt confirms an older value', async () => {
+    const task = serverTask('ring64');
+    reads.created.mockResolvedValue(task);
+    reads.task.mockResolvedValue(task);
+    const options = {
+      onReady: vi
+        .fn()
+        .mockResolvedValue({ saved: false, message: 'check save', operationId: 'edit' }),
+    };
+    render(0, options).start(1, input('ring64'));
+    render(0, options).items[0]!.controls!.onStar(true);
+    await render(0, options).finish(1, 'create');
+    reads.operation.mockResolvedValue({ id: 'edit', accountId: 'account', state: 'succeeded' });
+    await render(0, options).finish(1, 'create');
+    expect(options.onReady).toHaveBeenCalledOnce();
+    expect(task.starred).toBe(false);
+    expect(render(0, options).items[0]!.failure).toBeUndefined();
+  });
+  it('retains newer local intent captured while a confirmed phase awaits its owner read', async () => {
+    let task = serverTask('ring64');
+    reads.created.mockImplementation(async () => task);
+    let reject!: (error: Error) => void;
+    reads.task
+      .mockReturnValueOnce(
+        new Promise<Task>((_resolve, fail) => {
+          reject = fail;
+        }),
+      )
+      .mockImplementation(async () => task);
+    const options = {
+      onReady: vi.fn(async (_task: Task, intent: { patch: object }) => {
+        task = { ...task, ...intent.patch };
+        return true;
+      }),
+    };
+    render(0, options).start(1, input('ring64'));
+    render(0, options).items[0]!.controls!.onStar(true);
+    const saving = render(0, options).finish(1, 'create');
+    await vi.waitFor(() => expect(reads.task).toHaveBeenCalledOnce());
+    render(0, options).items[0]!.controls!.onStar(false);
+    reject(new Error('owner read unavailable'));
+    await saving;
+    await render(0, options).finish(1, 'create');
+    expect(options.onReady.mock.calls.map((call) => call[1])).toEqual([
+      { patch: { starred: true } },
+      { patch: { starred: false } },
+    ]);
+    expect(task.starred).toBe(false);
+    expect(render(0, options).items[0]!.failure).toBeUndefined();
   });
   it('never replays an unconfirmed followup while checking its save', async () => {
     reads.created.mockResolvedValue(serverTask('ring64'));

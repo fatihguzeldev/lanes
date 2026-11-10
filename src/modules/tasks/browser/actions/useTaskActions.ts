@@ -3,7 +3,7 @@ import type { CreationIntent, CreationResult } from '../creation/useTaskCreation
 import type { TaskPresentationPatch } from '../changes/useTaskChanges';
 import type { Task } from '../../contracts/task';
 import { TaskSchema } from '../../contracts/task';
-import { request, type RequestError } from '../../../../shared/browser/http/http';
+import { request, RequestError } from '../../../../shared/browser/http/http';
 import { useCommands } from '../../../operations/browser/submission/useCommands';
 import { newOperationId } from '../../../operations/browser/submission/operation-identity';
 import { createTaskActions, type TaskActionContext } from './task-actions';
@@ -20,7 +20,7 @@ export function useTaskActions(context: TaskActionContext, clockOffset: number) 
   const queue = useRef<ReturnType<typeof createTaskActionQueue> | null>(null);
   const createQueue = () =>
     createTaskActionQueue(
-      async ({ task: selected, field, value, changeId }) => {
+      async ({ task: selected, field, value, changeId, onFailure }) => {
         const save = async () => {
           const { context: current, commands, clockOffset } = latest.current;
           const signal = abort.current.signal;
@@ -56,6 +56,16 @@ export function useTaskActions(context: TaskActionContext, clockOffset: number) 
               });
               if (signal.aborted) return false;
               if (result?.state === 'succeeded') return true;
+              onFailure?.(
+                failure.details ??
+                  new RequestError(
+                    result?.error?.code ?? 'creation_followup',
+                    result?.error?.message ??
+                      'couldn’t confirm this change. check its save before trying again.',
+                    undefined,
+                    result?.id,
+                  ),
+              );
               current.onNotice(
                 result?.error?.message ??
                   failure.details?.message ??
@@ -82,7 +92,19 @@ export function useTaskActions(context: TaskActionContext, clockOffset: number) 
           if (saved && !submitted && !signal.aborted) current.onChanged();
           return saved;
         };
-        return save();
+        try {
+          return await save();
+        } catch (error) {
+          onFailure?.(
+            error instanceof RequestError
+              ? error
+              : new RequestError(
+                  'creation_followup',
+                  error instanceof Error ? error.message : 'couldn’t save this change.',
+                ),
+          );
+          throw error;
+        }
       },
       setBusy,
       (error) => {
@@ -104,7 +126,12 @@ export function useTaskActions(context: TaskActionContext, clockOffset: number) 
     };
   }, [context.accountId]);
   const sequence = useRef(0);
-  const enqueue = (task: Task, field: 'starred' | 'completed', value: boolean) => {
+  const enqueue = (
+    task: Task,
+    field: 'starred' | 'completed',
+    value: boolean,
+    onFailure?: (error: RequestError) => void,
+  ) => {
     if (task.accountId !== context.accountId) return Promise.resolve(false);
     const id = `quick:${++sequence.current}`;
     const changes = context.changes;
@@ -118,7 +145,14 @@ export function useTaskActions(context: TaskActionContext, clockOffset: number) 
         ...(field === 'completed' ? { completedAt: value ? new Date().toISOString() : null } : {}),
       },
     });
-    const save = () => queue.current!.enqueue({ task, field, value, changeId: id });
+    const save = () =>
+      queue.current!.enqueue({
+        task,
+        field,
+        value,
+        changeId: id,
+        ...(onFailure ? { onFailure } : {}),
+      });
     const result = changes ? changes.run(task.id, save) : save();
     return result.then((saved) => {
       if (saved) changes?.confirm(id);
@@ -179,66 +213,118 @@ export function useTaskActions(context: TaskActionContext, clockOffset: number) 
   const applyCreation = async (original: Task, intent: CreationIntent): Promise<CreationResult> => {
     let task = original;
     const current = latest.current.context;
-    if (Object.keys(intent.patch).length) {
-      const id = `creation-edit:${++sequence.current}`;
-      current.changes?.start(id, task, {
-        accountId: task.accountId,
-        taskId: task.id,
-        listId: task.listId,
-        expectedRevision: task.revision,
-        patch: intent.patch,
-      });
-      const save = async () => {
-        const fresh = await request(
+    const failure: { details?: RequestError; operationId?: string } = {};
+    let changeId: string | undefined;
+    let attempted = false;
+    const failed = (
+      message = 'couldn’t confirm this change. check its save before trying again.',
+    ) => ({
+      saved: false as const,
+      message: failure.details?.message ?? message,
+      ...((failure.details?.operationId ?? failure.operationId)
+        ? { operationId: failure.details?.operationId ?? failure.operationId! }
+        : {}),
+      ...(!failure.details?.operationId &&
+      !failure.operationId &&
+      (!attempted ||
+        (failure.details &&
+          [
+            'validation_failed',
+            'conflict',
+            'not_found',
+            'forbidden',
+            'unauthenticated',
+            'reconnect_required',
+            'permission_required',
+            'list_limit_reached',
+            'connection_paused',
+          ].includes(failure.details.code)))
+        ? { rejected: true }
+        : {}),
+    });
+    try {
+      if (Object.keys(intent.patch).length) {
+        const id = `creation-edit:${++sequence.current}`;
+        changeId = id;
+        current.changes?.start(id, task, {
+          accountId: task.accountId,
+          taskId: task.id,
+          listId: task.listId,
+          expectedRevision: task.revision,
+          patch: intent.patch,
+        });
+        const save = async () => {
+          const fresh = await request(
+            `/api/accounts/${encodeURIComponent(current.accountId)}/tasks/${encodeURIComponent(task.id)}`,
+            TaskSchema,
+          );
+          attempted = true;
+          const result = await latest.current.commands.submit(
+            {
+              kind: 'task.edit',
+              taskId: task.id,
+              revision: fresh.revision,
+              patch: intent.patch,
+              ...(intent.expectedGraphRevision === undefined
+                ? {}
+                : { expectedGraphRevision: intent.expectedGraphRevision }),
+            },
+            'provider',
+            undefined,
+            (details) => {
+              failure.details = details;
+            },
+          );
+          if (result) failure.operationId = result.id;
+          return result?.state === 'succeeded';
+        };
+        const saved = await (current.changes ? current.changes.run(task.id, save) : save());
+        if (!saved) {
+          current.changes?.remove(id);
+          return failed();
+        }
+        current.changes?.confirm(id);
+        task = await request(
           `/api/accounts/${encodeURIComponent(current.accountId)}/tasks/${encodeURIComponent(task.id)}`,
           TaskSchema,
         );
-        return current.submit(
-          {
-            kind: 'task.edit',
-            taskId: task.id,
-            revision: fresh.revision,
-            patch: intent.patch,
-            ...(intent.expectedGraphRevision === undefined
-              ? {}
-              : { expectedGraphRevision: intent.expectedGraphRevision }),
-          },
-          'provider',
-        );
-      };
-      const saved = await (current.changes ? current.changes.run(task.id, save) : save());
-      if (!saved) {
-        current.changes?.remove(id);
-        return false;
       }
-      current.changes?.confirm(id);
-      task = await request(
-        `/api/accounts/${encodeURIComponent(current.accountId)}/tasks/${encodeURIComponent(task.id)}`,
-        TaskSchema,
-      );
+      if (intent.completed !== undefined) {
+        delete failure.operationId;
+        attempted = true;
+        if (
+          !(await enqueue(task, 'completed', intent.completed, (details) => {
+            failure.details = details;
+          }))
+        )
+          return failed();
+      }
+      if (intent.deleted) {
+        task = await request(
+          `/api/accounts/${encodeURIComponent(current.accountId)}/tasks/${encodeURIComponent(task.id)}`,
+          TaskSchema,
+        );
+        let cancelled = false;
+        const failure: { details?: RequestError } = {};
+        const saved = await deleteQueuedTask(task, {
+          onCancel: () => {
+            cancelled = true;
+          },
+          onFailure: (details) => {
+            failure.details = details;
+          },
+        });
+        if (cancelled) return 'cancelled';
+        if (!saved && failure.details) throw failure.details;
+        return saved;
+      }
+      return { saved: true, ...(failure.operationId ? { operationId: failure.operationId } : {}) };
+    } catch (error) {
+      if (changeId) current.changes?.remove(changeId);
+      if (intent.deleted && error instanceof RequestError) throw error;
+      if (error instanceof RequestError) failure.details = error;
+      return failed(error instanceof Error ? error.message : undefined);
     }
-    if (intent.completed !== undefined && !(await enqueue(task, 'completed', intent.completed)))
-      return false;
-    if (intent.deleted) {
-      task = await request(
-        `/api/accounts/${encodeURIComponent(current.accountId)}/tasks/${encodeURIComponent(task.id)}`,
-        TaskSchema,
-      );
-      let cancelled = false;
-      const failure: { details?: RequestError } = {};
-      const saved = await deleteQueuedTask(task, {
-        onCancel: () => {
-          cancelled = true;
-        },
-        onFailure: (details) => {
-          failure.details = details;
-        },
-      });
-      if (cancelled) return 'cancelled';
-      if (!saved && failure.details) throw failure.details;
-      return saved;
-    }
-    return true;
   };
   return {
     ...createTaskActions(context),
