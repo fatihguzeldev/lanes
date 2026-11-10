@@ -31,12 +31,21 @@ export function useWorkspaceSync(
   offset.current = clockOffset;
   const pendingChanges = useRef<SyncChanges>({ topology: false, tasks: false });
   const observedWork = useRef({ pending: false, external: false });
+  const resumeRequested = useRef(false);
   const generation = useRef(0),
     flight = useRef<AbortController | null>(null),
     timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const refresh = useCallback(
-    async (reason: 'entry' | 'manual' | 'stale' = 'manual', visibleListIds: string[] = []) => {
+    async function refresh(
+      reason: 'entry' | 'manual' | 'stale' | 'pending' = 'manual',
+      visibleListIds: string[] = [],
+    ) {
       if (!enabledNow.current) return;
+      if (reason === 'pending' && flight.current) {
+        resumeRequested.current = true;
+        return;
+      }
+      resumeRequested.current = false;
       flight.current?.abort();
       if (timer.current) clearTimeout(timer.current);
       const controller = new AbortController(),
@@ -68,6 +77,8 @@ export function useWorkspaceSync(
         settleChanges();
         setBusy(false);
         flight.current = null;
+        // A create can commit after this run's final status snapshot.
+        if (resumeRequested.current) void refresh('pending');
       };
       const advance = async (first: boolean): Promise<void> => {
         if (!enabledNow.current || controller.signal.aborted || generation.current !== epoch)
@@ -136,10 +147,10 @@ export function useWorkspaceSync(
             !progress.errorCode &&
             !next.errorCode &&
             document.visibilityState === 'visible';
-          if (successful && reason !== 'entry')
+          if (successful && (reason === 'manual' || reason === 'stale'))
             pendingChanges.current = { topology: true, tasks: true };
           finish();
-          if (successful) refreshed.current?.();
+          if (successful && reason !== 'pending') refreshed.current?.();
         } catch (error) {
           if (enabledNow.current && !controller.signal.aborted && generation.current === epoch) {
             setError(error instanceof Error ? error.message : 'this account could not refresh.');
@@ -152,10 +163,11 @@ export function useWorkspaceSync(
             settleChanges();
             setBusy(false);
             flight.current = null;
+            resumeRequested.current = false;
           }
         }
       };
-      await advance(true);
+      await advance(reason !== 'pending');
     },
     [accountId],
   );
@@ -174,9 +186,11 @@ export function useWorkspaceSync(
       flight.current = null;
       pendingChanges.current = { topology: false, tasks: false };
       observedWork.current = { pending: false, external: false };
+      resumeRequested.current = false;
       if (timer.current) clearTimeout(timer.current);
       document.removeEventListener('visibilitychange', visible);
     };
   }, [refresh, enabled]);
-  return { status, busy, error, refresh, initialTopologyReady, initialForegroundSettled };
+  const resume = useCallback(() => refresh('pending'), [refresh]);
+  return { status, busy, error, refresh, resume, initialTopologyReady, initialForegroundSettled };
 }

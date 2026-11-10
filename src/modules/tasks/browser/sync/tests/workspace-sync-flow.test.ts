@@ -79,6 +79,67 @@ describe('workspace sync flow', () => {
     vi.unstubAllGlobals();
   });
 
+  it('resumes queued order reads without requesting another refresh or recurrence run', async () => {
+    serve(
+      () => step('idle'),
+      () => step('tasks', { pending: true, changes: { topology: false, tasks: true } }),
+      () => step('tasks', { changes: { topology: false, tasks: true } }),
+    );
+    const changed = vi.fn(),
+      refreshed = vi.fn();
+    const sync = useWorkspaceSync('account-a', changed, true, 0, refreshed);
+    await vi.advanceTimersByTimeAsync(0);
+    refreshed.mockClear();
+    await sync.resume();
+    await vi.advanceTimersByTimeAsync(300);
+    expect(boundary.request.mock.calls.map(([path]) => path)).toEqual([
+      '/api/accounts/account-a/sync?status=1&changes=1',
+      '/api/accounts/account-a/sync/advance?status=1&changes=1',
+      '/api/accounts/account-a/sync/advance?status=1&changes=1',
+    ]);
+    expect(changed.mock.calls).toEqual([[{ topology: false, tasks: true }]]);
+    expect(refreshed).not.toHaveBeenCalled();
+  });
+
+  it('coalesces creations during an in-flight sync and checks work admitted after its last snapshot', async () => {
+    let release!: (value: Step) => void;
+    serve(
+      () =>
+        new Promise<Step>((resolve) => {
+          release = resolve;
+        }),
+      () => step('tasks', { changes: { topology: false, tasks: true } }),
+    );
+    const changed = vi.fn();
+    const sync = useWorkspaceSync('account-a', changed, true);
+    const signal = boundary.request.mock.calls[0]![2].signal as AbortSignal;
+    await sync.resume();
+    await sync.resume();
+    expect(signal.aborted).toBe(false);
+    expect(boundary.request).toHaveBeenCalledTimes(1);
+    release(step('idle'));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(boundary.request).toHaveBeenCalledTimes(2);
+    expect(boundary.request.mock.calls[1]![0]).toContain('/sync/advance?');
+    expect(changed).toHaveBeenCalledExactlyOnceWith({ topology: false, tasks: true });
+  });
+
+  it('does not start queued order work after the workspace is deactivated', async () => {
+    let release!: (value: Step) => void;
+    serve(
+      () =>
+        new Promise<Step>((resolve) => {
+          release = resolve;
+        }),
+    );
+    const sync = useWorkspaceSync('account-a', vi.fn(), true);
+    await sync.resume();
+    boundary.cleanups.forEach((cleanup) => cleanup());
+    release(step('idle'));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(boundary.request).toHaveBeenCalledTimes(1);
+  });
+
   it('uses the status returned by each slice without a second status request', async () => {
     serve(() => step('coalesced'));
     useWorkspaceSync('account-a', vi.fn(), true);

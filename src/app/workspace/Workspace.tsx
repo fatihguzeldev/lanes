@@ -159,6 +159,7 @@ export function Workspace({
     editable: account.state === 'connected' && connection === 'reachable',
     onReady: (task, intent) => replayCreation.current(task, intent),
     onChanged: () => changed(),
+    onOrderRefresh: () => void sync.resume(),
     onError: setNotice,
     onInspect: inspection.inspect,
   });
