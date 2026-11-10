@@ -15,7 +15,11 @@ export interface TaskCommandOptions {
   queries?: TaskQueries;
   clientFor(accountId: string): Promise<GoogleTasksClient>;
   remainingProviderRequests?(): number;
-  providerOrderRefreshWrites?(accountId: string, listIds: readonly string[]): D1PreparedStatement[];
+  providerOrderRefreshWrites?(
+    accountId: string,
+    listIds: readonly string[],
+    reason?: 'create' | 'move',
+  ): D1PreparedStatement[];
   refreshRejectedToken?(accountId: string, client: GoogleTasksClient): Promise<void>;
   validateBoardTarget?(
     accountId: string,

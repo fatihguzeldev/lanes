@@ -7,6 +7,7 @@ import type { TaskMetadataPatch } from '../../contracts/metadata-commands';
 export interface ListRef extends TaskList {
   projectionRevision: number;
   complete: boolean;
+  orderComplete?: boolean;
 }
 export type TaskRef = Pick<
   Task,

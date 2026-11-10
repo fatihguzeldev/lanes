@@ -228,12 +228,16 @@ export class TaskSyncService {
       errorCode: job?.error_code ?? null,
     };
   }
-  /** Join these writes to the confirmed move and its projection revision update. */
-  providerOrderRefreshWrites(accountId: string, listIds: readonly string[]): D1PreparedStatement[] {
+  /** Positioning can resequence siblings; queue their read with the confirmed write. */
+  providerOrderRefreshWrites(
+    accountId: string,
+    listIds: readonly string[],
+    reason: 'create' | 'move' = 'move',
+  ): D1PreparedStatement[] {
     assertProjectionIdentity(accountId);
     const lists = [...new Set(listIds)];
     if (!lists.length || lists.length > 2)
-      throw new AppError('validation_failed', 'refresh the move source and destination only.', 422);
+      throw new AppError('validation_failed', 'refresh only the affected task lists.', 422);
     for (const list of lists) assertProjectionIdentity(list);
     const at = this.now();
     return [
@@ -243,11 +247,16 @@ export class TaskSyncService {
             'INSERT INTO tasks_write_guards(valid) SELECT 0 WHERE NOT EXISTS(SELECT 1 FROM tasks_lists WHERE account_id=? AND id=? AND deleted_at IS NULL)',
           )
           .bind(accountId, list),
-        this.db
-          .prepare(
-            'UPDATE tasks_lists SET tasks_complete_at=NULL,completed_complete_at=NULL WHERE account_id=? AND id=?',
-          )
-          .bind(accountId, list),
+        // A confirmed insert adds one known task; only sibling order needs repair.
+        ...(reason === 'move'
+          ? [
+              this.db
+                .prepare(
+                  'UPDATE tasks_lists SET tasks_complete_at=NULL,completed_complete_at=NULL WHERE account_id=? AND id=?',
+                )
+                .bind(accountId, list),
+            ]
+          : []),
         this.db
           .prepare(
             `INSERT INTO tasks_sync_list_work(account_id,list_id,priority,next_at,mode) VALUES (?,?,0,?,'full')

@@ -676,9 +676,13 @@ export class TaskCommandSettlement {
           )
           .bind(accountId, step.list.id, list.id),
       );
-      if (step.action === 'task.move')
+      if (step.action === 'task.move' || step.action === 'task.create')
         writes.push(
-          ...(this.options.providerOrderRefreshWrites?.(accountId, [step.list.id, list.id]) ?? []),
+          ...(this.options.providerOrderRefreshWrites?.(
+            accountId,
+            [step.list.id, list.id],
+            step.action === 'task.create' ? 'create' : 'move',
+          ) ?? []),
         );
       result = {
         taskId: id,

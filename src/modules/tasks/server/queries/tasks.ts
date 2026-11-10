@@ -42,6 +42,7 @@ interface Candidate {
 }
 
 interface TaskRow {
+  order_ready: number;
   id: string;
   account_id: string;
   list_id: string;
@@ -247,6 +248,8 @@ function estimate(alias: 't' | 'p'): string {
 }
 
 const taskFields = `t.id,t.account_id,t.list_id,t.parent_id,t.provider_id,t.provider_etag,t.provider_position,t.provider_updated_at,
+ CASE WHEN l.tasks_complete_at IS NOT NULL AND l.completed_complete_at IS NOT NULL AND l.sync_cursor IS NULL
+ AND NOT EXISTS(SELECT 1 FROM tasks_sync_list_work order_work WHERE order_work.account_id=l.account_id AND order_work.list_id=l.id AND order_work.mode='full') THEN 1 ELSE 0 END AS order_ready,
  t.title,t.notes,t.completed,t.completed_at,t.scheduled_day,t.scheduled_time,t.time_zone,t.repeat_rule_json,t.series_id,t.occurrence_id,
  t.priority,t.starred,t.capabilities_json,t.unsupported_hierarchy,t.provider_missing_at,t.revision,l.provider_id AS provider_list_id,
  COALESCE((SELECT json_group_array(label_id) FROM tasks_task_labels tl WHERE tl.account_id=t.account_id AND tl.task_id=t.id),'[]') AS label_ids_json,
@@ -518,6 +521,7 @@ export class TaskQueries {
     return {
       items,
       matchedTaskIds,
+      orderReadyTaskIds: rows.filter((row) => row.order_ready === 1).map((row) => row.id),
       contextTaskIds,
       subtaskSummaries: await this.summaries(
         accountId,

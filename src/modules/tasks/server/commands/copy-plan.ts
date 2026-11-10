@@ -157,7 +157,9 @@ export class CapturedCopyPlanner {
   ): Promise<ListRef> {
     const row = await this.db
       .prepare(
-        `SELECT id,title,provider_id,provider_etag,is_default,revision,projection_revision,tasks_complete_at,completed_complete_at,sync_cursor FROM tasks_lists WHERE account_id=? AND id=? AND deleted_at IS NULL`,
+        `SELECT id,title,provider_id,provider_etag,is_default,revision,projection_revision,tasks_complete_at,completed_complete_at,sync_cursor,
+        NOT EXISTS(SELECT 1 FROM tasks_sync_list_work w WHERE w.account_id=tasks_lists.account_id AND w.list_id=tasks_lists.id AND w.mode='full') AS order_ready
+        FROM tasks_lists WHERE account_id=? AND id=? AND deleted_at IS NULL`,
       )
       .bind(accountId, listId)
       .first<{
@@ -171,6 +173,7 @@ export class CapturedCopyPlanner {
         tasks_complete_at: number | null;
         completed_complete_at: number | null;
         sync_cursor: string | null;
+        order_ready: number;
       }>();
     if (!row)
       throw new AppError(
@@ -183,7 +186,8 @@ export class CapturedCopyPlanner {
     if (
       row.tasks_complete_at === null ||
       row.completed_complete_at === null ||
-      row.sync_cursor !== null
+      row.sync_cursor !== null ||
+      row.order_ready !== 1
     )
       throw conflict('refresh complete destination list coverage before capturing manual order');
     return {

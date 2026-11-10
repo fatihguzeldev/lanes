@@ -18,7 +18,9 @@ export class TaskCommandResources {
   async list(accountId: string, listId: string, revision?: number): Promise<ListRef> {
     const row = await this.db
       .prepare(
-        `SELECT id,account_id,title,provider_id,provider_etag,is_default,revision,projection_revision,tasks_complete_at,completed_complete_at,sync_cursor FROM tasks_lists WHERE account_id=? AND id=? AND deleted_at IS NULL`,
+        `SELECT id,account_id,title,provider_id,provider_etag,is_default,revision,projection_revision,tasks_complete_at,completed_complete_at,sync_cursor,
+        NOT EXISTS(SELECT 1 FROM tasks_sync_list_work w WHERE w.account_id=tasks_lists.account_id AND w.list_id=tasks_lists.id AND w.mode='full') AS order_ready
+        FROM tasks_lists WHERE account_id=? AND id=? AND deleted_at IS NULL`,
       )
       .bind(accountId, listId)
       .first<{
@@ -33,6 +35,7 @@ export class TaskCommandResources {
         tasks_complete_at: number | null;
         completed_complete_at: number | null;
         sync_cursor: string | null;
+        order_ready: number;
       }>();
     if (!row)
       throw new AppError('not_found', 'the selected list is not available in this account.', 404);
@@ -46,6 +49,7 @@ export class TaskCommandResources {
       isDefault: row.is_default === 1,
       revision: row.revision,
       projectionRevision: row.projection_revision,
+      orderComplete: row.order_ready === 1,
       complete:
         row.tasks_complete_at !== null &&
         row.completed_complete_at !== null &&
@@ -126,7 +130,11 @@ export class TaskCommandResources {
     movingId?: string,
     explicitPosition = false,
   ): Promise<{ parent: TaskRef | null; previous: TaskRef | null }> {
-    if (!explicitPosition || previousId === undefined) this.complete(list);
+    if (!explicitPosition || previousId === undefined) {
+      this.complete(list);
+      if (list.orderComplete === false)
+        throw conflict('the list’s sibling order is still being reconciled.');
+    }
     let parent: TaskRef | null = null,
       previous: TaskRef | null = null;
     if (parentId) {
