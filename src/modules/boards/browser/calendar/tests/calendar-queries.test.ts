@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildCalendarQueries } from '../CalendarWorkspace';
+import { buildCalendarQueries } from '../calendar-queries';
 
 const base = {
   accountId: 'account',
