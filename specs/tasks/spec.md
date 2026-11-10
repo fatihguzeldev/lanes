@@ -91,7 +91,7 @@ an eligible drop updates the displayed order immediately while saving online. ke
 
 reordering among the same siblings uses an explicit predecessor, or an explicit first position. it does not wait for a complete task scan, a completed-task scan, or reconciliation of unrelated siblings. retain the selected task, list, parent, and predecessor checks. a relative command is not settled as a no-op from cached sibling positions; an unchanged drag is rejected locally before submission. inferring the last sibling, changing parents, and moving between lists keep the checks their destination and subtree require.
 
-a rejected parent or predecessor reference can be read again once before admission when the server confirms that no command was captured. retry only if the placement context still matches; metadata and provider resequencing may differ. content, identity, hierarchy, completion, scheduling, and eligibility changes remain conflicts. never replay an admitted or uncertain mutation through this path.
+a rejected task, parent, or predecessor reference can be read again once before admission when the server confirms that no command was captured. retry only if the placement context still matches; metadata and provider resequencing may differ. content, identity, hierarchy, completion, scheduling, and eligibility changes remain conflicts. never replay an admitted or uncertain mutation through this path.
 
 keep a confirmed move's displayed placement until fresh source and destination reads acknowledge their reconciled order. a definite failure restores confirmed placement and discards later unsent moves that depended on it; earlier confirmed moves remain. an uncertain result stops that dependent queue and exposes its operation receipt for checking, without automatically submitting the move again.
 
@@ -192,4 +192,4 @@ validation leaves the draft intact. stale revision conflicts offer refresh and e
 
 - `tasks-27`: overlapping confirmations resolve independently; an unanswered task decision cannot disappear and strand its write queue.
 - `tasks-28`: pending creation label and blocker edits preserve set semantics and graph context. failed follow-ups recover through their own receipt without replaying uncertain writes.
-- `tasks-29`: metadata acknowledgments preserve a valid held drag, and a definitively uncaptured stale placement reference has one bounded refresh. content and hierarchy changes still reject it.
+- `tasks-29`: metadata acknowledgments preserve a valid held drag, and a definitively uncaptured stale task or placement reference has one bounded refresh. content and hierarchy changes still reject it.

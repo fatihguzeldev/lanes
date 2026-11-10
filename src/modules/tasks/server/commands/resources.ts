@@ -69,7 +69,7 @@ export class TaskCommandResources {
     accountId: string,
     id: string,
     revision?: number,
-    uncapturedReference?: 'parent' | 'previous',
+    uncapturedReference?: 'task' | 'parent' | 'previous',
   ): Promise<Task> {
     const task = await this.queries.getTask(accountId, id);
     if (revision !== undefined && task.revision !== revision) {

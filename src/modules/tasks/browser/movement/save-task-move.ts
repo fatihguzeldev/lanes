@@ -88,7 +88,7 @@ export async function saveTaskMove(
     (intent.sourceParentId ?? null) === intent.parentId &&
     intent.position !== 'last';
   if (!relativeOrder) await waitForOrder();
-  const [task, destination, preview] = await Promise.all([
+  let [task, destination, preview] = await Promise.all([
     send(`${base}/tasks/${encodeURIComponent(intent.taskId)}`, TaskSchema),
     send(`${base}/lists/${encodeURIComponent(intent.destinationListId)}`, TaskListSchema),
     relativeOrder
@@ -186,20 +186,27 @@ export async function saveTaskMove(
         !(error instanceof RequestError) ||
         error.code !== 'conflict' ||
         error.operationId ||
-        !((reference === 'parent' && parent) || (reference === 'previous' && previous))
+        !(
+          reference === 'task' ||
+          (reference === 'parent' && parent) ||
+          (reference === 'previous' && previous)
+        )
       )
         throw error;
-      const [freshParent, freshPrevious] = await Promise.all([
+      const [freshTask, freshParent, freshPrevious] = await Promise.all([
+        send(`${base}/tasks/${encodeURIComponent(task.id)}`, TaskSchema),
         parent ? send(`${base}/tasks/${encodeURIComponent(parent.id)}`, TaskSchema) : null,
         previous ? send(`${base}/tasks/${encodeURIComponent(previous.id)}`, TaskSchema) : null,
       ]);
       if (
+        !sameTaskMoveContext(task, freshTask) ||
         (parent && (!freshParent || !sameTaskMoveContext(parent, freshParent))) ||
         (previous && (!freshPrevious || !sameTaskMoveContext(previous, freshPrevious)))
       )
         throw new TaskMoveError(
           'this placement changed. its last confirmed position has been restored.',
         );
+      task = freshTask;
       parent = freshParent;
       previous = freshPrevious;
       signal?.throwIfAborted();

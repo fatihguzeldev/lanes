@@ -287,7 +287,12 @@ export class TaskCommandCapture {
       command.kind === 'task.reopen' ||
       command.kind === 'task.move'
     ) {
-      const selectedTask = await this.resources.task(accountId, command.taskId, command.revision),
+      const selectedTask = await this.resources.task(
+          accountId,
+          command.taskId,
+          command.revision,
+          command.kind === 'task.move' ? 'task' : undefined,
+        ),
         task = ref(selectedTask),
         list = await this.resources.list(accountId, task.listId);
       guards.push(this.resources.revisionGuard(accountId, task));
@@ -687,6 +692,8 @@ export class TaskCommandCapture {
       if (!capture) {
         if (command.kind === 'task.move') {
           const move = steps.at(-1)!;
+          if (move.task)
+            await this.resources.task(accountId, move.task.id, move.task.revision, 'task');
           for (const reference of ['parent', 'previous'] as const) {
             const task = move[reference];
             if (task) await this.resources.task(accountId, task.id, task.revision, reference);

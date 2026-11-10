@@ -9,6 +9,7 @@ import { TaskProjectionStore } from '../../../server/projection/store';
 import { GoogleTasksClient, type GoogleTaskDTO } from '../../../server/provider/google-tasks';
 import { readActiveList } from '../../../server/queries/lists';
 import { TaskQueries } from '../../../server/queries/tasks';
+import { TaskSyncService } from '../../../server/sync/service';
 import { AppError } from '../../../../../shared/contracts/errors';
 import { uncapturedPlacementReferenceField } from '../../../contracts/provider-commands';
 import { recordServerConnection } from '../../../../../shared/browser/connectivity/connectivity';
@@ -25,7 +26,7 @@ afterEach(() => {
 async function fixture(
   reference: 'parent' | 'previous',
   changes: string[] = ['star'],
-  timing: 'read' | 'capture' = 'read',
+  timing: 'read' | 'capture' | 'task-read' | 'task-capture' = 'read',
 ) {
   const data = testDatabase();
   cleanup.push(data.close);
@@ -92,9 +93,29 @@ async function fixture(
         tasks.set('a', moved);
         return Response.json(moved);
       }
+      if (url.pathname.endsWith('/tasks')) return Response.json({ items: [...tasks.values()] });
+      if (url.pathname.includes('/users/@me/lists'))
+        return Response.json({ id: 'google-list', title: 'work', etag: 'list-v1' });
       return Response.json(tasks.get(url.pathname.split('/').at(-1)!));
     },
   });
+  const sync = new TaskSyncService(db, { history, now: () => now, clientFor: async () => client });
+  let taskChanged = false;
+  const changeTask = async () => {
+    if (taskChanged) return;
+    taskChanged = true;
+    const change = changes.shift() ?? 'position';
+    tasks.set('a', {
+      ...tasks.get('a')!,
+      etag: 'a-resequenced',
+      ...(change === 'position' ? { position: '0010' } : {}),
+      ...(change === 'title' ? { title: 'changed title' } : {}),
+      ...(change === 'notes' ? { notes: 'changed notes' } : {}),
+      ...(change === 'parent' ? { parent: 'b' } : {}),
+    });
+    await db.batch(sync.providerOrderRefreshWrites('account', ['list'], 'create'));
+    await sync.advanceForeground('account');
+  };
   const changeReference = async (snapshot: Awaited<ReturnType<TaskQueries['getTask']>>) => {
     const change = changes.shift();
     if (change === 'star')
@@ -134,6 +155,15 @@ async function fixture(
             )
           )
             await changeReference(await queries.getTask('account', 'b'));
+          if (
+            timing === 'task-capture' &&
+            statements.some((statement) =>
+              (statement as unknown as { sql: string }).sql.startsWith(
+                'INSERT INTO tasks_command_plans',
+              ),
+            )
+          )
+            await changeTask();
           return target.batch(statements);
         };
       const value = Reflect.get(target, property);
@@ -155,7 +185,11 @@ async function fixture(
   vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
     const path = new URL(String(input), 'https://lanes.test').pathname;
     try {
-      if (path.endsWith('/tasks/a')) return Response.json(await queries.getTask('account', 'a'));
+      if (path.endsWith('/tasks/a')) {
+        const snapshot = await queries.getTask('account', 'a');
+        if (timing === 'task-read') await changeTask();
+        return Response.json(snapshot);
+      }
       if (path.endsWith('/tasks/b')) {
         const snapshot = await queries.getTask('account', 'b');
         if (timing === 'read') await changeReference(snapshot);
@@ -277,3 +311,26 @@ it('never marks an existing captured identity as safe to change and resubmit', a
   expect(f.providerMoves).toHaveLength(1);
   expect(f.uncapturedRejections).toEqual([true]);
 });
+
+it.each(['task-read', 'task-capture'] as const)(
+  'rechecks a selected task resequenced by a full sync during %s',
+  async (timing) => {
+    const f = await fixture('previous', ['position'], timing);
+    await expect(f.move()).resolves.toBe(true);
+    expect(f.admissions()).toBe(2);
+    expect(f.providerMoves).toHaveLength(1);
+    expect(f.uncapturedRejections).toEqual([true]);
+    expect(f.submitted[1]).toMatchObject({ taskId: 'a', revision: 2 });
+  },
+);
+
+it.each(['title', 'notes', 'parent'])(
+  'does not retry a selected task whose %s changed during its fresh read',
+  async (change) => {
+    const f = await fixture('previous', [change], 'task-read');
+    await expect(f.move()).rejects.toThrow();
+    expect(f.admissions()).toBe(1);
+    expect(f.providerMoves).toHaveLength(0);
+    expect(await f.receipts.summary(operationId, 'account')).toBeNull();
+  },
+);
