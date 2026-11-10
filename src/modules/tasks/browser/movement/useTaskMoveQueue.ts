@@ -5,7 +5,6 @@ import { createTaskMoveQueue } from './task-move-queue';
 import { latestTasks, projectTaskMoves, type QueuedTaskMove } from './task-move-model';
 import { saveTaskMove } from './save-task-move';
 import { newOperationId } from '../../../operations/browser/submission/operation-identity';
-
 export function useTaskMoveQueue(
   accountId: string,
   options: {
@@ -14,6 +13,7 @@ export function useTaskMoveQueue(
     onRefresh: () => void;
     onError: (error: unknown) => void;
     confirmChildren: (title: string, count: number) => Promise<boolean>;
+    runTask?: (taskId: string, work: () => Promise<boolean>) => Promise<boolean>;
   },
 ) {
   const [moves, setMoves] = useState<readonly QueuedTaskMove[]>([]);
@@ -49,6 +49,7 @@ export function useTaskMoveQueue(
           latest.current.onRefresh();
         }
       },
+      options.runTask ? (taskId, work) => latest.current.runTask!(taskId, work) : undefined,
     );
   if (!queue.current) queue.current = createQueue();
   useEffect(() => {

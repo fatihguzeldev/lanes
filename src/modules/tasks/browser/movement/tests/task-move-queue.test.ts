@@ -241,6 +241,37 @@ describe('optimistic task positions', () => {
 });
 
 describe('background move queue', () => {
+  it('cancels only dependent positions after failure and continues an independent move', async () => {
+    let fail!: (error: Error) => void;
+    const save = vi.fn(async (queued: QueuedTaskMove) => {
+      if (queued.id === 'a')
+        await new Promise((_resolve, reject) => {
+          fail = reject;
+        });
+      return true;
+    });
+    let snapshot: readonly QueuedTaskMove[] = [];
+    const queue = createTaskMoveQueue(
+      save,
+      (moves) => {
+        snapshot = moves;
+      },
+      vi.fn(),
+    );
+    queue.enqueue(move('a', null));
+    queue.enqueue(move('b', 'a'));
+    queue.enqueue(move('c', 'b'));
+    queue.enqueue({
+      ...move('independent', null, 'two'),
+      task: task('independent', 'two'),
+      intent: { ...move('independent', null, 'two').intent, sourceListId: 'two' },
+    });
+    fail(new Error('first move failed'));
+    await turn();
+    expect(save.mock.calls.map(([queued]) => queued.id)).toEqual(['a', 'independent']);
+    expect(snapshot.map((queued) => queued.id)).toEqual(['independent']);
+    expect(snapshot[0]?.confirmed).toBe(true);
+  });
   it.each(['deleted', 'moved'] as const)(
     'accepts a newer authoritative read where the task was %s without resurrecting its captured position',
     async (outcome) => {

@@ -173,6 +173,7 @@ export function Workspace({
   const moveQueue = useTaskMoveQueue(account.id, {
     version,
     clockOffset,
+    runTask: edits.run,
     onRefresh: changed,
     onError: (error) => {
       setNotice(
