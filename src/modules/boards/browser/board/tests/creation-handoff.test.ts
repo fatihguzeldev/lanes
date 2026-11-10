@@ -1,7 +1,7 @@
 import type { ReactElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CreateTaskSchema, TaskSchema } from '../../../../tasks/contracts/task';
-import type { PendingTaskCreation } from '../../../../tasks/browser/creation/useTaskCreations';
+import type { PendingTaskCreation } from '../../../../tasks/browser/creation/creation-model';
 import type { BoardColumn, BoardSurfaceProps } from '../BoardSurface';
 import { BoardWorkspace, type BoardWorkspaceProps } from '../BoardWorkspace';
 

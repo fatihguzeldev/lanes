@@ -1,7 +1,7 @@
 import type { ReactElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CreateTaskSchema, type Task } from '../../../../tasks/contracts/task';
-import type { PendingTaskCreation } from '../../../../tasks/browser/creation/useTaskCreations';
+import type { PendingTaskCreation } from '../../../../tasks/browser/creation/creation-model';
 import { CalendarWorkspace, type CalendarWorkspaceProps } from '../CalendarWorkspace';
 import type { CalendarViewProps } from '../CalendarView';
 

@@ -5,7 +5,7 @@ import {
   selectTasksWithContext,
 } from '../../model/task';
 import { taskChangeAcknowledged, type PendingTaskChange } from '../changes/useTaskChanges';
-import type { PendingTaskCreation } from '../creation/useTaskCreations';
+import type { PendingTaskCreation } from '../creation/creation-model';
 
 export function collectionCreationMatches(
   creation: PendingTaskCreation,

@@ -7,7 +7,7 @@ import './TaskCard.css';
 import type { SubtaskSummary } from '../../contracts/query';
 import { TaskStarButton, type ToggleTaskStar } from './TaskStarButton';
 import { useTaskToggle, type ToggleTaskField } from './useTaskToggle';
-import type { PendingTaskCreation } from '../creation/useTaskCreations';
+import type { PendingTaskCreation } from '../creation/creation-model';
 import { TaskCreationPreview } from '../creation/TaskCreationPreview';
 
 export interface TaskCardProps {

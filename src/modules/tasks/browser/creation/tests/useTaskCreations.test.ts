@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CreateTaskSchema, type Task } from '../../../contracts/task';
-import { creationAcknowledged, useTaskCreations } from '../useTaskCreations';
+import { useTaskCreations } from '../useTaskCreations';
+import { creationAcknowledged } from '../creation-model';
 import { RequestError } from '../../../../../shared/browser/http/http';
 import { TaskCreationPreview } from '../TaskCreationPreview';
 import type { OperationSummary } from '../../../../operations/contracts/receipt';

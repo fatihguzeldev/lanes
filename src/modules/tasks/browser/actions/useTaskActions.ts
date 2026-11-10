@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { CreationIntent, CreationResult } from '../creation/useTaskCreations';
+import type { CreationIntent, CreationResult } from '../creation/creation-model';
 import type { TaskPresentationPatch } from '../changes/useTaskChanges';
 import type { Task } from '../../contracts/task';
 import { TaskSchema } from '../../contracts/task';

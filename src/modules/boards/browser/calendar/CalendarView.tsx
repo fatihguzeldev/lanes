@@ -16,7 +16,7 @@ import {
 } from './calendar-model';
 import { Select } from '../../../../shared/ui/select/Select';
 import { TaskCreationPreview } from '../../../tasks/browser/creation/TaskCreationPreview';
-import type { PendingTaskCreation } from '../../../tasks/browser/creation/useTaskCreations';
+import type { PendingTaskCreation } from '../../../tasks/browser/creation/creation-model';
 import './CalendarView.css';
 
 export type { CalendarMode, CalendarScope } from './calendar-model';

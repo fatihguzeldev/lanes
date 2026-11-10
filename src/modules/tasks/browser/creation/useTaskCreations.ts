@@ -1,47 +1,14 @@
 import { useCallback, useRef, useState } from 'react';
-import type { CreateTask, Task, TaskPatch } from '../../contracts/task';
+import type { CreateTask, Task } from '../../contracts/task';
 import { readCreatedTask } from './creation-receipt';
 import { readTask } from '../queries/references';
-import { request, RequestError } from '../../../../shared/browser/http/http';
-import {
-  OperationSummarySchema,
-  type OperationSummary,
-} from '../../../operations/contracts/receipt';
+import { RequestError } from '../../../../shared/browser/http/http';
+import type { OperationSummary } from '../../../operations/contracts/receipt';
 import { createCreationSubmissionQueue } from './creation-submission-queue';
+import type { CreationIntent, CreationResult, PendingTaskCreation } from './creation-model';
+import { intentFor, applyConfirmedPhase, type CreationRecord } from './creation-state';
+import { recoverCreationFollowup } from './creation-recovery';
 
-export interface CreationIntent {
-  patch: TaskPatch;
-  expectedGraphRevision?: number;
-  completed?: boolean;
-  deleted?: boolean;
-}
-export type CreationResult =
-  | boolean
-  | 'cancelled'
-  | { saved: true; operationId?: string }
-  | {
-      saved: false;
-      message: string;
-      operationId?: string;
-      rejected?: boolean;
-    };
-export interface PendingTaskCreation {
-  id: number;
-  input: CreateTask;
-  confirmedAfter: number | null;
-  completed?: boolean;
-  deleted?: boolean;
-  resolvedTaskId?: string;
-  editing?: boolean;
-  controls?: {
-    disabled?: boolean;
-    onEdit(): void;
-    onStar(starred: boolean): void;
-    onComplete(completed: boolean): void;
-    onDelete(): void;
-  };
-  failure?: { message: string; onEdit(): void; onDiscard(): void; actionLabel?: string };
-}
 interface CreationOptions {
   editable?: boolean;
   onReady?(task: Task, intent: CreationIntent): Promise<CreationResult>;
@@ -49,106 +16,6 @@ interface CreationOptions {
   onOrderRefresh?(): void;
   onError?(message: string, operationId?: string): void;
   onInspect?(operationId: string): void;
-}
-interface CreationRecord extends PendingTaskCreation {
-  submittedInput: CreateTask;
-  appliedInput: CreateTask;
-  appliedCompleted?: boolean;
-  confirmedFollowup?: { operationId?: string };
-  onEdit?(input: CreateTask): void;
-  operationId?: string;
-  expectedGraphRevision?: number;
-  blockedFollowup?: {
-    intent: CreationIntent;
-    input: CreateTask;
-    task: Task;
-    expectedGraphRevision?: number;
-    operationId?: string;
-    rejected?: boolean;
-  };
-}
-
-export function creationAcknowledged(
-  creation: PendingTaskCreation,
-  readVersion?: number,
-  orderReadyTaskIds: readonly string[] = [],
-  orderReadyListIds: readonly string[] = [],
-) {
-  return (
-    creation.confirmedAfter !== null &&
-    !creation.editing &&
-    (readVersion ?? -1) > creation.confirmedAfter &&
-    !!creation.resolvedTaskId &&
-    (orderReadyTaskIds.includes(creation.resolvedTaskId) ||
-      orderReadyListIds.includes(creation.input.listId))
-  );
-}
-const editableFields = [
-  'title',
-  'notes',
-  'scheduledDay',
-  'scheduledTime',
-  'timeZone',
-  'repeatRule',
-  'labelIds',
-  'priority',
-  'starred',
-  'blockedBy',
-] as const;
-function sameField(field: string, left: unknown, right: unknown) {
-  const normalize = (value: unknown) =>
-    (field === 'labelIds' || field === 'blockedBy') && Array.isArray(value)
-      ? [...value].sort()
-      : value;
-  return JSON.stringify(normalize(left)) === JSON.stringify(normalize(right));
-}
-function intentConfirmed(task: Task, intent: CreationIntent) {
-  return (
-    Object.entries(intent.patch).every(([field, value]) =>
-      sameField(field, task[field as keyof Task], value),
-    ) &&
-    (intent.completed === undefined || task.completed === intent.completed)
-  );
-}
-function intentFor(task: Task, creation: CreationRecord): CreationIntent {
-  const patch: TaskPatch = {};
-  for (const field of editableFields) {
-    if (
-      creation.input[field] !== undefined &&
-      !sameField(field, creation.input[field], creation.appliedInput[field]) &&
-      !sameField(field, creation.input[field], task[field])
-    )
-      Object.assign(patch, { [field]: structuredClone(creation.input[field]) });
-  }
-  // Each receipt confirms one phase; later intent stays unsent until that phase is known.
-  if (Object.keys(patch).length)
-    return {
-      patch,
-      ...(patch.blockedBy !== undefined && creation.expectedGraphRevision !== undefined
-        ? { expectedGraphRevision: creation.expectedGraphRevision }
-        : {}),
-    };
-  if (
-    creation.completed !== undefined &&
-    creation.completed !== creation.appliedCompleted &&
-    creation.completed !== task.completed
-  )
-    return { patch: {}, completed: creation.completed };
-  return { patch: {}, ...(creation.deleted ? { deleted: true } : {}) };
-}
-function applyConfirmedPhase(
-  creation: CreationRecord,
-  input: CreateTask,
-  intent: CreationIntent,
-  operationId?: string,
-): CreationRecord {
-  const { blockedFollowup: _blocked, failure: _failure, ...saved } = creation;
-  return {
-    ...saved,
-    appliedInput: structuredClone(input),
-    ...(intent.completed === undefined ? {} : { appliedCompleted: intent.completed }),
-    confirmedFollowup: operationId ? { operationId } : {},
-  };
 }
 
 /** The immutable create owns admission; later local intent waits for its confirmed task identity. */
@@ -287,127 +154,21 @@ export function useTaskCreations(
             items.map((item) => (item.id === id ? { ...item, resolvedTaskId: task.id } : item)),
           );
           while (true) {
-            let creation = current.current.find((item) => item.id === id);
+            const creation = current.current.find((item) => item.id === id);
             if (!creation || currentAccount.current !== accountId) return;
             if (creation.blockedFollowup) {
-              const blocked = creation.blockedFollowup;
-              if (blocked.intent.deleted)
-                throw new RequestError(
-                  'creation_followup',
-                  'this new task still has a change that needs checking.',
-                  undefined,
-                  blocked.operationId,
-                );
-              let rejected = blocked.rejected && !blocked.operationId;
-              if (blocked.operationId) {
-                const receipt = await request(
-                  `/api/accounts/${encodeURIComponent(accountId)}/operations/${encodeURIComponent(blocked.operationId)}`,
-                  OperationSummarySchema,
-                );
-                creation = current.current.find((item) => item.id === id);
-                if (!creation || currentAccount.current !== accountId) return;
-                if (receipt.accountId !== accountId || receipt.id !== blocked.operationId)
-                  throw new RequestError(
-                    'creation_followup',
-                    'this new task still has a change that needs checking.',
-                    undefined,
-                    blocked.operationId,
-                  );
-                rejected =
-                  receipt.finished && receipt.state === 'failed' && receipt.confirmedSteps === 0;
-                if (!rejected && receipt.state !== 'succeeded')
-                  throw new RequestError(
-                    'creation_followup',
-                    'this new task still has a change that needs checking.',
-                    undefined,
-                    blocked.operationId,
-                  );
-              }
-              if (rejected) {
-                change((items) =>
-                  items.map((item) =>
-                    item.id === id
-                      ? { ...item, blockedFollowup: { ...blocked, rejected: true } }
-                      : item,
-                  ),
-                );
-                const { input: desiredInput, expectedGraphRevision } = creation;
-                const corrected =
-                  editableFields.some(
-                    (field) => !sameField(field, desiredInput[field], blocked.input[field]),
-                  ) ||
-                  (blocked.intent.patch.blockedBy !== undefined &&
-                    expectedGraphRevision !== blocked.expectedGraphRevision);
-                if (!corrected)
-                  throw new RequestError(
-                    'creation_followup',
-                    'edit this new task before trying its change again.',
-                    undefined,
-                    blocked.operationId,
-                  );
-              }
-              if (blocked.operationId && !rejected) {
-                change((items) =>
-                  items.map((item) =>
-                    item.id === id
-                      ? applyConfirmedPhase(
-                          item,
-                          blocked.input,
-                          blocked.intent,
-                          blocked.operationId,
-                        )
-                      : item,
-                  ),
-                );
-              }
-              if (blocked.operationId || rejected) {
-                task = await readTask(accountId, task.id);
-                creation = current.current.find((item) => item.id === id);
-                if (!creation || currentAccount.current !== accountId) return;
-                if (task.accountId !== accountId || task.listId !== captured.input.listId)
-                  throw new Error('the saved task moved before its queued changes finished.');
-              }
-              if (rejected) {
-                const patch = intentFor(task, creation).patch;
-                if (
-                  Object.keys(patch).some(
-                    (field) =>
-                      !sameField(
-                        field,
-                        task[field as keyof Task],
-                        blocked.task[field as keyof Task],
-                      ),
-                  )
-                )
-                  throw new RequestError(
-                    'creation_followup',
-                    'this task changed before its corrected edit could save. open its current values to review it.',
-                    undefined,
-                    blocked.operationId,
-                  );
-                change((items) =>
-                  items.map((item) => {
-                    if (item.id !== id) return item;
-                    const { blockedFollowup: _blocked, failure: _failure, ...saved } = item;
-                    return saved;
-                  }),
-                );
-                continue;
-              }
-              if (blocked.operationId) continue;
-              if (!intentConfirmed(task, blocked.intent))
-                throw new RequestError(
-                  'creation_followup',
-                  'this new task still has a change that needs checking.',
-                  undefined,
-                  blocked.operationId,
-                );
-              change((items) =>
-                items.map((item) => {
-                  if (item.id !== id) return item;
-                  return applyConfirmedPhase(item, blocked.input, blocked.intent);
-                }),
-              );
+              const recovered = await recoverCreationFollowup(accountId, task, {
+                current: () =>
+                  currentAccount.current === accountId
+                    ? current.current.find((item) => item.id === id)
+                    : undefined,
+                update: (transform) => {
+                  if (currentAccount.current !== accountId) return;
+                  change((items) => items.map((item) => (item.id === id ? transform(item) : item)));
+                },
+              });
+              if (!recovered) return;
+              task = recovered;
               continue;
             }
             const phase = creation;

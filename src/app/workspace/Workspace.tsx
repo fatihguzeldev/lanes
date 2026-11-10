@@ -21,11 +21,11 @@ import {
 } from '../../modules/operations/browser/status/ChangeInspection';
 import type { EditorLocation } from '../../modules/tasks/browser/editor/editor-contract';
 import { useTaskEditor } from '../../modules/tasks/browser/editor/useTaskEditor';
-import {
-  useTaskCreations,
-  type CreationIntent,
-  type CreationResult,
-} from '../../modules/tasks/browser/creation/useTaskCreations';
+import { useTaskCreations } from '../../modules/tasks/browser/creation/useTaskCreations';
+import type {
+  CreationIntent,
+  CreationResult,
+} from '../../modules/tasks/browser/creation/creation-model';
 import { useTaskChanges } from '../../modules/tasks/browser/changes/useTaskChanges';
 import { TaskEditorFlow } from '../../modules/tasks/browser/editor/TaskEditorFlow';
 import {

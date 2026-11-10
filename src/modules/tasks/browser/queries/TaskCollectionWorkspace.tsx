@@ -3,7 +3,7 @@ import type { ConnectionSummary } from '../../../accounts/contracts/connection';
 import { type Label, type Task, type TaskFilter, type TaskSort } from '../../contracts/task';
 import { TaskCard } from '../items/TaskCard';
 import type { EditorLocation } from '../editor/editor-contract';
-import { creationAcknowledged, type PendingTaskCreation } from '../creation/useTaskCreations';
+import { creationAcknowledged, type PendingTaskCreation } from '../creation/creation-model';
 import type { ToggleTaskStar } from '../items/TaskStarButton';
 import { countOpenTasks, getBlockingStates, sortTasks } from '../../model/task';
 import { collectionCreationMatches, selectCollectionTasks } from './collection-selection';

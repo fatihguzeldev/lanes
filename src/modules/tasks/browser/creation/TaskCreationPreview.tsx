@@ -1,4 +1,4 @@
-import type { PendingTaskCreation } from './useTaskCreations';
+import type { PendingTaskCreation } from './creation-model';
 import '../items/TaskCard.css';
 import './TaskCreationPreview.css';
 import '../items/TaskStarButton.css';

@@ -21,7 +21,7 @@ import { useTaskListContexts } from '../../../tasks/browser/queries/useTaskListC
 import {
   creationAcknowledged,
   type PendingTaskCreation,
-} from '../../../tasks/browser/creation/useTaskCreations';
+} from '../../../tasks/browser/creation/creation-model';
 import {
   taskChangeAcknowledged,
   projectTaskCollection,

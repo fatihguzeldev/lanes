@@ -67,7 +67,7 @@ function mount() {
   const props = {
     controller,
     creations: {
-      items: [] as import('../../creation/useTaskCreations').PendingTaskCreation[],
+      items: [] as import('../../creation/creation-model').PendingTaskCreation[],
       start: vi.fn(),
       confirm: vi.fn(),
       remove: vi.fn(),

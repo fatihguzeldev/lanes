@@ -10,7 +10,7 @@ import { InlineTaskCreate } from '../../../tasks/browser/creation/InlineTaskCrea
 import {
   creationAcknowledged,
   type PendingTaskCreation,
-} from '../../../tasks/browser/creation/useTaskCreations';
+} from '../../../tasks/browser/creation/creation-model';
 import {
   taskChangeAcknowledged,
   projectTaskCollection,
