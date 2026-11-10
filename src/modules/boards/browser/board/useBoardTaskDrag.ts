@@ -9,6 +9,7 @@ import {
 } from '../../../tasks/browser/movement/task-move-model';
 import type { BoardColumn } from './BoardSurface';
 import { captureTaskDrag, resolveTaskDragIntent, type DraggedTask } from './drag-intent';
+import { sameTaskMoveContext } from '../../../tasks/model/task-move-context';
 
 interface Options {
   accountId: string;
@@ -58,11 +59,15 @@ export function useBoardTaskDrag(options: Options) {
     const input = latest.current;
     if (!input.enabled || !input.onMoveTask || input.scope !== active.scope) return false;
     const task = captureTaskDrag({ ...input, taskId: active.dragged.taskId });
+    const current = latestTasks(input.columns.flatMap((column) => column.tasks)).find(
+      (task) => task.accountId === input.accountId && task.id === active.dragged.taskId,
+    );
     if (
       !task ||
+      !current ||
       task.accountId !== active.dragged.accountId ||
       task.sourceListId !== active.dragged.sourceListId ||
-      task.revision !== active.dragged.revision
+      !sameTaskMoveContext(active.task, current)
     )
       return false;
     const crossList = active.placement && active.placement.listId !== active.dragged.sourceListId;
@@ -209,15 +214,17 @@ export function useBoardTaskDrag(options: Options) {
     const active = gesture.current;
     if (!active) return;
     const input = latest.current;
+    const current = captureTaskDrag({ ...input, taskId: active.dragged.taskId });
     const intent =
       !event.canceled &&
       active.validTarget &&
       active.placement &&
+      current &&
       listId(event.operation.target) === active.placement.listId &&
       gestureIsCurrent(active)
         ? resolveTaskDragIntent({
             ...input,
-            dragged: active.dragged,
+            dragged: current,
             destinationListId: active.placement.listId,
             index: active.placement.index,
           })

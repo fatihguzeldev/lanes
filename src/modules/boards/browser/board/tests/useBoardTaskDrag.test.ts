@@ -222,6 +222,39 @@ describe('board task drag flow', () => {
     );
   });
 
+  it.each(['metadata', 'provider order'] as const)(
+    'keeps a held reorder when only %s is confirmed',
+    (change) => {
+      const initial = initialColumns();
+      initial[0]!.tasks = initial[0]!.tasks.map((task) =>
+        task.id === 'b' ? { ...task, starred: true } : task,
+      );
+      const flow = setup({ columns: initial });
+      flow.begin();
+      const drop = target('c', 'source', 2);
+      expect(openTaskOrder(flow.over(drop).columns[0]!)).toEqual(['a', 'c', 'b']);
+      const confirmed = initialColumns();
+      confirmed[0]!.tasks = initial[0]!.tasks.map((task) =>
+        task.id === 'b'
+          ? {
+              ...task,
+              revision: 2,
+              ...(change === 'provider order'
+                ? { provider: { ...task.provider, position: 'bb', etag: 'order-v2' } }
+                : {}),
+            }
+          : task,
+      );
+      flow.render({ columns: confirmed });
+      expect(flow.manager.actions.stop).not.toHaveBeenCalled();
+      expect(flow.render().dragging).toBe(true);
+      flow.end(drop);
+      expect(flow.options.onMoveTask).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ taskId: 'b', revision: 2, previousTaskId: 'c' }),
+      );
+    },
+  );
+
   it('can lift and reorder retained rows without waiting for the list scan', () => {
     const columns = initialColumns().map((column) => ({
       ...column,
@@ -312,15 +345,19 @@ describe('board task drag flow', () => {
     expect(flow.end(null).columns[1]!.tasks[0]!.title).toBe('refreshed title');
   });
 
-  it.each(['revision', 'order', 'scope', 'disabled'] as const)(
+  it.each(['content', 'order', 'scope', 'disabled'] as const)(
     'cancels when %s invalidates the gesture',
     (change) => {
       const flow = setup();
       flow.begin();
       flow.over(target('c', 'source', 2));
       const columns = initialColumns();
-      if (change === 'revision')
-        columns[0]!.tasks = [task('a'), task('b', 'source', { revision: 2 }), task('c')];
+      if (change === 'content')
+        columns[0]!.tasks = [
+          task('a'),
+          task('b', 'source', { title: 'changed task', revision: 2 }),
+          task('c'),
+        ];
       if (change === 'order') columns[0]!.orderedTaskIds = ['c', 'b', 'a'];
       flow.render({
         columns,
@@ -344,6 +381,30 @@ describe('board task drag flow', () => {
     flow.end(destination);
     expect(flow.options.onMoveTask).not.toHaveBeenCalled();
   });
+
+  it.each([
+    { title: 'changed title' },
+    { notes: 'changed notes' },
+    { completed: true },
+    { parentId: 'a' },
+    { scheduledDay: '2026-11-11' },
+    { provider: { ...task('b').provider, id: 'another-provider-task' } },
+    { capabilities: { ...task('b').capabilities, canMove: false } },
+    { unsupportedHierarchy: true },
+  ] satisfies Partial<Task>[])(
+    'still cancels an identity, content or eligibility change during the gesture: %j',
+    (patch) => {
+      const flow = setup();
+      flow.begin();
+      const drop = target('c', 'source', 2);
+      flow.over(drop);
+      const columns = initialColumns();
+      columns[0]!.tasks = [task('a'), task('b', 'source', { ...patch, revision: 2 }), task('c')];
+      flow.render({ columns }, false);
+      flow.end(drop);
+      expect(flow.options.onMoveTask).not.toHaveBeenCalled();
+    },
+  );
 
   it('cancels when the destination changes rather than persisting a stale numeric gap', () => {
     const flow = setup();
