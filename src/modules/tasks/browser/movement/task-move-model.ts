@@ -12,8 +12,13 @@ export interface TaskMoveList {
   orderReady?: boolean | undefined;
   readVersion?: number | undefined;
   providerComplete?: boolean | undefined;
+  orderReadyListIds?: readonly string[] | undefined;
   subtaskSummaries?: Record<string, SubtaskSummary> | undefined;
 }
+export type TaskMoveRead = Pick<
+  TaskMoveList,
+  'list' | 'status' | 'readVersion' | 'orderReadyListIds'
+>;
 import type { Task } from '../../contracts/task';
 import { sortTasks } from '../../model/task';
 
@@ -33,6 +38,13 @@ export interface QueuedTaskMove {
   scope: string;
   confirmed: boolean;
   confirmedAfter?: number;
+  verifiedAfter?: number;
+}
+
+export function moveReadAcknowledged(move: QueuedTaskMove, readVersion?: number): boolean {
+  return (
+    move.confirmed && move.verifiedAfter !== undefined && (readVersion ?? -1) > move.verifiedAfter
+  );
 }
 
 export function latestTasks(tasks: readonly Task[]): Task[] {
@@ -176,16 +188,18 @@ export function projectTaskMoves<T extends TaskMoveList>(
   return projected;
 }
 
-export function movesAcknowledged(
-  columns: readonly TaskMoveList[],
+export function movesAcknowledged<T extends TaskMoveRead>(
+  columns: readonly T[],
   moves: readonly QueuedTaskMove[],
 ): boolean {
   return moves.every((move) =>
     [move.intent.sourceListId, move.intent.destinationListId].every((id) => {
-      const column = columns.find((column) => column.list.id === id);
+      const column = columns.find(
+        (column) => column.list.id === id && column.list.accountId === move.intent.accountId,
+      );
       return (
         column?.status === 'ready' &&
-        column.providerComplete === true &&
+        column.orderReadyListIds?.includes(id) === true &&
         (column.readVersion ?? -1) > (move.confirmedAfter ?? -1)
       );
     }),

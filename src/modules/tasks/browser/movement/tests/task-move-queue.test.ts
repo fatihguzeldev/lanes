@@ -61,6 +61,7 @@ function column(id: string, tasks: Task[]): TaskMoveList {
     status: 'ready',
     readVersion: 1,
     providerComplete: true,
+    orderReadyListIds: [id],
     nextCursor: null,
   };
 }
@@ -202,7 +203,8 @@ describe('optimistic task positions', () => {
     expect(movesAcknowledged([initial], [queued])).toBe(false);
     const fresh = { ...initial, readVersion: 8 };
     expect(movesAcknowledged([fresh], [queued])).toBe(true);
-    expect(movesAcknowledged([{ ...fresh, providerComplete: false }], [queued])).toBe(false);
+    expect(movesAcknowledged([{ ...fresh, orderReadyListIds: [] }], [queued])).toBe(false);
+    expect(movesAcknowledged([{ ...fresh, providerComplete: false }], [queued])).toBe(true);
     expect(movesAcknowledged([{ ...fresh, status: 'loading' }], [queued])).toBe(false);
     expect(movesAcknowledged([{ ...fresh, readVersion: undefined }], [queued])).toBe(false);
     expect(
@@ -241,6 +243,50 @@ describe('optimistic task positions', () => {
 });
 
 describe('background move queue', () => {
+  it('retires a cross-board move after source and destination are observed separately', async () => {
+    let snapshot: readonly QueuedTaskMove[] = [];
+    const queue = createTaskMoveQueue(
+      async (queued) => {
+        queued.confirmedAfter = 7;
+        return true;
+      },
+      (moves) => {
+        snapshot = moves;
+      },
+      vi.fn(),
+    );
+    queue.enqueue(move('a', null, 'two'));
+    await turn();
+    queue.reconcile([{ ...column('one', []), readVersion: 8 }], 'source-board');
+    expect(snapshot).toHaveLength(1);
+    queue.reconcile(
+      [{ ...column('two', [task('a', 'two')]), readVersion: 9 }],
+      'destination-board',
+    );
+    expect(snapshot).toEqual([]);
+  });
+
+  it('retains verified moves until a presented read starts after verification', async () => {
+    let snapshot: readonly QueuedTaskMove[] = [];
+    const queue = createTaskMoveQueue(
+      async (queued) => {
+        queued.confirmedAfter = 7;
+        return true;
+      },
+      (moves) => {
+        snapshot = moves;
+      },
+      vi.fn(),
+    );
+    queue.enqueue(move('a', null, 'two'));
+    await turn();
+    expect(queue.verifyOrder(['a'], 9)).toBe(true);
+    expect(queue.verifyOrder(['a'], 10)).toBe(false);
+    queue.observeRead(9);
+    expect(snapshot).toHaveLength(1);
+    queue.observeRead(10);
+    expect(snapshot).toEqual([]);
+  });
   it('cancels only dependent positions after failure and continues an independent move', async () => {
     let fail!: (error: Error) => void;
     const save = vi.fn(async (queued: QueuedTaskMove) => {

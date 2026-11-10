@@ -1,4 +1,10 @@
-import { movesAcknowledged, type TaskMoveList, type QueuedTaskMove } from './task-move-model';
+import {
+  moveReadAcknowledged,
+  movesAcknowledged,
+  type TaskMoveList,
+  type TaskMoveRead,
+  type QueuedTaskMove,
+} from './task-move-model';
 
 export function createTaskMoveQueue(
   save: (move: QueuedTaskMove) => Promise<boolean>,
@@ -9,6 +15,7 @@ export function createTaskMoveQueue(
   let moves: QueuedTaskMove[] = [];
   let draining = false;
   let disposed = false;
+  const observed = new Map<string, TaskMoveRead>();
   const scheduled = new Map<
     string,
     {
@@ -17,6 +24,15 @@ export function createTaskMoveQueue(
     }
   >();
   const publish = () => {
+    for (const [key, column] of observed)
+      if (
+        !moves.some(
+          (move) =>
+            move.intent.accountId === column.list.accountId &&
+            [move.intent.sourceListId, move.intent.destinationListId].includes(column.list.id),
+        )
+      )
+        observed.delete(key);
     if (!disposed) changed([...moves]);
   };
   function discardDependent(failedMove: QueuedTaskMove) {
@@ -99,9 +115,50 @@ export function createTaskMoveQueue(
       void drain();
     },
     reconcile(columns: readonly TaskMoveList[], _scope: string) {
+      for (const column of columns) {
+        if (
+          !moves.some(
+            (move) =>
+              move.intent.accountId === column.list.accountId &&
+              [move.intent.sourceListId, move.intent.destinationListId].includes(column.list.id),
+          )
+        )
+          continue;
+        if (
+          column.status !== 'ready' ||
+          column.readVersion === undefined ||
+          !column.orderReadyListIds?.includes(column.list.id)
+        )
+          continue;
+        const key = JSON.stringify([column.list.accountId, column.list.id]);
+        if ((observed.get(key)?.readVersion ?? -1) <= column.readVersion)
+          observed.set(key, {
+            list: column.list,
+            status: 'ready',
+            readVersion: column.readVersion,
+            orderReadyListIds: [column.list.id],
+          });
+      }
       const retained = moves.filter(
-        (move) => !move.confirmed || !movesAcknowledged(columns, [move]),
+        (move) => !move.confirmed || !movesAcknowledged([...observed.values()], [move]),
       );
+      if (retained.length !== moves.length) {
+        moves = retained;
+        publish();
+      }
+    },
+    verifyOrder(ids: readonly string[], version: number) {
+      let verified = false;
+      for (const move of moves) {
+        if (!move.confirmed || move.verifiedAfter !== undefined || !ids.includes(move.id)) continue;
+        move.verifiedAfter = version;
+        verified = true;
+      }
+      if (verified) publish();
+      return verified;
+    },
+    observeRead(readVersion?: number) {
+      const retained = moves.filter((move) => !moveReadAcknowledged(move, readVersion));
       if (retained.length !== moves.length) {
         moves = retained;
         publish();
@@ -112,6 +169,7 @@ export function createTaskMoveQueue(
       moves = [];
       for (const pending of scheduled.values()) pending.start();
       scheduled.clear();
+      observed.clear();
     },
   };
 }
