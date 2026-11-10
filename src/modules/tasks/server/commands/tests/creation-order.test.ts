@@ -12,7 +12,7 @@ const now = Date.parse('2026-11-10T12:00:00Z');
 const cleanup: Array<() => void> = [];
 afterEach(() => cleanup.splice(0).forEach((close) => close()));
 
-async function fixture(parentId: string | null = null) {
+async function fixture(parentId: string | null = null, empty = false) {
   const data = testDatabase();
   cleanup.push(data.close);
   await seedAccount(data.db, 'account', now);
@@ -59,6 +59,7 @@ async function fixture(parentId: string | null = null) {
         ]
       : []),
   ]);
+  if (empty) tasks.delete('old');
   await data.db.batch(
     (
       await projection.prepareConfirmedWrites('account', 'list', [...tasks.values()], {
@@ -210,4 +211,16 @@ it('does not infer a tail from stale sibling positions while explicit insertion 
     'sibling order is still being reconciled',
   );
   expect(f.calls.filter((call) => call.method === 'POST')).toHaveLength(1);
+});
+
+it('announces verified order even when an empty list’s only task already matches Google', async () => {
+  const f = await fixture(null, true);
+  expect((await f.query()).orderReadyTaskIds).toEqual([]);
+  let changed = false;
+  for (let step = 0; step < 5 && (await f.sync.getStatus('account')).pending; step++) {
+    const progress = await f.sync.advanceForeground('account');
+    changed ||= progress.changes.tasks;
+  }
+  expect((await f.query()).orderReadyTaskIds).toHaveLength(1);
+  expect(changed).toBe(true);
 });

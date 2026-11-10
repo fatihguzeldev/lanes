@@ -1099,6 +1099,7 @@ export class TaskSyncService {
         >();
       foreground.changes.tasks ||=
         changed ||
+        (work.mode === 'full' && cursor === null) ||
         (missingWrite !== undefined && (committed[missingWrite + 1]?.meta.changes ?? 0) > 0) ||
         !after ||
         (list.tasks_complete_at !== null) !== (after.tasks_complete_at !== null) ||
