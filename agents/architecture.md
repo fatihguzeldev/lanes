@@ -71,21 +71,21 @@ public server context and capability types are separate from private database ro
 
 accounts separates session cookies and installation/session storage, oauth state and authorization, conditional grant writes, connected-account reads/preferences, credential refresh, and account lifecycle coordination. initial owner binding, its first task connection, and its session still commit together.
 
-operations separates public receipt queries from the execution journal. the journal owns claims and receipt settlement in `tasks_operations` and `tasks_operation_*`. tasks owns `tasks_list_reservations`. task list inventory and reservation policy stay with tasks; captured-command retention stays with the command owner. worker composition supplies those concrete capabilities. their prepared writes join the journal's existing batch rather than committing independently.
+operations separates public receipt queries from the execution journal. lifecycle retention owns terminal payload pruning and aged receipt cleanup. the journal owns claims and receipt settlement in `tasks_operations` and `tasks_operation_*`. tasks owns `tasks_list_reservations`. task list inventory and reservation policy stay with tasks; captured-command retention stays with the command owner. worker composition supplies those concrete capabilities. their prepared writes join the journal's existing batch rather than committing independently.
 
 account cleanup follows the existing bounded lifecycle order. each owner prepares or performs its own cleanup slice; a caller does not duplicate another owner's delete statements. account state checks and writable-account selection belong to accounts.
 
 ### task and board server flows
 
 - command capture owns validated input, replay identity, and captured plans. dispatch and reconciliation use the captured input. settlement combines confirmed provider values, metadata effects, history, and receipt writes at the existing commit boundary.
-- projection owns stable task identity and confirmed values. sync owns provider inventory, reconciliation jobs, leases, cursors, and follow-up work. recording a confirmed command does not require importing the sync scheduler.
+- projection owns stable task identity and confirmed values. sync owns provider inventory, reconciliation jobs, leases, cursors, and follow-up work. recording a confirmed command does not require importing the sync scheduler. identity reconciliation and list observations prepare their guarded writes; the scheduler owns claims, work budgets, generations, and the batch that commits them.
 - metadata separates task patches, labels, and resumable label deletion. recurrence separates successor work, reopen choices, and status queries.
 - task queries share the bounded hierarchy, coverage, cursor, and export-selection model. label reads are a separate query capability. snapshot capture and reusable template definitions have separate services.
 - boards separates queries from guarded mutations. list grouping, template definitions, application, and scheduling remain board-owned; list snapshots and list-template rules remain task-owned.
 
 ### browser and transfer flows
 
-feature controllers own their draft, selection, request, and dialog lifetimes. app composition supplies navigation callbacks. moving presentation into a popover must not move an ongoing save controller into the popover's shorter lifetime.
+feature controllers own their draft, selection, request, and dialog lifetimes. creation intent and confirmed-phase rules are separate from receipt recovery and the react record/editor lifetime. board columns own their scoped query, paging, and readiness; board composition combines those reads with pending presentation. app composition supplies navigation callbacks. moving presentation into a popover must not move an ongoing save controller into the popover's shorter lifetime.
 
 app retains mutation owners for visited accounts while selection changes the visible workspace. inactive owners do not mount editors, menus, or foreground sync. captured work keeps its account, input, and receipt identity; failures remain reachable when its presentation closes or another account is selected. unsent drafts still use the navigation guard.
 
@@ -97,7 +97,7 @@ tasks owns editing, creation, completion, movement, labels, planning, and sync p
 
 transfer groups imports, archive capture/restore, exports, sheets, parsing workers, and account copying. the browser form does not implement another version of the server import protocol. parser workers stay with the browser flow that starts them; portable format rules stay under `formats/`.
 
-archive export separates capture from frozen download queries and integrity checks. metadata restore separates source resolution, destination matching and explicit choices, local command settlement, and resumable application. owner writes and their restore receipts remain in the same guarded batch.
+sheets export separates retained-state queries from capture, confirmation, and provider execution. archive export separates capture from frozen download queries and integrity checks. metadata restore separates source resolution, destination matching and explicit choices, local command settlement, and resumable application. owner writes and their restore receipts remain in the same guarded batch.
 
 ## dependency direction
 
