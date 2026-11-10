@@ -25,7 +25,9 @@ import { decodeCursor, encodeCursor, fingerprint, parse, readIdsSchema } from '.
 import { readProjectionFirst, readProjectionRows } from './read';
 
 const scopeRevisionSql =
-  '(SELECT json_group_array(json_array(id,projection_revision)) FROM (SELECT id,projection_revision FROM scoped_lists ORDER BY id))';
+  '(SELECT json_group_array(json_array(id,projection_revision,query_revision)) FROM (SELECT id,projection_revision,query_revision FROM scoped_lists ORDER BY id))';
+const pageRevisionSql =
+  '(SELECT json_group_array(json_array(id,query_revision)) FROM (SELECT id,query_revision FROM scoped_lists ORDER BY id))';
 
 interface CoverageRow {
   inventory: number | null;
@@ -460,35 +462,44 @@ export class TaskQueries {
       LEFT JOIN tasks_tasks p ON p.account_id=t.account_id AND p.list_id=t.list_id AND p.id=t.parent_id AND p.deleted_at IS NULL
       WHERE ${filter.sql})`;
     const bindings = [...scope.bindings, ...filter.bindings];
-    let anchor: Record<string, string | number> | null = null;
-    if (cursor) {
-      anchor = await readProjectionFirst<Record<string, string | number>>(
-        this.db
-          .prepare(
-            `${cte} SELECT ${names.join(',')} FROM candidates WHERE id=? AND revision=? AND root_id=? AND root_revision=?`,
-          )
-          .bind(...bindings, cursor.id, cursor.revision, cursor.rootId, cursor.rootRevision),
-      );
-      if (!anchor)
-        throw new AppError('conflict', 'the task page changed; refresh this selection', 409);
-    }
+    if (cursor && !cursor.selectionRevision)
+      throw new AppError('conflict', 'the task page changed; refresh this selection', 409);
+    const anchor = cursor
+      ? `,cursor_anchor AS (SELECT ${names.join(',')} FROM candidates WHERE id=? AND revision=? AND root_id=? AND root_revision=?)`
+      : '';
+    const anchorBindings = cursor
+      ? [cursor.id, cursor.revision, cursor.rootId!, cursor.rootRevision!]
+      : [];
     const selection = await this.readSnapshot([
       this.db
         .prepare(
-          `${cte} SELECT id,revision,parent_id,context_id,root_id,root_revision,estimated,parent_estimated FROM candidates
-      ${anchor ? `WHERE (${names.join(',')})>(${names.map(() => '?').join(',')})` : ''}
+          `${cte}${anchor} SELECT id,revision,parent_id,context_id,root_id,root_revision,estimated,parent_estimated FROM candidates
+      ${cursor ? `WHERE (${names.join(',')})>(SELECT ${names.join(',')} FROM cursor_anchor)` : ''}
       ORDER BY ${names.join(',')} LIMIT ?`,
         )
-        .bind(...bindings, ...(anchor ? names.map((name) => anchor![name]!) : []), query.limit + 1),
+        .bind(...bindings, ...anchorBindings, query.limit + 1),
       this.db
         .prepare(
-          `WITH scoped_lists AS (${scope.sql}) SELECT ${scopeRevisionSql} AS selection_revision`,
+          `WITH scoped_lists AS (${scope.sql}) SELECT ${scopeRevisionSql} AS selection_revision,${pageRevisionSql} AS page_revision`,
         )
         .bind(...scope.bindings),
+      ...(cursor
+        ? [
+            this.db
+              .prepare(`${cte}${anchor} SELECT 1 AS valid FROM cursor_anchor`)
+              .bind(...bindings, ...anchorBindings),
+          ]
+        : []),
     ]);
     const candidates = selection[0]! as Candidate[];
-    const selectionRevision = (selection[1]![0] as { selection_revision: string })
-      .selection_revision;
+    const { selection_revision: selectionRevision, page_revision: pageRevision } =
+      selection[1]![0] as {
+        selection_revision: string;
+        page_revision: string;
+      };
+    const selectionFingerprint = await fingerprint(pageRevision);
+    if (cursor && (!selection[2]?.length || cursor.selectionRevision !== selectionFingerprint))
+      throw new AppError('conflict', 'the task page changed; refresh this selection', 409);
     const selected = new Map<string, number>();
     const admitted: Candidate[] = [];
     let bytes = 0;
@@ -559,6 +570,7 @@ export class TaskQueries {
             revision: last.revision,
             rootId: last.root_id,
             rootRevision: last.root_revision,
+            selectionRevision: selectionFingerprint,
           })
         : null;
     const providerCoverage = this.mapCoverage(coverageRow, context.now ?? Date.now());

@@ -12,6 +12,7 @@ export const cursorSchema = z
     revision: z.number().int().nonnegative(),
     rootId: ResourceIdSchema.max(1_024).optional(),
     rootRevision: z.number().int().nonnegative().optional(),
+    selectionRevision: z.string().length(64).optional(),
   })
   .strict();
 
