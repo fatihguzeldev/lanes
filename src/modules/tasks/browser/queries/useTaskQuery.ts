@@ -40,11 +40,13 @@ export function useTaskQuery(accountId: string, input: TaskQueryInput | null, in
       flight.current = controller;
       setState((previous) => ({ ...previous, status: 'loading', error: '' }));
       try {
+        let appendPage = append;
+        const initialBody = { ...inputRef.current };
         const body = { ...inputRef.current, ...(cursor ? { cursor } : {}) };
-        const readPage = () =>
+        const readPage = (selection = body) =>
           request(`/api/accounts/${encodeURIComponent(accountId)}/tasks/query`, TaskPageSchema, {
             method: 'POST',
-            body,
+            body: selection,
             signal: controller.signal,
           });
         let page: TaskPage;
@@ -52,30 +54,33 @@ export function useTaskQuery(accountId: string, input: TaskQueryInput | null, in
           page = await readPage();
         } catch (error) {
           if (
-            append ||
             !(error instanceof RequestError) ||
             error.code !== 'conflict' ||
             controller.signal.aborted ||
             generation.current !== epoch
           )
             throw error;
-          page = await readPage();
+          // Restart a changed selection; never replay its invalid cursor or merge its old pages.
+          appendPage = false;
+          page = await readPage(append ? initialBody : body);
         }
         if (generation.current !== epoch || controller.signal.aborted) return;
         setState((previous) => {
-          const byId = new Map((append ? previous.page.items : []).map((task) => [task.id, task]));
+          const byId = new Map(
+            (appendPage ? previous.page.items : []).map((task) => [task.id, task]),
+          );
           page.items.forEach((task) => byId.set(task.id, task));
           const matched = new Set([
-            ...(append ? previous.page.matchedTaskIds : []),
+            ...(appendPage ? previous.page.matchedTaskIds : []),
             ...page.matchedTaskIds,
           ]);
           const contexts = new Set([
-            ...(append ? previous.page.contextTaskIds : []),
+            ...(appendPage ? previous.page.contextTaskIds : []),
             ...page.contextTaskIds,
           ]);
           const orderReadyTaskIds = [
             ...new Set([
-              ...(append ? (previous.page.orderReadyTaskIds ?? []) : []),
+              ...(appendPage ? (previous.page.orderReadyTaskIds ?? []) : []),
               ...(page.orderReadyTaskIds ?? []),
             ]),
           ];
@@ -88,7 +93,7 @@ export function useTaskQuery(accountId: string, input: TaskQueryInput | null, in
               contextTaskIds: [...contexts],
               orderReadyTaskIds,
               subtaskSummaries: {
-                ...(append ? previous.page.subtaskSummaries : {}),
+                ...(appendPage ? previous.page.subtaskSummaries : {}),
                 ...page.subtaskSummaries,
               },
               coverage: {

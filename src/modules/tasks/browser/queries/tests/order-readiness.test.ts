@@ -101,7 +101,7 @@ it('rereads a superseded initial snapshot once without exposing a transient conf
   expect(render().error).toBe('');
 });
 
-it('bounds snapshot retries and does not replay an invalidated paging cursor', async () => {
+it('bounds snapshot retries and restarts an invalidated page without replaying its cursor', async () => {
   request.mockRejectedValue(new RequestError('conflict', 'the task page changed'));
   render();
   await vi.waitFor(() => expect(render().status).toBe('error'));
@@ -109,11 +109,60 @@ it('bounds snapshot retries and does not replay an invalidated paging cursor', a
   request
     .mockReset()
     .mockResolvedValueOnce(page(['first'], 'next'))
-    .mockRejectedValueOnce(new RequestError('conflict', 'the task page changed'));
+    .mockRejectedValueOnce(new RequestError('conflict', 'the task page changed'))
+    .mockRejectedValueOnce(new RequestError('conflict', 'the task page changed again'));
   await render().reload();
   await render().loadMore();
-  expect(request).toHaveBeenCalledTimes(2);
+  expect(request).toHaveBeenCalledTimes(3);
+  expect(request.mock.calls.map((call) => call[2].body.cursor)).toEqual([
+    undefined,
+    'next',
+    undefined,
+  ]);
   expect(render().status).toBe('error');
+});
+
+it('replaces accumulated pages after a cursor conflict without exposing the transient error', async () => {
+  request
+    .mockResolvedValueOnce(page(['old'], 'old-cursor'))
+    .mockRejectedValueOnce(new RequestError('conflict', 'the list order changed'))
+    .mockResolvedValueOnce(page(['fresh'], 'new-cursor'));
+  render();
+  await Promise.resolve();
+  await render().loadMore();
+  expect(request.mock.calls.map((call) => call[2].body.cursor)).toEqual([
+    undefined,
+    'old-cursor',
+    undefined,
+  ]);
+  expect(render().status).toBe('ready');
+  expect(render().page.orderReadyTaskIds).toEqual(['fresh']);
+  expect(render().page.nextCursor).toBe('new-cursor');
+  expect(render().error).toBe('');
+});
+
+it('ignores a delayed page restart after a newer invalidation has replaced it', async () => {
+  let finish!: (value: TaskPage) => void;
+  request
+    .mockResolvedValueOnce(page(['old'], 'old-cursor'))
+    .mockRejectedValueOnce(new RequestError('conflict', 'the list order changed'))
+    .mockReturnValueOnce(
+      new Promise<TaskPage>((resolve) => {
+        finish = resolve;
+      }),
+    )
+    .mockResolvedValueOnce(page(['newer']));
+  render();
+  await Promise.resolve();
+  const restart = render().loadMore();
+  await vi.waitFor(() => expect(request).toHaveBeenCalledTimes(3));
+  render(1);
+  await Promise.resolve();
+  expect(render(1).page.orderReadyTaskIds).toEqual(['newer']);
+  finish(page(['obsolete']));
+  await restart;
+  expect(render(1).page.orderReadyTaskIds).toEqual(['newer']);
+  expect(render(1).settled).toBe(true);
 });
 
 it('uses the latest scoped list proof when another page reveals pending order work', async () => {
