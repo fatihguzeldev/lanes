@@ -65,7 +65,7 @@ export async function saveTaskMove(
           }),
         ),
       );
-      if (pages.every((page) => page.providerCoverage.complete)) return;
+      if (pages.every((page, index) => page.orderReadyListIds?.includes(listIds[index]!))) return;
       const sync = await send(`${base}/sync`, SyncStatusSchema);
       if (
         !sync.pending ||
@@ -185,17 +185,7 @@ export async function saveTaskMove(
         { method: 'POST', body: {} },
       );
     }
-    if (operation.state === 'succeeded') {
-      // The move is confirmed even if its follow-up provider scan is temporarily unavailable.
-      if (!relativeOrder) {
-        try {
-          await waitForOrder();
-        } catch {
-          /* A later grouped move waits for this same durable scan. */
-        }
-      }
-      return true;
-    }
+    if (operation.state === 'succeeded') return true;
     throw new TaskMoveError(
       operation.error?.message ??
         (operation.finished

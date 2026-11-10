@@ -85,6 +85,7 @@ const page = (complete = true) => ({
   nextCursor: null,
   coverage: { complete, stale: !complete, lastSyncedAt: new Date(now).toISOString() },
   providerCoverage: { complete, stale: !complete, lastSyncedAt: new Date(now).toISOString() },
+  orderReadyListIds: complete ? ['one'] : [],
 });
 const receipt = (patch: Partial<OperationSummary> = {}): OperationSummary => ({
   id: operationId,
@@ -154,6 +155,48 @@ afterEach(() => {
 });
 
 describe('durable task move driver', () => {
+  it('releases a confirmed move before its background order verification finishes', async () => {
+    let confirmed = false;
+    const calls = network((call) => {
+      if (call.path === `${base}/tasks/query`)
+        return { ...page(), orderReadyListIds: confirmed ? [] : ['one'] };
+      if (call.path === `${base}/commands/provider`) {
+        confirmed = true;
+        return succeeded();
+      }
+      if (call.path.startsWith(`${base}/sync`))
+        throw new Error('verification belongs to the account owner');
+    });
+    await expect(saveTaskMove({ ...intent, position: 'last' }, operationId)).resolves.toBe(true);
+    expect(calls.filter((call) => call.path === `${base}/tasks/query`)).toHaveLength(1);
+  });
+  it('waits for list order proof even when creation preserved complete task coverage', async () => {
+    let orderReady = false;
+    const calls = network((call) => {
+      if (call.path === `${base}/tasks/query`)
+        return { ...page(), orderReadyListIds: orderReady ? ['one'] : [] };
+      if (call.path === `${base}/sync`)
+        return {
+          initialized: true,
+          pending: true,
+          nextAttemptAt: Date.now(),
+          phase: 'tasks',
+          errorCode: null,
+        };
+      if (call.path === `${base}/sync/advance`) {
+        orderReady = true;
+        return { accountId: 'account', phase: 'tasks', continued: false };
+      }
+      if (call.path === `${base}/commands/provider`) {
+        expect(orderReady).toBe(true);
+        return succeeded();
+      }
+    });
+    await expect(saveTaskMove({ ...intent, position: 'last' }, operationId)).resolves.toBe(true);
+    expect(calls.findIndex((call) => call.path.endsWith('/sync/advance'))).toBeLessThan(
+      calls.findIndex((call) => call.path.endsWith('/commands/provider')),
+    );
+  });
   it('sends an explicit sibling reorder while full-list sync remains incomplete', async () => {
     const previous = { ...task, id: 'tail', revision: 11 };
     const calls = network((call) => {
@@ -221,9 +264,9 @@ describe('durable task move driver', () => {
       },
     ]);
     expect(calls.filter((call) => call.path.endsWith('/advance')).map((call) => call.path)).toEqual(
-      [`${base}/operations/${operationId}/advance`, `${base}/sync/advance`],
+      [`${base}/operations/${operationId}/advance`],
     );
-    expect(calls.filter((call) => call.path === `${base}/tasks/query`)).toHaveLength(3);
+    expect(calls.filter((call) => call.path === `${base}/tasks/query`)).toHaveLength(1);
   });
 
   it('starts another relative reorder before the earlier full-order refresh settles', async () => {
