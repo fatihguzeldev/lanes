@@ -105,6 +105,49 @@ beforeEach(() => {
   });
 });
 
+it('keeps a newer date visible while an earlier clear is dispatched and saved', async () => {
+  let releaseRead!: (task: Task) => void;
+  state.read.mockImplementationOnce(
+    () =>
+      new Promise<Task>((resolve) => {
+        releaseRead = resolve;
+      }),
+  );
+  let releaseWrite!: () => void;
+  const writeGate = new Promise<void>((resolve) => {
+    releaseWrite = resolve;
+  });
+  const save = state.submit.getMockImplementation()!;
+  state.submit.mockImplementationOnce(async (...args) => {
+    await writeGate;
+    return save(...args);
+  });
+  function pair() {
+    state.cursor = 0;
+    const changes = useTaskChanges('account', 0);
+    context = { ...context, changes };
+    return { changes, actions: useTaskActions(context, 0) };
+  }
+  const first = pair().actions.reschedule(
+    { accountId: 'account', taskId: task.id, revision: task.revision, scheduledDay: null },
+    task,
+  );
+  await vi.waitFor(() => expect(state.read).toHaveBeenCalledOnce());
+  const row = projectTaskCollection([task], pair().changes.items)[0]!;
+  const second = pair().actions.reschedule(
+    { accountId: 'account', taskId: task.id, revision: task.revision, scheduledDay: '2026-11-10' },
+    row,
+  );
+  expect(projectTaskCollection([task], pair().changes.items)[0]?.scheduledDay).toBe('2026-11-10');
+  releaseRead({ ...current });
+  await vi.waitFor(() => expect(state.submit).toHaveBeenCalledOnce());
+  expect(projectTaskCollection([task], pair().changes.items)[0]?.scheduledDay).toBe('2026-11-10');
+  expect(pair().changes.items.map((item) => item.id)).toEqual(['date:1', 'date:2']);
+  releaseWrite();
+  expect(await Promise.all([first, second])).toEqual([true, true]);
+  expect(current.scheduledDay).toBe('2026-11-10');
+});
+
 describe('queued task actions', () => {
   it('reads the revision produced by the preceding star before capturing completion', async () => {
     let finish!: () => void;

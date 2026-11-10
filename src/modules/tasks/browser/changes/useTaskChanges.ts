@@ -98,15 +98,18 @@ export function useTaskChanges(accountId: string, version: number) {
     (id: TaskChangeId, task: Task, input: TaskChangeInput) => {
       if (input.accountId !== accountId || task.accountId !== accountId || input.taskId !== task.id)
         return;
-      replace([
-        ...currentItems.current.filter((item) => item.id !== id),
-        {
-          id,
-          task: structuredClone(task),
-          input: structuredClone(input),
-          confirmedAfter: null,
-        },
-      ]);
+      const captured: PendingTaskChange = {
+        id,
+        task: structuredClone(task),
+        input: structuredClone(input),
+        confirmedAfter: null,
+      };
+      const index = currentItems.current.findIndex((item) => item.id === id);
+      replace(
+        index < 0
+          ? [...currentItems.current, captured]
+          : currentItems.current.map((item, offset) => (offset === index ? captured : item)),
+      );
     },
     [accountId, replace],
   );

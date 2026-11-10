@@ -93,6 +93,20 @@ describe('background task edits', () => {
     );
   });
 
+  it('keeps a captured intent in place when dispatch adds its dependent fields', () => {
+    render().start('clear-date', task, { ...save('old title'), patch: { scheduledDay: null } });
+    render().start('new-date', task, {
+      ...save('old title'),
+      patch: { scheduledDay: '2026-11-10' },
+    });
+    render().start('clear-date', task, {
+      ...save('old title'),
+      patch: { scheduledDay: null, scheduledTime: null, timeZone: null, repeatRule: null },
+    });
+    expect(render().items.map((item) => item.id)).toEqual(['clear-date', 'new-date']);
+    expect(projectTaskCollection([task], render().items)[0]?.scheduledDay).toBe('2026-11-10');
+  });
+
   it('keeps the patch through confirmation until a newer settled read replaces it', () => {
     render().start(1, task, save('new title'));
     const owner = render(2);
