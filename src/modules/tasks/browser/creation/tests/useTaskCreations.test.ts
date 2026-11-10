@@ -86,6 +86,70 @@ describe('submitted task visibility', () => {
     expect(creationAcknowledged(unresolved, 6, ['saved-task'])).toBe(false);
   });
 
+  it('retains a confirmed creation while its editor owns a draft and rereads on release', async () => {
+    reads.created.mockResolvedValue({
+      ...input('original'),
+      id: 'saved-task',
+      completed: false,
+    } as Task);
+    const changed = vi.fn();
+    const options = { onChanged: changed };
+    render(0, options).start(1, input('original'));
+    await render(0, options).finish(1, 'receipt');
+    changed.mockClear();
+    const oldRead = render(1, options).acknowledge;
+    const release = render(1, options).retainEditor(1);
+    oldRead(1);
+    const editing = render(1, options).items[0]!;
+    expect(creationAcknowledged(editing, 1, ['saved-task'])).toBe(false);
+    expect(render(1, options).update(1, input('draft'))).toBe(true);
+    release();
+    release();
+    expect(render(1, options).items[0]!.input.title).toBe('draft');
+    expect(render(1, options).items[0]!.editing).toBe(false);
+  });
+
+  it('rereads a confirmed creation once when its last editor closes without submitting a change', async () => {
+    reads.created.mockResolvedValue({
+      ...input('original'),
+      id: 'saved-task',
+      completed: false,
+    } as Task);
+    const changed = vi.fn();
+    const options = { onChanged: changed };
+    render(0, options).start(1, input('original'));
+    await render(0, options).finish(1, 'receipt');
+    const release = render(1, options).retainEditor(1);
+    const other = render(1, options).retainEditor(1);
+    changed.mockClear();
+    release();
+    expect(changed).not.toHaveBeenCalled();
+    other();
+    other();
+    expect(changed).toHaveBeenCalledOnce();
+    expect(creationAcknowledged(render(1, options).items[0]!, 1, ['saved-task'])).toBe(true);
+  });
+
+  it('rejects an update to a creation that no longer exists', () => {
+    expect(render().update(42, input('keep this draft'))).toBe(false);
+    expect(render().items).toEqual([]);
+  });
+
+  it('refreshes a confirmed task when a failed identity read is discarded', async () => {
+    reads.created.mockImplementation(async (_account, _receipt, _input, onAddress) => {
+      onAddress('saved-task');
+      throw new Error('temporary task read failure');
+    });
+    const changed = vi.fn();
+    const options = { onChanged: changed };
+    render(0, options).start(1, input('already created'));
+    await render(0, options).finish(1, 'confirmed-receipt');
+    render(0, options).items[0]!.failure!.onDiscard();
+    expect(changed).toHaveBeenCalled();
+    expect(render(0, options).items).toEqual([]);
+    expect(reads.created).toHaveBeenCalledOnce();
+  });
+
   it('does not move the confirmation boundary when success is reported again', () => {
     render().start(1, input('ring64'));
     render(3).confirm(1);

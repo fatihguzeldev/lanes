@@ -1,5 +1,5 @@
 import type { LabelPickerPage } from '../labels/useLabels';
-import { useLayoutEffect, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import type { ConnectionSummary } from '../../../accounts/contracts/connection';
 import type { Label, Task } from '../../contracts/task';
 import type { TaskEditorController, TaskEditorSession } from './useTaskEditor';
@@ -52,6 +52,22 @@ export function TaskEditorFlow({
   const [sessions, setSessions] = useState<Array<TaskEditorSession & { boardId: string | null }>>(
     () => (session ? [{ ...session, boardId: session.selection.boardId ?? boardId }] : []),
   );
+  const creationEditors = useRef(new Map<number, () => void>());
+  const releaseCreationEditor = (id: number) => {
+    creationEditors.current.get(id)?.();
+    creationEditors.current.delete(id);
+  };
+  useLayoutEffect(
+    () => () => {
+      for (const release of creationEditors.current.values()) release();
+      creationEditors.current.clear();
+    },
+    [],
+  );
+  useLayoutEffect(() => {
+    for (const id of creationEditors.current.keys())
+      if (id !== session?.id) releaseCreationEditor(id);
+  }, [session]);
   useLayoutEffect(() => {
     if (!session) return;
     setSessions((current) =>
@@ -61,6 +77,8 @@ export function TaskEditorFlow({
     );
   }, [session, boardId]);
   const retire = (id: number) => {
+    releaseCreationEditor(id);
+    controller.close(id);
     controller.setSaving(id, false);
     setSessions((current) => current.filter((item) => item.id !== id));
   };
@@ -118,6 +136,7 @@ export function TaskEditorFlow({
             if (labelsOpen) return;
             if (!editor.task) controller.close(id);
             else guard(() => controller.close(id));
+            releaseCreationEditor(id);
           }}
           onSaved={(operationId) => {
             if (!editor.task && operationId) void creations.finish(id, operationId);
@@ -135,7 +154,12 @@ export function TaskEditorFlow({
           runEdit={edits.run}
           onCreatePending={(input) =>
             creations.start(id, input, (latestInput) =>
-              guard(() => controller.editCreation(id, editor, latestInput)),
+              guard(() => {
+                const release = creations.retainEditor(id);
+                const editorId = controller.editCreation(id, editor, latestInput);
+                if (editorId === undefined) release();
+                else creationEditors.current.set(editorId, release);
+              }),
             )
           }
           onUpdateCreation={creations.update}

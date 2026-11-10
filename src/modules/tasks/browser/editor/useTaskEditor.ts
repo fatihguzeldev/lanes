@@ -28,6 +28,7 @@ export function useTaskEditor(
     setSession(selected);
     dirtyNow.current = false;
     changeDirty(false);
+    return selected.id;
   };
   const resolve = (
     listId: string,
@@ -126,7 +127,7 @@ export function useTaskEditor(
       if (input.accountId !== selection.list.accountId || input.listId !== selection.list.id)
         return;
       intent.current++;
-      select({
+      return select({
         ...selection,
         task: null,
         initialCreate: structuredClone(input),

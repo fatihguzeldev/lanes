@@ -8,7 +8,7 @@ import { CreateTaskSchema } from '../../../contracts/task';
 const hooks = vi.hoisted(() => ({
   slots: [] as unknown[],
   index: 0,
-  effects: [] as Array<() => void>,
+  effects: [] as Array<() => void | (() => void)>,
 }));
 vi.mock('react', async (original) => ({
   ...(await original<typeof import('react')>()),
@@ -23,6 +23,7 @@ vi.mock('react', async (original) => ({
       },
     ];
   },
+  useRef: (current: unknown) => (hooks.slots[hooks.index++] ??= { current }),
   useLayoutEffect: (effect: () => void) => hooks.effects.push(effect),
 }));
 const session = (id: number) =>
@@ -75,6 +76,7 @@ function mount() {
       hold: vi.fn(),
       acknowledge: vi.fn(),
       update: vi.fn(),
+      retainEditor: vi.fn(() => vi.fn()),
       busy: false,
       hasDrafts: false,
       discardDrafts: vi.fn(),
@@ -84,7 +86,6 @@ function mount() {
       start: vi.fn(),
       confirm: vi.fn(),
       remove: vi.fn(),
-      run: vi.fn(),
       project: vi.fn((task) => task),
     },
     account: { id: 'account' } as ComponentProps<typeof TaskEditorFlow>['account'],
@@ -145,6 +146,60 @@ describe('task editor command lifetime', () => {
     hidden!.props.onRetire(true, null, null);
     expect(flow.render()).toEqual([]);
     expect(flow.controller.setSaving).toHaveBeenLastCalledWith(1, false);
+  });
+
+  it('holds an editor lease until a pending creation editor closes or is replaced', () => {
+    const flow = mount();
+    const [editor] = flow.render();
+    const release = vi.fn();
+    flow.creations.retainEditor.mockReturnValue(release);
+    flow.controller.editCreation = vi.fn(() => 7) as typeof flow.controller.editCreation;
+    editor!.props.onCreatePending!(
+      CreateTaskSchema.parse({ accountId: 'account', listId: 'list', title: 'new task' }),
+    );
+    const open = flow.creations.start.mock.calls[0]![2] as (
+      input: ReturnType<typeof CreateTaskSchema.parse>,
+    ) => void;
+    open(CreateTaskSchema.parse({ accountId: 'account', listId: 'list', title: 'changed' }));
+    expect(flow.creations.retainEditor).toHaveBeenCalledWith(1);
+    flow.select(8);
+    hooks.effects.forEach((effect) => effect());
+    expect(release).toHaveBeenCalledOnce();
+  });
+  it('releases a retained creation editor exactly once on flow unmount', () => {
+    const flow = mount();
+    const [editor] = flow.render();
+    const stop = hooks.effects[0]!() as () => void;
+    const release = vi.fn();
+    flow.creations.retainEditor.mockReturnValue(release);
+    flow.controller.editCreation = vi.fn(() => 7) as typeof flow.controller.editCreation;
+    editor!.props.onCreatePending!(
+      CreateTaskSchema.parse({ accountId: 'account', listId: 'list', title: 'new task' }),
+    );
+    (
+      flow.creations.start.mock.calls[0]![2] as (
+        input: ReturnType<typeof CreateTaskSchema.parse>,
+      ) => void
+    )(CreateTaskSchema.parse({ accountId: 'account', listId: 'list', title: 'draft' }));
+    stop();
+    stop();
+    expect(release).toHaveBeenCalledOnce();
+  });
+  it('clears a clean pending editor session when its inactive account retires the presentation', () => {
+    const flow = mount();
+    flow.controller.session!.selection.task = null;
+    flow.controller.session!.selection.pendingCreationId = 42;
+    const [hidden] = flow.render(false);
+    hidden!.props.onRetire(false, null, null);
+    expect(flow.controller.session).toBeNull();
+    expect(flow.render(true)).toEqual([]);
+  });
+  it('does not close a newer editor when an older hidden presentation retires', () => {
+    const flow = mount();
+    const [old] = flow.render();
+    flow.select(2);
+    old!.props.onRetire(false, null, null);
+    expect(flow.controller.session?.id).toBe(2);
   });
 
   it('closes a submitted edit immediately while keeping its receipt owner and preview', () => {

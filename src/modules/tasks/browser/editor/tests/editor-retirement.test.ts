@@ -493,7 +493,7 @@ describe('hidden editor retirement', () => {
 
   it('captures edits to an admitted local creation without submitting a second create', () => {
     const editor = mount(true);
-    const update = vi.fn(),
+    const update = vi.fn(() => true),
       close = vi.fn(),
       dirty = vi.fn();
     editor.props.selection.pendingCreationId = 42;
@@ -513,6 +513,28 @@ describe('hidden editor retirement', () => {
     expect(dirty).toHaveBeenCalledWith(false);
     expect(editor.preview).not.toHaveBeenCalled();
     expect(state.commands.submit).not.toHaveBeenCalled();
+  });
+
+  it('keeps a pending creation draft open if its captured record is no longer available', () => {
+    const editor = mount(true);
+    editor.props.selection.pendingCreationId = 42;
+    editor.props.onUpdateCreation = vi.fn(() => false);
+    const close = vi.fn(),
+      dirty = vi.fn();
+    editor.props.onClose = close;
+    editor.props.onDirtyChange = dirty;
+    editor.render()!.props.children.props.onCreate({
+      accountId: 'account',
+      listRevision: 1,
+      input: CreateTaskSchema.parse({
+        accountId: 'account',
+        listId: 'list',
+        title: 'preserve this edit',
+      }),
+    });
+    expect(close).not.toHaveBeenCalled();
+    expect(dirty).not.toHaveBeenCalledWith(false);
+    expect(editor.render()!.props.children.props.error?.message).toContain('draft');
   });
 
   it('distinguishes a definitely rejected zero-step create receipt from uncertainty', () => {

@@ -42,7 +42,7 @@ interface Props {
   onEditPending?(input: TaskEditorSave): void;
   runEdit?: TaskChangeController['run'];
   onCreatePending?(input: CreateTask): void;
-  onUpdateCreation?(id: number, input: CreateTask): void;
+  onUpdateCreation?(id: number, input: CreateTask): boolean;
   onDirtyChange: (dirty: boolean) => void;
   onOpenTask: (task: Task) => void;
   onToggleComplete: (task: Task, completed: boolean) => void;
@@ -443,7 +443,12 @@ export function TaskEditorWorkspace({
     const { accountId: capturedAccount, ...input } = value.input;
     if (capturedAccount !== account.id) return;
     if (selection.pendingCreationId !== undefined) {
-      onUpdateCreation?.(selection.pendingCreationId, value.input);
+      if (!onUpdateCreation?.(selection.pendingCreationId, value.input)) {
+        setSubmissionError(
+          'this new task is no longer available for this edit. your draft is kept.',
+        );
+        return;
+      }
       onDirtyChange(false);
       onClose();
       return;
@@ -503,9 +508,9 @@ export function TaskEditorWorkspace({
         }}
         {...(retryFailed ? { onRetryFailed: retryFailed } : {})}
         error={
-          commands.error
+          commands.error || submissionError
             ? {
-                message: commands.error,
+                message: commands.error || submissionError,
                 ...(commands.errorDetails?.code ? { code: commands.errorDetails.code } : {}),
                 ...(commands.errorDetails?.fields ? { fields: commands.errorDetails.fields } : {}),
               }

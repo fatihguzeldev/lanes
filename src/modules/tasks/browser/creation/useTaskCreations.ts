@@ -17,6 +17,7 @@ export interface PendingTaskCreation {
   completed?: boolean;
   deleted?: boolean;
   resolvedTaskId?: string;
+  editing?: boolean;
   controls?: {
     disabled?: boolean;
     onEdit(): void;
@@ -49,6 +50,7 @@ export function creationAcknowledged(
 ) {
   return (
     creation.confirmedAfter !== null &&
+    !creation.editing &&
     (readVersion ?? -1) > creation.confirmedAfter &&
     !!creation.resolvedTaskId &&
     orderReadyTaskIds.includes(creation.resolvedTaskId)
@@ -97,6 +99,7 @@ export function useTaskCreations(
   const currentAccount = useRef(accountId);
   const listeners = useRef(options);
   const flights = useRef(new Map<number, Promise<void>>());
+  const editors = useRef(new Map<number, Set<symbol>>());
   const restart = useRef<(id: number, operationId: string) => Promise<void>>(async () => {});
   currentVersion.current = version;
   currentAccount.current = accountId;
@@ -143,7 +146,15 @@ export function useTaskCreations(
   );
   const update = useCallback(
     (id: number, input: CreateTask) => {
-      if (listeners.current.editable === false) return;
+      const captured = current.current.find((item) => item.id === id);
+      if (
+        listeners.current.editable === false ||
+        !captured ||
+        input.accountId !== accountId ||
+        input.listId !== captured.submittedInput.listId ||
+        input.parentId !== captured.submittedInput.parentId
+      )
+        return false;
       change((items) =>
         items.map((item) =>
           item.id === id &&
@@ -156,6 +167,7 @@ export function useTaskCreations(
       );
       const creation = current.current.find((item) => item.id === id);
       if (creation?.operationId) void restart.current(id, creation.operationId);
+      return true;
     },
     [accountId, change],
   );
@@ -304,7 +316,8 @@ export function useTaskCreations(
                         : () => void finish(id, operationId),
                       onDiscard: () => {
                         remove(id);
-                        if (failedDeletion) listeners.current.onChanged?.();
+                        listeners.current.onChanged?.();
+                        listeners.current.onOrderRefresh?.();
                       },
                     },
                   }
@@ -343,7 +356,11 @@ export function useTaskCreations(
                 message,
                 actionLabel: 'check save',
                 onEdit: () => void finish(id, operationId),
-                onDiscard: () => remove(id),
+                onDiscard: () => {
+                  remove(id);
+                  listeners.current.onChanged?.();
+                  listeners.current.onOrderRefresh?.();
+                },
               },
             }
           : item,
@@ -356,6 +373,7 @@ export function useTaskCreations(
     if (
       creation &&
       observed &&
+      !editors.current.has(id) &&
       creation.confirmedAfter !== null &&
       !creation.failure &&
       creation.confirmedAfter === observed.confirmedAfter &&
@@ -364,6 +382,25 @@ export function useTaskCreations(
       creation.deleted === observed.deleted
     )
       remove(id);
+  };
+  const retainEditor = (id: number) => {
+    if (!current.current.some((item) => item.id === id)) return () => {};
+    const token = Symbol();
+    const leases = editors.current.get(id) ?? new Set<symbol>();
+    leases.add(token);
+    editors.current.set(id, leases);
+    change((items) => items.map((item) => (item.id === id ? { ...item, editing: true } : item)));
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      leases.delete(token);
+      if (leases.size) return;
+      editors.current.delete(id);
+      change((items) => items.map((item) => (item.id === id ? { ...item, editing: false } : item)));
+      const creation = current.current.find((item) => item.id === id);
+      if (creation && creation.confirmedAfter !== null) listeners.current.onChanged?.();
+    };
   };
   const modify = (id: number, update: (item: CreationRecord) => CreationRecord) => {
     if (listeners.current.editable === false) return;
@@ -409,6 +446,7 @@ export function useTaskCreations(
     finish,
     hold,
     acknowledge,
+    retainEditor,
     busy: records.some((item) => item.confirmedAfter === null && !item.failure),
     hasDrafts: records.some((item) => !!item.failure),
     discardDrafts: () => change((items) => items.filter((item) => !item.failure)),
