@@ -56,10 +56,8 @@ import {
 import { useCommands } from '../../modules/operations/browser/submission/useCommands';
 import { useWorkspaceSync } from '../../modules/tasks/browser/sync/useWorkspaceSync';
 import type { SyncChanges } from '../../modules/tasks/contracts/sync';
-import {
-  Confirmation,
-  type ConfirmationChoice,
-} from '../../modules/operations/browser/submission/Confirmation';
+import { Confirmation } from '../../modules/operations/browser/submission/Confirmation';
+import { useConfirmationQueue } from '../../modules/operations/browser/submission/useConfirmationQueue';
 import { useRecurrenceWork } from '../../modules/tasks/browser/planning/useRecurrenceWork';
 import { AccountMenu } from '../../modules/accounts/browser/identity/AccountMenu';
 import { ThemeToggle } from '../theme/ThemeToggle';
@@ -133,7 +131,7 @@ export function Workspace({
   const [prompt, setPrompt] = useState<Prompt | null>(null);
   const [discard, setDiscard] = useState<(() => void) | null>(null),
     [notice, setNoticeText] = useState('');
-  const [confirmation, setConfirmation] = useState<ConfirmationChoice | null>(null);
+  const confirmation = useConfirmationQueue();
   const [noticeOperationId, setNoticeOperationId] = useState<string | null>(null);
   const noticeAudience = useRef({ active, onBackgroundNotice });
   noticeAudience.current = { active, onBackgroundNotice };
@@ -185,7 +183,7 @@ export function Workspace({
     },
     confirmChildren: (title, count) =>
       new Promise<boolean>((resolve) => {
-        setConfirmation({
+        confirmation.request({
           title: `move ${title || 'this task'}?`,
           message: `this moves the task and its ${count} subtasks together.`,
           confirmLabel: 'move checklist',
@@ -302,7 +300,7 @@ export function Workspace({
       accountId: account.id,
       changes: edits,
       submit,
-      confirm: setConfirmation,
+      confirm: confirmation.request,
       onNotice: setNotice,
       onChanged: changed,
       onRepeat: repeatWork.run,
@@ -833,12 +831,13 @@ export function Workspace({
           )
         }
       />
-      {active && confirmation && (
+      {active && confirmation.current && (
         <Confirmation
-          choice={confirmation}
+          key={confirmation.current.id}
+          choice={confirmation.current.choice}
           clockOffset={clockOffset}
           onError={setNotice}
-          onClose={() => setConfirmation(null)}
+          onClose={() => confirmation.close(confirmation.current!.id)}
         />
       )}
       {active && (
